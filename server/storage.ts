@@ -1,5 +1,6 @@
-import { type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient, clients, deals } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Clients
@@ -20,72 +21,65 @@ export interface IStorage {
   deleteDeal(id: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private clients: Map<string, Client>;
-  private deals: Map<string, Deal>;
-
-  constructor() {
-    this.clients = new Map();
-    this.deals = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   // Client methods
   async getClients(): Promise<Client[]> {
-    return Array.from(this.clients.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const result = await db.select().from(clients).orderBy(clients.createdAt);
+    return result.reverse(); // Most recent first
   }
 
   async getClient(id: string): Promise<Client | undefined> {
-    return this.clients.get(id);
+    const [client] = await db.select().from(clients).where(eq(clients.id, id));
+    return client || undefined;
   }
 
   async getClientByCpf(cpf: string): Promise<Client | undefined> {
-    return Array.from(this.clients.values()).find(client => client.cpf === cpf);
+    const [client] = await db.select().from(clients).where(eq(clients.cpf, cpf));
+    return client || undefined;
   }
 
   async getClientByPhone(phone: string): Promise<Client | undefined> {
-    return Array.from(this.clients.values()).find(client => client.phone === phone);
+    const [client] = await db.select().from(clients).where(eq(clients.phone, phone));
+    return client || undefined;
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {
-    const id = randomUUID();
-    const client: Client = {
-      ...insertClient,
-      id,
-      markers: insertClient.markers || [],
-      createdAt: new Date(),
-    };
-    this.clients.set(id, client);
+    const [client] = await db
+      .insert(clients)
+      .values({
+        ...insertClient,
+        markers: insertClient.markers || [],
+      })
+      .returning();
     return client;
   }
 
   async updateClient(id: string, updateData: Partial<InsertClient>): Promise<Client | undefined> {
-    const client = this.clients.get(id);
-    if (!client) return undefined;
-
-    const updatedClient = { ...client, ...updateData };
-    this.clients.set(id, updatedClient);
-    return updatedClient;
+    const [client] = await db
+      .update(clients)
+      .set(updateData)
+      .where(eq(clients.id, id))
+      .returning();
+    return client || undefined;
   }
 
   async deleteClient(id: string): Promise<boolean> {
-    return this.clients.delete(id);
+    const result = await db.delete(clients).where(eq(clients.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Deal methods
   async getDeals(): Promise<Deal[]> {
-    return Array.from(this.deals.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const result = await db.select().from(deals).orderBy(deals.createdAt);
+    return result.reverse(); // Most recent first
   }
 
   async getDealsWithClients(): Promise<DealWithClient[]> {
-    const deals = await this.getDeals();
+    const allDeals = await db.select().from(deals).orderBy(deals.createdAt);
     const dealsWithClients: DealWithClient[] = [];
 
-    for (const deal of deals) {
-      const client = this.clients.get(deal.clientId);
+    for (const deal of allDeals.reverse()) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
       if (client) {
         dealsWithClients.push({
           ...deal,
@@ -98,33 +92,34 @@ export class MemStorage implements IStorage {
   }
 
   async getDeal(id: string): Promise<Deal | undefined> {
-    return this.deals.get(id);
+    const [deal] = await db.select().from(deals).where(eq(deals.id, id));
+    return deal || undefined;
   }
 
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
-    const id = randomUUID();
-    const deal: Deal = {
-      ...insertDeal,
-      id,
-      stage: insertDeal.stage || "prospeccao",
-      createdAt: new Date(),
-    };
-    this.deals.set(id, deal);
+    const [deal] = await db
+      .insert(deals)
+      .values({
+        ...insertDeal,
+        stage: insertDeal.stage || "prospeccao",
+      })
+      .returning();
     return deal;
   }
 
   async updateDeal(id: string, updateData: Partial<InsertDeal>): Promise<Deal | undefined> {
-    const deal = this.deals.get(id);
-    if (!deal) return undefined;
-
-    const updatedDeal = { ...deal, ...updateData };
-    this.deals.set(id, updatedDeal);
-    return updatedDeal;
+    const [deal] = await db
+      .update(deals)
+      .set(updateData)
+      .where(eq(deals.id, id))
+      .returning();
+    return deal || undefined;
   }
 
   async deleteDeal(id: string): Promise<boolean> {
-    return this.deals.delete(id);
+    const result = await db.delete(deals).where(eq(deals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

@@ -28,10 +28,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Layer
 - **ORM**: Drizzle ORM for type-safe database operations
-- **Database**: PostgreSQL (configured for Neon serverless)
-- **Schema**: Shared TypeScript schema definitions
+- **Database**: PostgreSQL with persistent storage
+- **Schema**: Shared TypeScript schema definitions with relations
 - **Validation**: Zod schemas for runtime validation
-- **Storage Interface**: Abstracted storage layer with in-memory fallback
+- **Storage Interface**: DatabaseStorage class with PostgreSQL persistence
 
 ## Key Components
 
