@@ -71,7 +71,10 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
       (filters.name === "" || client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
       (filters.phone === "" || client.phone.includes(filters.phone)) &&
       (filters.cpf === "" || client.cpf.includes(filters.cpf)) &&
+      (filters.email === "" || client.email?.toLowerCase().includes(filters.email.toLowerCase())) &&
       (filters.responsible === "" || client.responsible?.toLowerCase().includes(filters.responsible.toLowerCase())) &&
+      (filters.categoria === "" || client.categoria?.toLowerCase().includes(filters.categoria.toLowerCase())) &&
+      (filters.origem === "" || client.origem?.toLowerCase().includes(filters.origem.toLowerCase())) &&
       (filters.markers === "" || client.markers?.some(marker => 
         marker.toLowerCase().includes(filters.markers.toLowerCase())
       ))
@@ -124,7 +127,16 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                     CPF
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    E-mail
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Responsável
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Categoria
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Origem
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Marcadores
@@ -160,7 +172,20 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       {formatCpf(client.cpf)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {client.email || "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {client.responsible}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+                        {client.categoria}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 capitalize">
+                        {client.origem}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap gap-1">

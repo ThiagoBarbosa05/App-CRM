@@ -8,6 +8,7 @@ export const clients = pgTable("clients", {
   name: text("name").notNull(),
   phone: text("phone").notNull().unique(),
   cpf: text("cpf").notNull().unique(),
+  email: text("email"),
   birthday: text("birthday").notNull(),
   cep: text("cep").notNull(),
   address: text("address").notNull(),
@@ -17,6 +18,8 @@ export const clients = pgTable("clients", {
   state: text("state").notNull(),
   markers: text("markers").array().default([]).notNull(),
   responsible: text("responsible").notNull(),
+  categoria: text("categoria").notNull(),
+  origem: text("origem").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

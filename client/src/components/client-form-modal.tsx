@@ -81,6 +81,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       name: client?.name || "",
       phone: client?.phone || "",
       cpf: client?.cpf || "",
+      email: client?.email || "",
       birthday: client?.birthday || "",
       cep: client?.cep || "",
       address: client?.address || "",
@@ -90,6 +91,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       state: client?.state || "",
       markers: client?.markers || [],
       responsible: client?.responsible || "",
+      categoria: client?.categoria || "",
+      origem: client?.origem || "",
     },
   });
 
@@ -238,6 +241,24 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
               <FormField
                 control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="email@exemplo.com"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="birthday"
                 render={({ field }) => (
                   <FormItem>
@@ -258,6 +279,63 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     <FormLabel>Responsável *</FormLabel>
                     <FormControl>
                       <Input placeholder="Nome do responsável" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="categoria"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoria *</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="premium">Premium</SelectItem>
+                          <SelectItem value="gold">Gold</SelectItem>
+                          <SelectItem value="silver">Silver</SelectItem>
+                          <SelectItem value="bronze">Bronze</SelectItem>
+                          <SelectItem value="standard">Padrão</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="origem"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Origem *</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a origem" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="indicacao">Indicação</SelectItem>
+                          <SelectItem value="redes-sociais">Redes Sociais</SelectItem>
+                          <SelectItem value="google">Google</SelectItem>
+                          <SelectItem value="email-marketing">Email Marketing</SelectItem>
+                          <SelectItem value="evento">Evento</SelectItem>
+                          <SelectItem value="loja-fisica">Loja Física</SelectItem>
+                          <SelectItem value="telemarketing">Telemarketing</SelectItem>
+                          <SelectItem value="outros">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

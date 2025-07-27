@@ -18,7 +18,10 @@ export interface ClientFilters {
   name: string;
   phone: string;
   cpf: string;
+  email: string;
   responsible: string;
+  categoria: string;
+  origem: string;
   markers: string;
 }
 
@@ -40,7 +43,10 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
       name: "",
       phone: "",
       cpf: "",
+      email: "",
       responsible: "",
+      categoria: "",
+      origem: "",
       markers: "",
     };
     setLocalFilters(emptyFilters);
@@ -115,6 +121,18 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
             </div>
 
             <div>
+              <Label htmlFor="filter-email" className="text-sm font-medium">
+                E-mail
+              </Label>
+              <Input
+                id="filter-email"
+                placeholder="Filtrar por e-mail..."
+                value={localFilters.email}
+                onChange={(e) => handleFilterChange("email", e.target.value)}
+              />
+            </div>
+
+            <div>
               <Label htmlFor="filter-responsible" className="text-sm font-medium">
                 Responsável
               </Label>
@@ -123,6 +141,30 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
                 placeholder="Filtrar por responsável..."
                 value={localFilters.responsible}
                 onChange={(e) => handleFilterChange("responsible", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="filter-categoria" className="text-sm font-medium">
+                Categoria
+              </Label>
+              <Input
+                id="filter-categoria"
+                placeholder="Filtrar por categoria..."
+                value={localFilters.categoria}
+                onChange={(e) => handleFilterChange("categoria", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="filter-origem" className="text-sm font-medium">
+                Origem
+              </Label>
+              <Input
+                id="filter-origem"
+                placeholder="Filtrar por origem..."
+                value={localFilters.origem}
+                onChange={(e) => handleFilterChange("origem", e.target.value)}
               />
             </div>
 

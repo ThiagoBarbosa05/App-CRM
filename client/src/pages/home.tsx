@@ -20,7 +20,10 @@ export default function Home() {
     name: "",
     phone: "",
     cpf: "",
+    email: "",
     responsible: "",
+    categoria: "",
+    origem: "",
     markers: "",
   });
 
