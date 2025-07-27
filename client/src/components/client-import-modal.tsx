@@ -85,22 +85,24 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
             name: client.Nome || client.name || '',
             phone: client.Telefone || client.phone || '',
             cpf: client.CPF || client.cpf || '',
-            email: client.Email || client.email || '',
-            birthday: client.Aniversario || client.birthday || '',
-            cep: client.CEP || client.cep || '',
-            address: client.Endereco || client.address || '',
-            number: client.Numero || client.number || '',
-            neighborhood: client.Bairro || client.neighborhood || '',
-            city: client.Cidade || client.city || '',
-            state: client.Estado || client.state || '',
+            email: client.Email || client.email || null,
+            birthday: client.Aniversario || client.birthday || '01/01/1990',
+            cep: client.CEP || client.cep || '00000-000',
+            address: client.Endereco || client.address || 'Não informado',
+            number: client.Numero || client.number || 'S/N',
+            neighborhood: client.Bairro || client.neighborhood || 'Não informado',
+            city: client.Cidade || client.city || 'Não informado',
+            state: client.Estado || client.state || 'SP',
             categoria: client.Categoria || client.categoria || 'Regular',
             origem: client.Origem || client.origem || 'Importação',
-            markers: client.Marcadores ? [client.Marcadores] : [],
-            responsible: client.Responsavel || client.responsible || 'admin@vinocrm.com',
+            markers: client.Marcadores ? 
+              (Array.isArray(client.Marcadores) ? client.Marcadores : [client.Marcadores.toString()]) : 
+              [],
+            responsible: client.Responsavel || client.responsible || 'Sistema',
           };
 
           // Validações básicas
-          if (!clientData.name || !clientData.phone || !clientData.cpf) {
+          if (!clientData.name?.trim() || !clientData.phone?.trim() || !clientData.cpf?.trim()) {
             results.errors.push({
               row: i + 2, // +2 porque Excel começa em 1 e tem cabeçalho
               error: "Campos obrigatórios faltando: Nome, Telefone ou CPF",
@@ -109,12 +111,32 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
             continue;
           }
 
+          // Limpar e formatar dados
+          clientData.name = clientData.name.trim();
+          clientData.phone = clientData.phone.trim();
+          clientData.cpf = clientData.cpf.trim();
+          clientData.email = clientData.email?.trim() || null;
+
           await apiRequest("/api/clients", "POST", clientData);
           results.success++;
         } catch (error: any) {
+          let errorMessage = "Erro desconhecido";
+          
+          if (error.message) {
+            if (error.message.includes("CPF já cadastrado")) {
+              errorMessage = `CPF ${client.CPF || client.cpf || 'não informado'} já existe no sistema`;
+            } else if (error.message.includes("Telefone já cadastrado")) {
+              errorMessage = `Telefone ${client.Telefone || client.phone || 'não informado'} já existe no sistema`;
+            } else if (error.message.includes("400:")) {
+              errorMessage = error.message.replace("400: ", "");
+            } else {
+              errorMessage = error.message;
+            }
+          }
+          
           results.errors.push({
             row: i + 2,
-            error: error.message || "Erro desconhecido",
+            error: errorMessage,
             data: client
           });
         }
