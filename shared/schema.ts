@@ -151,6 +151,16 @@ export const birthdayReminderSettings = pgTable("birthday_reminder_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Tags system (marcadores, origens, categorias)
+export const tags = pgTable("tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["marker", "origem", "categoria"] }).notNull(),
+  color: text("color").default("#6B7280"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
   client: one(clients, {
@@ -204,6 +214,12 @@ export const insertBirthdayReminderSettingsSchema = createInsertSchema(birthdayR
   updatedAt: true,
 });
 
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -219,6 +235,8 @@ export type InsertBirthdayReminder = z.infer<typeof insertBirthdayReminderSchema
 export type BirthdayReminder = typeof birthdayReminders.$inferSelect;
 export type InsertBirthdayReminderSettings = z.infer<typeof insertBirthdayReminderSettingsSchema>;
 export type BirthdayReminderSettings = typeof birthdayReminderSettings.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type Tag = typeof tags.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {

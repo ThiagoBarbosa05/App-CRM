@@ -4,7 +4,8 @@ import {
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
-  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings 
+  type Tag, type InsertTag,
+  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
@@ -63,6 +64,13 @@ export interface IStorage {
   // Birthday utility methods
   getUpcomingBirthdays(days?: number): Promise<Client[]>;
   createAutomaticReminders(): Promise<number>; // Returns number of reminders created
+  
+  // Tags methods
+  getTags(): Promise<Tag[]>;
+  getTag(id: string): Promise<Tag | undefined>;
+  createTag(tag: InsertTag): Promise<Tag>;
+  updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined>;
+  deleteTag(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -543,6 +551,39 @@ export class DatabaseStorage implements IStorage {
     });
     
     return remindersCreated;
+  }
+
+  // Tags methods
+  async getTags(): Promise<Tag[]> {
+    const result = await db.select().from(tags).orderBy(tags.createdAt);
+    return result.reverse();
+  }
+
+  async getTag(id: string): Promise<Tag | undefined> {
+    const [tag] = await db.select().from(tags).where(eq(tags.id, id));
+    return tag || undefined;
+  }
+
+  async createTag(insertTag: InsertTag): Promise<Tag> {
+    const [tag] = await db
+      .insert(tags)
+      .values(insertTag)
+      .returning();
+    return tag;
+  }
+
+  async updateTag(id: string, updateData: Partial<InsertTag>): Promise<Tag | undefined> {
+    const [tag] = await db
+      .update(tags)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(tags.id, id))
+      .returning();
+    return tag || undefined;
+  }
+
+  async deleteTag(id: string): Promise<boolean> {
+    const result = await db.delete(tags).where(eq(tags.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 

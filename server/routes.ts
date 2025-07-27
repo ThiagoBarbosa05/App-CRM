@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { 
   insertClientSchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
-  insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema
+  insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
+  insertTagSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -411,6 +412,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao criar lembretes automáticos" });
+    }
+  });
+
+  // Tags routes
+  app.get("/api/tags", async (req, res) => {
+    try {
+      const tags = await storage.getTags();
+      res.json(tags);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar tags" });
+    }
+  });
+
+  app.post("/api/tags", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse(req.body);
+      const tag = await storage.createTag(validatedData);
+      res.json(tag);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar tag" });
+    }
+  });
+
+  app.put("/api/tags/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse(req.body);
+      const tag = await storage.updateTag(id, validatedData);
+      
+      if (!tag) {
+        return res.status(404).json({ message: "Tag não encontrada" });
+      }
+      
+      res.json(tag);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar tag" });
+    }
+  });
+
+  app.delete("/api/tags/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteTag(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Tag não encontrada" });
+      }
+      
+      res.json({ message: "Tag excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir tag" });
     }
   });
 
