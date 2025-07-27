@@ -1,9 +1,7 @@
 import { useState } from "react";
 import Sidebar from "@/components/sidebar";
 import ClientsTable from "@/components/clients-table";
-import KanbanBoard from "@/components/kanban-board";
 import ClientFormModal from "@/components/client-form-modal";
-import DealFormModal from "@/components/deal-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import FunnelsManagement from "@/components/funnels-management";
 import { BirthdayReminders } from "@/components/birthday-reminders";
@@ -18,14 +16,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
-type Tab = "clientes" | "negocios" | "funis" | "lembretes";
+type Tab = "clientes" | "funis" | "lembretes";
 
 export default function Home() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isExporting, setIsExporting] = useState(false);
@@ -197,27 +194,6 @@ export default function Home() {
 
             <ClientsTable searchQuery={searchQuery} filters={clientFilters} />
           </div>
-        ) : activeTab === "negocios" ? (
-          <div className="flex-1 flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Negócios</h2>
-                  <p className="text-gray-600 mt-1">Gerencie seus negócios em andamento</p>
-                </div>
-                <Button 
-                  onClick={() => setIsDealModalOpen(true)}
-                  className="bg-primary hover:bg-primary-dark text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Negócio
-                </Button>
-              </div>
-            </div>
-
-            <KanbanBoard />
-          </div>
         ) : activeTab === "funis" ? (
           <FunnelsManagement />
         ) : activeTab === "lembretes" ? (
@@ -250,11 +226,6 @@ export default function Home() {
       <ClientFormModal 
         open={isClientModalOpen} 
         onOpenChange={setIsClientModalOpen} 
-      />
-      
-      <DealFormModal 
-        open={isDealModalOpen} 
-        onOpenChange={setIsDealModalOpen} 
       />
 
       <ClientImportModal 

@@ -2,8 +2,8 @@ import { Wine, Users, BarChart3, Settings, User, GitBranch, Calendar } from "luc
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
-  activeTab: "clientes" | "negocios" | "funis" | "lembretes";
-  onTabChange: (tab: "clientes" | "negocios" | "funis" | "lembretes") => void;
+  activeTab: "clientes" | "funis" | "lembretes";
+  onTabChange: (tab: "clientes" | "funis" | "lembretes") => void;
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -35,19 +35,6 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         >
           <Users className="mr-3 h-4 w-4" />
           Clientes
-        </button>
-        
-        <button
-          onClick={() => onTabChange("negocios")}
-          className={cn(
-            "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
-            activeTab === "negocios"
-              ? "bg-primary text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <BarChart3 className="mr-3 h-4 w-4" />
-          Negócios
         </button>
 
         <button
