@@ -19,11 +19,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCpf, formatPhone, formatDate } from "@/lib/utils";
 
+import { ClientFilters } from "./client-filters";
+
 interface ClientsTableProps {
   searchQuery: string;
+  filters?: ClientFilters;
 }
 
-export default function ClientsTable({ searchQuery }: ClientsTableProps) {
+export default function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const { toast } = useToast();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
@@ -52,11 +55,30 @@ export default function ClientsTable({ searchQuery }: ClientsTableProps) {
     },
   });
 
-  const filteredClients = clients?.filter((client: Client) =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.phone.includes(searchQuery) ||
-    client.cpf.includes(searchQuery)
-  ) || [];
+  // Provide default empty array if clients is undefined
+  const clientsList = clients || [];
+
+  const filteredClients = clientsList.filter((client: Client) => {
+    // Basic search query filter
+    const matchesSearch = searchQuery === "" || (
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone.includes(searchQuery) ||
+      client.cpf.includes(searchQuery)
+    );
+
+    // Advanced filters
+    const matchesAdvancedFilters = !filters || (
+      (filters.name === "" || client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+      (filters.phone === "" || client.phone.includes(filters.phone)) &&
+      (filters.cpf === "" || client.cpf.includes(filters.cpf)) &&
+      (filters.responsible === "" || client.responsible?.toLowerCase().includes(filters.responsible.toLowerCase())) &&
+      (filters.markers === "" || client.markers?.some(marker => 
+        marker.toLowerCase().includes(filters.markers.toLowerCase())
+      ))
+    );
+
+    return matchesSearch && matchesAdvancedFilters;
+  }) || [];
 
   if (isLoading) {
     return (
@@ -102,7 +124,10 @@ export default function ClientsTable({ searchQuery }: ClientsTableProps) {
                     CPF
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Endereço
+                    Responsável
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Marcadores
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Aniversário
@@ -134,12 +159,23 @@ export default function ClientsTable({ searchQuery }: ClientsTableProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatCpf(client.cpf)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {client.responsible}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {client.address}, {client.number}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {client.city} - {client.state}
+                      <div className="flex flex-wrap gap-1">
+                        {client.markers && client.markers.length > 0 ? (
+                          client.markers.map((marker: string, index: number) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {marker}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sem marcadores</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

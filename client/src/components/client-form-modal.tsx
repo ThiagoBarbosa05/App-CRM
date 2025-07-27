@@ -31,7 +31,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
-import { X } from "lucide-react";
+import { X, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface ClientFormModalProps {
   open: boolean;
@@ -72,6 +73,7 @@ const brazilianStates = [
 export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newMarker, setNewMarker] = useState("");
 
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
@@ -86,6 +88,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       neighborhood: client?.neighborhood || "",
       city: client?.city || "",
       state: client?.state || "",
+      markers: client?.markers || [],
+      responsible: client?.responsible || "",
     },
   });
 
@@ -133,6 +137,19 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       });
     },
   });
+
+  const addMarker = (marker: string) => {
+    if (marker.trim() && !form.getValues("markers")?.includes(marker.trim())) {
+      const currentMarkers = form.getValues("markers") || [];
+      form.setValue("markers", [...currentMarkers, marker.trim()]);
+      setNewMarker("");
+    }
+  };
+
+  const removeMarker = (markerToRemove: string) => {
+    const currentMarkers = form.getValues("markers") || [];
+    form.setValue("markers", currentMarkers.filter(marker => marker !== markerToRemove));
+  };
 
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -227,6 +244,74 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     <FormLabel>Data de Aniversário *</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="responsible"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Responsável *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do responsável" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="markers"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Marcadores</FormLabel>
+                    <FormControl>
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Adicionar marcador..."
+                            value={newMarker}
+                            onChange={(e) => setNewMarker(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addMarker(newMarker);
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => addMarker(newMarker)}
+                            disabled={!newMarker.trim()}
+                          >
+                            <Tag className="h-4 w-4 mr-2" />
+                            Adicionar
+                          </Button>
+                        </div>
+                        {field.value && field.value.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((marker: string, index: number) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
+                                {marker}
+                                <X
+                                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                                  onClick={() => removeMarker(marker)}
+                                />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

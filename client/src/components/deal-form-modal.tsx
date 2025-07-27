@@ -53,6 +53,9 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
     queryKey: ["/api/clients"],
   });
 
+  // Provide default empty array if clients is undefined
+  const clientsList = clients || [];
+
   const form = useForm({
     resolver: zodResolver(dealValidationSchema),
     defaultValues: {
@@ -176,7 +179,7 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clients?.map((client: Client) => (
+                      {clientsList.map((client: Client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
                         </SelectItem>

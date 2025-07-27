@@ -107,8 +107,11 @@ export default function KanbanBoard() {
     setDraggedDeal(null);
   };
 
+  // Provide default empty array if deals is undefined
+  const dealsList = deals || [];
+
   const getDealsForStage = (stageId: string) => {
-    return deals?.filter((deal: DealWithClient) => deal.stage === stageId) || [];
+    return dealsList.filter((deal: DealWithClient) => deal.stage === stageId);
   };
 
   if (isLoading) {
@@ -119,7 +122,7 @@ export default function KanbanBoard() {
     );
   }
 
-  if (!deals || deals.length === 0) {
+  if (dealsList.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-100">
         <div className="text-center">

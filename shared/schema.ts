@@ -6,7 +6,7 @@ import { z } from "zod";
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  phone: text("phone").notNull(),
+  phone: text("phone").notNull().unique(),
   cpf: text("cpf").notNull().unique(),
   birthday: text("birthday").notNull(),
   cep: text("cep").notNull(),
@@ -15,6 +15,8 @@ export const clients = pgTable("clients", {
   neighborhood: text("neighborhood").notNull(),
   city: text("city").notNull(),
   state: text("state").notNull(),
+  markers: text("markers").array().default([]).notNull(),
+  responsible: text("responsible").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

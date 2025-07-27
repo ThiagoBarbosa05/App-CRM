@@ -33,9 +33,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertClientSchema.parse(req.body);
       
       // Check if CPF already exists
-      const existingClient = await storage.getClientByCpf(validatedData.cpf);
-      if (existingClient) {
+      const existingClientByCpf = await storage.getClientByCpf(validatedData.cpf);
+      if (existingClientByCpf) {
         return res.status(400).json({ message: "CPF já cadastrado" });
+      }
+
+      // Check if phone already exists
+      const existingClientByPhone = await storage.getClientByPhone(validatedData.phone);
+      if (existingClientByPhone) {
+        return res.status(400).json({ message: "Telefone já cadastrado" });
       }
 
       const client = await storage.createClient(validatedData);
@@ -55,9 +61,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If CPF is being updated, check if it's already in use by another client
       if (validatedData.cpf) {
-        const existingClient = await storage.getClientByCpf(validatedData.cpf);
-        if (existingClient && existingClient.id !== req.params.id) {
+        const existingClientByCpf = await storage.getClientByCpf(validatedData.cpf);
+        if (existingClientByCpf && existingClientByCpf.id !== req.params.id) {
           return res.status(400).json({ message: "CPF já cadastrado" });
+        }
+      }
+
+      // If phone is being updated, check if it's already in use by another client
+      if (validatedData.phone) {
+        const existingClientByPhone = await storage.getClientByPhone(validatedData.phone);
+        if (existingClientByPhone && existingClientByPhone.id !== req.params.id) {
+          return res.status(400).json({ message: "Telefone já cadastrado" });
         }
       }
 

@@ -6,6 +6,7 @@ export interface IStorage {
   getClients(): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
   getClientByCpf(cpf: string): Promise<Client | undefined>;
+  getClientByPhone(phone: string): Promise<Client | undefined>;
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
@@ -43,11 +44,16 @@ export class MemStorage implements IStorage {
     return Array.from(this.clients.values()).find(client => client.cpf === cpf);
   }
 
+  async getClientByPhone(phone: string): Promise<Client | undefined> {
+    return Array.from(this.clients.values()).find(client => client.phone === phone);
+  }
+
   async createClient(insertClient: InsertClient): Promise<Client> {
     const id = randomUUID();
     const client: Client = {
       ...insertClient,
       id,
+      markers: insertClient.markers || [],
       createdAt: new Date(),
     };
     this.clients.set(id, client);
@@ -100,6 +106,7 @@ export class MemStorage implements IStorage {
     const deal: Deal = {
       ...insertDeal,
       id,
+      stage: insertDeal.stage || "prospeccao",
       createdAt: new Date(),
     };
     this.deals.set(id, deal);

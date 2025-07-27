@@ -12,6 +12,8 @@ export const clientValidationSchema = z.object({
   neighborhood: z.string().min(2, "Bairro deve ter pelo menos 2 caracteres"),
   city: z.string().min(2, "Cidade deve ter pelo menos 2 caracteres"),
   state: z.string().min(2, "Estado é obrigatório"),
+  markers: z.array(z.string()).optional(),
+  responsible: z.string().min(2, "Responsável deve ter pelo menos 2 caracteres"),
 });
 
 export const dealValidationSchema = z.object({

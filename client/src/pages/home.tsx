@@ -4,8 +4,9 @@ import ClientsTable from "@/components/clients-table";
 import KanbanBoard from "@/components/kanban-board";
 import ClientFormModal from "@/components/client-form-modal";
 import DealFormModal from "@/components/deal-form-modal";
+import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Download } from "lucide-react";
+import { Plus, Search, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 type Tab = "clientes" | "negocios";
@@ -15,6 +16,13 @@ export default function Home() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
+    name: "",
+    phone: "",
+    cpf: "",
+    responsible: "",
+    markers: "",
+  });
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -53,10 +61,10 @@ export default function Home() {
                     className="pl-10"
                   />
                 </div>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtros
-                </Button>
+                <ClientFilters
+                  currentFilters={clientFilters}
+                  onFiltersChange={setClientFilters}
+                />
                 <Button variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar
@@ -64,7 +72,7 @@ export default function Home() {
               </div>
             </div>
 
-            <ClientsTable searchQuery={searchQuery} />
+            <ClientsTable searchQuery={searchQuery} filters={clientFilters} />
           </div>
         ) : (
           <div className="flex-1 flex flex-col">
