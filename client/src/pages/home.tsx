@@ -11,15 +11,20 @@ import { Plus, Search, Download, LogOut, User, Wine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
 type Tab = "clientes" | "negocios" | "funis";
 
 export default function Home() {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
     name: "",
     phone: "",
@@ -30,6 +35,14 @@ export default function Home() {
     origem: "",
     markers: "",
   });
+
+  // Buscar dados dos clientes para exportação
+  const { data: allClients } = useQuery({
+    queryKey: ["/api/clients"],
+    enabled: activeTab === "clientes", // Só busca quando está na aba de clientes
+  });
+
+  const clientsArray = Array.isArray(allClients) ? allClients : [];
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -46,6 +59,39 @@ export default function Home() {
       case "gerente": return "Gerente";
       case "vendedor": return "Vendedor";
       default: return role;
+    }
+  };
+
+  const handleExportClients = async () => {
+    if (!clientsArray || clientsArray.length === 0) {
+      toast({
+        title: "Nenhum dado para exportar",
+        description: "Não há clientes cadastrados para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    
+    try {
+      const formattedData = formatClientDataForExport(clientsArray);
+      const fileName = `clientes_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}_${new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-')}`;
+      
+      exportToExcel(formattedData, fileName, 'Clientes');
+      
+      toast({
+        title: "Exportação realizada com sucesso",
+        description: `${clientsArray.length} clientes foram exportados para Excel`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -124,9 +170,13 @@ export default function Home() {
                   currentFilters={clientFilters}
                   onFiltersChange={setClientFilters}
                 />
-                <Button variant="outline">
+                <Button 
+                  variant="outline" 
+                  onClick={handleExportClients}
+                  disabled={isExporting}
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Exportar
+                  {isExporting ? "Exportando..." : "Exportar"}
                 </Button>
               </div>
             </div>
