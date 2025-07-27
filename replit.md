@@ -1,0 +1,117 @@
+# VinoCRM - Customer Management System
+
+## Overview
+
+VinoCRM is a full-stack customer relationship management (CRM) application built with React, TypeScript, and Express.js. The system provides functionality for managing clients and deals through a modern, responsive interface with a kanban-style board for deal tracking.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter for lightweight client-side routing
+- **UI Components**: Radix UI primitives with custom styling
+- **Styling**: Tailwind CSS with custom CSS variables for theming
+- **State Management**: TanStack Query (React Query) for server state management
+- **Forms**: React Hook Form with Zod validation
+- **Build Tool**: Vite for development and production builds
+
+### Backend Architecture
+- **Runtime**: Node.js with Express.js framework
+- **Language**: TypeScript with ES modules
+- **API Design**: RESTful API endpoints for CRUD operations
+- **Development**: tsx for TypeScript execution in development
+- **Production**: esbuild for optimized bundling
+
+### Data Layer
+- **ORM**: Drizzle ORM for type-safe database operations
+- **Database**: PostgreSQL (configured for Neon serverless)
+- **Schema**: Shared TypeScript schema definitions
+- **Validation**: Zod schemas for runtime validation
+- **Storage Interface**: Abstracted storage layer with in-memory fallback
+
+## Key Components
+
+### Client Management
+- Complete CRUD operations for client records
+- Form validation with CPF (Brazilian tax ID) validation
+- Address management with Brazilian postal codes
+- Search and filtering capabilities
+- Modal-based forms for creating and editing
+
+### Deal Management
+- Kanban board interface with three stages: Prospecção, Negociação, Fechamento
+- Drag-and-drop functionality for deal progression
+- Deal associations with client records
+- Value tracking with Brazilian currency formatting
+- Notes and stage management
+
+### UI/UX Features
+- Responsive design optimized for desktop and mobile
+- Toast notifications for user feedback
+- Loading states and error handling
+- Wine-themed color scheme with professional styling
+- Shadcn/ui component library for consistent design
+
+## Data Flow
+
+### Client Flow
+1. User creates/edits client through modal forms
+2. Form data validated using Zod schemas
+3. API requests sent to Express backend
+4. Backend validates and processes data
+5. Database operations performed through Drizzle ORM
+6. Response sent back to frontend
+7. React Query updates cache and UI
+
+### Deal Flow
+1. Deals displayed in kanban board format
+2. Drag-and-drop updates deal stages
+3. Deal forms allow creation and editing
+4. Client association through dropdown selection
+5. Currency values formatted for Brazilian locale
+6. Real-time updates through query invalidation
+
+## External Dependencies
+
+### Production Dependencies
+- **UI Framework**: React ecosystem with TypeScript support
+- **Database**: Neon PostgreSQL serverless database
+- **Validation**: Zod for schema validation throughout the stack
+- **Styling**: Tailwind CSS with PostCSS processing
+- **HTTP Client**: Native fetch API with custom wrapper
+- **Date Handling**: date-fns for date formatting and manipulation
+
+### Development Tools
+- **Build Tools**: Vite with React plugin and TypeScript support
+- **Database Tools**: Drizzle Kit for schema management and migrations
+- **Development Server**: Integrated Vite dev server with HMR
+- **Code Quality**: TypeScript strict mode enabled
+
+## Deployment Strategy
+
+### Build Process
+1. Frontend builds to `dist/public` using Vite
+2. Backend bundles to `dist/index.js` using esbuild
+3. Static assets served by Express in production
+4. Environment-specific configuration through NODE_ENV
+
+### Environment Configuration
+- Development: Uses tsx for TypeScript execution with Vite dev server
+- Production: Runs compiled JavaScript with static file serving
+- Database: Configured for PostgreSQL with connection string from environment
+- Replit Integration: Special handling for Replit development environment
+
+### File Structure
+```
+├── client/          # React frontend application
+├── server/          # Express.js backend application  
+├── shared/          # Shared TypeScript definitions and schemas
+├── migrations/      # Database migration files
+└── dist/           # Production build output
+```
+
+The application follows a monorepo structure with clear separation between frontend, backend, and shared code, enabling efficient development and deployment workflows.
