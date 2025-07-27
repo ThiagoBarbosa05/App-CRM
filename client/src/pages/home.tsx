@@ -5,13 +5,17 @@ import KanbanBoard from "@/components/kanban-board";
 import ClientFormModal from "@/components/client-form-modal";
 import DealFormModal from "@/components/deal-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
+import FunnelsManagement from "@/components/funnels-management";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download } from "lucide-react";
+import { Plus, Search, Download, LogOut, User, Wine } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
-type Tab = "clientes" | "negocios";
+type Tab = "clientes" | "negocios" | "funis";
 
 export default function Home() {
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
@@ -27,11 +31,63 @@ export default function Home() {
     markers: "",
   });
 
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "admin": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "gerente": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "vendedor": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "admin": return "Administrador";
+      case "gerente": return "Gerente";
+      case "vendedor": return "Vendedor";
+      default: return role;
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Main Header */}
+      <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 h-16">
+        <div className="flex items-center justify-between h-full px-6">
+          <div className="flex items-center space-x-4">
+            <Wine className="h-8 w-8 text-wine-600" />
+            <h1 className="text-xl font-bold text-gray-900">VinoCRM</h1>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <User className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+              </div>
+              <Badge className={getRoleBadgeColor(user?.role || "")}>
+                {getRoleLabel(user?.role || "")}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar */}
+      <div className="pt-16">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden pt-16">
         {activeTab === "clientes" ? (
           <div className="flex-1 flex flex-col">
             {/* Header */}
@@ -77,7 +133,7 @@ export default function Home() {
 
             <ClientsTable searchQuery={searchQuery} filters={clientFilters} />
           </div>
-        ) : (
+        ) : activeTab === "negocios" ? (
           <div className="flex-1 flex flex-col">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -98,7 +154,9 @@ export default function Home() {
 
             <KanbanBoard />
           </div>
-        )}
+        ) : activeTab === "funis" ? (
+          <FunnelsManagement />
+        ) : null}
       </div>
 
       <ClientFormModal 

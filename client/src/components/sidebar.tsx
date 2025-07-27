@@ -1,9 +1,9 @@
-import { Wine, Users, BarChart3, Settings, User } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, User, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
-  activeTab: "clientes" | "negocios";
-  onTabChange: (tab: "clientes" | "negocios") => void;
+  activeTab: "clientes" | "negocios" | "funis";
+  onTabChange: (tab: "clientes" | "negocios" | "funis") => void;
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -48,6 +48,19 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         >
           <BarChart3 className="mr-3 h-4 w-4" />
           Negócios
+        </button>
+
+        <button
+          onClick={() => onTabChange("funis")}
+          className={cn(
+            "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
+            activeTab === "funis"
+              ? "bg-primary text-white"
+              : "text-gray-700 hover:bg-gray-100"
+          )}
+        >
+          <GitBranch className="mr-3 h-4 w-4" />
+          Funis de Vendas
         </button>
 
         <button className="w-full flex items-center px-4 py-3 text-left rounded-lg text-gray-700 hover:bg-gray-100 font-medium">

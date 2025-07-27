@@ -1,11 +1,120 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertDealSchema } from "@shared/schema";
+import { 
+  insertClientSchema, insertDealSchema, insertUserSchema, 
+  insertSalesFunnelSchema, insertFunnelStageSchema 
+} from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email e senha são obrigatórios" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user || user.password !== password) {
+        return res.status(401).json({ message: "Credenciais inválidas" });
+      }
+
+      if (user.isActive !== 'true') {
+        return res.status(401).json({ message: "Usuário inativo" });
+      }
+
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // User routes
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "E-mail já cadastrado" });
+      }
+
+      const user = await storage.createUser(validatedData);
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+
+  // Sales Funnel routes
+  app.get("/api/funnels", async (req, res) => {
+    try {
+      const funnels = await storage.getSalesFunnels();
+      res.json(funnels);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar funis de vendas" });
+    }
+  });
+
+  app.post("/api/funnels", async (req, res) => {
+    try {
+      const validatedData = insertSalesFunnelSchema.parse(req.body);
+      const funnel = await storage.createSalesFunnel(validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  // Funnel Stage routes
+  app.get("/api/funnels/:funnelId/stages", async (req, res) => {
+    try {
+      const stages = await storage.getFunnelStages(req.params.funnelId);
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar estágios do funil" });
+    }
+  });
+
+  app.post("/api/stages", async (req, res) => {
+    try {
+      const validatedData = insertFunnelStageSchema.parse(req.body);
+      const stage = await storage.createFunnelStage(validatedData);
+      res.status(201).json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar estágio" });
+    }
+  });
+
   // Client routes
   app.get("/api/clients", async (req, res) => {
     try {
