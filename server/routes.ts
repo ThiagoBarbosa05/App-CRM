@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertClientSchema, insertDealSchema, insertUserSchema, 
-  insertSalesFunnelSchema, insertFunnelStageSchema 
+  insertSalesFunnelSchema, insertFunnelStageSchema,
+  insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -288,6 +289,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Erro ao deletar negócio" });
+    }
+  });
+
+  // Birthday Reminder routes
+  app.get("/api/birthday-reminders", async (req, res) => {
+    try {
+      const reminders = await storage.getBirthdayReminders();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar lembretes de aniversário" });
+    }
+  });
+
+  app.get("/api/birthday-reminders/today", async (req, res) => {
+    try {
+      const reminders = await storage.getBirthdayRemindersForToday();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar lembretes de hoje" });
+    }
+  });
+
+  app.post("/api/birthday-reminders", async (req, res) => {
+    try {
+      const validatedData = insertBirthdayReminderSchema.parse(req.body);
+      const reminder = await storage.createBirthdayReminder(validatedData);
+      res.status(201).json(reminder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar lembrete" });
+    }
+  });
+
+  app.put("/api/birthday-reminders/:id", async (req, res) => {
+    try {
+      const validatedData = insertBirthdayReminderSchema.partial().parse(req.body);
+      const reminder = await storage.updateBirthdayReminder(req.params.id, validatedData);
+      if (!reminder) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.json(reminder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar lembrete" });
+    }
+  });
+
+  app.delete("/api/birthday-reminders/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteBirthdayReminder(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar lembrete" });
+    }
+  });
+
+  app.put("/api/birthday-reminders/:id/mark-sent", async (req, res) => {
+    try {
+      const success = await storage.markReminderAsSent(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.json({ message: "Lembrete marcado como enviado" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao marcar lembrete como enviado" });
+    }
+  });
+
+  // Birthday Reminder Settings routes
+  app.get("/api/birthday-reminder-settings", async (req, res) => {
+    try {
+      const settings = await storage.getBirthdayReminderSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar configurações dos lembretes" });
+    }
+  });
+
+  app.put("/api/birthday-reminder-settings", async (req, res) => {
+    try {
+      const validatedData = insertBirthdayReminderSettingsSchema.partial().parse(req.body);
+      const settings = await storage.updateBirthdayReminderSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar configurações" });
+    }
+  });
+
+  // Upcoming birthdays route
+  app.get("/api/upcoming-birthdays", async (req, res) => {
+    try {
+      const days = req.query.days ? parseInt(req.query.days as string) : 7;
+      const clients = await storage.getUpcomingBirthdays(days);
+      res.json(clients);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar próximos aniversários" });
+    }
+  });
+
+  // Create automatic reminders route
+  app.post("/api/birthday-reminders/create-automatic", async (req, res) => {
+    try {
+      const remindersCreated = await storage.createAutomaticReminders();
+      res.json({ 
+        message: `${remindersCreated} lembretes criados automaticamente`,
+        remindersCreated 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar lembretes automáticos" });
     }
   });
 

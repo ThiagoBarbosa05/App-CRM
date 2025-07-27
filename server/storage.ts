@@ -2,10 +2,12 @@ import {
   type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient,
   type User, type InsertUser, type SalesFunnel, type InsertSalesFunnel,
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
-  clients, deals, users, salesFunnels, funnelStages 
+  type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
+  type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
+  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -45,6 +47,22 @@ export interface IStorage {
   createDeal(deal: InsertDeal): Promise<Deal>;
   updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
   deleteDeal(id: string): Promise<boolean>;
+  
+  // Birthday Reminder methods
+  getBirthdayReminders(): Promise<BirthdayReminderWithClient[]>;
+  getBirthdayRemindersForToday(): Promise<BirthdayReminderWithClient[]>;
+  createBirthdayReminder(reminder: InsertBirthdayReminder): Promise<BirthdayReminder>;
+  updateBirthdayReminder(id: string, reminder: Partial<InsertBirthdayReminder>): Promise<BirthdayReminder | undefined>;
+  deleteBirthdayReminder(id: string): Promise<boolean>;
+  markReminderAsSent(id: string): Promise<boolean>;
+  
+  // Birthday Reminder Settings methods
+  getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined>;
+  updateBirthdayReminderSettings(settings: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined>;
+  
+  // Birthday utility methods
+  getUpcomingBirthdays(days?: number): Promise<Client[]>;
+  createAutomaticReminders(): Promise<number>; // Returns number of reminders created
 }
 
 export class DatabaseStorage implements IStorage {
@@ -300,6 +318,231 @@ export class DatabaseStorage implements IStorage {
   async deleteDeal(id: string): Promise<boolean> {
     const result = await db.delete(deals).where(eq(deals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Birthday Reminder methods
+  async getBirthdayReminders(): Promise<BirthdayReminderWithClient[]> {
+    const reminders = await db
+      .select()
+      .from(birthdayReminders)
+      .orderBy(birthdayReminders.reminderDate);
+    
+    const remindersWithClients: BirthdayReminderWithClient[] = [];
+    
+    for (const reminder of reminders) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
+      const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
+      
+      if (client && creator) {
+        remindersWithClients.push({
+          ...reminder,
+          client,
+          creator,
+        });
+      }
+    }
+    
+    return remindersWithClients;
+  }
+
+  async getBirthdayRemindersForToday(): Promise<BirthdayReminderWithClient[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const reminders = await db
+      .select()
+      .from(birthdayReminders)
+      .where(
+        and(
+          gte(birthdayReminders.reminderDate, today),
+          lt(birthdayReminders.reminderDate, tomorrow),
+          eq(birthdayReminders.isSent, "false")
+        )
+      );
+    
+    const remindersWithClients: BirthdayReminderWithClient[] = [];
+    
+    for (const reminder of reminders) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
+      const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
+      
+      if (client && creator) {
+        remindersWithClients.push({
+          ...reminder,
+          client,
+          creator,
+        });
+      }
+    }
+    
+    return remindersWithClients;
+  }
+
+  async createBirthdayReminder(insertReminder: InsertBirthdayReminder): Promise<BirthdayReminder> {
+    const [reminder] = await db
+      .insert(birthdayReminders)
+      .values(insertReminder)
+      .returning();
+    return reminder;
+  }
+
+  async updateBirthdayReminder(id: string, updateData: Partial<InsertBirthdayReminder>): Promise<BirthdayReminder | undefined> {
+    const [reminder] = await db
+      .update(birthdayReminders)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(birthdayReminders.id, id))
+      .returning();
+    return reminder || undefined;
+  }
+
+  async deleteBirthdayReminder(id: string): Promise<boolean> {
+    const result = await db.delete(birthdayReminders).where(eq(birthdayReminders.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async markReminderAsSent(id: string): Promise<boolean> {
+    const [reminder] = await db
+      .update(birthdayReminders)
+      .set({ 
+        isSent: "true", 
+        sentAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(birthdayReminders.id, id))
+      .returning();
+    return !!reminder;
+  }
+
+  // Birthday Reminder Settings methods
+  async getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined> {
+    const [settings] = await db.select().from(birthdayReminderSettings).limit(1);
+    return settings || undefined;
+  }
+
+  async updateBirthdayReminderSettings(updateData: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined> {
+    const existingSettings = await this.getBirthdayReminderSettings();
+    
+    if (existingSettings) {
+      const [settings] = await db
+        .update(birthdayReminderSettings)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(birthdayReminderSettings.id, existingSettings.id))
+        .returning();
+      return settings || undefined;
+    } else {
+      const [settings] = await db
+        .insert(birthdayReminderSettings)
+        .values(updateData as InsertBirthdayReminderSettings)
+        .returning();
+      return settings;
+    }
+  }
+
+  // Birthday utility methods
+  async getUpcomingBirthdays(days: number = 7): Promise<Client[]> {
+    const today = new Date();
+    const upcomingClients: Client[] = [];
+    
+    const allClients = await db.select().from(clients).where(isNotNull(clients.birthday));
+    
+    for (const client of allClients) {
+      if (client.birthday) {
+        const birthday = new Date(client.birthday);
+        const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+        
+        // Se o aniversário já passou este ano, considere o do próximo ano
+        if (thisYearBirthday < today) {
+          thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        }
+        
+        const diffTime = thisYearBirthday.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays <= days && diffDays >= 0) {
+          upcomingClients.push(client);
+        }
+      }
+    }
+    
+    return upcomingClients.sort((a, b) => {
+      const aBirthday = new Date(a.birthday!);
+      const bBirthday = new Date(b.birthday!);
+      const aThisYear = new Date(today.getFullYear(), aBirthday.getMonth(), aBirthday.getDate());
+      const bThisYear = new Date(today.getFullYear(), bBirthday.getMonth(), bBirthday.getDate());
+      
+      if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
+      if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
+      
+      return aThisYear.getTime() - bThisYear.getTime();
+    });
+  }
+
+  async createAutomaticReminders(): Promise<number> {
+    const settings = await this.getBirthdayReminderSettings();
+    if (!settings || settings.isEnabled !== "true") {
+      return 0;
+    }
+    
+    const upcomingClients = await this.getUpcomingBirthdays(settings.defaultDaysBeforeBirthday);
+    let remindersCreated = 0;
+    
+    for (const client of upcomingClients) {
+      if (!client.birthday) continue;
+      
+      const birthday = new Date(client.birthday);
+      const today = new Date();
+      const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+      
+      if (thisYearBirthday < today) {
+        thisYearBirthday.setFullYear(today.getFullYear() + 1);
+      }
+      
+      const reminderDate = new Date(thisYearBirthday);
+      reminderDate.setDate(reminderDate.getDate() - settings.defaultDaysBeforeBirthday);
+      
+      // Verificar se já existe um lembrete para este cliente nesta data
+      const existingReminder = await db
+        .select()
+        .from(birthdayReminders)
+        .where(
+          and(
+            eq(birthdayReminders.clientId, client.id),
+            gte(birthdayReminders.reminderDate, reminderDate),
+            lt(birthdayReminders.reminderDate, new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000))
+          )
+        )
+        .limit(1);
+      
+      if (existingReminder.length === 0) {
+        // Buscar um usuário administrador para criar o lembrete
+        const [adminUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.role, "administrator"))
+          .limit(1);
+        
+        if (adminUser) {
+          await this.createBirthdayReminder({
+            clientId: client.id,
+            reminderDate,
+            reminderType: "email",
+            daysBeforeBirthday: settings.defaultDaysBeforeBirthday,
+            isSent: "false",
+            createdBy: adminUser.id,
+          });
+          remindersCreated++;
+        }
+      }
+    }
+    
+    // Atualizar a data da última verificação
+    await this.updateBirthdayReminderSettings({
+      lastProcessedDate: new Date(),
+    });
+    
+    return remindersCreated;
   }
 }
 

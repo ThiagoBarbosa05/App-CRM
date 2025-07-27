@@ -124,6 +124,45 @@ export const dealsRelations = relations(deals, ({ one }) => ({
   }),
 }));
 
+// Birthday reminders table
+export const birthdayReminders = pgTable("birthday_reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  reminderDate: timestamp("reminder_date").notNull(),
+  reminderType: varchar("reminder_type").notNull().default("email"), // email, notification, both
+  daysBeforeBirthday: integer("days_before_birthday").notNull().default(1),
+  isSent: varchar("is_sent").notNull().default("false"),
+  sentAt: timestamp("sent_at"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Birthday reminder settings (global settings for the system)
+export const birthdayReminderSettings = pgTable("birthday_reminder_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isEnabled: varchar("is_enabled").notNull().default("true"),
+  defaultDaysBeforeBirthday: integer("default_days_before_birthday").notNull().default(1),
+  reminderTime: varchar("reminder_time").notNull().default("09:00"), // HH:MM format
+  emailTemplate: text("email_template"),
+  smsTemplate: text("sms_template"),
+  lastProcessedDate: timestamp("last_processed_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Birthday reminder relations
+export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
+  client: one(clients, {
+    fields: [birthdayReminders.clientId],
+    references: [clients.id],
+  }),
+  creator: one(users, {
+    fields: [birthdayReminders.createdBy],
+    references: [users.id],
+  }),
+}));
+
 // Schemas de inserção
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -153,6 +192,18 @@ export const insertDealSchema = createInsertSchema(deals).omit({
   updatedAt: true,
 });
 
+export const insertBirthdayReminderSchema = createInsertSchema(birthdayReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBirthdayReminderSettingsSchema = createInsertSchema(birthdayReminderSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -164,6 +215,10 @@ export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type Deal = typeof deals.$inferSelect;
+export type InsertBirthdayReminder = z.infer<typeof insertBirthdayReminderSchema>;
+export type BirthdayReminder = typeof birthdayReminders.$inferSelect;
+export type InsertBirthdayReminderSettings = z.infer<typeof insertBirthdayReminderSettingsSchema>;
+export type BirthdayReminderSettings = typeof birthdayReminderSettings.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -180,5 +235,10 @@ export interface DealWithRelations extends Deal {
 
 export interface SalesFunnelWithStages extends SalesFunnel {
   stages: FunnelStage[];
+  creator: User;
+}
+
+export interface BirthdayReminderWithClient extends BirthdayReminder {
+  client: Client;
   creator: User;
 }
