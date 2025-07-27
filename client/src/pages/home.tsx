@@ -8,8 +8,9 @@ import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/
 import FunnelsManagement from "@/components/funnels-management";
 import { BirthdayReminders } from "@/components/birthday-reminders";
 import { BirthdaySettings } from "@/components/birthday-settings";
+import ClientImportModal from "@/components/client-import-modal";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download, LogOut, User, Wine } from "lucide-react";
+import { Plus, Search, Download, LogOut, User, Wine, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +26,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
@@ -145,13 +147,23 @@ export default function Home() {
                   <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
                   <p className="text-gray-600 mt-1">Gerencie seus clientes e informações de contato</p>
                 </div>
-                <Button 
-                  onClick={() => setIsClientModalOpen(true)}
-                  className="bg-primary hover:bg-primary-dark text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Cliente
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="text-wine-600 border-wine-600 hover:bg-wine-50"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar
+                  </Button>
+                  <Button 
+                    onClick={() => setIsClientModalOpen(true)}
+                    className="bg-primary hover:bg-primary-dark text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Cliente
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -243,6 +255,11 @@ export default function Home() {
       <DealFormModal 
         open={isDealModalOpen} 
         onOpenChange={setIsDealModalOpen} 
+      />
+
+      <ClientImportModal 
+        open={isImportModalOpen} 
+        onOpenChange={setIsImportModalOpen} 
       />
     </div>
   );
