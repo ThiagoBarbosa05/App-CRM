@@ -6,6 +6,7 @@ import UsersManagement from "./users-management";
 import CategoriesManagement from "./categories-management";
 import MarkersManagement from "./markers-management";
 import OriginsManagement from "./origins-management";
+import EmailCampaignsManagement from "./email-campaigns-management";
 
 export default function SettingsManagement() {
   return (
@@ -19,11 +20,12 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users">Usuários do Sistema</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="markers">Marcadores</TabsTrigger>
           <TabsTrigger value="origins">Origens</TabsTrigger>
+          <TabsTrigger value="email-campaigns">Email Marketing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -40,6 +42,10 @@ export default function SettingsManagement() {
 
         <TabsContent value="origins">
           <OriginsManagement />
+        </TabsContent>
+
+        <TabsContent value="email-campaigns">
+          <EmailCampaignsManagement />
         </TabsContent>
       </Tabs>
     </div>

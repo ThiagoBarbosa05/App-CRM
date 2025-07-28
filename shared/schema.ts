@@ -197,6 +197,38 @@ export const clientInteractionsRelations = relations(clientInteractions, ({ one 
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
   client: one(clients, {
+
+
+// Email Marketing Campaign tables
+export const emailCampaigns = pgTable("email_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(),
+  templateType: text("template_type", { enum: ["birthday", "promotion", "newsletter", "follow_up", "custom"] }).notNull().default("custom"),
+  status: text("status", { enum: ["draft", "scheduled", "sent", "cancelled"] }).notNull().default("draft"),
+  targetType: text("target_type", { enum: ["all", "category", "origin", "markers", "custom"] }).notNull(),
+  targetCriteria: text("target_criteria"), // JSON string with filter criteria
+  scheduledAt: timestamp("scheduled_at"),
+  sentAt: timestamp("sent_at"),
+  totalRecipients: integer("total_recipients").default(0),
+  sentCount: integer("sent_count").default(0),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").references(() => emailCampaigns.id, { onDelete: "cascade" }).notNull(),
+  clientId: varchar("client_id").references(() => clients.id, { onDelete: "cascade" }).notNull(),
+  status: text("status", { enum: ["pending", "sent", "failed", "bounced"] }).notNull().default("pending"),
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+
     fields: [birthdayReminders.clientId],
     references: [clients.id],
   }),
@@ -268,6 +300,17 @@ export const insertClientInteractionSchema = createInsertSchema(clientInteractio
   updatedAt: true,
 });
 
+export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEmailCampaignRecipientSchema = createInsertSchema(emailCampaignRecipients).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -290,6 +333,10 @@ export type InsertTag = z.infer<typeof insertTagSchema>;
 export type Tag = typeof tags.$inferSelect;
 export type InsertClientInteraction = z.infer<typeof insertClientInteractionSchema>;
 export type ClientInteraction = typeof clientInteractions.$inferSelect;
+export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;
+export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -316,4 +363,9 @@ export interface BirthdayReminderWithClient extends BirthdayReminder {
 
 export interface ClientInteractionWithUser extends ClientInteraction {
   user: User;
+}
+
+export interface EmailCampaignWithStats extends EmailCampaign {
+  creator: User;
+  recipients: EmailCampaignRecipient[];
 }
