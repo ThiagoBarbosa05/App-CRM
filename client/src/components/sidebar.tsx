@@ -1,4 +1,4 @@
-import { Wine, Users, BarChart3, Settings, User, GitBranch, CalendarDays } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, User, GitBranch, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 
@@ -78,7 +78,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 : "text-gray-700 hover:bg-gray-100"
             )}
           >
-            <CalendarDays className="mr-3 h-4 w-4" />
+            <Calendar className="mr-3 h-4 w-4" />
             Calendário
           </button>
         </Link>

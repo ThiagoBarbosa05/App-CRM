@@ -213,7 +213,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                           </p>
                         )}
                         <p className="text-xs text-gray-400">
-                          {formatDate(deal.createdAt)}
+                          {formatDate(deal.createdAt.toString())}
                         </p>
                       </div>
                     </div>

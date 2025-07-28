@@ -102,7 +102,7 @@ export default function KanbanBoard() {
 
   const handleDrop = (e: React.DragEvent, targetStage: string) => {
     e.preventDefault();
-    if (draggedDeal && draggedDeal.stage !== targetStage) {
+    if (draggedDeal && draggedDeal.stageId !== targetStage) {
       updateDealMutation.mutate({
         id: draggedDeal.id,
         stage: targetStage,
@@ -115,7 +115,7 @@ export default function KanbanBoard() {
   const dealsList = deals || [];
 
   const getDealsForStage = (stageId: string) => {
-    return dealsList.filter((deal: DealWithClient) => deal.stage === stageId);
+    return Array.isArray(dealsList) ? dealsList.filter((deal: DealWithClient) => deal.stageId === stageId) : [];
   };
 
   if (isLoading) {
@@ -126,7 +126,7 @@ export default function KanbanBoard() {
     );
   }
 
-  if (dealsList.length === 0) {
+  if (!Array.isArray(dealsList) || dealsList.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-100">
         <div className="text-center">

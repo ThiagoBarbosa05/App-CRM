@@ -179,7 +179,7 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clientsList && clientsList.length > 0 ? (
+                      {Array.isArray(clientsList) && clientsList.length > 0 ? (
                         clientsList.map((client: Client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}
