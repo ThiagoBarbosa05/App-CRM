@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +57,8 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
       if (!response.ok) throw new Error("Failed to fetch files");
       return response.json();
     },
+    staleTime: 30000, // Cache por 30 segundos
+    cacheTime: 60000, // Manter no cache por 1 minuto
   });
 
   const uploadMutation = useMutation({
@@ -218,7 +220,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCurrentFolder("")}
+            onClick={() => startTransition(() => setCurrentFolder(""))}
             className="h-6 px-2"
           >
             <Folder className="h-3 w-3 mr-1" />
@@ -230,7 +232,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentFolder(breadcrumbs.slice(0, index + 1).join("/"))}
+                onClick={() => startTransition(() => setCurrentFolder(breadcrumbs.slice(0, index + 1).join("/")))}
                 className="h-6 px-2"
               >
                 {folder}
@@ -350,7 +352,9 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
                           className={file.type === "folder" ? "cursor-pointer hover:underline" : ""}
                           onClick={() => {
                             if (file.type === "folder") {
-                              setCurrentFolder(currentFolder ? `${currentFolder}/${file.name}` : file.name);
+                              startTransition(() => {
+                                setCurrentFolder(currentFolder ? `${currentFolder}/${file.name}` : file.name);
+                              });
                             }
                           }}
                         >
