@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Companies from "@/pages/companies";
+import Funnel from "@/pages/funnel";
 import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
@@ -33,6 +34,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/empresas" component={Companies} />
+      <Route path="/funil" component={Funnel} />
       <Route path="/files" component={lazy(() => import("./pages/files"))} />
       <Route path="/reports" component={Reports} />
       <Route path="/calendario" component={Calendar} />
