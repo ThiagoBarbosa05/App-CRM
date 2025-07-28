@@ -1,6 +1,6 @@
 import { 
   type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient,
-  type User, type InsertUser, type UpsertUser, type SalesFunnel, type InsertSalesFunnel,
+  type User, type InsertUser, type SalesFunnel, type InsertSalesFunnel,
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
@@ -11,10 +11,9 @@ import { db } from "./db";
 import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
-  // Users (Replit Auth compatible)
+  // Users
   getUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
@@ -86,21 +85,6 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
-  }
-
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
@@ -130,14 +114,14 @@ export class DatabaseStorage implements IStorage {
 
   // Client methods
   async getClients(userId?: string, userRole?: string): Promise<Client[]> {
-    let baseQuery = db.select().from(clients);
+    let query = db.select().from(clients);
     
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === 'vendedor' && userId) {
-      baseQuery = baseQuery.where(eq(clients.responsible, userId));
+      query = query.where(eq(clients.responsible, userId));
     }
     
-    const result = await baseQuery.orderBy(clients.createdAt);
+    const result = await query.orderBy(clients.createdAt);
     return result.reverse(); // Most recent first
   }
 
@@ -273,32 +257,32 @@ export class DatabaseStorage implements IStorage {
 
   // Deal methods
   async getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]> {
-    let baseQuery = db.select().from(deals);
+    let query = db.select().from(deals);
     
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
     
     if (conditions.length > 0) {
-      baseQuery = baseQuery.where(and(...conditions));
+      query = query.where(and(...conditions));
     }
     
-    const result = await baseQuery.orderBy(deals.createdAt);
+    const result = await query.orderBy(deals.createdAt);
     return result.reverse(); // Most recent first
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
-    let baseQuery = db.select().from(deals);
+    let query = db.select().from(deals);
     
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
     
     if (conditions.length > 0) {
-      baseQuery = baseQuery.where(and(...conditions));
+      query = query.where(and(...conditions));
     }
     
-    const allDeals = await baseQuery.orderBy(deals.createdAt);
+    const allDeals = await query.orderBy(deals.createdAt);
     const dealsWithClients: DealWithClient[] = [];
 
     for (const deal of allDeals.reverse()) {
@@ -322,7 +306,10 @@ export class DatabaseStorage implements IStorage {
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     const [deal] = await db
       .insert(deals)
-      .values(insertDeal)
+      .values({
+        ...insertDeal,
+        stage: insertDeal.stage || "prospeccao",
+      })
       .returning();
     return deal;
   }
