@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +50,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: files = [], isLoading } = useQuery({
+  const { data: files = [], refetch, error } = useQuery({
     queryKey: ["/api/files", currentFolder],
     queryFn: async () => {
       const response = await fetch(`/api/files?folder=${encodeURIComponent(currentFolder)}`);
@@ -166,7 +165,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
     try {
       const response = await fetch(`/api/files/download?file=${encodeURIComponent(filename)}&folder=${encodeURIComponent(currentFolder)}`);
       if (!response.ok) throw new Error("Failed to download file");
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -213,7 +212,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
         <CardDescription>
           Gerencie imagens, documentos e outros arquivos da empresa
         </CardDescription>
-        
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Button
@@ -274,8 +273,19 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
             </Button>
           </div>
         </div>
+        <div>
+          
+          {error && (
+            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                Object Storage não está configurado no ambiente de desenvolvimento. 
+                Para usar esta funcionalidade, configure o Object Storage no Replit.
+              </p>
+            </div>
+          )}
+        </div>
       </CardHeader>
-      
+
       <CardContent>
         {isLoading ? (
           <div className="text-center py-8">

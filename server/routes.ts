@@ -18,11 +18,18 @@ import multer from "multer";
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Initialize Replit Object Storage client
-let objectStorageClient: Client;
+let objectStorageClient: Client | null = null;
 try {
-  objectStorageClient = new Client();
+  // Only initialize if we have a bucket configured
+  if (process.env.REPLIT_DB_URL || process.env.NODE_ENV === 'production') {
+    objectStorageClient = new Client();
+    console.log("Object Storage initialized successfully");
+  } else {
+    console.log("Object Storage not configured - running in development mode");
+  }
 } catch (error) {
   console.warn("Object Storage not available:", error);
+  objectStorageClient = null;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1169,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.json({ files: [], folders: [] });
+        return res.json([]);
       }
 
       const folder = (req.query.folder as string) || "";
@@ -1200,7 +1207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files/upload", upload.array("files"), async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não disponível" });
+        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
       }
 
       const files = req.files as Express.Multer.File[];
@@ -1241,7 +1248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/download", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não disponível" });
+        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
       }
 
       const filename = req.query.file as string;
@@ -1269,7 +1276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/files", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não disponível" });
+        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
       }
 
       const { files, folder } = req.body;
@@ -1298,7 +1305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files/folder", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não disponível" });
+        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
       }
 
       const { name, parent } = req.body;
