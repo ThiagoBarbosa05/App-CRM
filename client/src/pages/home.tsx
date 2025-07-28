@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Sidebar from "@/components/sidebar";
-import ClientsTable from "@/components/clients-table";
+import ClientsTableWithSelection from "@/components/clients-table-with-selection";
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import FunnelsManagement from "@/components/funnels-management";
@@ -185,7 +185,7 @@ export default function Home() {
               </div>
             </div>
 
-            <ClientsTable searchQuery={searchQuery} filters={clientFilters} />
+            <ClientsTableWithSelection clients={clientsArray} />
           </div>
         ) : activeTab === "funis" ? (
           <FunnelsManagement />

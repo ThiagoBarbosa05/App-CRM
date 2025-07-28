@@ -9,7 +9,7 @@ import {
   clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -28,6 +28,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
+  deleteClients(ids: string[]): Promise<number>;
   getUniqueMarkers(): Promise<string[]>;
 
   // Sales Funnels
@@ -174,12 +175,25 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
+  async deleteClients(ids: string[]): Promise<number> {
+    const result = await db.delete(clients).where(inArray(clients.id, ids));
+    return result.rowCount || 0;
+  }
+
   async getUniqueMarkers(): Promise<string[]> {
-    const result = await db.execute({
-      sql: `SELECT DISTINCT unnest(markers) as marker FROM clients WHERE markers IS NOT NULL AND array_length(markers, 1) > 0 ORDER BY marker`,
-      args: []
-    });
-    return result.rows.map((row: any) => row.marker as string);
+    try {
+      const result = await db.execute(sql`
+        SELECT DISTINCT unnest(markers) as marker 
+        FROM clients 
+        WHERE markers IS NOT NULL AND array_length(markers, 1) > 0
+        ORDER BY marker
+      `);
+      
+      return result.rows.map((row: any) => row.marker);
+    } catch (error) {
+      console.error('Erro ao buscar marcadores únicos:', error);
+      return [];
+    }
   }
 
   // Sales Funnel methods

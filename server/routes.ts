@@ -243,9 +243,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
-      res.status(204).send();
+      res.json({ message: "Cliente excluído com sucesso" });
     } catch (error) {
       res.status(500).json({ message: "Erro ao deletar cliente" });
+    }
+  });
+
+  app.delete("/api/clients", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "IDs dos clientes são obrigatórios" });
+      }
+      
+      const deletedCount = await storage.deleteClients(ids);
+      
+      res.json({ 
+        message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
+        deletedCount 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir clientes" });
     }
   });
 
