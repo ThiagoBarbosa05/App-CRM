@@ -171,6 +171,22 @@
     padding: 1rem !important;
     border-top: 1px solid #e5e7eb;
   }
+
+  /* Remove any problematic styles that might hide content */
+  * {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure primary buttons have proper styling */
+  .bg-primary {
+    background-color: #7c3aed !important;
+    color: white !important;
+  }
+
+  .bg-primary:hover {
+    background-color: #6d28d9 !important;
+  }
 }
 
 /* Mobile responsiveness */
