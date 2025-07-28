@@ -58,6 +58,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Data Flow
 
+### Recent Updates (July 28, 2025)
+- Modified client registration form to use dynamic data from Settings page
+- Marcadores dropdown now pulls from /api/markers (created in Settings)
+- Categoria dropdown now pulls from /api/categories (created in Settings)  
+- Origem dropdown now pulls from /api/origins (created in Settings)
+- Removed hardcoded values, ensuring centralized data management
+- Added user-friendly messages when no options are available
+
 ### Client Flow
 1. User creates/edits client through modal forms
 2. Form data validated using Zod schemas

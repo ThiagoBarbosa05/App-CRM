@@ -81,6 +81,16 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
     queryKey: ["/api/users"],
   });
 
+  // Buscar categorias das configurações
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+  }) as { data: any[] };
+
+  // Buscar origens das configurações
+  const { data: origins = [] } = useQuery({
+    queryKey: ["/api/origins"],
+  }) as { data: any[] };
+
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
     defaultValues: {
@@ -321,11 +331,17 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="premium">Premium</SelectItem>
-                          <SelectItem value="gold">Gold</SelectItem>
-                          <SelectItem value="silver">Silver</SelectItem>
-                          <SelectItem value="bronze">Bronze</SelectItem>
-                          <SelectItem value="standard">Padrão</SelectItem>
+                          {(categories as any[]).length === 0 ? (
+                            <div className="p-2 text-sm text-gray-500 text-center">
+                              Nenhuma categoria encontrada. Crie categorias na página Configurações.
+                            </div>
+                          ) : (
+                            (categories as any[]).map((category: any) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -348,14 +364,17 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="indicacao">Indicação</SelectItem>
-                          <SelectItem value="redes-sociais">Redes Sociais</SelectItem>
-                          <SelectItem value="google">Google</SelectItem>
-                          <SelectItem value="email-marketing">Email Marketing</SelectItem>
-                          <SelectItem value="evento">Evento</SelectItem>
-                          <SelectItem value="loja-fisica">Loja Física</SelectItem>
-                          <SelectItem value="telemarketing">Telemarketing</SelectItem>
-                          <SelectItem value="outros">Outros</SelectItem>
+                          {(origins as any[]).length === 0 ? (
+                            <div className="p-2 text-sm text-gray-500 text-center">
+                              Nenhuma origem encontrada. Crie origens na página Configurações.
+                            </div>
+                          ) : (
+                            (origins as any[]).map((origin: any) => (
+                              <SelectItem key={origin.id} value={origin.name}>
+                                {origin.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </FormControl>
