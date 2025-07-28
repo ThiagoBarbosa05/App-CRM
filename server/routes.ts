@@ -154,6 +154,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get unique markers - needs to be before /:id route
+  app.get("/api/clients/markers", async (req, res) => {
+    try {
+      const markers = await storage.getUniqueMarkers();
+      res.json(markers);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar marcadores" });
+    }
+  });
+
   app.get("/api/clients/:id", async (req, res) => {
     try {
       const client = await storage.getClient(req.params.id);

@@ -74,6 +74,12 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMarker, setNewMarker] = useState("");
+  const [showMarkerInput, setShowMarkerInput] = useState(false);
+
+  // Fetch existing markers
+  const { data: existingMarkers = [] } = useQuery({
+    queryKey: ["/api/clients/markers"],
+  });
 
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
@@ -350,27 +356,78 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     <FormLabel>Marcadores</FormLabel>
                     <FormControl>
                       <div className="space-y-3">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Adicionar marcador..."
-                            value={newMarker}
-                            onChange={(e) => setNewMarker(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addMarker(newMarker);
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => addMarker(newMarker)}
-                            disabled={!newMarker.trim()}
-                          >
-                            <Tag className="h-4 w-4 mr-2" />
-                            Adicionar
-                          </Button>
+                        {/* Existing markers dropdown */}
+                        {existingMarkers.length > 0 && (
+                          <div className="space-y-2">
+                            <Select onValueChange={(value) => addMarker(value)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione um marcador existente..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {existingMarkers.map((marker: string) => (
+                                  <SelectItem 
+                                    key={marker} 
+                                    value={marker}
+                                    disabled={field.value?.includes(marker)}
+                                  >
+                                    {marker}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Add new marker section */}
+                        <div className="space-y-2">
+                          {!showMarkerInput ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowMarkerInput(true)}
+                              className="w-full"
+                            >
+                              <Tag className="h-4 w-4 mr-2" />
+                              Criar novo marcador
+                            </Button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Novo marcador..."
+                                value={newMarker}
+                                onChange={(e) => setNewMarker(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addMarker(newMarker);
+                                    setShowMarkerInput(false);
+                                  }
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  addMarker(newMarker);
+                                  setShowMarkerInput(false);
+                                }}
+                                disabled={!newMarker.trim()}
+                              >
+                                Adicionar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                  setShowMarkerInput(false);
+                                  setNewMarker("");
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         {field.value && field.value.length > 0 && (
                           <div className="flex flex-wrap gap-2">

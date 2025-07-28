@@ -27,6 +27,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
+  getUniqueMarkers(): Promise<string[]>;
 
   // Sales Funnels
   getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
@@ -163,6 +164,14 @@ export class DatabaseStorage implements IStorage {
   async deleteClient(id: string): Promise<boolean> {
     const result = await db.delete(clients).where(eq(clients.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getUniqueMarkers(): Promise<string[]> {
+    const result = await db.execute({
+      sql: `SELECT DISTINCT unnest(markers) as marker FROM clients WHERE markers IS NOT NULL AND array_length(markers, 1) > 0 ORDER BY marker`,
+      args: []
+    });
+    return result.rows.map((row: any) => row.marker as string);
   }
 
   // Sales Funnel methods
