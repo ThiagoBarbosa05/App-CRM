@@ -161,6 +161,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   };
 
   const onSubmit = async (data: any) => {
+    console.log("Dados do formulário:", data);
+    console.log("Erros do formulário:", form.formState.errors);
     setIsSubmitting(true);
     try {
       if (client) {
@@ -168,6 +170,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       } else {
         await createClientMutation.mutateAsync(data);
       }
+    } catch (error) {
+      console.error("Erro no submit:", error);
     } finally {
       setIsSubmitting(false);
     }

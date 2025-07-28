@@ -44,7 +44,7 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
       phone: "",
       cpf: "",
       email: "",
-      responsible: "",
+      responsavelId: "",
       categoria: "",
       origem: "",
       markers: "",
@@ -139,8 +139,8 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
               <Input
                 id="filter-responsible"
                 placeholder="Filtrar por responsável..."
-                value={localFilters.responsible}
-                onChange={(e) => handleFilterChange("responsible", e.target.value)}
+                value={localFilters.responsavelId}
+                onChange={(e) => handleFilterChange("responsavelId", e.target.value)}
               />
             </div>
 
