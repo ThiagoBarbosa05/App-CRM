@@ -134,7 +134,7 @@ export default function Home() {
 
       {/* Sidebar */}
       <div className="pt-16">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Sidebar activeTab={activeTab} onTabChange={(tab: string) => setActiveTab(tab as Tab)} />
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden pt-16">

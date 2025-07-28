@@ -75,6 +75,11 @@ Preferred communication style: Simple, everyday language.
 - Updated database with comprehensive sets of categories, origins, and markers
 - Database now contains 14 categories, 18 origins, and 25 markers with appropriate colors
 - Removed mandatory requirement for address fields in client registration
+- Fixed sidebar navigation issues with disappearing pages
+- Added scrollbar to sidebar for better navigation when content overflows
+- Made "GRAND CRU" logo clickable to return to main clients page
+- Fixed popup appearance issues by forcing light theme on all modal components
+- Improved CSS with custom scrollbar styling and proper component theming
 
 ### Client Flow
 1. User creates/edits client through modal forms
