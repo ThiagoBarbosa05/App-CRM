@@ -5,9 +5,6 @@ import { Calendar, Users, Gift, Phone, Mail } from "lucide-react";
 import { format, parseISO, isWithinInterval, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 
 interface Client {
   id: string;
@@ -45,21 +42,21 @@ export default function Reports() {
   const getUpcomingBirthdays = () => {
     const today = startOfDay(new Date());
     const next30Days = addDays(today, 30);
-
+    
     return clients
       .filter(client => client.birthday)
       .map(client => {
         const birthday = parseISO(client.birthday!);
         const currentYear = new Date().getFullYear();
-
+        
         // Criar data do aniversário para este ano
         const thisYearBirthday = new Date(currentYear, birthday.getMonth(), birthday.getDate());
-
+        
         // Se já passou este ano, considerar o próximo ano
         const nextBirthday = thisYearBirthday < today 
           ? new Date(currentYear + 1, birthday.getMonth(), birthday.getDate())
           : thisYearBirthday;
-
+        
         return {
           ...client,
           nextBirthday,
