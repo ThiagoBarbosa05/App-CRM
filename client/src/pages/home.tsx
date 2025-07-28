@@ -7,7 +7,7 @@ import FunnelsManagement from "@/components/funnels-management";
 
 
 import ClientImportModal from "@/components/client-import-modal";
-import SettingsManagement from "@/components/settings-management";
+
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Download, LogOut, User, Wine, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
-type Tab = "clientes" | "funil" | "configuracoes";
+type Tab = "clientes" | "funil";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -208,8 +208,6 @@ export default function Home() {
             </div>
         ) : activeTab === "funil" ? (
           <FunnelsManagement />
-        ) : activeTab === "configuracoes" ? (
-          <SettingsManagement />
         ) : null}
       </div>
 
