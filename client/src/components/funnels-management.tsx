@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GitBranch, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, GitBranch, Edit, Trash2, Eye, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import FunnelKanbanBoard from "@/components/funnel-kanban-board";
 
 interface SalesFunnel {
   id: string;
@@ -43,6 +44,8 @@ export default function FunnelsManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
+  const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   const { data: funnels, isLoading } = useQuery({
     queryKey: ["/api/funnels"],
@@ -103,6 +106,33 @@ export default function FunnelsManagement() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Carregando funis...</div>
+      </div>
+    );
+  }
+
+  // Show kanban board for selected funnel
+  if (viewMode === "kanban" && selectedFunnel) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setViewMode("list");
+                setSelectedFunnel(null);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar aos Funis
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{selectedFunnel.name}</h2>
+              <p className="text-gray-600 mt-1">Board Kanban - Gerencie seus deals</p>
+            </div>
+          </div>
+        </div>
+        <FunnelKanbanBoard funnelId={selectedFunnel.id} funnel={selectedFunnel} />
       </div>
     );
   }
@@ -203,9 +233,16 @@ export default function FunnelsManagement() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFunnel(funnel);
+                      setViewMode("kanban");
+                    }}
+                  >
                     <Eye className="h-4 w-4 mr-1" />
-                    Ver Detalhes
+                    Ver Board
                   </Button>
                   {(user?.role === 'admin' || user?.id === funnel.createdBy) && (
                     <>

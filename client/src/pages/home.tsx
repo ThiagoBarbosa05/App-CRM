@@ -20,7 +20,7 @@ import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 type Tab = "clientes" | "funis" | "lembretes" | "configuracoes";
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -116,15 +116,7 @@ export default function Home() {
               <Badge className={getRoleBadgeColor(user?.role || "")}>
                 {getRoleLabel(user?.role || "")}
               </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
+
             </div>
           </div>
         </div>
