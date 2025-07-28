@@ -102,7 +102,13 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
                   <Phone className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Telefone</p>
-                    <p className="font-medium">{formatPhone(client.phone)}</p>
+                    <a 
+                      href={`tel:${client.phone}`}
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      title="Clique para ligar"
+                    >
+                      {formatPhone(client.phone)}
+                    </a>
                   </div>
                 </div>
 

@@ -173,7 +173,13 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{formatPhone(client.phone)}</div>
+                      <a 
+                        href={`tel:${client.phone}`}
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                        title="Clique para ligar"
+                      >
+                        {formatPhone(client.phone)}
+                      </a>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {client.cpf ? formatCpf(client.cpf) : "Não informado"}

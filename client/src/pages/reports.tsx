@@ -189,7 +189,13 @@ export default function Reports() {
                         {client.phone && (
                           <div className="flex items-center gap-1">
                             <Phone className="h-3 w-3" />
-                            {client.phone}
+                            <a 
+                              href={`tel:${client.phone}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              title="Clique para ligar"
+                            >
+                              {client.phone}
+                            </a>
                           </div>
                         )}
                         {client.email && (

@@ -224,7 +224,14 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                     <div className="space-y-1">
                       <div className="flex items-center text-sm">
                         <Phone className="h-3 w-3 mr-2 text-gray-400" />
-                        {client.phone}
+                        <a 
+                          href={`tel:${client.phone}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          title="Clique para ligar"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {client.phone}
+                        </a>
                       </div>
                       {client.email && (
                         <div className="flex items-center text-sm text-gray-500">
