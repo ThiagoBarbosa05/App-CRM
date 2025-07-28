@@ -15,6 +15,7 @@ import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
 import Sidebar from "@/components/sidebar";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -26,8 +27,7 @@ export default function CalendarPage() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const user = { id: 'someUserId', role: 'seller' }; // Mock user, replace with actual user object
+  const { user } = useAuth();
   const { data: clients = [] } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
     queryFn: async () => {
@@ -92,7 +92,7 @@ export default function CalendarPage() {
   });
 
   // Filtrar clientes que têm aniversário
-  const clientsWithBirthdays = clients.filter(client => client.birthday);
+  const clientsWithBirthdays = clients.filter((client: Client) => client.birthday);
 
   // Função para obter a data do aniversário deste ano
   const getBirthdayThisYear = (birthday: string) => {
@@ -103,7 +103,7 @@ export default function CalendarPage() {
 
   // Função para verificar se uma data tem aniversários
   const getClientsForDate = (date: Date) => {
-    return clientsWithBirthdays.filter(client => {
+    return clientsWithBirthdays.filter((client: Client) => {
       if (!client.birthday) return false;
       const birthdayThisYear = getBirthdayThisYear(client.birthday);
       return isSameDay(birthdayThisYear, date);
@@ -141,7 +141,7 @@ export default function CalendarPage() {
   const exportBirthdayList = () => {
     const csvContent = [
       ["Nome", "Data de Nascimento", "Idade", "Telefone", "Email"],
-      ...clientsWithBirthdays.map(client => {
+      ...clientsWithBirthdays.map((client: Client) => {
         const birthdayDate = parseISO(client.birthday!);
         const age = new Date().getFullYear() - birthdayDate.getFullYear();
         return [
@@ -165,6 +165,8 @@ export default function CalendarPage() {
     document.body.removeChild(link);
   };
 
+  const isLoading = !clients || !user;
+  
   if (isLoading) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -261,7 +263,7 @@ export default function CalendarPage() {
                   </Badge>
                 </div>
 
-                {selectedDateClients.map((client) => {
+                {selectedDateClients.map((client: Client) => {
                   const birthdayDate = parseISO(client.birthday!);
                   const age = new Date().getFullYear() - birthdayDate.getFullYear();
 
@@ -472,14 +474,14 @@ export default function CalendarPage() {
                     break;
                   case 2: // Esta semana
                     endDate.setDate(today.getDate() + 7);
-                    count = clientsWithBirthdays.filter(client => {
+                    count = clientsWithBirthdays.filter((client: Client) => {
                       const birthdayThisYear = getBirthdayThisYear(client.birthday!);
                       return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
                     }).length;
                     break;
                   case 3: // Este mês
                     endDate.setDate(today.getDate() + 30);
-                    count = clientsWithBirthdays.filter(client => {
+                    count = clientsWithBirthdays.filter((client: Client) => {
                       const birthdayThisYear = getBirthdayThisYear(client.birthday!);
                       return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
                     }).length;
