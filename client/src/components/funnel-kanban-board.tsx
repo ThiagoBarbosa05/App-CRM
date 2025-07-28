@@ -8,6 +8,7 @@ import { Edit, Trash2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
 import ClientDetailsCard from "./client-details-card";
+import ClientFormModal from "./client-form-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +59,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
+  const [editingClient, setEditingClient] = useState<DealWithClient['client'] | null>(null);
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -255,7 +257,19 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
         client={selectedClient}
         open={!!selectedClient}
         onOpenChange={(open) => !open && setSelectedClient(null)}
+        onEdit={(client) => {
+          setSelectedClient(null);
+          setEditingClient(client);
+        }}
       />
+
+      {editingClient && (
+        <ClientFormModal
+          open={!!editingClient}
+          onOpenChange={(open) => !open && setEditingClient(null)}
+          client={editingClient}
+        />
+      )}
 
       <AlertDialog open={!!deletingDeal} onOpenChange={() => setDeletingDeal(null)}>
         <AlertDialogContent>

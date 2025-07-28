@@ -1,18 +1,20 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Client } from "@shared/schema";
-import { User, Phone, Mail, MapPin, Calendar, Tag } from "lucide-react";
+import { User, Phone, Mail, MapPin, Calendar, Tag, Edit } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface ClientDetailsCardProps {
   client: Client | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (client: Client) => void;
 }
 
-export default function ClientDetailsCard({ client, open, onOpenChange }: ClientDetailsCardProps) {
+export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
   if (!client) return null;
 
   const formatPhone = (phone: string) => {
@@ -52,9 +54,22 @@ export default function ClientDetailsCard({ client, open, onOpenChange }: Client
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-wine-600" />
-            Detalhes do Cliente
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-wine-600" />
+              Detalhes do Cliente
+            </div>
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(client)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 

@@ -251,6 +251,10 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
         client={selectedClient}
         open={!!selectedClient}
         onOpenChange={(open) => !open && setSelectedClient(null)}
+        onEdit={(client) => {
+          setSelectedClient(null);
+          setEditingClient(client);
+        }}
       />
 
       <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
