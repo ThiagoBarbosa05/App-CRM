@@ -1,14 +1,35 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GitBranch, Edit, Trash2, Eye, ArrowLeft, Settings } from "lucide-react";
+import {
+  Plus,
+  GitBranch,
+  Edit,
+  Trash2,
+  Eye,
+  ArrowLeft,
+  Settings,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import FunnelKanbanBoard from "@/components/funnel-kanban-board";
 import FunnelStagesManager from "@/components/funnel-stages-manager";
@@ -45,8 +66,12 @@ export default function FunnelsManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
-  const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">("list");
+  const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
+    null,
+  );
+  const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
+    "list",
+  );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
 
   const { data: funnels, isLoading } = useQuery({
@@ -54,18 +79,22 @@ export default function FunnelsManagement() {
   });
 
   const createFunnelMutation = useMutation({
-    mutationFn: async (funnelData: { name: string; description?: string; createdBy: string }) => {
+    mutationFn: async (funnelData: {
+      name: string;
+      description?: string;
+      createdBy: string;
+    }) => {
       const response = await fetch("/api/funnels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(funnelData),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao criar funil");
       }
-      
+
       return await response.json();
     },
     onSuccess: () => {
@@ -118,8 +147,8 @@ export default function FunnelsManagement() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setViewMode("list");
                 setSelectedFunnel(null);
@@ -129,12 +158,19 @@ export default function FunnelsManagement() {
               Voltar aos Funis
             </Button>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{selectedFunnel.name}</h2>
-              <p className="text-gray-600 mt-1">Board Kanban - Gerencie seus deals</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {selectedFunnel.name}
+              </h2>
+              <p className="text-gray-600 mt-1">
+                Board Kanban - Gerencie seus deals
+              </p>
             </div>
           </div>
         </div>
-        <FunnelKanbanBoard funnelId={selectedFunnel.id} funnel={selectedFunnel} />
+        <FunnelKanbanBoard
+          funnelId={selectedFunnel.id}
+          funnel={selectedFunnel}
+        />
       </div>
     );
   }
@@ -145,8 +181,8 @@ export default function FunnelsManagement() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setViewMode("list");
                 setEditingFunnel(null);
@@ -156,7 +192,9 @@ export default function FunnelsManagement() {
               Voltar aos Funis
             </Button>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{editingFunnel.name}</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editingFunnel.name}
+              </h2>
               <p className="text-gray-600 mt-1">Gerenciar Etapas do Funil</p>
             </div>
           </div>
@@ -171,7 +209,9 @@ export default function FunnelsManagement() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Funis de Vendas</h2>
-          <p className="text-gray-600 mt-1">Configure e gerencie seus funis de vendas</p>
+          <p className="text-gray-600 mt-1">
+            Configure e gerencie seus funis de vendas
+          </p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
@@ -208,10 +248,13 @@ export default function FunnelsManagement() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateModalOpen(false)}
+              >
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleCreateFunnel}
                 disabled={createFunnelMutation.isPending}
               >
@@ -224,25 +267,29 @@ export default function FunnelsManagement() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {(funnels as SalesFunnel[])?.map((funnel: SalesFunnel) => (
-          <Card key={funnel.id} className="hover:shadow-lg transition-shadow">
+          <Card key={funnel.id} className="hover:shadow-lg flex flex-col transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <GitBranch className="h-5 w-5 text-wine-600" />
                   <CardTitle className="text-lg">{funnel.name}</CardTitle>
                 </div>
-                <Badge variant={funnel.isActive === 'true' ? "default" : "secondary"}>
-                  {funnel.isActive === 'true' ? "Ativo" : "Inativo"}
+                <Badge
+                  variant={funnel.isActive === "true" ? "default" : "secondary"}
+                >
+                  {funnel.isActive === "true" ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
               <CardDescription>
                 {funnel.description || "Sem descrição"}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">Estágios ({funnel.stages?.length || 0}):</p>
+            <CardContent className="flex-1 flex">
+              <div  className="flex flex-col gap-4">
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Estágios ({funnel.stages?.length || 0}):
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {funnel.stages?.map((stage) => (
                       <Badge
@@ -255,15 +302,17 @@ export default function FunnelsManagement() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>Criado por: {funnel.creator?.name}</span>
-                  <span>{new Date(funnel.createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span>
+                    {new Date(funnel.createdAt).toLocaleDateString("pt-BR")}
+                  </span>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       setSelectedFunnel(funnel);
@@ -273,10 +322,11 @@ export default function FunnelsManagement() {
                     <Eye className="h-4 w-4 mr-1" />
                     Ver Board
                   </Button>
-                  {(user?.role === 'admin' || user?.id === funnel.createdBy) && (
+                  {(user?.role === "admin" ||
+                    user?.id === funnel.createdBy) && (
                     <>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setEditingFunnel(funnel);
@@ -286,15 +336,19 @@ export default function FunnelsManagement() {
                         <Settings className="h-4 w-4 mr-1" />
                         Etapas
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => setEditingFunnel(funnel)}
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Editar
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-800">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-800"
+                      >
                         <Trash2 className="h-4 w-4 mr-1" />
                         Excluir
                       </Button>
@@ -310,8 +364,12 @@ export default function FunnelsManagement() {
           <Card className="col-span-full">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <GitBranch className="h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum funil encontrado</h3>
-              <p className="text-gray-500 mb-4">Crie seu primeiro funil de vendas para começar</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhum funil encontrado
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Crie seu primeiro funil de vendas para começar
+              </p>
               <Button onClick={() => setIsCreateModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Criar Primeiro Funil

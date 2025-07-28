@@ -57,6 +57,24 @@ export const clients = pgTable("clients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  cnpj: text("cnpj").unique(),
+  phone: text("phone"),
+  email: text("email"),
+  website: text("website"),
+  cep: text("cep"),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  industry: text("industry"), // Setor da empresa
+  notes: text("notes"), // Observações
+  active: text("active").notNull().default("true"), // Status ativo/inativo
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const deals = pgTable("deals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -103,6 +121,10 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
     fields: [clients.responsavelId],
     references: [users.id],
   }),
+}));
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  deals: many(deals),
 }));
 
 export const dealsRelations = relations(deals, ({ one }) => ({
@@ -258,6 +280,12 @@ export const insertClientSchema = createInsertSchema(clients).omit({
   createdAt: true,
 });
 
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertDealSchema = createInsertSchema(deals).omit({
   id: true,
   createdAt: true,
@@ -317,6 +345,8 @@ export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
 export type FunnelStage = typeof funnelStages.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type Company = typeof companies.$inferSelect;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type Deal = typeof deals.$inferSelect;
 export type InsertBirthdayReminder = z.infer<typeof insertBirthdayReminderSchema>;

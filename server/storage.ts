@@ -1,12 +1,13 @@
 import { 
   type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient,
+  type Company, type InsertCompany,
   type User, type InsertUser, type SalesFunnel, type InsertSalesFunnel,
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser,
-  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
+  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -30,6 +31,16 @@ export interface IStorage {
   deleteClient(id: string): Promise<boolean>;
   deleteClients(ids: string[]): Promise<number>;
   getUniqueMarkers(): Promise<string[]>;
+
+  // Companies
+  getCompanies(userId?: string, userRole?: string): Promise<Company[]>;
+  getCompany(id: string): Promise<Company | undefined>;
+  getCompanyByCnpj(cnpj: string): Promise<Company | undefined>;
+  getCompanyByPhone(phone: string): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  deleteCompany(id: string): Promise<boolean>;
+  deleteCompanies(ids: string[]): Promise<number>;
 
   // Sales Funnels
   getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
@@ -214,6 +225,54 @@ export class DatabaseStorage implements IStorage {
       console.error('Erro ao buscar marcadores únicos:', error);
       return [];
     }
+  }
+
+  // Company methods
+  async getCompanies(userId?: string, userRole?: string): Promise<Company[]> {
+    const result = await db.select().from(companies).orderBy(companies.createdAt);
+    return result.reverse();
+  }
+
+  async getCompany(id: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company || undefined;
+  }
+
+  async getCompanyByCnpj(cnpj: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.cnpj, cnpj));
+    return company || undefined;
+  }
+
+  async getCompanyByPhone(phone: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.phone, phone));
+    return company || undefined;
+  }
+
+  async createCompany(insertCompany: InsertCompany): Promise<Company> {
+    const [company] = await db
+      .insert(companies)
+      .values(insertCompany)
+      .returning();
+    return company;
+  }
+
+  async updateCompany(id: string, updateData: Partial<InsertCompany>): Promise<Company | undefined> {
+    const [company] = await db
+      .update(companies)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return company || undefined;
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const result = await db.delete(companies).where(eq(companies.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async deleteCompanies(ids: string[]): Promise<number> {
+    const result = await db.delete(companies).where(inArray(companies.id, ids));
+    return result.rowCount || 0;
   }
 
   // Sales Funnel methods

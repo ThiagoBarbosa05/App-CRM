@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
-  insertClientSchema, insertDealSchema, insertUserSchema, 
+  insertClientSchema, insertCompanySchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
   insertTagSchema,
@@ -524,8 +524,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deletedCount 
       });
     } catch (error) {
-      console.error("Erro ao excluir clientes:", error);
-      res.status(500).json({ message: "Erro ao excluir clientes" });
+      res.status(500).json({ message: "Erro ao deletar clientes" });
+    }
+  });
+
+  // Company routes
+  app.get("/api/companies", async (req, res) => {
+    try {
+      const companies = await storage.getCompanies();
+      res.json(companies);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar empresas" });
+    }
+  });
+
+  app.get("/api/companies/:id", async (req, res) => {
+    try {
+      const company = await storage.getCompany(req.params.id);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json(company);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar empresa" });
+    }
+  });
+
+  app.post("/api/companies", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.parse(req.body);
+      const company = await storage.createCompany(validatedData);
+      res.status(201).json(company);
+    } catch (error) {
+      console.error("Error creating company:", error);
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar empresa" });
+    }
+  });
+
+  app.put("/api/companies/:id", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.partial().parse(req.body);
+      const company = await storage.updateCompany(req.params.id, validatedData);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json(company);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar empresa" });
+    }
+  });
+
+  app.delete("/api/companies/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteCompany(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json({ message: "Empresa excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar empresa" });
+    }
+  });
+
+  app.delete("/api/companies", async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "IDs das empresas são obrigatórios" });
+      }
+
+      console.log("Tentando excluir empresas com IDs:", ids);
+      const deletedCount = await storage.deleteCompanies(ids);
+      console.log("Empresas excluídas:", deletedCount);
+
+      res.json({ 
+        message: `${deletedCount} empresa(s) excluída(s) com sucesso`,
+        deletedCount 
+      });
+    } catch (error) {
+      console.error("Erro ao excluir empresas:", error);
+      res.status(500).json({ message: "Erro ao excluir empresas" });
     }
   });
 

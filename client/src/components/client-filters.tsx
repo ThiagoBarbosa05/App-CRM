@@ -7,7 +7,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
@@ -26,17 +32,23 @@ export interface ClientFilters {
   markers: string;
 }
 
-export default function ClientFilters({ onFiltersChange, currentFilters }: ClientFiltersProps) {
-  const [localFilters, setLocalFilters] = useState<ClientFilters>(currentFilters);
+export default function ClientFilters({
+  onFiltersChange,
+  currentFilters,
+}: ClientFiltersProps) {
+  const [localFilters, setLocalFilters] =
+    useState<ClientFilters>(currentFilters);
   const [isOpen, setIsOpen] = useState(false);
 
   // Buscar usuários para o dropdown
-  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+  const { data: users = [] } = useQuery<
+    { id: string; name: string; email: string }[]
+  >({
     queryKey: ["/api/users"],
   });
 
   const handleFilterChange = (key: keyof ClientFilters, value: string) => {
-    setLocalFilters(prev => ({ ...prev, [key]: value }));
+    setLocalFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const applyFilters = () => {
@@ -59,23 +71,31 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
     setIsOpen(false);
   };
 
-  const hasActiveFilters = Object.values(currentFilters).some(value => value !== "");
+  const hasActiveFilters = Object.values(currentFilters).some(
+    (value) => value !== "",
+  );
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}>
+        <Button
+          variant="outline"
+          className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}
+        >
           <Filter className="h-4 w-4 mr-2" />
           Filtros
           {hasActiveFilters && (
             <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
-              {Object.values(currentFilters).filter(value => value !== "").length}
+              {
+                Object.values(currentFilters).filter((value) => value !== "")
+                  .length
+              }
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
-        <div className="space-y-4">
+      <PopoverContent align="end" className="w-80 h-[400px] overflow-y-scroll">
+        <div className="space-y-4 ">
           <div className="flex items-center justify-between">
             <h4 className="font-medium">Filtros Avançados</h4>
             <Button
@@ -126,12 +146,17 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
             </div>
 
             <div>
-              <Label htmlFor="filter-responsible" className="text-sm font-medium">
+              <Label
+                htmlFor="filter-responsible"
+                className="text-sm font-medium"
+              >
                 Usuário Responsável
               </Label>
-              <Select 
-                value={localFilters.responsavelId} 
-                onValueChange={(value) => handleFilterChange("responsavelId", value)}
+              <Select
+                value={localFilters.responsavelId}
+                onValueChange={(value) =>
+                  handleFilterChange("responsavelId", value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um usuário..." />
@@ -155,7 +180,9 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
                 id="filter-categoria"
                 placeholder="Filtrar por categoria..."
                 value={localFilters.categoria}
-                onChange={(e) => handleFilterChange("categoria", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("categoria", e.target.value)
+                }
               />
             </div>
 
