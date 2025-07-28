@@ -212,13 +212,19 @@ export default function SettingsManagement() {
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
-    // Reset form with new resolver for editing
+    // Reset form with user data for editing
     userForm.reset({
       name: user.name,
       email: user.email,
       password: "", // Não pré-preenchemos a senha por segurança
       role: user.role,
     });
+    // Recreate the form with the correct resolver for editing
+    setTimeout(() => {
+      userForm.setValue("name", user.name);
+      userForm.setValue("email", user.email);
+      userForm.setValue("role", user.role);
+    }, 0);
     setIsUserModalOpen(true);
   };
 
@@ -363,7 +369,7 @@ export default function SettingsManagement() {
                           id="password"
                           type="password"
                           {...userForm.register("password")}
-                          required={!editingUser}
+                          placeholder={editingUser ? "Digite nova senha ou deixe vazio" : "Digite a senha"}
                         />
                         {userForm.formState.errors.password && (
                           <p className="text-sm text-red-600 mt-1">

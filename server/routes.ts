@@ -181,9 +181,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertClientSchema.parse(req.body);
       
       // Check if CPF already exists
-      const existingClientByCpf = await storage.getClientByCpf(validatedData.cpf);
-      if (existingClientByCpf) {
-        return res.status(400).json({ message: "CPF já cadastrado" });
+      if (validatedData.cpf) {
+        const existingClientByCpf = await storage.getClientByCpf(validatedData.cpf);
+        if (existingClientByCpf) {
+          return res.status(400).json({ message: "CPF já cadastrado" });
+        }
       }
 
       // Check if phone already exists
