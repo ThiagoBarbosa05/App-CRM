@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings } from "lucide-react";
+import UsersManagement from "./users-management";
 
 export default function SettingsManagement() {
   return (
@@ -12,19 +15,49 @@ export default function SettingsManagement() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Página de Configurações</CardTitle>
-          <CardDescription>
-            Esta página está em desenvolvimento. As funcionalidades serão adicionadas em breve.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">
-            Em breve você poderá gerenciar usuários, marcadores, categorias e outras configurações do sistema aqui.
-          </p>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="users">Usuários do Sistema</TabsTrigger>
+          <TabsTrigger value="categories">Categorias</TabsTrigger>
+          <TabsTrigger value="markers">Marcadores</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users">
+          <UsersManagement />
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <Card>
+            <CardHeader>
+              <CardTitle>Categorias</CardTitle>
+              <CardDescription>
+                Gerencie as categorias de clientes do sistema
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Funcionalidade em desenvolvimento...
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="markers">
+          <Card>
+            <CardHeader>
+              <CardTitle>Marcadores</CardTitle>
+              <CardDescription>
+                Gerencie os marcadores disponíveis para clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Funcionalidade em desenvolvimento...
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

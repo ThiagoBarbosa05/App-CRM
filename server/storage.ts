@@ -101,6 +101,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
+    // Hash password before saving
+    if (insertUser.password) {
+      const bcrypt = await import('bcrypt');
+      insertUser.password = await bcrypt.hash(insertUser.password, 10);
+    }
+    
     const [user] = await db
       .insert(users)
       .values(insertUser)
@@ -109,6 +115,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
+    // Hash password if provided
+    if (updateData.password) {
+      const bcrypt = await import('bcrypt');
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    }
+    
     const [user] = await db
       .update(users)
       .set({ ...updateData, updatedAt: new Date() })

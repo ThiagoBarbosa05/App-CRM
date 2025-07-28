@@ -53,15 +53,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
-      
-      // Check if email already exists
-      const existingUser = await storage.getUserByEmail(validatedData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "E-mail já cadastrado" });
-      }
-
-      const user = await storage.createUser(validatedData);
-      const { password: _, ...userWithoutPassword } = user;
+      const newUser = await storage.createUser(validatedData);
+      const { password: _, ...userWithoutPassword } = newUser;
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -73,28 +66,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/users/:id", async (req, res) => {
     try {
+      const { id } = req.params;
       const validatedData = insertUserSchema.partial().parse(req.body);
-      
-      // Check if email already exists for another user
-      if (validatedData.email) {
-        const existingUser = await storage.getUserByEmail(validatedData.email);
-        if (existingUser && existingUser.id !== req.params.id) {
-          return res.status(400).json({ message: "E-mail já cadastrado" });
-        }
-      }
-
-      const user = await storage.updateUser(req.params.id, validatedData);
-      if (!user) {
+      const updatedUser = await storage.updateUser(id, validatedData);
+      if (!updatedUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Usuário excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
+
+  app.patch("/api/users/:id/toggle-status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      const updatedUser = await storage.updateUser(id, { isActive });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { password: _pwd, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar status do usuário" });
     }
   });
 

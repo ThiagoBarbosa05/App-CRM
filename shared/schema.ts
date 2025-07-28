@@ -263,6 +263,9 @@ export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
 export type FunnelStage = typeof funnelStages.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
+
+
+
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type Deal = typeof deals.$inferSelect;
 export type InsertBirthdayReminder = z.infer<typeof insertBirthdayReminderSchema>;
