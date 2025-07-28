@@ -31,11 +31,13 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
   const [newMarkerName, setNewMarkerName] = useState("");
 
   const { data: availableMarkers = [] } = useQuery({
-    queryKey: ["/api/clients/markers"],
+    queryKey: ["/api/markers"],
     queryFn: async () => {
-      const response = await fetch("/api/clients/markers");
+      const response = await fetch("/api/markers");
       if (!response.ok) throw new Error("Erro ao buscar marcadores");
-      return response.json();
+      const markers = await response.json();
+      // Retorna apenas os nomes dos marcadores
+      return markers.map((marker: any) => marker.name);
     },
   });
 
@@ -50,10 +52,14 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
 
   const handleAddNewMarker = () => {
     const trimmedName = newMarkerName.trim();
-    if (trimmedName && !value.includes(trimmedName) && !availableMarkers.includes(trimmedName)) {
+    if (trimmedName && !value.includes(trimmedName)) {
+      // Adicionar ao estado local imediatamente para melhor UX
       onChange([...value, trimmedName]);
       setNewMarkerName("");
       setShowNewMarkerForm(false);
+      
+      // Mostrar aviso de que o marcador deve ser criado nas configurações
+      // para ficar disponível permanentemente
     }
   };
 
@@ -93,6 +99,9 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
               <CommandEmpty>
                 <div className="text-center py-2">
                   <p className="text-sm text-gray-500 mb-2">Nenhum marcador encontrado.</p>
+                  <p className="text-xs text-gray-400 mb-2">
+                    Crie marcadores permanentes na página de Configurações
+                  </p>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -100,7 +109,7 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                     className="text-primary"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Criar novo marcador
+                    Adicionar temporário
                   </Button>
                 </div>
               </CommandEmpty>
@@ -133,8 +142,11 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                       className="w-full text-primary justify-start"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Criar novo marcador
+                      Adicionar temporário
                     </Button>
+                    <p className="text-xs text-gray-400 px-2 mt-1">
+                      Para marcadores permanentes, use Configurações
+                    </p>
                   </div>
                 )}
               </CommandGroup>
@@ -144,28 +156,33 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
       </Popover>
 
       {showNewMarkerForm && (
-        <div className="flex items-center gap-2 p-2 border rounded-md bg-gray-50">
-          <Input
-            placeholder="Nome do novo marcador"
-            value={newMarkerName}
-            onChange={(e) => setNewMarkerName(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1"
-            autoFocus
-          />
-          <Button size="sm" onClick={handleAddNewMarker} disabled={!newMarkerName.trim()}>
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setShowNewMarkerForm(false);
-              setNewMarkerName("");
-            }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <div className="p-3 border rounded-md bg-yellow-50 border-yellow-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Input
+              placeholder="Nome do marcador temporário"
+              value={newMarkerName}
+              onChange={(e) => setNewMarkerName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1"
+              autoFocus
+            />
+            <Button size="sm" onClick={handleAddNewMarker} disabled={!newMarkerName.trim()}>
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setShowNewMarkerForm(false);
+                setNewMarkerName("");
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-yellow-700">
+            ⚠️ Este marcador será temporário. Para criar marcadores permanentes, acesse a página Configurações.
+          </p>
         </div>
       )}
 
