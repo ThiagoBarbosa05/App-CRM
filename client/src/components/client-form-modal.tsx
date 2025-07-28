@@ -294,7 +294,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Nenhum responsável</SelectItem>
+                        <SelectItem value="none">Nenhum responsável</SelectItem>
                         {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}

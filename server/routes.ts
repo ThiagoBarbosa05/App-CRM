@@ -382,7 +382,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/clients", async (req, res) => {
     try {
-      const validatedData = insertClientSchema.parse(req.body);
+      // Process responsavelId: convert "none" to null
+      const processedData = {
+        ...req.body,
+        responsavelId: req.body.responsavelId === "none" ? null : req.body.responsavelId
+      };
+      
+      const validatedData = insertClientSchema.parse(processedData);
       
       // Check if CPF already exists
       if (validatedData.cpf) {
@@ -401,11 +407,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const client = await storage.createClient(validatedData);
       res.status(201).json(client);
     } catch (error) {
+      console.error("Error creating client:", error);
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
-      res.status(500).json({ message: "Erro ao criar cliente" });
+      res.status(500).json({ message: "Erro ao criar cliente", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
