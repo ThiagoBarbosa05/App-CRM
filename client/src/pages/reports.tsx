@@ -91,10 +91,8 @@ export default function Reports() {
       acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
     } else if (validCategoryNames.has(category)) {
       acc[category] = (acc[category] || 0) + 1;
-    } else {
-      // Categoria foi excluída - contar como "Categoria removida"
-      acc["Categoria removida"] = (acc["Categoria removida"] || 0) + 1;
     }
+    // Ignora categorias que foram excluídas das configurações
     return acc;
   }, {} as Record<string, number>);
 
@@ -106,10 +104,8 @@ export default function Reports() {
       acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
     } else if (validOriginNames.has(origin)) {
       acc[origin] = (acc[origin] || 0) + 1;
-    } else {
-      // Origem foi excluída - contar como "Origem removida"
-      acc["Origem removida"] = (acc["Origem removida"] || 0) + 1;
     }
+    // Ignora origens que foram excluídas das configurações
     return acc;
   }, {} as Record<string, number>);
 
@@ -122,26 +118,24 @@ export default function Reports() {
       const user = users.find(u => u.id === responsibleId);
       const userName = user ? user.name : "Usuário não encontrado";
       acc[userName] = (acc[userName] || 0) + 1;
-    } else {
-      acc["Usuário removido"] = (acc["Usuário removido"] || 0) + 1;
     }
+    // Ignora usuários que foram removidos do sistema
     return acc;
   }, {} as Record<string, number>);
 
   // Estatísticas por marcadores
   const clientsByMarkers = clients.reduce((acc, client) => {
     const clientMarkers = client.markers || [];
-    if (clientMarkers.length === 0) {
+    const validClientMarkers = clientMarkers.filter(markerName => validMarkerNames.has(markerName));
+    
+    if (validClientMarkers.length === 0) {
       acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
     } else {
-      clientMarkers.forEach(markerName => {
-        if (validMarkerNames.has(markerName)) {
-          acc[markerName] = (acc[markerName] || 0) + 1;
-        } else {
-          acc["Marcador removido"] = (acc["Marcador removido"] || 0) + 1;
-        }
+      validClientMarkers.forEach(markerName => {
+        acc[markerName] = (acc[markerName] || 0) + 1;
       });
     }
+    // Ignora marcadores que foram excluídos das configurações
     return acc;
   }, {} as Record<string, number>);
 
@@ -283,17 +277,9 @@ export default function Reports() {
                 .map(([category, count]) => (
                   <div key={category} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={category === "Categoria removida" ? "destructive" : "secondary"}
-                        className="text-xs"
-                      >
+                      <Badge variant="secondary" className="text-xs">
                         {category}
                       </Badge>
-                      {category === "Categoria removida" && (
-                        <span className="text-xs text-red-500">
-                          (Categoria foi excluída das configurações)
-                        </span>
-                      )}
                     </div>
                     <span className="font-medium text-wine-600">{count}</span>
                   </div>
@@ -316,17 +302,9 @@ export default function Reports() {
                 .map(([origin, count]) => (
                   <div key={origin} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={origin === "Origem removida" ? "destructive" : "secondary"}
-                        className="text-xs"
-                      >
+                      <Badge variant="secondary" className="text-xs">
                         {origin}
                       </Badge>
-                      {origin === "Origem removida" && (
-                        <span className="text-xs text-red-500">
-                          (Origem foi excluída das configurações)
-                        </span>
-                      )}
                     </div>
                     <span className="font-medium text-wine-600">{count}</span>
                   </div>
@@ -352,17 +330,9 @@ export default function Reports() {
                 .map(([userName, count]) => (
                   <div key={userName} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={userName === "Usuário removido" ? "destructive" : "default"}
-                        className="text-xs"
-                      >
+                      <Badge variant="default" className="text-xs">
                         {userName}
                       </Badge>
-                      {userName === "Usuário removido" && (
-                        <span className="text-xs text-red-500">
-                          (Usuário foi removido do sistema)
-                        </span>
-                      )}
                     </div>
                     <span className="font-medium text-wine-600">{count}</span>
                   </div>
@@ -388,17 +358,22 @@ export default function Reports() {
                     <div key={markerName} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge 
-                          variant={markerName === "Marcador removido" ? "destructive" : "secondary"}
+                          variant="secondary"
                           className="text-xs"
-                          style={marker ? { backgroundColor: marker.color, color: 'white' } : {}}
+                          style={{
+                            backgroundColor: marker?.color && markerName !== "Sem marcador" 
+                              ? `${marker.color}20` 
+                              : undefined,
+                            borderColor: marker?.color && markerName !== "Sem marcador"
+                              ? marker.color
+                              : undefined,
+                            color: marker?.color && markerName !== "Sem marcador"
+                              ? marker.color
+                              : undefined
+                          }}
                         >
                           {markerName}
                         </Badge>
-                        {markerName === "Marcador removido" && (
-                          <span className="text-xs text-red-500">
-                            (Marcador foi excluído das configurações)
-                          </span>
-                        )}
                       </div>
                       <span className="font-medium text-wine-600">{count}</span>
                     </div>
