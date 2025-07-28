@@ -1,4 +1,4 @@
-import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target } from "lucide-react";
+import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -62,7 +62,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900">GRAND CRU</h1>
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
             <nav className="space-y-2">
@@ -94,6 +94,21 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 >
                   <Building2 className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Empresas</span>
+                </button>
+              </Link>
+
+              <Link href="/files">
+                <button 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/files"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <Folder className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Arquivos</span>
                 </button>
               </Link>
 

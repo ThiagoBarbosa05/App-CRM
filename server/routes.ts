@@ -11,6 +11,19 @@ import {
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
+import { Client } from "@replit/object-storage";
+import multer from "multer";
+
+// Configure multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Initialize Replit Object Storage client
+let objectStorageClient: Client;
+try {
+  objectStorageClient = new Client();
+} catch (error) {
+  console.warn("Object Storage not available:", error);
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -1150,6 +1163,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao enviar campanha" });
+    }
+  });
+
+  // File management routes
+  app.get("/api/files", async (req, res) => {
+    try {
+      if (!objectStorageClient) {
+        return res.status(503).json({ message: "Object Storage não disponível" });
+      }
+
+      const folder = (req.query.folder as string) || "";
+      const prefix = folder ? `company-files/${folder}/` : "company-files/";
+      
+      const objects = await objectStorageClient.list({ prefix });
+      
+      const files = objects.map(obj => ({
+        name: obj.key.replace(prefix, "").split("/")[0],
+        size: obj.size,
+        type: obj.key.endsWith("/") ? "folder" : obj.contentType || "application/octet-stream",
+        lastModified: obj.timeCreated,
+        url: obj.publicUrl
+      }));
+
+      // Remove duplicates and empty entries
+      const uniqueFiles = files.filter((file, index, self) => 
+        file.name && self.findIndex(f => f.name === file.name) === index
+      );
+
+      res.json(uniqueFiles);
+    } catch (error) {
+      console.error("Error listing files:", error);
+      res.status(500).json({ message: "Erro ao buscar arquivos" });
+    }
+  });
+
+  app.post("/api/files/upload", upload.array("files"), async (req, res) => {
+    try {
+      if (!objectStorageClient) {
+        return res.status(503).json({ message: "Object Storage não disponível" });
+      }
+
+      const files = req.files as Express.Multer.File[];
+      const folder = req.body.folder || "";
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+
+      const uploadPromises = files.map(async (file) => {
+        const key = folder 
+          ? `company-files/${folder}/${file.originalname}`
+          : `company-files/${file.originalname}`;
+        
+        await objectStorageClient.uploadFromBytes(key, file.buffer, {
+          contentType: file.mimetype
+        });
+        
+        return {
+          name: file.originalname,
+          size: file.size,
+          type: file.mimetype
+        };
+      });
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+      
+      res.json({ 
+        message: "Arquivos enviados com sucesso",
+        files: uploadedFiles 
+      });
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      res.status(500).json({ message: "Erro ao enviar arquivos" });
+    }
+  });
+
+  app.get("/api/files/download", async (req, res) => {
+    try {
+      if (!objectStorageClient) {
+        return res.status(503).json({ message: "Object Storage não disponível" });
+      }
+
+      const filename = req.query.file as string;
+      const folder = req.query.folder as string;
+      
+      if (!filename) {
+        return res.status(400).json({ message: "Nome do arquivo é obrigatório" });
+      }
+
+      const key = folder 
+        ? `company-files/${folder}/${filename}`
+        : `company-files/${filename}`;
+
+      const fileBuffer = await objectStorageClient.downloadAsBytes(key);
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.send(Buffer.from(fileBuffer));
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      res.status(500).json({ message: "Erro ao baixar arquivo" });
+    }
+  });
+
+  app.delete("/api/files", async (req, res) => {
+    try {
+      if (!objectStorageClient) {
+        return res.status(503).json({ message: "Object Storage não disponível" });
+      }
+
+      const { files, folder } = req.body;
+      
+      if (!files || !Array.isArray(files)) {
+        return res.status(400).json({ message: "Lista de arquivos é obrigatória" });
+      }
+
+      const deletePromises = files.map(async (filename: string) => {
+        const key = folder 
+          ? `company-files/${folder}/${filename}`
+          : `company-files/${filename}`;
+        
+        await objectStorageClient.delete(key);
+      });
+
+      await Promise.all(deletePromises);
+      
+      res.json({ message: "Arquivos excluídos com sucesso" });
+    } catch (error) {
+      console.error("Error deleting files:", error);
+      res.status(500).json({ message: "Erro ao excluir arquivos" });
+    }
+  });
+
+  app.post("/api/files/folder", async (req, res) => {
+    try {
+      if (!objectStorageClient) {
+        return res.status(503).json({ message: "Object Storage não disponível" });
+      }
+
+      const { name, parent } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Nome da pasta é obrigatório" });
+      }
+
+      const key = parent 
+        ? `company-files/${parent}/${name}/`
+        : `company-files/${name}/`;
+
+      // Create empty file to represent folder
+      await objectStorageClient.uploadFromText(key, "", {
+        contentType: "application/x-directory"
+      });
+      
+      res.json({ message: "Pasta criada com sucesso", name });
+    } catch (error) {
+      console.error("Error creating folder:", error);
+      res.status(500).json({ message: "Erro ao criar pasta" });
     }
   });
 

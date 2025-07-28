@@ -11,6 +11,7 @@ import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
 import NotFound from "@/pages/not-found";
+import { lazy } from 'react';
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -31,6 +32,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/empresas" component={Companies} />
+      <Route path="/files" component={lazy(() => import("./pages/files"))} />
       <Route path="/reports" component={Reports} />
       <Route path="/calendario" component={Calendar} />
       <Route path="/metas" component={Metas} />
