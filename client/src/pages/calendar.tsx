@@ -1,21 +1,88 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, Gift, Phone, Mail } from "lucide-react";
-import { format, isSameDay, parseISO } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarIcon, Gift, Phone, Mail, Bell, MessageSquare, Settings, Download } from "lucide-react";
+import { format, isSameDay, parseISO, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
 import Sidebar from "@/components/sidebar";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [reminderDays, setReminderDays] = useState("1");
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [reminderType, setReminderType] = useState("email");
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
+  });
+
+  const { data: upcomingBirthdays = [] } = useQuery({
+    queryKey: ["/api/upcoming-birthdays", 30],
+    queryFn: async () => {
+      const response = await fetch("/api/upcoming-birthdays?days=30");
+      if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");
+      return response.json();
+    },
+  });
+
+  const createReminderMutation = useMutation({
+    mutationFn: async (reminderData: any) => {
+      const response = await fetch("/api/birthday-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reminderData),
+      });
+      if (!response.ok) throw new Error("Failed to create reminder");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Lembrete criado",
+        description: "Lembrete de aniversário criado com sucesso!",
+      });
+      setReminderModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/birthday-reminders"] });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar lembrete",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createAutoRemindersMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/birthday-reminders/create-automatic", {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to create automatic reminders");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Lembretes automáticos criados",
+        description: `${data.remindersCreated} lembretes foram criados automaticamente!`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/birthday-reminders"] });
+    },
   });
 
   // Filtrar clientes que têm aniversário
@@ -48,6 +115,50 @@ export default function CalendarPage() {
 
   const selectedDateClients = getClientsForDate(selectedDate);
 
+  const handleCreateReminder = () => {
+    if (!selectedClient) return;
+
+    const birthdayDate = parseISO(selectedClient.birthday!);
+    const currentYear = new Date().getFullYear();
+    const thisYearBirthday = new Date(currentYear, birthdayDate.getMonth(), birthdayDate.getDate());
+    const reminderDate = addDays(thisYearBirthday, -parseInt(reminderDays));
+
+    createReminderMutation.mutate({
+      clientId: selectedClient.id,
+      reminderDate: reminderDate.toISOString(),
+      reminderType,
+      daysBeforeBirthday: parseInt(reminderDays),
+      customMessage: reminderMessage || undefined,
+    });
+  };
+
+  const exportBirthdayList = () => {
+    const csvContent = [
+      ["Nome", "Data de Nascimento", "Idade", "Telefone", "Email"],
+      ...clientsWithBirthdays.map(client => {
+        const birthdayDate = parseISO(client.birthday!);
+        const age = new Date().getFullYear() - birthdayDate.getFullYear();
+        return [
+          client.name,
+          format(birthdayDate, "dd/MM/yyyy", { locale: ptBR }),
+          age.toString(),
+          client.phone || "",
+          client.email || ""
+        ];
+      })
+    ].map(row => row.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "aniversarios.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -70,11 +181,31 @@ export default function CalendarPage() {
       <Sidebar activeTab="clientes" onTabChange={() => {}} />
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6 space-y-6">
-          <div className="flex items-center gap-3 mb-6">
-            <CalendarIcon className="h-8 w-8 text-wine-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Calendário de Aniversários</h1>
-              <p className="text-gray-600">Visualize os aniversários dos seus clientes no calendário</p>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <CalendarIcon className="h-8 w-8 text-wine-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Calendário de Aniversários</h1>
+                <p className="text-gray-600">Visualize os aniversários dos seus clientes no calendário</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={exportBirthdayList}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Exportar Lista
+              </Button>
+              <Button
+                onClick={() => createAutoRemindersMutation.mutate()}
+                disabled={createAutoRemindersMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                <Bell className="h-4 w-4" />
+                {createAutoRemindersMutation.isPending ? "Criando..." : "Criar Lembretes Automáticos"}
+              </Button>
             </div>
           </div>
 
@@ -215,9 +346,88 @@ export default function CalendarPage() {
                             window.open(`https://wa.me/${client.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
                           }}
                         >
-                          <Gift className="h-3 w-3 mr-1" />
+                          <MessageSquare className="h-3 w-3 mr-1" />
                           WhatsApp
                         </Button>
+                        
+                        <Dialog open={reminderModalOpen} onOpenChange={setReminderModalOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => setSelectedClient(client)}
+                            >
+                              <Bell className="h-3 w-3 mr-1" />
+                              Lembrete
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Criar Lembrete de Aniversário</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Cliente</Label>
+                                <Input value={selectedClient?.name || ""} disabled />
+                              </div>
+                              
+                              <div>
+                                <Label>Dias antes do aniversário</Label>
+                                <Select value={reminderDays} onValueChange={setReminderDays}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 dia antes</SelectItem>
+                                    <SelectItem value="3">3 dias antes</SelectItem>
+                                    <SelectItem value="7">1 semana antes</SelectItem>
+                                    <SelectItem value="15">15 dias antes</SelectItem>
+                                    <SelectItem value="30">1 mês antes</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div>
+                                <Label>Tipo de lembrete</Label>
+                                <Select value={reminderType} onValueChange={setReminderType}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="email">Email</SelectItem>
+                                    <SelectItem value="notification">Notificação</SelectItem>
+                                    <SelectItem value="both">Ambos</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div>
+                                <Label>Mensagem personalizada (opcional)</Label>
+                                <Textarea
+                                  value={reminderMessage}
+                                  onChange={(e) => setReminderMessage(e.target.value)}
+                                  placeholder="Digite uma mensagem personalizada para o lembrete..."
+                                />
+                              </div>
+                              
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setReminderModalOpen(false)}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  onClick={handleCreateReminder}
+                                  disabled={createReminderMutation.isPending}
+                                >
+                                  {createReminderMutation.isPending ? "Criando..." : "Criar Lembrete"}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
                   );
@@ -228,57 +438,111 @@ export default function CalendarPage() {
         </Card>
       </div>
 
-      {/* Estatísticas dos próximos aniversários */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-wine-600" />
-            Próximos Aniversários
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {['Hoje', 'Amanhã', 'Esta semana', 'Este mês'].map((period, index) => {
-              const today = new Date();
-              let count = 0;
-              let startDate = new Date(today);
-              let endDate = new Date(today);
+      {/* Estatísticas e próximos aniversários */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-wine-600" />
+              Estatísticas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              {['Hoje', 'Amanhã', 'Esta semana', 'Este mês'].map((period, index) => {
+                const today = new Date();
+                let count = 0;
+                let startDate = new Date(today);
+                let endDate = new Date(today);
 
-              switch (index) {
-                case 0: // Hoje
-                  count = getClientsForDate(today).length;
-                  break;
-                case 1: // Amanhã
-                  const tomorrow = new Date(today);
-                  tomorrow.setDate(today.getDate() + 1);
-                  count = getClientsForDate(tomorrow).length;
-                  break;
-                case 2: // Esta semana
-                  endDate.setDate(today.getDate() + 7);
-                  count = clientsWithBirthdays.filter(client => {
-                    const birthdayThisYear = getBirthdayThisYear(client.birthday!);
-                    return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
-                  }).length;
-                  break;
-                case 3: // Este mês
-                  endDate.setDate(today.getDate() + 30);
-                  count = clientsWithBirthdays.filter(client => {
-                    const birthdayThisYear = getBirthdayThisYear(client.birthday!);
-                    return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
-                  }).length;
-                  break;
-              }
+                switch (index) {
+                  case 0: // Hoje
+                    count = getClientsForDate(today).length;
+                    break;
+                  case 1: // Amanhã
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(today.getDate() + 1);
+                    count = getClientsForDate(tomorrow).length;
+                    break;
+                  case 2: // Esta semana
+                    endDate.setDate(today.getDate() + 7);
+                    count = clientsWithBirthdays.filter(client => {
+                      const birthdayThisYear = getBirthdayThisYear(client.birthday!);
+                      return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
+                    }).length;
+                    break;
+                  case 3: // Este mês
+                    endDate.setDate(today.getDate() + 30);
+                    count = clientsWithBirthdays.filter(client => {
+                      const birthdayThisYear = getBirthdayThisYear(client.birthday!);
+                      return birthdayThisYear >= startDate && birthdayThisYear <= endDate;
+                    }).length;
+                    break;
+                }
 
-              return (
-                <div key={period} className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-wine-600">{count}</div>
-                  <div className="text-sm text-gray-600">{period}</div>
+                return (
+                  <div key={period} className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-wine-600">{count}</div>
+                    <div className="text-sm text-gray-600">{period}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-amber-600" />
+              Próximos Aniversários (30 dias)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {upcomingBirthdays.slice(0, 10).map((client: any) => {
+                const birthdayDate = parseISO(client.birthday);
+                const age = new Date().getFullYear() - birthdayDate.getFullYear();
+                const daysUntil = Math.ceil((new Date(client.nextBirthday).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                
+                return (
+                  <div key={client.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{client.name}</div>
+                      <div className="text-sm text-gray-600">
+                        {format(birthdayDate, "dd/MM", { locale: ptBR })} - {age} anos
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-amber-600">
+                        {daysUntil === 0 ? "Hoje!" : daysUntil === 1 ? "Amanhã" : `${daysUntil} dias`}
+                      </div>
+                      {client.phone && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs p-1 h-auto"
+                          onClick={() => {
+                            const message = `Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`;
+                            window.open(`https://wa.me/${client.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+                          }}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {upcomingBirthdays.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhum aniversário nos próximos 30 dias
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
         </div>
       </div>
     </div>
