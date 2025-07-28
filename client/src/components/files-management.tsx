@@ -50,7 +50,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: files = [], refetch, error } = useQuery({
+  const { data: files = [], refetch, error, isLoading } = useQuery({
     queryKey: ["/api/files", currentFolder],
     queryFn: async () => {
       const response = await fetch(`/api/files?folder=${encodeURIComponent(currentFolder)}`);
