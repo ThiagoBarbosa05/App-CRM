@@ -1,4 +1,4 @@
-import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -125,6 +125,21 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 >
                   <CalendarDays className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Calendário</span>
+                </button>
+              </Link>
+
+              <Link href="/metas">
+                <button 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/metas"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <Target className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Metas</span>
                 </button>
               </Link>
 

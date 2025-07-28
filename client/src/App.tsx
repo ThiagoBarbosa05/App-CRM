@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
+import Metas from "@/pages/metas";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/reports" component={Reports} />
       <Route path="/calendario" component={Calendar} />
+      <Route path="/metas" component={Metas} />
       <Route component={NotFound} />
     </Switch>
   );
