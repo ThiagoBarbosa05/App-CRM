@@ -18,7 +18,7 @@ interface Client {
   categoria?: string;
   origem?: string;
   markers?: string[];
-  responsible?: string;
+  responsavelId?: string;
   createdAt: string;
 }
 
@@ -115,7 +115,7 @@ export default function Reports() {
 
   // Estatísticas por usuário responsável
   const clientsByUser = clients.reduce((acc, client) => {
-    const responsibleId = client.responsible;
+    const responsibleId = client.responsavelId;
     if (!responsibleId) {
       acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
     } else if (validUserIds.has(responsibleId)) {
