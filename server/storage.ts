@@ -18,7 +18,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
-  
+
   // Clients
   getClients(userId?: string, userRole?: string): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
@@ -27,20 +27,20 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
-  
+
   // Sales Funnels
   getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
   getSalesFunnel(id: string): Promise<SalesFunnelWithStages | undefined>;
   createSalesFunnel(funnel: InsertSalesFunnel): Promise<SalesFunnel>;
   updateSalesFunnel(id: string, funnel: Partial<InsertSalesFunnel>): Promise<SalesFunnel | undefined>;
   deleteSalesFunnel(id: string): Promise<boolean>;
-  
+
   // Funnel Stages
   getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
   updateFunnelStage(id: string, stage: Partial<InsertFunnelStage>): Promise<FunnelStage | undefined>;
   deleteFunnelStage(id: string): Promise<boolean>;
-  
+
   // Deals
   getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]>;
   getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]>;
@@ -48,7 +48,7 @@ export interface IStorage {
   createDeal(deal: InsertDeal): Promise<Deal>;
   updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
   deleteDeal(id: string): Promise<boolean>;
-  
+
   // Birthday Reminder methods
   getBirthdayReminders(): Promise<BirthdayReminderWithClient[]>;
   getBirthdayRemindersForToday(): Promise<BirthdayReminderWithClient[]>;
@@ -56,15 +56,15 @@ export interface IStorage {
   updateBirthdayReminder(id: string, reminder: Partial<InsertBirthdayReminder>): Promise<BirthdayReminder | undefined>;
   deleteBirthdayReminder(id: string): Promise<boolean>;
   markReminderAsSent(id: string): Promise<boolean>;
-  
+
   // Birthday Reminder Settings methods
   getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined>;
   updateBirthdayReminderSettings(settings: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined>;
-  
+
   // Birthday utility methods
   getUpcomingBirthdays(days?: number): Promise<Client[]>;
   createAutomaticReminders(): Promise<number>; // Returns number of reminders created
-  
+
   // Tags methods
   getTags(): Promise<Tag[]>;
   getTag(id: string): Promise<Tag | undefined>;
@@ -115,12 +115,12 @@ export class DatabaseStorage implements IStorage {
   // Client methods
   async getClients(userId?: string, userRole?: string): Promise<Client[]> {
     let query = db.select().from(clients);
-    
+
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === 'vendedor' && userId) {
       query = query.where(eq(clients.responsible, userId));
     }
-    
+
     const result = await query.orderBy(clients.createdAt);
     return result.reverse(); // Most recent first
   }
@@ -174,9 +174,9 @@ export class DatabaseStorage implements IStorage {
       const stages = await db.select().from(funnelStages)
         .where(eq(funnelStages.funnelId, funnel.id))
         .orderBy(funnelStages.order);
-      
+
       const [creator] = await db.select().from(users).where(eq(users.id, funnel.createdBy));
-      
+
       funnelsWithStages.push({
         ...funnel,
         stages,
@@ -194,7 +194,7 @@ export class DatabaseStorage implements IStorage {
     const stages = await db.select().from(funnelStages)
       .where(eq(funnelStages.funnelId, funnel.id))
       .orderBy(funnelStages.order);
-    
+
     const [creator] = await db.select().from(users).where(eq(users.id, funnel.createdBy));
 
     return {
@@ -258,30 +258,30 @@ export class DatabaseStorage implements IStorage {
   // Deal methods
   async getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]> {
     let query = db.select().from(deals);
-    
+
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
-    
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
-    
+
     const result = await query.orderBy(deals.createdAt);
     return result.reverse(); // Most recent first
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
     let query = db.select().from(deals);
-    
+
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
-    
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
-    
+
     const allDeals = await query.orderBy(deals.createdAt);
     const dealsWithClients: DealWithClient[] = [];
 
@@ -334,13 +334,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(birthdayReminders)
       .orderBy(birthdayReminders.reminderDate);
-    
+
     const remindersWithClients: BirthdayReminderWithClient[] = [];
-    
+
     for (const reminder of reminders) {
       const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
       const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
-      
+
       if (client && creator) {
         remindersWithClients.push({
           ...reminder,
@@ -349,7 +349,7 @@ export class DatabaseStorage implements IStorage {
         });
       }
     }
-    
+
     return remindersWithClients;
   }
 
@@ -358,7 +358,7 @@ export class DatabaseStorage implements IStorage {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     const reminders = await db
       .select()
       .from(birthdayReminders)
@@ -369,13 +369,13 @@ export class DatabaseStorage implements IStorage {
           eq(birthdayReminders.isSent, "false")
         )
       );
-    
+
     const remindersWithClients: BirthdayReminderWithClient[] = [];
-    
+
     for (const reminder of reminders) {
       const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
       const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
-      
+
       if (client && creator) {
         remindersWithClients.push({
           ...reminder,
@@ -384,7 +384,7 @@ export class DatabaseStorage implements IStorage {
         });
       }
     }
-    
+
     return remindersWithClients;
   }
 
@@ -431,7 +431,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateBirthdayReminderSettings(updateData: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined> {
     const existingSettings = await this.getBirthdayReminderSettings();
-    
+
     if (existingSettings) {
       const [settings] = await db
         .update(birthdayReminderSettings)
@@ -452,37 +452,37 @@ export class DatabaseStorage implements IStorage {
   async getUpcomingBirthdays(days: number = 7): Promise<Client[]> {
     const today = new Date();
     const upcomingClients: Client[] = [];
-    
+
     const allClients = await db.select().from(clients).where(isNotNull(clients.birthday));
-    
+
     for (const client of allClients) {
       if (client.birthday) {
         const birthday = new Date(client.birthday);
         const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
-        
+
         // Se o aniversário já passou este ano, considere o do próximo ano
         if (thisYearBirthday < today) {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
         }
-        
+
         const diffTime = thisYearBirthday.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays <= days && diffDays >= 0) {
           upcomingClients.push(client);
         }
       }
     }
-    
+
     return upcomingClients.sort((a, b) => {
       const aBirthday = new Date(a.birthday!);
       const bBirthday = new Date(b.birthday!);
       const aThisYear = new Date(today.getFullYear(), aBirthday.getMonth(), aBirthday.getDate());
       const bThisYear = new Date(today.getFullYear(), bBirthday.getMonth(), bBirthday.getDate());
-      
+
       if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
       if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
-      
+
       return aThisYear.getTime() - bThisYear.getTime();
     });
   }
@@ -492,24 +492,24 @@ export class DatabaseStorage implements IStorage {
     if (!settings || settings.isEnabled !== "true") {
       return 0;
     }
-    
+
     const upcomingClients = await this.getUpcomingBirthdays(settings.defaultDaysBeforeBirthday);
     let remindersCreated = 0;
-    
+
     for (const client of upcomingClients) {
       if (!client.birthday) continue;
-      
+
       const birthday = new Date(client.birthday);
       const today = new Date();
       const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
-      
+
       if (thisYearBirthday < today) {
         thisYearBirthday.setFullYear(today.getFullYear() + 1);
       }
-      
+
       const reminderDate = new Date(thisYearBirthday);
       reminderDate.setDate(reminderDate.getDate() - settings.defaultDaysBeforeBirthday);
-      
+
       // Verificar se já existe um lembrete para este cliente nesta data
       const existingReminder = await db
         .select()
@@ -522,7 +522,7 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .limit(1);
-      
+
       if (existingReminder.length === 0) {
         // Buscar um usuário administrador para criar o lembrete
         const [adminUser] = await db
@@ -530,7 +530,7 @@ export class DatabaseStorage implements IStorage {
           .from(users)
           .where(eq(users.role, "administrator"))
           .limit(1);
-        
+
         if (adminUser) {
           await this.createBirthdayReminder({
             clientId: client.id,
@@ -544,12 +544,12 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-    
+
     // Atualizar a data da última verificação
     await this.updateBirthdayReminderSettings({
       lastProcessedDate: new Date(),
     });
-    
+
     return remindersCreated;
   }
 

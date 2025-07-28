@@ -71,6 +71,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.partial().parse(req.body);
+      
+      // Check if email already exists for another user
+      if (validatedData.email) {
+        const existingUser = await storage.getUserByEmail(validatedData.email);
+        if (existingUser && existingUser.id !== req.params.id) {
+          return res.status(400).json({ message: "E-mail já cadastrado" });
+        }
+      }
+
+      const user = await storage.updateUser(req.params.id, validatedData);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
   // Sales Funnel routes
   app.get("/api/funnels", async (req, res) => {
     try {

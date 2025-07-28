@@ -32,6 +32,13 @@ import { z } from "zod";
 const userSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
+  password: z.string().optional(),
+  role: z.enum(["administrator", "manager", "seller"]),
+});
+
+const userCreateSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   role: z.enum(["administrator", "manager", "seller"]),
 });
@@ -82,7 +89,7 @@ export default function SettingsManagement() {
 
   // Formulário de usuário
   const userForm = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(editingUser ? userSchema : userCreateSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -104,7 +111,12 @@ export default function SettingsManagement() {
   const userMutation = useMutation({
     mutationFn: async (data: UserFormData) => {
       if (editingUser) {
-        return apiRequest(`/api/users/${editingUser.id}`, "PUT", data);
+        // Para edição, remove password se estiver vazio
+        const updateData = { ...data };
+        if (!updateData.password || updateData.password.trim() === "") {
+          delete updateData.password;
+        }
+        return apiRequest(`/api/users/${editingUser.id}`, "PUT", updateData);
       } else {
         return apiRequest("/api/users", "POST", data);
       }
@@ -200,6 +212,7 @@ export default function SettingsManagement() {
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
+    // Reset form with new resolver for editing
     userForm.reset({
       name: user.name,
       email: user.email,
@@ -297,7 +310,15 @@ export default function SettingsManagement() {
                 </CardTitle>
                 <Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={() => setEditingUser(null)}>
+                    <Button onClick={() => {
+                      setEditingUser(null);
+                      userForm.reset({
+                        name: "",
+                        email: "",
+                        password: "",
+                        role: "seller",
+                      });
+                    }}>
                       <Plus className="h-4 w-4 mr-2" />
                       Novo Usuário
                     </Button>
@@ -342,6 +363,7 @@ export default function SettingsManagement() {
                           id="password"
                           type="password"
                           {...userForm.register("password")}
+                          required={!editingUser}
                         />
                         {userForm.formState.errors.password && (
                           <p className="text-sm text-red-600 mt-1">
@@ -445,13 +467,18 @@ export default function SettingsManagement() {
                   <Tags className="h-5 w-5" />
                   Gerenciar Marcadores
                 </CardTitle>
-                <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingTag(null); setTagType("marcador"); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Novo Marcador
-                    </Button>
-                  </DialogTrigger>
+                <Button onClick={() => { 
+                  setEditingTag(null); 
+                  setTagType("marcador");
+                  tagForm.reset({
+                    name: "",
+                    color: "#6B7280",
+                  });
+                  setIsTagModalOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Marcador
+                </Button>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>
@@ -540,14 +567,18 @@ export default function SettingsManagement() {
                   <MapPin className="h-5 w-5" />
                   Gerenciar Origens
                 </CardTitle>
-                <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingTag(null); setTagType("origem"); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Origem
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+                <Button onClick={() => { 
+                  setEditingTag(null); 
+                  setTagType("origem");
+                  tagForm.reset({
+                    name: "",
+                    color: "#6B7280",
+                  });
+                  setIsTagModalOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Origem
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -591,14 +622,18 @@ export default function SettingsManagement() {
                   <Star className="h-5 w-5" />
                   Gerenciar Categorias
                 </CardTitle>
-                <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingTag(null); setTagType("categoria"); }}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Categoria
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+                <Button onClick={() => { 
+                  setEditingTag(null); 
+                  setTagType("categoria");
+                  tagForm.reset({
+                    name: "",
+                    color: "#6B7280",
+                  });
+                  setIsTagModalOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Categoria
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -633,6 +668,53 @@ export default function SettingsManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Tags - Usado para todos os tipos */}
+      <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingTag ? `Editar ${getTagTypeLabel(tagType)}` : `Novo ${getTagTypeLabel(tagType)}`}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={tagForm.handleSubmit((data) => tagMutation.mutate({ ...data, type: tagType }))} className="space-y-4">
+            <div>
+              <Label htmlFor="tagName">Nome</Label>
+              <Input
+                id="tagName"
+                {...tagForm.register("name")}
+              />
+              {tagForm.formState.errors.name && (
+                <p className="text-sm text-red-600 mt-1">
+                  {tagForm.formState.errors.name.message}
+                </p>
+              )}
+            </div>
+            {tagType === "marcador" && (
+              <div>
+                <Label htmlFor="tagColor">Cor</Label>
+                <Input
+                  id="tagColor"
+                  type="color"
+                  {...tagForm.register("color")}
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsTagModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={tagMutation.isPending}>
+                {tagMutation.isPending ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
