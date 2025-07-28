@@ -479,48 +479,6 @@ export default function SettingsManagement() {
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Marcador
                 </Button>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingTag ? "Editar Marcador" : "Novo Marcador"}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={tagForm.handleSubmit((data) => tagMutation.mutate({ ...data, type: tagType }))} className="space-y-4">
-                      <div>
-                        <Label htmlFor="tagName">Nome</Label>
-                        <Input
-                          id="tagName"
-                          {...tagForm.register("name")}
-                        />
-                        {tagForm.formState.errors.name && (
-                          <p className="text-sm text-red-600 mt-1">
-                            {tagForm.formState.errors.name.message}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="tagColor">Cor</Label>
-                        <Input
-                          id="tagColor"
-                          type="color"
-                          {...tagForm.register("color")}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setIsTagModalOpen(false)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button type="submit" disabled={tagMutation.isPending}>
-                          {tagMutation.isPending ? "Salvando..." : "Salvar"}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
