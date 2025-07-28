@@ -65,7 +65,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
   const [stageName, setStageName] = useState("");
   const [stageColor, setStageColor] = useState(defaultColors[0]);
 
-  const { data: stages, isLoading } = useQuery({
+  const { data: stages = [], isLoading } = useQuery<FunnelStage[]>({
     queryKey: ["/api/funnel-stages", funnel.id],
     queryFn: () => apiRequest("GET", `/api/funnel-stages?funnelId=${funnel.id}`),
   });
@@ -150,7 +150,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
       return;
     }
 
-    const nextOrder = (stages?.length || 0) + 1;
+    const nextOrder = (stages.length || 0) + 1;
     createStageMutation.mutate({
       name: stageName,
       color: stageColor,
@@ -260,7 +260,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
         </div>
 
         <div className="grid gap-4">
-          {stages?.map((stage: FunnelStage, index: number) => (
+          {stages.map((stage: FunnelStage, index: number) => (
             <Card key={stage.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -297,7 +297,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
             </Card>
           ))}
 
-          {(!stages || stages.length === 0) && (
+          {stages.length === 0 && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Palette className="h-12 w-12 text-gray-400 mb-4" />

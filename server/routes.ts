@@ -809,6 +809,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Funnel Stages routes
+  app.get("/api/funnel-stages", async (req, res) => {
+    try {
+      const { funnelId } = req.query;
+      if (!funnelId) {
+        return res.status(400).json({ message: "funnelId é obrigatório" });
+      }
+      const stages = await storage.getFunnelStages(funnelId as string);
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar etapas do funil" });
+    }
+  });
+
+  app.post("/api/funnel-stages", async (req, res) => {
+    try {
+      const validatedData = insertFunnelStageSchema.parse(req.body);
+      const stage = await storage.createFunnelStage(validatedData);
+      res.status(201).json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar etapa do funil" });
+    }
+  });
+
+  app.put("/api/funnel-stages/:id", async (req, res) => {
+    try {
+      const validatedData = insertFunnelStageSchema.partial().parse(req.body);
+      const stage = await storage.updateFunnelStage(req.params.id, validatedData);
+      if (!stage) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      res.json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar etapa do funil" });
+    }
+  });
+
+  app.delete("/api/funnel-stages/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteFunnelStage(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Etapa não encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar etapa do funil" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
