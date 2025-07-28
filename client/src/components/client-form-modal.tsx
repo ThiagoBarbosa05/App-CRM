@@ -408,7 +408,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="cep"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CEP *</FormLabel>
+                    <FormLabel>CEP</FormLabel>
                     <FormControl>
                       <InputMask
                         mask="99999-999"
@@ -426,7 +426,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="address"
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
-                    <FormLabel>Logradouro *</FormLabel>
+                    <FormLabel>Logradouro</FormLabel>
                     <FormControl>
                       <Input placeholder="Rua, avenida, etc." {...field} />
                     </FormControl>
@@ -440,7 +440,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número *</FormLabel>
+                    <FormLabel>Número</FormLabel>
                     <FormControl>
                       <Input placeholder="123" {...field} />
                     </FormControl>
@@ -454,7 +454,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="neighborhood"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bairro *</FormLabel>
+                    <FormLabel>Bairro</FormLabel>
                     <FormControl>
                       <Input placeholder="Centro" {...field} />
                     </FormControl>
@@ -468,7 +468,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cidade *</FormLabel>
+                    <FormLabel>Cidade</FormLabel>
                     <FormControl>
                       <Input placeholder="São Paulo" {...field} />
                     </FormControl>
@@ -482,7 +482,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Estado *</FormLabel>
+                    <FormLabel>Estado</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
