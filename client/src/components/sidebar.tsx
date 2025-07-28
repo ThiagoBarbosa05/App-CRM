@@ -57,98 +57,98 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
 
           <nav className="space-y-2">
-          <button
-            onClick={() => {
-              onTabChange("clientes");
-              closeMobileMenu();
-            }}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-              activeTab === "clientes"
-                ? "bg-primary text-white"
-                : "text-gray-700 hover:bg-gray-100"
-            )}
-          >
-            <Users className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Clientes</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onTabChange("funil");
-              closeMobileMenu();
-            }}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-              activeTab === "funil"
-                ? "bg-primary text-white"
-                : "text-gray-700 hover:bg-gray-100"
-            )}
-          >
-            <GitBranch className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Funil de Vendas</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onTabChange("lembretes");
-              closeMobileMenu();
-            }}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-              activeTab === "lembretes"
-                ? "bg-primary text-white"
-                : "text-gray-700 hover:bg-gray-100"
-            )}
-          >
-            <CalendarDays className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Lembretes</span>
-          </button>
-
-          <Link href="/reports" onClick={closeMobileMenu}>
-            <button 
+            <button
+              onClick={() => {
+                onTabChange("clientes");
+                closeMobileMenu();
+              }}
               className={cn(
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                location === "/reports"
+                activeTab === "clientes"
                   ? "bg-primary text-white"
                   : "text-gray-700 hover:bg-gray-100"
               )}
             >
-              <BarChart3 className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Relatórios</span>
+              <Users className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Clientes</span>
             </button>
-          </Link>
 
-          <Link href="/calendario" onClick={closeMobileMenu}>
-            <button 
+            <button
+              onClick={() => {
+                onTabChange("funil");
+                closeMobileMenu();
+              }}
               className={cn(
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                location === "/calendario"
+                activeTab === "funil"
+                  ? "bg-primary text-white"
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <GitBranch className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Funil de Vendas</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onTabChange("lembretes");
+                closeMobileMenu();
+              }}
+              className={cn(
+                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                activeTab === "lembretes"
                   ? "bg-primary text-white"
                   : "text-gray-700 hover:bg-gray-100"
               )}
             >
               <CalendarDays className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Calendário</span>
+              <span className="mobile-text">Lembretes</span>
             </button>
-          </Link>
 
-          <button
-            onClick={() => {
-              onTabChange("configuracoes");
-              closeMobileMenu();
-            }}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-              activeTab === "configuracoes"
-                ? "bg-primary text-white"
-                : "text-gray-700 hover:bg-gray-100"
-            )}
-          >
-            <Settings className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Configurações</span>
-          </button>
-        </nav>
+            <Link href="/reports" onClick={closeMobileMenu}>
+              <button 
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  location === "/reports"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <BarChart3 className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Relatórios</span>
+              </button>
+            </Link>
+
+            <Link href="/calendario" onClick={closeMobileMenu}>
+              <button 
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  location === "/calendario"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <CalendarDays className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Calendário</span>
+              </button>
+            </Link>
+
+            <button
+              onClick={() => {
+                onTabChange("configuracoes");
+                closeMobileMenu();
+              }}
+              className={cn(
+                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                activeTab === "configuracoes"
+                  ? "bg-primary text-white"
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              <Settings className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Configurações</span>
+            </button>
+          </nav>
 
           {/* User Profile */}
           <div className="p-4 border-t border-gray-200">
