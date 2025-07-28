@@ -33,14 +33,14 @@ const userSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
   password: z.string().optional(),
-  role: z.enum(["administrator", "manager", "seller"]),
+  role: z.enum(["admin", "gerente", "vendedor"]),
 });
 
 const userCreateSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: z.enum(["administrator", "manager", "seller"]),
+  role: z.enum(["admin", "gerente", "vendedor"]),
 });
 
 const tagSchema = z.object({
@@ -56,7 +56,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: "administrator" | "manager" | "seller";
+  role: "admin" | "gerente" | "vendedor";
   isActive: string;
   createdAt: string;
 }
@@ -94,7 +94,7 @@ export default function SettingsManagement() {
       name: "",
       email: "",
       password: "",
-      role: "seller",
+      role: "vendedor",
     },
   });
 
@@ -234,27 +234,27 @@ export default function SettingsManagement() {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case "administrator": return "Administrador";
-      case "manager": return "Gerente";
-      case "seller": return "Vendedor";
+      case "admin": return "Administrador";
+      case "gerente": return "Gerente";
+      case "vendedor": return "Vendedor";
       default: return role;
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "administrator": return <Crown className="h-4 w-4" />;
-      case "manager": return <ShieldCheck className="h-4 w-4" />;
-      case "seller": return <Shield className="h-4 w-4" />;
+      case "admin": return <Crown className="h-4 w-4" />;
+      case "gerente": return <ShieldCheck className="h-4 w-4" />;
+      case "vendedor": return <Shield className="h-4 w-4" />;
       default: return <Shield className="h-4 w-4" />;
     }
   };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case "administrator": return "bg-red-100 text-red-800";
-      case "manager": return "bg-blue-100 text-blue-800";
-      case "seller": return "bg-green-100 text-green-800";
+      case "admin": return "bg-red-100 text-red-800";
+      case "gerente": return "bg-blue-100 text-blue-800";
+      case "vendedor": return "bg-green-100 text-green-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -316,7 +316,7 @@ export default function SettingsManagement() {
                         name: "",
                         email: "",
                         password: "",
-                        role: "seller",
+                        role: "vendedor",
                       });
                     }}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -381,9 +381,9 @@ export default function SettingsManagement() {
                             <SelectValue placeholder="Selecione um perfil" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="administrator">Administrador</SelectItem>
-                            <SelectItem value="manager">Gerente</SelectItem>
-                            <SelectItem value="seller">Vendedor</SelectItem>
+                            <SelectItem value="admin">Administrador</SelectItem>
+                            <SelectItem value="gerente">Gerente</SelectItem>
+                            <SelectItem value="vendedor">Vendedor</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
