@@ -1,6 +1,6 @@
 import { 
   type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient,
-  type User, type InsertUser, type SalesFunnel, type InsertSalesFunnel,
+  type User, type InsertUser, type UpsertUser, type SalesFunnel, type InsertSalesFunnel,
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
@@ -11,9 +11,10 @@ import { db } from "./db";
 import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
+  // Users (Replit Auth compatible)
   getUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
@@ -83,6 +84,21 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {

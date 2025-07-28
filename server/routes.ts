@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
   insertClientSchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
@@ -11,35 +12,23 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Authentication routes
-  app.post("/api/auth/login", async (req, res) => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email e senha são obrigatórios" });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
-      }
-
-      if (user.isActive !== 'true') {
-        return res.status(401).json({ message: "Usuário inativo" });
-      }
-
-      // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
     } catch (error) {
-      res.status(500).json({ message: "Erro interno do servidor" });
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
-  // User routes
-  app.get("/api/users", async (req, res) => {
+  // User routes (protected)
+  app.get("/api/users", isAuthenticated, async (req, res) => {
     try {
       const users = await storage.getUsers();
       // Remove passwords from response
@@ -50,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
