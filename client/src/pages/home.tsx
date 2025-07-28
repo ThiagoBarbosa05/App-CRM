@@ -4,8 +4,7 @@ import ClientsTableWithSelection from "@/components/clients-table-with-selection
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import FunnelsManagement from "@/components/funnels-management";
-import { BirthdayReminders } from "@/components/birthday-reminders";
-import { BirthdaySettings } from "@/components/birthday-settings";
+
 import ClientImportModal from "@/components/client-import-modal";
 import SettingsManagement from "@/components/settings-management";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
-type Tab = "clientes" | "funis" | "lembretes" | "configuracoes";
+type Tab = "clientes" | "funis" | "configuracoes";
 
 export default function Home() {
   const { user } = useAuth();
@@ -195,30 +194,6 @@ export default function Home() {
           <FunnelsManagement />
         ) : activeTab === "configuracoes" ? (
           <SettingsManagement />
-        ) : activeTab === "lembretes" ? (
-          <div className="flex-1 flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Lembretes de Aniversário</h2>
-                <p className="text-gray-600 mt-1">Gerencie lembretes automáticos de aniversários dos clientes</p>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-6">
-              <div className="max-w-7xl mx-auto space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <BirthdayReminders showUpcoming={true} showToday={true} />
-                  </div>
-                  <div>
-                    <BirthdaySettings />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         ) : null}
       </div>
 

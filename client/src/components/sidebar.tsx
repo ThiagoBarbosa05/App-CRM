@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 
 interface SidebarProps {
-  activeTab: "clientes" | "funis" | "lembretes" | "configuracoes";
-  onTabChange: (tab: "clientes" | "funis" | "lembretes" | "configuracoes") => void;
+  activeTab: "clientes" | "funis" | "configuracoes";
+  onTabChange: (tab: "clientes" | "funis" | "configuracoes") => void;
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -53,18 +53,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           Funis de Vendas
         </button>
 
-        <button
-          onClick={() => onTabChange("lembretes")}
-          className={cn(
-            "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
-            activeTab === "lembretes"
-              ? "bg-primary text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <CalendarDays className="mr-3 h-4 w-4" />
-          Lembretes
-        </button>
+
 
         <Link href="/reports">
           <button 
