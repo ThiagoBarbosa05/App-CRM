@@ -1,4 +1,4 @@
-import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -104,6 +104,26 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               >
                 <GitBranch className="mr-3 h-4 w-4 flex-shrink-0" />
                 <span className="mobile-text">Funil de Vendas</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onTabChange("empresas");
+                  closeMobileMenu();
+                }}
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  activeTab === "empresas"
+                    ? "bg-primary text-white hover:bg-primary/90"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <Building2 className="mr-3 h-4 w-4 flex-shrink-0" />
+                <span className="mobile-text">Empresas</span>
               </button>
 
               <Link href="/reports">

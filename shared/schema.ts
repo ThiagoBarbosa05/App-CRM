@@ -182,6 +182,26 @@ export const clientInteractions = pgTable("client_interactions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  razaoSocial: text("razao_social").notNull(),
+  nomeFantasia: text("nome_fantasia"),
+  cnpj: text("cnpj").notNull().unique(),
+  areaAtuacao: text("area_atuacao").notNull(),
+  email: text("email"),
+  telefone: text("telefone"),
+  cep: text("cep"),
+  endereco: text("endereco"),
+  numero: text("numero"),
+  bairro: text("bairro"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  observacoes: text("observacoes"),
+  isActive: text("is_active").notNull().default("true"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Client Interactions relations
 export const clientInteractionsRelations = relations(clientInteractions, ({ one }) => ({
   client: one(clients, {
@@ -297,6 +317,12 @@ export const insertClientInteractionSchema = createInsertSchema(clientInteractio
   updatedAt: true,
 });
 
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
   id: true,
   createdAt: true,
@@ -327,6 +353,8 @@ export type InsertTag = z.infer<typeof insertTagSchema>;
 export type Tag = typeof tags.$inferSelect;
 export type InsertClientInteraction = z.infer<typeof insertClientInteractionSchema>;
 export type ClientInteraction = typeof clientInteractions.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type Company = typeof companies.$inferSelect;
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;

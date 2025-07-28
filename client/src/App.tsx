@@ -10,40 +10,100 @@ import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
 import NotFound from "@/pages/not-found";
+import ClientsTable from "./components/clients-table";
+import SettingsManagement from "./components/settings-management";
+import VendorDashboard from "./components/vendor-dashboard";
+import KanbanBoard from "./components/kanban-board";
+import CompaniesManagement from "./components/companies-management";
+import { useState } from "react";
 
-function Router() {
-  const { user, login, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Carregando...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login onLogin={login} />;
-  }
-
+function Sidebar({ activeTab, setActiveTab }) {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/calendario" component={Calendar} />
-      <Route path="/metas" component={Metas} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="w-64 bg-gray-100 h-screen">
+      <div className="p-4">
+        <h2 className="text-xl font-semibold mb-4">Menu</h2>
+        <ul>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "home" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("home")}
+          >
+            Home
+          </li>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "reports" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("reports")}
+          >
+            Reports
+          </li>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "calendario" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("calendario")}
+          >
+            Calendario
+          </li>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "metas" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("metas")}
+          >
+            Metas
+          </li>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "configuracoes" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("configuracoes")}
+          >
+            Configurações
+          </li>
+          <li
+            className={`p-2 cursor-pointer ${
+              activeTab === "empresas" ? "bg-gray-200" : ""
+            }`}
+            onClick={() => setActiveTab("empresas")}
+          >
+            Empresas
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function MainContent({ activeTab }) {
+  return (
+    <div className="flex-1 p-4">
+      <div>
+        {activeTab === "home" && <div>Home Content</div>}
+        {activeTab === "reports" && <div>Reports Content</div>}
+        {activeTab === "calendario" && <div>Calendario Content</div>}
+        {activeTab === "metas" && <div>Metas Content</div>}
+        {activeTab === "configuracoes" && <SettingsManagement />}
+        {activeTab === "empresas" && <CompaniesManagement />}
+      </div>
+    </div>
   );
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState("home");
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <div className="flex h-screen">
+            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+            <MainContent activeTab={activeTab} />
+          </div>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

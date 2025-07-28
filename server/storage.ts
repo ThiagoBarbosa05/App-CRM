@@ -6,7 +6,10 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser,
-  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
+  users, clients, deals, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, emailCampaignRecipients, companies,
+  type Company,
+  type InsertCompany,
+  type EmailCampaignRecipient
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -89,6 +92,14 @@ export interface IStorage {
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
   sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
+
+  // Company methods
+  getCompanies(): Promise<Company[]>;
+  getCompany(id: string): Promise<Company | undefined>;
+  getCompanyByCNPJ(cnpj: string): Promise<Company | undefined>;
+  createCompany(data: InsertCompany): Promise<Company>;
+  updateCompany(id: string, data: Partial<InsertCompany>): Promise<Company | undefined>;
+  deleteCompany(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -799,7 +810,7 @@ export class DatabaseStorage implements IStorage {
 
     // Buscar destinatários baseado no targetType
     let recipients: Client[] = [];
-    
+
     if (campaign.targetType === "all") {
       recipients = await this.getClients();
     } else if (campaign.targetType === "category" && campaign.targetCriteria) {
@@ -829,6 +840,39 @@ export class DatabaseStorage implements IStorage {
       sentCount: sentCount,
       errors: []
     };
+  }
+
+  // Company methods
+  async getCompanies(): Promise<Company[]> {
+    return await db.select().from(companies).orderBy(companies.razaoSocial);
+  }
+
+  async getCompany(id: string): Promise<Company | undefined> {
+    const result = await db.select().from(companies).where(eq(companies.id, id));
+    return result[0];
+  }
+
+  async getCompanyByCNPJ(cnpj: string): Promise<Company | undefined> {
+    const result = await db.select().from(companies).where(eq(companies.cnpj, cnpj));
+    return result[0];
+  }
+
+  async createCompany(data: InsertCompany): Promise<Company> {
+    const result = await db.insert(companies).values(data).returning();
+    return result[0];
+  }
+
+  async updateCompany(id: string, data: Partial<InsertCompany>): Promise<Company | undefined> {
+    const result = await db.update(companies)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const result = await db.delete(companies).where(eq(companies.id, id));
+    return result.rowCount > 0;
   }
 }
 
