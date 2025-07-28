@@ -103,6 +103,31 @@ export default function EmailCampaignsManagement() {
     },
   });
 
+  const sendCampaignMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const response = await fetch(`/api/email-campaigns/${campaignId}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Erro ao enviar campanha");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns"] });
+      toast({
+        title: "Campanha enviada",
+        description: data.message,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível enviar a campanha.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { label: "Rascunho", color: "bg-gray-100 text-gray-800" },
@@ -307,14 +332,26 @@ export default function EmailCampaignsManagement() {
                       Visualizar
                     </Button>
                     {campaign.status === "draft" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteCampaignMutation.mutate(campaign.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Excluir
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                          onClick={() => sendCampaignMutation.mutate(campaign.id)}
+                          disabled={sendCampaignMutation.isPending}
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          {sendCampaignMutation.isPending ? "Enviando..." : "Enviar"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteCampaignMutation.mutate(campaign.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Excluir
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>

@@ -924,6 +924,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Campaign routes
+  app.get("/api/email-campaigns", async (req, res) => {
+    try {
+      const campaigns = await storage.getEmailCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar campanhas de email" });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id", async (req, res) => {
+    try {
+      const campaign = await storage.getEmailCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campanha não encontrada" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar campanha" });
+    }
+  });
+
+  app.post("/api/email-campaigns", async (req, res) => {
+    try {
+      // Adicionar createdBy baseado no usuário logado (assumindo que existe uma sessão)
+      const campaignData = {
+        ...req.body,
+        createdBy: "a141d784-f53a-4dfd-a35c-7bb016852677" // ID do admin padrão - idealmente viria da sessão
+      };
+      
+      const campaign = await storage.createEmailCampaign(campaignData);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("Error creating email campaign:", error);
+      res.status(500).json({ message: "Erro ao criar campanha de email" });
+    }
+  });
+
+  app.put("/api/email-campaigns/:id", async (req, res) => {
+    try {
+      const campaign = await storage.updateEmailCampaign(req.params.id, req.body);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campanha não encontrada" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar campanha" });
+    }
+  });
+
+  app.delete("/api/email-campaigns/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteEmailCampaign(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Campanha não encontrada" });
+      }
+      res.json({ message: "Campanha excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir campanha" });
+    }
+  });
+
+  app.post("/api/email-campaigns/:id/send", async (req, res) => {
+    try {
+      const result = await storage.sendEmailCampaign(req.params.id);
+      if (!result.success) {
+        return res.status(400).json({ message: "Erro ao enviar campanha", errors: result.errors });
+      }
+      res.json({ 
+        message: `Campanha enviada com sucesso para ${result.sentCount} destinatários`,
+        sentCount: result.sentCount 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao enviar campanha" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

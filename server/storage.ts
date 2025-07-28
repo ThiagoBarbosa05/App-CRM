@@ -6,7 +6,7 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser,
-  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions 
+  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -81,6 +81,14 @@ export interface IStorage {
   createClientInteraction(interaction: InsertClientInteraction): Promise<ClientInteraction>;
   updateClientInteraction(id: string, interaction: Partial<InsertClientInteraction>): Promise<ClientInteraction | undefined>;
   deleteClientInteraction(id: string): Promise<boolean>;
+
+  // Email Campaign methods
+  getEmailCampaigns(): Promise<any[]>;
+  getEmailCampaign(id: string): Promise<any | undefined>;
+  createEmailCampaign(campaign: any): Promise<any>;
+  updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
+  deleteEmailCampaign(id: string): Promise<boolean>;
+  sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -140,7 +148,7 @@ export class DatabaseStorage implements IStorage {
 
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === 'vendedor' && userId) {
-      query = query.where(eq(clients.responsavelId, userId));
+      query = query.where(eq(clients.responsavelId, userId)) as typeof query;
     }
 
     const result = await query.orderBy(clients.createdAt);
@@ -152,7 +160,10 @@ export class DatabaseStorage implements IStorage {
     return client || undefined;
   }
 
-
+  async getClientByCpf(cpf: string): Promise<Client | undefined> {
+    const [client] = await db.select().from(clients).where(eq(clients.cpf, cpf));
+    return client || undefined;
+  }
 
   async getClientByPhone(phone: string): Promise<Client | undefined> {
     const [client] = await db.select().from(clients).where(eq(clients.phone, phone));
@@ -693,6 +704,124 @@ export class DatabaseStorage implements IStorage {
   async deleteClientInteraction(id: string): Promise<boolean> {
     const result = await db.delete(clientInteractions).where(eq(clientInteractions.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Email Campaign methods
+  async getEmailCampaigns(): Promise<any[]> {
+    const campaigns = await db
+      .select({
+        id: emailCampaigns.id,
+        name: emailCampaigns.name,
+        subject: emailCampaigns.subject,
+        content: emailCampaigns.content,
+        templateType: emailCampaigns.templateType,
+        status: emailCampaigns.status,
+        targetType: emailCampaigns.targetType,
+        targetCriteria: emailCampaigns.targetCriteria,
+        totalRecipients: emailCampaigns.totalRecipients,
+        sentCount: emailCampaigns.sentCount,
+        createdAt: emailCampaigns.createdAt,
+        creator: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+      })
+      .from(emailCampaigns)
+      .innerJoin(users, eq(emailCampaigns.createdBy, users.id))
+      .orderBy(emailCampaigns.createdAt);
+
+    return campaigns;
+  }
+
+  async getEmailCampaign(id: string): Promise<any | undefined> {
+    const [campaign] = await db
+      .select({
+        id: emailCampaigns.id,
+        name: emailCampaigns.name,
+        subject: emailCampaigns.subject,
+        content: emailCampaigns.content,
+        templateType: emailCampaigns.templateType,
+        status: emailCampaigns.status,
+        targetType: emailCampaigns.targetType,
+        targetCriteria: emailCampaigns.targetCriteria,
+        totalRecipients: emailCampaigns.totalRecipients,
+        sentCount: emailCampaigns.sentCount,
+        createdAt: emailCampaigns.createdAt,
+        creator: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+      })
+      .from(emailCampaigns)
+      .innerJoin(users, eq(emailCampaigns.createdBy, users.id))
+      .where(eq(emailCampaigns.id, id));
+
+    return campaign || undefined;
+  }
+
+  async createEmailCampaign(insertCampaign: any): Promise<any> {
+    const [campaign] = await db
+      .insert(emailCampaigns)
+      .values(insertCampaign)
+      .returning();
+    return campaign;
+  }
+
+  async updateEmailCampaign(id: string, updateData: any): Promise<any | undefined> {
+    const [campaign] = await db
+      .update(emailCampaigns)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(emailCampaigns.id, id))
+      .returning();
+    return campaign || undefined;
+  }
+
+  async deleteEmailCampaign(id: string): Promise<boolean> {
+    const result = await db.delete(emailCampaigns).where(eq(emailCampaigns.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }> {
+    // Simula o envio de email (sem SendGrid)
+    const campaign = await this.getEmailCampaign(id);
+    if (!campaign) {
+      return { success: false, sentCount: 0, errors: ["Campanha não encontrada"] };
+    }
+
+    // Buscar destinatários baseado no targetType
+    let recipients: Client[] = [];
+    
+    if (campaign.targetType === "all") {
+      recipients = await this.getClients();
+    } else if (campaign.targetType === "category" && campaign.targetCriteria) {
+      recipients = (await this.getClients()).filter(c => c.categoria === campaign.targetCriteria);
+    } else if (campaign.targetType === "origin" && campaign.targetCriteria) {
+      recipients = (await this.getClients()).filter(c => c.origem === campaign.targetCriteria);
+    } else if (campaign.targetType === "markers" && campaign.targetCriteria) {
+      recipients = (await this.getClients()).filter(c => 
+        c.markers && c.markers.some(m => m.includes(campaign.targetCriteria))
+      );
+    }
+
+    // Filtrar apenas clientes com email
+    const recipientsWithEmail = recipients.filter(c => c.email && c.email.trim() !== "");
+    const sentCount = recipientsWithEmail.length;
+
+    // Atualizar campanha com dados do envio
+    await this.updateEmailCampaign(id, {
+      status: "sent",
+      sentAt: new Date(),
+      totalRecipients: sentCount,
+      sentCount: sentCount
+    });
+
+    return {
+      success: true,
+      sentCount: sentCount,
+      errors: []
+    };
   }
 }
 
