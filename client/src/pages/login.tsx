@@ -19,18 +19,25 @@ export default function Login({ onLogin }: LoginProps) {
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      console.log("Tentando fazer login com:", { email, password: password ? "***" : "vazio" });
+      
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       
+      console.log("Resposta do servidor:", response.status, response.statusText);
+      
       if (!response.ok) {
         const error = await response.json();
+        console.error("Erro na resposta:", error);
         throw new Error(error.message || "Erro no login");
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log("Login bem-sucedido:", data);
+      return data;
     },
     onSuccess: (data) => {
       toast({
@@ -40,6 +47,7 @@ export default function Login({ onLogin }: LoginProps) {
       onLogin(data.user);
     },
     onError: (error: any) => {
+      console.error("Erro no login:", error);
       toast({
         title: "Erro no login",
         description: error.message || "Credenciais inválidas",

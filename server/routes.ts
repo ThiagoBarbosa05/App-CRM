@@ -17,14 +17,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
 
+      console.log("Tentativa de login:", { email, password: password ? "***" : "não fornecida" });
+
       if (!email || !password) {
         return res.status(400).json({ message: "Email e senha são obrigatórios" });
       }
 
       const user = await storage.getUserByEmail(email);
+      console.log("Usuário encontrado:", user ? { id: user.id, email: user.email, isActive: user.isActive } : "não encontrado");
 
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
+      if (!user) {
+        return res.status(401).json({ message: "Email não encontrado" });
+      }
+
+      if (user.password !== password) {
+        return res.status(401).json({ message: "Senha incorreta" });
       }
 
       if (user.isActive !== 'true') {
@@ -33,8 +40,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
+      console.log("Login bem-sucedido para:", userWithoutPassword.email);
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error("Erro no login:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
