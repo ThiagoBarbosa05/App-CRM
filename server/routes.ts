@@ -257,13 +257,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "IDs dos clientes são obrigatórios" });
       }
       
+      console.log("Tentando excluir clientes com IDs:", ids);
       const deletedCount = await storage.deleteClients(ids);
+      console.log("Clientes excluídos:", deletedCount);
       
       res.json({ 
         message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
         deletedCount 
       });
     } catch (error) {
+      console.error("Erro ao excluir clientes:", error);
       res.status(500).json({ message: "Erro ao excluir clientes" });
     }
   });

@@ -22,9 +22,20 @@ import {
 
 interface ClientsTableWithSelectionProps {
   clients: Client[];
+  searchQuery?: string;
+  filters?: {
+    name: string;
+    phone: string;
+    cpf: string;
+    email: string;
+    responsible: string;
+    categoria: string;
+    origem: string;
+    markers: string;
+  };
 }
 
-export default function ClientsTableWithSelection({ clients }: ClientsTableWithSelectionProps) {
+export default function ClientsTableWithSelection({ clients, searchQuery = "", filters }: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -54,6 +65,7 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
     },
     onError: (error: Error) => {
+      console.error("Erro na exclusão:", error);
       toast({
         title: "Erro",
         description: error.message,
@@ -64,7 +76,7 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedClientIds(clients.map(client => client.id));
+      setSelectedClientIds(filteredClients.map(client => client.id));
     } else {
       setSelectedClientIds([]);
     }
@@ -97,8 +109,39 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
     }
   };
 
-  const allSelected = selectedClientIds.length === clients.length && clients.length > 0;
-  const someSelected = selectedClientIds.length > 0 && selectedClientIds.length < clients.length;
+  // Filter clients based on search and filters
+  const filteredClients = clients.filter((client) => {
+    // Search query filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const searchMatch = 
+        client.name.toLowerCase().includes(query) ||
+        client.phone.toLowerCase().includes(query) ||
+        (client.email?.toLowerCase() || "").includes(query) ||
+        (client.cpf?.toLowerCase() || "").includes(query);
+      
+      if (!searchMatch) return false;
+    }
+
+    // Advanced filters
+    if (filters) {
+      if (filters.name && !client.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
+      if (filters.phone && !client.phone.toLowerCase().includes(filters.phone.toLowerCase())) return false;
+      if (filters.cpf && client.cpf && !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())) return false;
+      if (filters.email && client.email && !client.email.toLowerCase().includes(filters.email.toLowerCase())) return false;
+      if (filters.responsible && !client.responsible.toLowerCase().includes(filters.responsible.toLowerCase())) return false;
+      if (filters.categoria && client.categoria !== filters.categoria) return false;
+      if (filters.origem && client.origem !== filters.origem) return false;
+      if (filters.markers && client.markers && !client.markers.some(marker => 
+        marker.toLowerCase().includes(filters.markers.toLowerCase())
+      )) return false;
+    }
+
+    return true;
+  });
+
+  const allSelected = selectedClientIds.length === filteredClients.length && filteredClients.length > 0;
+  const someSelected = selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length;
 
   return (
     <div className="space-y-4">
@@ -129,9 +172,6 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
                 <th className="p-4 text-left">
                   <Checkbox
                     checked={allSelected}
-                    ref={(ref) => {
-                      if (ref) ref.indeterminate = someSelected;
-                    }}
                     onCheckedChange={handleSelectAll}
                   />
                 </th>
@@ -144,7 +184,7 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client.id} className="border-b hover:bg-gray-50">
                   <td className="p-4">
                     <Checkbox
@@ -220,6 +260,13 @@ export default function ClientsTableWithSelection({ clients }: ClientsTableWithS
                   </td>
                 </tr>
               ))}
+              {filteredClients.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-gray-500">
+                    Nenhum cliente encontrado
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

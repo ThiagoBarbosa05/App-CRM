@@ -185,7 +185,11 @@ export default function Home() {
               </div>
             </div>
 
-            <ClientsTableWithSelection clients={clientsArray} />
+            <ClientsTableWithSelection 
+              clients={clientsArray} 
+              searchQuery={searchQuery}
+              filters={clientFilters}
+            />
           </div>
         ) : activeTab === "funis" ? (
           <FunnelsManagement />
