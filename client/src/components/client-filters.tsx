@@ -49,7 +49,7 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
       name: "",
       phone: "",
       cpf: "",
-      responsavelId: "",
+      responsavelId: "all",
       categoria: "",
       origem: "",
       markers: "",
@@ -137,7 +137,7 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
                   <SelectValue placeholder="Selecione um usuário..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os usuários</SelectItem>
+                  <SelectItem value="all">Todos os usuários</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}

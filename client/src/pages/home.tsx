@@ -31,7 +31,7 @@ export default function Home() {
     name: "",
     phone: "",
     cpf: "",
-    responsavelId: "",
+    responsavelId: "all",
     categoria: "",
     origem: "",
     markers: "",
