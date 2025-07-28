@@ -38,6 +38,8 @@ interface Marker {
 
 export default function MarkersManagement() {
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
+  const [newMarkerName, setNewMarkerName] = useState("");
+  const [editingName, setEditingName] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [markerToDelete, setMarkerToDelete] = useState<Marker | null>(null);
   const [formData, setFormData] = useState({ name: "", color: "#10B981" });
@@ -163,6 +165,16 @@ export default function MarkersManagement() {
     );
   }
 
+  const handleEditMarker = (marker: Marker) => {
+    setEditingMarker(marker);
+    setEditingName(marker.name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMarker(null);
+    setEditingName("");
+  };
+
   return (
     <>
       <Card>
@@ -212,7 +224,7 @@ export default function MarkersManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEdit(marker)}
+                      onClick={() => handleEditMarker(marker)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>

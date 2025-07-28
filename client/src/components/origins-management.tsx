@@ -51,6 +51,8 @@ export default function OriginsManagement() {
   const { toast } = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingOrigin, setEditingOrigin] = useState<Origin | null>(null);
+  const [newOriginName, setNewOriginName] = useState("");
+  const [editingName, setEditingName] = useState("");
 
   const { data: origins = [], isLoading } = useQuery<Origin[]>({
     queryKey: ["/api/origins"],
@@ -143,17 +145,14 @@ export default function OriginsManagement() {
     }
   };
 
-  const handleEdit = (origin: Origin) => {
+  const handleEditOrigin = (origin: Origin) => {
     setEditingOrigin(origin);
-    form.reset({
-      name: origin.name,
-      color: origin.color,
-    });
+    setEditingName(origin.name);
   };
 
   const handleCancelEdit = () => {
     setEditingOrigin(null);
-    form.reset();
+    setEditingName("");
   };
 
   if (isLoading) {
@@ -285,7 +284,7 @@ export default function OriginsManagement() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleEdit(origin)}
+                    onClick={() => handleEditOrigin(origin)}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
