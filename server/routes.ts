@@ -171,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
-      
+
       const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -812,8 +812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/birthday-reminders/:id", async (req, res) => {
     try {
       const validatedData = insertBirthdayReminderSchema.partial().parse(req.body);
-      const reminder = await storage.updateBirthdayReminder(req.params.id, validatedData);
-      if (!reminder) {
+      const reminder = await storage.updateBirthdayReminder(req.params.id, validatedData);      if (!reminder) {
         return res.status(404).json({ message: "Lembrete não encontrado" });
       }
       res.json(reminder);
@@ -1118,7 +1117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         createdBy: "a141d784-f53a-4dfd-a35c-7bb016852677" // ID do admin padrão - idealmente viria da sessão
       };
-      
+
       const campaign = await storage.createEmailCampaign(campaignData);
       res.status(201).json(campaign);
     } catch (error) {
@@ -1170,14 +1169,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não disponível" });
+        return res.json({ files: [], folders: [] });
       }
 
       const folder = (req.query.folder as string) || "";
       const prefix = folder ? `company-files/${folder}/` : "company-files/";
-      
+
       const objects = await objectStorageClient.list({ prefix });
-      
+
       const files = objects.map(obj => ({
         name: obj.key.replace(prefix, "").split("/")[0],
         size: obj.size,
@@ -1206,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const files = req.files as Express.Multer.File[];
       const folder = req.body.folder || "";
-      
+
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "Nenhum arquivo enviado" });
       }
@@ -1215,11 +1214,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const key = folder 
           ? `company-files/${folder}/${file.originalname}`
           : `company-files/${file.originalname}`;
-        
+
         await objectStorageClient.uploadFromBytes(key, file.buffer, {
           contentType: file.mimetype
         });
-        
+
         return {
           name: file.originalname,
           size: file.size,
@@ -1228,7 +1227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
-      
+
       res.json({ 
         message: "Arquivos enviados com sucesso",
         files: uploadedFiles 
@@ -1247,7 +1246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const filename = req.query.file as string;
       const folder = req.query.folder as string;
-      
+
       if (!filename) {
         return res.status(400).json({ message: "Nome do arquivo é obrigatório" });
       }
@@ -1257,7 +1256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : `company-files/${filename}`;
 
       const fileBuffer = await objectStorageClient.downloadAsBytes(key);
-      
+
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', 'application/octet-stream');
       res.send(Buffer.from(fileBuffer));
@@ -1274,7 +1273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { files, folder } = req.body;
-      
+
       if (!files || !Array.isArray(files)) {
         return res.status(400).json({ message: "Lista de arquivos é obrigatória" });
       }
@@ -1283,12 +1282,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const key = folder 
           ? `company-files/${folder}/${filename}`
           : `company-files/${filename}`;
-        
+
         await objectStorageClient.delete(key);
       });
 
       await Promise.all(deletePromises);
-      
+
       res.json({ message: "Arquivos excluídos com sucesso" });
     } catch (error) {
       console.error("Error deleting files:", error);
@@ -1303,7 +1302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { name, parent } = req.body;
-      
+
       if (!name) {
         return res.status(400).json({ message: "Nome da pasta é obrigatório" });
       }
@@ -1316,7 +1315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await objectStorageClient.uploadFromText(key, "", {
         contentType: "application/x-directory"
       });
-      
+
       res.json({ message: "Pasta criada com sucesso", name });
     } catch (error) {
       console.error("Error creating folder:", error);
