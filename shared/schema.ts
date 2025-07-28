@@ -51,7 +51,7 @@ export const clients = pgTable("clients", {
   city: text("city").notNull(),
   state: text("state").notNull(),
   markers: text("markers").array().default([]).notNull(),
-  responsible: text("responsible").notNull(),
+  responsavelId: varchar("responsavel_id").references(() => users.id),
   categoria: text("categoria").notNull(),
   origem: text("origem").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -76,6 +76,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdFunnels: many(salesFunnels),
   assignedDeals: many(deals, { relationName: "assignedTo" }),
   createdDeals: many(deals, { relationName: "createdBy" }),
+  responsibleClients: many(clients),
 }));
 
 export const salesFunnelsRelations = relations(salesFunnels, ({ one, many }) => ({
@@ -95,9 +96,13 @@ export const funnelStagesRelations = relations(funnelStages, ({ one, many }) => 
   deals: many(deals),
 }));
 
-export const clientsRelations = relations(clients, ({ many }) => ({
+export const clientsRelations = relations(clients, ({ one, many }) => ({
   deals: many(deals),
   interactions: many(clientInteractions),
+  responsavel: one(users, {
+    fields: [clients.responsavelId],
+    references: [users.id],
+  }),
 }));
 
 export const dealsRelations = relations(deals, ({ one }) => ({

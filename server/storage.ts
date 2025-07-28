@@ -140,7 +140,7 @@ export class DatabaseStorage implements IStorage {
 
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === 'vendedor' && userId) {
-      query = query.where(eq(clients.responsible, userId));
+      query = query.where(eq(clients.responsavelId, userId));
     }
 
     const result = await query.orderBy(clients.createdAt);

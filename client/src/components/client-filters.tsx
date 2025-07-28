@@ -19,7 +19,7 @@ export interface ClientFilters {
   phone: string;
   cpf: string;
   email: string;
-  responsible: string;
+  responsavelId: string;
   categoria: string;
   origem: string;
   markers: string;

@@ -14,7 +14,7 @@ export const clientValidationSchema = z.object({
   city: z.string().min(2, "Cidade deve ter pelo menos 2 caracteres"),
   state: z.string().min(2, "Estado é obrigatório"),
   markers: z.array(z.string()).optional(),
-  responsible: z.string().min(2, "Responsável deve ter pelo menos 2 caracteres"),
+  responsavelId: z.string().optional(),
   categoria: z.string().min(1, "Categoria é obrigatória"),
   origem: z.string().min(1, "Origem é obrigatória"),
 });

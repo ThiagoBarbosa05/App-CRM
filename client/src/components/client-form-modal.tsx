@@ -74,6 +74,12 @@ const brazilianStates = [
 export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newMarker, setNewMarker] = useState("");
+
+  // Buscar usuários do sistema para o campo responsável
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+  });
 
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
@@ -90,7 +96,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       city: client?.city || "",
       state: client?.state || "",
       markers: client?.markers || [],
-      responsible: client?.responsible || "",
+      responsavelId: client?.responsavelId || "",
       categoria: client?.categoria || "",
       origem: client?.origem || "",
     },
@@ -98,7 +104,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/clients", data);
+      const response = await apiRequest("/api/clients", "POST", data);
       return response.json();
     },
     onSuccess: () => {
@@ -121,7 +127,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PUT", `/api/clients/${client!.id}`, data);
+      const response = await apiRequest(`/api/clients/${client!.id}`, "PUT", data);
       return response.json();
     },
     onSuccess: () => {
@@ -273,13 +279,25 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
               <FormField
                 control={form.control}
-                name="responsible"
+                name="responsavelId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Responsável *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome do responsável" {...field} />
-                    </FormControl>
+                    <FormLabel>Responsável</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um responsável..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Nenhum responsável</SelectItem>
+                        {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
