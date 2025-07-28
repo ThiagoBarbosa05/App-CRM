@@ -13,6 +13,19 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        bordeaux: {
+          50: "#fef7f0",
+          100: "#fdecdb",
+          200: "#fad2b7",
+          300: "#f6ad87",
+          400: "#f07d56",
+          500: "#ec5638",
+          600: "#8B0000",
+          700: "#7A0000",
+          800: "#6B0000",
+          900: "#5C0000",
+          950: "#4D0000",
+        },
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",

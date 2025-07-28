@@ -52,8 +52,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       )}>
         <div className="mobile-responsive py-4 sm:p-6">
           <div className="flex items-center space-x-3 mb-6 sm:mb-8">
-            <Wine className="h-6 w-6 sm:h-8 sm:w-8 text-wine-600" />
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">VinoCRM</h1>
+            <Wine className="h-6 w-6 sm:h-8 sm:w-8 text-bordeaux-600" />
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Grand Cru</h1>
           </div>
 
           <nav className="space-y-2">
@@ -135,19 +135,6 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               <span className="mobile-text">Configurações</span>
             </button>
           </nav>
-
-          {/* User Profile */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <User className="text-white text-sm h-4 w-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">João Silva</p>
-                <p className="text-xs text-gray-500">Proprietário</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </>

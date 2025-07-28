@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bordeaux-50: #fef7f0;
+  --bordeaux-100: #fdecdb;
+  --bordeaux-200: #fad2b7;
+  --bordeaux-300: #f6ad87;
+  --bordeaux-400: #f07d56;
+  --bordeaux-500: #ec5638;
+  --bordeaux-600: #8B0000;
+  --bordeaux-700: #7A0000;
+  --bordeaux-800: #6B0000;
+  --bordeaux-900: #5C0000;
+  --bordeaux-950: #4D0000;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

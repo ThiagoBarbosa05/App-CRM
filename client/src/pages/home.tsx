@@ -102,8 +102,8 @@ export default function Home() {
       <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50 h-16">
         <div className="flex items-center justify-between h-full px-6">
           <div className="flex items-center space-x-4">
-            <Wine className="h-8 w-8 text-wine-600" />
-            <h1 className="text-xl font-bold text-gray-900">VinoCRM</h1>
+            <Wine className="h-8 w-8 text-bordeaux-600" />
+            <h1 className="text-xl font-bold text-gray-900">Grand Cru</h1>
           </div>
 
           <div className="flex items-center space-x-4">

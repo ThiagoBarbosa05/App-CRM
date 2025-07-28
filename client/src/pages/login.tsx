@@ -70,17 +70,17 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wine-50 to-wine-100 dark:from-wine-950 dark:to-wine-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-bordeaux-50 to-bordeaux-100 dark:from-bordeaux-950 dark:to-bordeaux-900">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Wine className="h-12 w-12 text-wine-600 dark:text-wine-400" />
+            <Wine className="h-12 w-12 text-bordeaux-600 dark:text-bordeaux-400" />
           </div>
-          <CardTitle className="text-2xl font-bold text-wine-800 dark:text-wine-200">
-            VinoCRM
+          <CardTitle className="text-2xl font-bold text-bordeaux-800 dark:text-bordeaux-200">
+            Grand Cru
           </CardTitle>
           <CardDescription>
-            Sistema de gestão para lojas de vinhos
+            Sistema de gestão premium
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -115,11 +115,11 @@ export default function Login({ onLogin }: LoginProps) {
               {loginMutation.isPending ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 p-4 bg-wine-50 dark:bg-wine-900/20 rounded-lg">
-            <p className="text-sm text-wine-600 dark:text-wine-400 font-medium mb-2">
+          <div className="mt-6 p-4 bg-bordeaux-50 dark:bg-bordeaux-900/20 rounded-lg">
+            <p className="text-sm text-bordeaux-600 dark:text-bordeaux-400 font-medium mb-2">
               Credenciais padrão:
             </p>
-            <p className="text-xs text-wine-500 dark:text-wine-500">
+            <p className="text-xs text-bordeaux-500 dark:text-bordeaux-500">
               Email: admin@vinocrm.com<br />
               Senha: admin123
             </p>
