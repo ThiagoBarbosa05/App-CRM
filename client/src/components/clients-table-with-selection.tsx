@@ -28,7 +28,6 @@ interface ClientsTableWithSelectionProps {
     name: string;
     phone: string;
     cpf: string;
-    email: string;
     responsavelId: string;
     categoria: string;
     origem: string;
@@ -130,8 +129,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
       if (filters.name && !client.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
       if (filters.phone && !client.phone.toLowerCase().includes(filters.phone.toLowerCase())) return false;
       if (filters.cpf && client.cpf && !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())) return false;
-      if (filters.email && client.email && !client.email.toLowerCase().includes(filters.email.toLowerCase())) return false;
-      if (filters.responsavelId && client.responsavelId && !client.responsavelId.toLowerCase().includes(filters.responsavelId.toLowerCase())) return false;
+      if (filters.responsavelId && client.responsavelId !== filters.responsavelId) return false;
       if (filters.categoria && client.categoria !== filters.categoria) return false;
       if (filters.origem && client.origem !== filters.origem) return false;
       if (filters.markers && client.markers && !client.markers.some(marker => 

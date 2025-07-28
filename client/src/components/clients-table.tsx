@@ -38,6 +38,10 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
     queryKey: ["/api/clients"],
   });
 
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
+  });
+
   const deleteClientMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/clients/${id}`);
@@ -61,20 +65,20 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
 
-  const filteredClients = clientsList.filter((client: Client) => {
+  const filteredClients = (clientsList as Client[]).filter((client: Client) => {
     // Basic search query filter
     const matchesSearch = searchQuery === "" || (
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone.includes(searchQuery) ||
-      client.cpf.includes(searchQuery)
+      (client.cpf && client.cpf.includes(searchQuery))
     );
 
     // Advanced filters
     const matchesAdvancedFilters = !filters || (
       (filters.name === "" || client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
       (filters.phone === "" || client.phone.includes(filters.phone)) &&
-      (filters.cpf === "" || client.cpf.includes(filters.cpf)) &&
-      (filters.responsavelId === "" || client.responsible === filters.responsavelId) &&
+      (filters.cpf === "" || (client.cpf && client.cpf.includes(filters.cpf))) &&
+      (filters.responsavelId === "" || client.responsavelId === filters.responsavelId) &&
       (filters.categoria === "" || client.categoria?.toLowerCase().includes(filters.categoria.toLowerCase())) &&
       (filters.origem === "" || client.origem?.toLowerCase().includes(filters.origem.toLowerCase())) &&
       (filters.markers === "" || client.markers?.some(marker => 
@@ -188,7 +192,10 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       {client.email || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {client.responsible}
+                      {(() => {
+                        const user = users.find(u => u.id === client.responsavelId);
+                        return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 capitalize">
