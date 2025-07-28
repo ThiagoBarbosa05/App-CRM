@@ -301,12 +301,15 @@ export default function CompanyFormModal({
                   <SelectValue placeholder="Selecione um setor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum setor selecionado</SelectItem>
-                  {sectors.map((sector) => (
-                    <SelectItem key={sector.id} value={sector.id}>
-                      {sector.name}
-                    </SelectItem>
-                  ))}
+                  {sectors.length === 0 ? (
+                    <SelectItem value="no-sectors">Nenhum setor disponível</SelectItem>
+                  ) : (
+                    sectors.map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id}>
+                        {sector.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {errors.sectorId && (
