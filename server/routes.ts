@@ -110,6 +110,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Categories routes (using tags table with type="categoria")
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getTags();
+      // Filter for categories only
+      const categoriesOnly = categories.filter(tag => tag.type === 'categoria');
+      res.json(categoriesOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar categorias" });
+    }
+  });
+
+  app.post("/api/categories", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: 'categoria'
+      });
+      const category = await storage.createTag(validatedData);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar categoria" });
+    }
+  });
+
+  app.put("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: 'categoria'
+      });
+      const category = await storage.updateTag(id, validatedData);
+      if (!category) {
+        return res.status(404).json({ message: "Categoria não encontrada" });
+      }
+      res.json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar categoria" });
+    }
+  });
+
+  app.delete("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Categoria não encontrada" });
+      }
+      res.json({ message: "Categoria excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir categoria" });
+    }
+  });
+
+  // Markers routes (using tags table with type="marcador")
+  app.get("/api/markers", async (req, res) => {
+    try {
+      const markers = await storage.getTags();
+      // Filter for markers only
+      const markersOnly = markers.filter(tag => tag.type === 'marcador');
+      res.json(markersOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar marcadores" });
+    }
+  });
+
+  app.post("/api/markers", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: 'marcador'
+      });
+      const marker = await storage.createTag(validatedData);
+      res.status(201).json(marker);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar marcador" });
+    }
+  });
+
+  app.put("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: 'marcador'
+      });
+      const marker = await storage.updateTag(id, validatedData);
+      if (!marker) {
+        return res.status(404).json({ message: "Marcador não encontrado" });
+      }
+      res.json(marker);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar marcador" });
+    }
+  });
+
+  app.delete("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Marcador não encontrado" });
+      }
+      res.json({ message: "Marcador excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir marcador" });
+    }
+  });
+
   // Sales Funnel routes
   app.get("/api/funnels", async (req, res) => {
     try {

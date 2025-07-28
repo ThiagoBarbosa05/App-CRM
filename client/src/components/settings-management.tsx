@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings } from "lucide-react";
 import UsersManagement from "./users-management";
+import CategoriesManagement from "./categories-management";
+import MarkersManagement from "./markers-management";
 
 export default function SettingsManagement() {
   return (
@@ -27,35 +29,11 @@ export default function SettingsManagement() {
         </TabsContent>
 
         <TabsContent value="categories">
-          <Card>
-            <CardHeader>
-              <CardTitle>Categorias</CardTitle>
-              <CardDescription>
-                Gerencie as categorias de clientes do sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Funcionalidade em desenvolvimento...
-              </p>
-            </CardContent>
-          </Card>
+          <CategoriesManagement />
         </TabsContent>
 
         <TabsContent value="markers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Marcadores</CardTitle>
-              <CardDescription>
-                Gerencie os marcadores disponíveis para clientes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Funcionalidade em desenvolvimento...
-              </p>
-            </CardContent>
-          </Card>
+          <MarkersManagement />
         </TabsContent>
       </Tabs>
     </div>

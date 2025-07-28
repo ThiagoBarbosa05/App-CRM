@@ -248,6 +248,12 @@ export const insertTagSchema = createInsertSchema(tags).omit({
   updatedAt: true,
 });
 
+// Category schemas (usar tags como categories)
+export const insertCategorySchema = insertTagSchema;
+
+// Marker schemas (também usar tags como markers)
+export const insertMarkerSchema = insertTagSchema;
+
 export const insertClientInteractionSchema = createInsertSchema(clientInteractions).omit({
   id: true,
   createdAt: true,
