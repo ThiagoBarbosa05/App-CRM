@@ -38,14 +38,7 @@ interface SalesFunnel {
   };
 }
 
-interface FunnelStage {
-  id: string;
-  funnelId: string;
-  name: string;
-  order: number;
-  color: string;
-  createdAt: string;
-}
+import { FunnelStage } from "@shared/schema";
 
 interface FunnelKanbanBoardProps {
   funnelId: string;
@@ -68,7 +61,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
 
   const updateDealMutation = useMutation({
     mutationFn: async ({ id, stageId }: { id: string; stageId: string }) => {
-      await apiRequest("PUT", `/api/deals/${id}`, { stageId });
+      await apiRequest(`/api/deals/${id}`, "PUT", { stageId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
@@ -243,6 +236,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
           open={!!editingDeal}
           onOpenChange={(open) => !open && setEditingDeal(null)}
           deal={editingDeal}
+          funnelId={funnelId}
         />
       )}
 
@@ -250,6 +244,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
         <DealFormModal
           open={isCreateModalOpen}
           onOpenChange={(open) => !open && setIsCreateModalOpen(false)}
+          funnelId={funnelId}
         />
       )}
 

@@ -230,6 +230,7 @@ export default function KanbanBoard() {
           open={!!editingDeal}
           onOpenChange={(open) => !open && setEditingDeal(null)}
           deal={editingDeal}
+          funnelId={editingDeal?.funnelId}
         />
       )}
 

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { DealWithClient, Client } from "@shared/schema";
+import { DealWithClient, Client, FunnelStage } from "@shared/schema";
 import { dealValidationSchema } from "@/lib/validations";
 import {
   Dialog,
@@ -37,20 +37,21 @@ interface DealFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deal?: DealWithClient;
+  funnelId?: string;
 }
 
-const stages = [
-  { value: "prospeccao", label: "Prospecção" },
-  { value: "negociacao", label: "Negociação" },
-  { value: "fechamento", label: "Fechamento" },
-];
-
-export default function DealFormModal({ open, onOpenChange, deal }: DealFormModalProps) {
+export default function DealFormModal({ open, onOpenChange, deal, funnelId }: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: clients } = useQuery({
     queryKey: ["/api/clients"],
+  });
+
+  // Buscar etapas do funil
+  const { data: funnelStages = [] } = useQuery<FunnelStage[]>({
+    queryKey: ["/api/funnel-stages", funnelId],
+    enabled: !!funnelId,
   });
 
   // Provide default empty array if clients is undefined
@@ -62,15 +63,15 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
       title: deal?.title || "",
       clientId: deal?.clientId || "",
       value: deal?.value || "",
-      stage: deal?.stage || "prospeccao",
+      stageId: deal?.stageId || (funnelStages[0]?.id || ""),
       notes: deal?.notes || "",
+      funnelId: deal?.funnelId || funnelId || "",
     },
   });
 
   const createDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/deals", data);
-      return response.json();
+      return await apiRequest("/api/deals", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
@@ -92,8 +93,7 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
 
   const updateDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PUT", `/api/deals/${deal!.id}`, data);
-      return response.json();
+      return await apiRequest(`/api/deals/${deal!.id}`, "PUT", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
@@ -179,11 +179,17 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clientsList.map((client: Client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
+                      {clientsList && clientsList.length > 0 ? (
+                        clientsList.map((client: Client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Nenhum cliente encontrado
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -218,7 +224,7 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
 
             <FormField
               control={form.control}
-              name="stage"
+              name="stageId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estágio *</FormLabel>
@@ -229,11 +235,23 @@ export default function DealFormModal({ open, onOpenChange, deal }: DealFormModa
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.value} value={stage.value}>
-                          {stage.label}
+                      {funnelStages.length > 0 ? (
+                        funnelStages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: stage.color }}
+                              />
+                              {stage.name}
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Nenhuma etapa configurada para este funil
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
