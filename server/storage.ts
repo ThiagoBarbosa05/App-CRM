@@ -4,8 +4,9 @@ import {
   type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
-  type Tag, type InsertTag,
-  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags 
+  type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
+  type ClientInteractionWithUser,
+  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
@@ -72,6 +73,13 @@ export interface IStorage {
   createTag(tag: InsertTag): Promise<Tag>;
   updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined>;
   deleteTag(id: string): Promise<boolean>;
+
+  // Client Interactions methods
+  getClientInteractions(clientId: string): Promise<ClientInteractionWithUser[]>;
+  getClientInteraction(id: string): Promise<ClientInteraction | undefined>;
+  createClientInteraction(interaction: InsertClientInteraction): Promise<ClientInteraction>;
+  updateClientInteraction(id: string, interaction: Partial<InsertClientInteraction>): Promise<ClientInteraction | undefined>;
+  deleteClientInteraction(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -592,6 +600,67 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTag(id: string): Promise<boolean> {
     const result = await db.delete(tags).where(eq(tags.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Client Interactions methods
+  async getClientInteractions(clientId: string): Promise<ClientInteractionWithUser[]> {
+    const interactions = await db
+      .select({
+        id: clientInteractions.id,
+        clientId: clientInteractions.clientId,
+        userId: clientInteractions.userId,
+        type: clientInteractions.type,
+        subject: clientInteractions.subject,
+        description: clientInteractions.description,
+        date: clientInteractions.date,
+        duration: clientInteractions.duration,
+        status: clientInteractions.status,
+        attachments: clientInteractions.attachments,
+        createdAt: clientInteractions.createdAt,
+        updatedAt: clientInteractions.updatedAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+        },
+      })
+      .from(clientInteractions)
+      .innerJoin(users, eq(clientInteractions.userId, users.id))
+      .where(eq(clientInteractions.clientId, clientId))
+      .orderBy(clientInteractions.date);
+
+    return interactions.map(interaction => ({
+      ...interaction,
+      user: interaction.user as User,
+    })) as ClientInteractionWithUser[];
+  }
+
+  async getClientInteraction(id: string): Promise<ClientInteraction | undefined> {
+    const [interaction] = await db.select().from(clientInteractions).where(eq(clientInteractions.id, id));
+    return interaction || undefined;
+  }
+
+  async createClientInteraction(insertInteraction: InsertClientInteraction): Promise<ClientInteraction> {
+    const [interaction] = await db
+      .insert(clientInteractions)
+      .values(insertInteraction)
+      .returning();
+    return interaction;
+  }
+
+  async updateClientInteraction(id: string, updateData: Partial<InsertClientInteraction>): Promise<ClientInteraction | undefined> {
+    const [interaction] = await db
+      .update(clientInteractions)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(clientInteractions.id, id))
+      .returning();
+    return interaction || undefined;
+  }
+
+  async deleteClientInteraction(id: string): Promise<boolean> {
+    const result = await db.delete(clientInteractions).where(eq(clientInteractions.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 }

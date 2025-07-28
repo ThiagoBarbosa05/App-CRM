@@ -5,7 +5,7 @@ import {
   insertClientSchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
-  insertTagSchema
+  insertTagSchema, insertClientInteractionSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -508,6 +508,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Tag excluída com sucesso" });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir tag" });
+    }
+  });
+
+  // Client Interactions routes
+  app.get("/api/clients/:clientId/interactions", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const interactions = await storage.getClientInteractions(clientId);
+      res.json(interactions);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar interações" });
+    }
+  });
+
+  app.get("/api/interactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const interaction = await storage.getClientInteraction(id);
+      
+      if (!interaction) {
+        return res.status(404).json({ message: "Interação não encontrada" });
+      }
+      
+      res.json(interaction);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar interação" });
+    }
+  });
+
+  app.post("/api/interactions", async (req, res) => {
+    try {
+      const validatedData = insertClientInteractionSchema.parse(req.body);
+      const interaction = await storage.createClientInteraction(validatedData);
+      res.status(201).json(interaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar interação" });
+    }
+  });
+
+  app.put("/api/interactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertClientInteractionSchema.partial().parse(req.body);
+      const interaction = await storage.updateClientInteraction(id, validatedData);
+      
+      if (!interaction) {
+        return res.status(404).json({ message: "Interação não encontrada" });
+      }
+      
+      res.json(interaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar interação" });
+    }
+  });
+
+  app.delete("/api/interactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteClientInteraction(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Interação não encontrada" });
+      }
+      
+      res.json({ message: "Interação excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir interação" });
     }
   });
 

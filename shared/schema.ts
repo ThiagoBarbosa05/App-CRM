@@ -97,6 +97,7 @@ export const funnelStagesRelations = relations(funnelStages, ({ one, many }) => 
 
 export const clientsRelations = relations(clients, ({ many }) => ({
   deals: many(deals),
+  interactions: many(clientInteractions),
 }));
 
 export const dealsRelations = relations(deals, ({ one }) => ({
@@ -161,6 +162,33 @@ export const tags = pgTable("tags", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const clientInteractions = pgTable("client_interactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: text("type", { enum: ["call", "email", "meeting", "whatsapp", "note", "visit", "other"] }).notNull(),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  date: timestamp("date").notNull(),
+  duration: integer("duration"), // em minutos, opcional para calls/meetings
+  status: text("status", { enum: ["completed", "scheduled", "cancelled"] }).notNull().default("completed"),
+  attachments: text("attachments").array().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Client Interactions relations
+export const clientInteractionsRelations = relations(clientInteractions, ({ one }) => ({
+  client: one(clients, {
+    fields: [clientInteractions.clientId],
+    references: [clients.id],
+  }),
+  user: one(users, {
+    fields: [clientInteractions.userId],
+    references: [users.id],
+  }),
+}));
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
   client: one(clients, {
@@ -220,6 +248,12 @@ export const insertTagSchema = createInsertSchema(tags).omit({
   updatedAt: true,
 });
 
+export const insertClientInteractionSchema = createInsertSchema(clientInteractions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -237,6 +271,8 @@ export type InsertBirthdayReminderSettings = z.infer<typeof insertBirthdayRemind
 export type BirthdayReminderSettings = typeof birthdayReminderSettings.$inferSelect;
 export type InsertTag = z.infer<typeof insertTagSchema>;
 export type Tag = typeof tags.$inferSelect;
+export type InsertClientInteraction = z.infer<typeof insertClientInteractionSchema>;
+export type ClientInteraction = typeof clientInteractions.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -259,4 +295,8 @@ export interface SalesFunnelWithStages extends SalesFunnel {
 export interface BirthdayReminderWithClient extends BirthdayReminder {
   client: Client;
   creator: User;
+}
+
+export interface ClientInteractionWithUser extends ClientInteraction {
+  user: User;
 }
