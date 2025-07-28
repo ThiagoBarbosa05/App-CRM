@@ -67,12 +67,11 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
 
   const { data: stages = [], isLoading } = useQuery<FunnelStage[]>({
     queryKey: ["/api/funnel-stages", funnel.id],
-    queryFn: () => apiRequest("GET", `/api/funnel-stages?funnelId=${funnel.id}`),
   });
 
   const createStageMutation = useMutation({
     mutationFn: async (stageData: { name: string; color: string; funnelId: string; order: number }) => {
-      return await apiRequest("POST", "/api/funnel-stages", stageData);
+      return await apiRequest("/api/funnel-stages", "POST", stageData);
     },
     onSuccess: () => {
       toast({
@@ -96,7 +95,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
 
   const updateStageMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
-      return await apiRequest("PUT", `/api/funnel-stages/${id}`, data);
+      return await apiRequest(`/api/funnel-stages/${id}`, "PUT", data);
     },
     onSuccess: () => {
       toast({
@@ -120,7 +119,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
 
   const deleteStageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/funnel-stages/${id}`);
+      return await apiRequest(`/api/funnel-stages/${id}`, "DELETE");
     },
     onSuccess: () => {
       toast({
