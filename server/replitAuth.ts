@@ -57,9 +57,15 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
+  // Create a name from available data
+  const firstName = claims["first_name"] || "";
+  const lastName = claims["last_name"] || "";
+  const name = [firstName, lastName].filter(Boolean).join(" ") || claims["email"] || "Usuário";
+  
   await storage.upsertUser({
     id: claims["sub"],
-    email: claims["email"],
+    name: name,
+    email: claims["email"] || "",
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],

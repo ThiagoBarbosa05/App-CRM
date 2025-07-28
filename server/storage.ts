@@ -130,14 +130,14 @@ export class DatabaseStorage implements IStorage {
 
   // Client methods
   async getClients(userId?: string, userRole?: string): Promise<Client[]> {
-    let query = db.select().from(clients);
+    let baseQuery = db.select().from(clients);
     
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === 'vendedor' && userId) {
-      query = query.where(eq(clients.responsible, userId));
+      baseQuery = baseQuery.where(eq(clients.responsible, userId));
     }
     
-    const result = await query.orderBy(clients.createdAt);
+    const result = await baseQuery.orderBy(clients.createdAt);
     return result.reverse(); // Most recent first
   }
 
@@ -273,32 +273,32 @@ export class DatabaseStorage implements IStorage {
 
   // Deal methods
   async getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]> {
-    let query = db.select().from(deals);
+    let baseQuery = db.select().from(deals);
     
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      baseQuery = baseQuery.where(and(...conditions));
     }
     
-    const result = await query.orderBy(deals.createdAt);
+    const result = await baseQuery.orderBy(deals.createdAt);
     return result.reverse(); // Most recent first
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
-    let query = db.select().from(deals);
+    let baseQuery = db.select().from(deals);
     
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      baseQuery = baseQuery.where(and(...conditions));
     }
     
-    const allDeals = await query.orderBy(deals.createdAt);
+    const allDeals = await baseQuery.orderBy(deals.createdAt);
     const dealsWithClients: DealWithClient[] = [];
 
     for (const deal of allDeals.reverse()) {
@@ -322,10 +322,7 @@ export class DatabaseStorage implements IStorage {
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     const [deal] = await db
       .insert(deals)
-      .values({
-        ...insertDeal,
-        stage: insertDeal.stage || "prospeccao",
-      })
+      .values(insertDeal)
       .returning();
     return deal;
   }

@@ -18,14 +18,16 @@ export const sessions = pgTable(
 // User storage table for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  password: text("password"),
+  role: text("role", { enum: ["administrator", "manager", "vendedor"] }).notNull().default("vendedor"),
+  isActive: text("is_active").notNull().default("true"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: text("role", { enum: ["administrator", "manager", "seller"] }).notNull().default("seller"),
-  isActive: text("is_active").notNull().default("true"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Tabela de funis de vendas
@@ -235,7 +237,8 @@ export const insertTagSchema = createInsertSchema(tags).omit({
 // UpsertUser schema for Replit Auth
 export const upsertUserSchema = z.object({
   id: z.string(),
-  email: z.string().email().nullable(),
+  name: z.string(),
+  email: z.string().email(),
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),
   profileImageUrl: z.string().url().nullable(),
