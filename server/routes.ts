@@ -16,13 +16,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({ message: "Email e senha são obrigatórios" });
       }
 
       const user = await storage.getUserByEmail(email);
-      
+
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
@@ -387,9 +387,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         responsavelId: req.body.responsavelId === "none" ? null : req.body.responsavelId
       };
-      
+
       const validatedData = insertClientSchema.parse(processedData);
-      
+
 
 
       // Check if phone already exists
@@ -413,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/clients/:id", async (req, res) => {
     try {
       const validatedData = insertClientSchema.partial().parse(req.body);
-      
+
 
 
       // If phone is being updated, check if it's already in use by another client
@@ -453,15 +453,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/clients", async (req, res) => {
     try {
       const { ids } = req.body;
-      
+
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "IDs dos clientes são obrigatórios" });
       }
-      
+
       console.log("Tentando excluir clientes com IDs:", ids);
       const deletedCount = await storage.deleteClients(ids);
       console.log("Clientes excluídos:", deletedCount);
-      
+
       res.json({ 
         message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
         deletedCount 
@@ -497,7 +497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/deals", async (req, res) => {
     try {
       const validatedData = insertDealSchema.parse(req.body);
-      
+
       // Check if client exists
       const client = await storage.getClient(validatedData.clientId);
       if (!client) {
@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/deals/:id", async (req, res) => {
     try {
       const validatedData = insertDealSchema.partial().parse(req.body);
-      
+
       // If clientId is being updated, check if client exists
       if (validatedData.clientId) {
         const client = await storage.getClient(validatedData.clientId);
@@ -704,11 +704,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = insertTagSchema.partial().parse(req.body);
       const tag = await storage.updateTag(id, validatedData);
-      
+
       if (!tag) {
         return res.status(404).json({ message: "Tag não encontrada" });
       }
-      
+
       res.json(tag);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -723,11 +723,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteTag(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Tag não encontrada" });
       }
-      
+
       res.json({ message: "Tag excluída com sucesso" });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir tag" });
@@ -749,11 +749,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const interaction = await storage.getClientInteraction(id);
-      
+
       if (!interaction) {
         return res.status(404).json({ message: "Interação não encontrada" });
       }
-      
+
       res.json(interaction);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar interação" });
@@ -779,11 +779,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = insertClientInteractionSchema.partial().parse(req.body);
       const interaction = await storage.updateClientInteraction(id, validatedData);
-      
+
       if (!interaction) {
         return res.status(404).json({ message: "Interação não encontrada" });
       }
-      
+
       res.json(interaction);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -798,11 +798,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteClientInteraction(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Interação não encontrada" });
       }
-      
+
       res.json({ message: "Interação excluída com sucesso" });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir interação" });

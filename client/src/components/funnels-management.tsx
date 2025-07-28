@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, GitBranch, Edit, Trash2, Eye, ArrowLeft } from "lucide-react";
+import { Plus, GitBranch, Edit, Trash2, Eye, ArrowLeft, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import FunnelKanbanBoard from "@/components/funnel-kanban-board";
+import FunnelStagesManager from "@/components/funnel-stages-manager";
 
 interface SalesFunnel {
   id: string;
@@ -45,7 +46,8 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">("list");
+  const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
 
   const { data: funnels, isLoading } = useQuery({
     queryKey: ["/api/funnels"],
@@ -133,6 +135,33 @@ export default function FunnelsManagement() {
           </div>
         </div>
         <FunnelKanbanBoard funnelId={selectedFunnel.id} funnel={selectedFunnel} />
+      </div>
+    );
+  }
+
+  // Show stages manager for selected funnel
+  if (viewMode === "stages" && editingFunnel) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setViewMode("list");
+                setEditingFunnel(null);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar aos Funis
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{editingFunnel.name}</h2>
+              <p className="text-gray-600 mt-1">Gerenciar Etapas do Funil</p>
+            </div>
+          </div>
+        </div>
+        <FunnelStagesManager funnel={editingFunnel} />
       </div>
     );
   }
@@ -246,6 +275,17 @@ export default function FunnelsManagement() {
                   </Button>
                   {(user?.role === 'admin' || user?.id === funnel.createdBy) && (
                     <>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingFunnel(funnel);
+                          setViewMode("stages");
+                        }}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Etapas
+                      </Button>
                       <Button variant="outline" size="sm">
                         <Edit className="h-4 w-4 mr-1" />
                         Editar
