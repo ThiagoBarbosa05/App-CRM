@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, X, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 
 interface MarkerSelectProps {
   value: string[];
@@ -27,8 +26,6 @@ interface MarkerSelectProps {
 
 export default function MarkerSelect({ value, onChange, placeholder = "Selecionar marcadores..." }: MarkerSelectProps) {
   const [open, setOpen] = useState(false);
-  const [showNewMarkerForm, setShowNewMarkerForm] = useState(false);
-  const [newMarkerName, setNewMarkerName] = useState("");
 
   const { data: availableMarkers = [] } = useQuery({
     queryKey: ["/api/markers"],
@@ -50,32 +47,8 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
     }
   };
 
-  const handleAddNewMarker = () => {
-    const trimmedName = newMarkerName.trim();
-    if (trimmedName && !value.includes(trimmedName)) {
-      // Adicionar ao estado local imediatamente para melhor UX
-      onChange([...value, trimmedName]);
-      setNewMarkerName("");
-      setShowNewMarkerForm(false);
-      
-      // Mostrar aviso de que o marcador deve ser criado nas configurações
-      // para ficar disponível permanentemente
-    }
-  };
-
   const handleRemoveMarker = (markerToRemove: string) => {
     onChange(value.filter(marker => marker !== markerToRemove));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddNewMarker();
-    }
-    if (e.key === "Escape") {
-      setShowNewMarkerForm(false);
-      setNewMarkerName("");
-    }
   };
 
   return (
@@ -97,20 +70,11 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
             <CommandInput placeholder="Buscar marcadores..." />
             <CommandList>
               <CommandEmpty>
-                <div className="text-center py-2">
+                <div className="text-center py-4">
                   <p className="text-sm text-gray-500 mb-2">Nenhum marcador encontrado.</p>
-                  <p className="text-xs text-gray-400 mb-2">
-                    Crie marcadores permanentes na página de Configurações
+                  <p className="text-xs text-gray-400">
+                    Crie marcadores na página de Configurações para utilizá-los aqui.
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowNewMarkerForm(true)}
-                    className="text-primary"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Adicionar temporário
-                  </Button>
                 </div>
               </CommandEmpty>
               <CommandGroup>
@@ -135,17 +99,8 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                 ))}
                 {availableMarkers.length > 0 && (
                   <div className="border-t pt-2 mt-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowNewMarkerForm(true)}
-                      className="w-full text-primary justify-start"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar temporário
-                    </Button>
-                    <p className="text-xs text-gray-400 px-2 mt-1">
-                      Para marcadores permanentes, use Configurações
+                    <p className="text-xs text-gray-400 px-2 text-center">
+                      Para adicionar novos marcadores, acesse a página Configurações
                     </p>
                   </div>
                 )}
@@ -154,37 +109,6 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
           </Command>
         </PopoverContent>
       </Popover>
-
-      {showNewMarkerForm && (
-        <div className="p-3 border rounded-md bg-yellow-50 border-yellow-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Input
-              placeholder="Nome do marcador temporário"
-              value={newMarkerName}
-              onChange={(e) => setNewMarkerName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1"
-              autoFocus
-            />
-            <Button size="sm" onClick={handleAddNewMarker} disabled={!newMarkerName.trim()}>
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setShowNewMarkerForm(false);
-                setNewMarkerName("");
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-xs text-yellow-700">
-            ⚠️ Este marcador será temporário. Para criar marcadores permanentes, acesse a página Configurações.
-          </p>
-        </div>
-      )}
 
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
