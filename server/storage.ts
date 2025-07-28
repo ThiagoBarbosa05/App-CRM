@@ -459,10 +459,7 @@ export class DatabaseStorage implements IStorage {
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     const [deal] = await db
       .insert(deals)
-      .values({
-        ...insertDeal,
-        stage: insertDeal.stage || "prospeccao",
-      })
+      .values(insertDeal)
       .returning();
     return deal;
   }

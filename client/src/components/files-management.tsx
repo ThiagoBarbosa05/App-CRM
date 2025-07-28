@@ -58,7 +58,7 @@ export function FilesManagement({ currentUser }: FilesManagementProps) {
       return response.json();
     },
     staleTime: 30000, // Cache por 30 segundos
-    cacheTime: 60000, // Manter no cache por 1 minuto
+    gcTime: 60000, // Manter no cache por 1 minuto (gcTime substitui cacheTime no v5)
   });
 
   const uploadMutation = useMutation({
