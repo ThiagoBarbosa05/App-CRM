@@ -122,6 +122,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/users/:id/profile", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, email, currentPassword, password } = req.body;
+
+      // Buscar usuário atual
+      const currentUser = await storage.getUser(id);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Se está tentando alterar a senha, verificar a senha atual
+      if (password && currentPassword) {
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentUser.password);
+        if (!isCurrentPasswordValid) {
+          return res.status(400).json({ message: "Senha atual incorreta" });
+        }
+      }
+
+      // Verificar se o email já está em uso por outro usuário
+      if (email && email !== currentUser.email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).json({ message: "Este email já está em uso" });
+        }
+      }
+
+      const updateData: any = { name, email };
+      if (password) {
+        updateData.password = password;
+      }
+
+      const updatedUser = await storage.updateUser(id, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      res.status(500).json({ message: "Erro ao atualizar perfil" });
+    }
+  });
+
   // Categories routes (using tags table with type="categoria")
   app.get("/api/categories", async (req, res) => {
     try {

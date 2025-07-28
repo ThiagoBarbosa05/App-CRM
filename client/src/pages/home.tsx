@@ -4,6 +4,7 @@ import ClientsTableWithSelection from "@/components/clients-table-with-selection
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import FunnelsManagement from "@/components/funnels-management";
+import VendorDashboard from "@/components/vendor-dashboard";
 
 import ClientImportModal from "@/components/client-import-modal";
 import SettingsManagement from "@/components/settings-management";
@@ -140,68 +141,72 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col overflow-hidden pt-16">
         {activeTab === "clientes" ? (
-          <div className="flex-1 flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
-                  <p className="text-gray-600 mt-1">Gerencie seus clientes e informações de contato</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="text-wine-600 border-wine-600 hover:bg-wine-50"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Importar
-                  </Button>
-                  <Button 
-                    onClick={() => setIsClientModalOpen(true)}
-                    className="bg-primary hover:bg-primary-dark text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Cliente
-                  </Button>
+          user?.role === "vendedor" ? (
+            <VendorDashboard />
+          ) : (
+            <div className="flex-1 flex flex-col">
+              {/* Header */}
+              <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
+                    <p className="text-gray-600 mt-1">Gerencie seus clientes e informações de contato</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="text-wine-600 border-wine-600 hover:bg-wine-50"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar
+                    </Button>
+                    <Button
+                      onClick={() => setIsClientModalOpen(true)}
+                      className="bg-primary hover:bg-primary-dark text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Cliente
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Search and Filters */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar clientes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+              {/* Search and Filters */}
+              <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      type="text"
+                      placeholder="Buscar clientes..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <ClientFilters
+                    currentFilters={clientFilters}
+                    onFiltersChange={setClientFilters}
                   />
+                  <Button
+                    variant="outline"
+                    onClick={handleExportClients}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? "Exportando..." : "Exportar"}
+                  </Button>
                 </div>
-                <ClientFilters
-                  currentFilters={clientFilters}
-                  onFiltersChange={setClientFilters}
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={handleExportClients}
-                  disabled={isExporting}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? "Exportando..." : "Exportar"}
-                </Button>
               </div>
-            </div>
 
-            <ClientsTableWithSelection 
-              clients={clientsArray} 
-              searchQuery={searchQuery}
-              filters={clientFilters}
-            />
-          </div>
+              <ClientsTableWithSelection
+                clients={clientsArray}
+                searchQuery={searchQuery}
+                filters={clientFilters}
+              />
+            </div>
+          )
         ) : activeTab === "funil" ? (
           <FunnelsManagement />
         ) : activeTab === "configuracoes" ? (
@@ -209,14 +214,14 @@ export default function Home() {
         ) : null}
       </div>
 
-      <ClientFormModal 
-        open={isClientModalOpen} 
-        onOpenChange={setIsClientModalOpen} 
+      <ClientFormModal
+        open={isClientModalOpen}
+        onOpenChange={setIsClientModalOpen}
       />
 
-      <ClientImportModal 
-        open={isImportModalOpen} 
-        onOpenChange={setIsImportModalOpen} 
+      <ClientImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
       />
     </div>
   );

@@ -3,15 +3,18 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import VendorProfileModal from "./vendor-profile-modal";
 
-interface SidebarProps {
+export interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { user, logout } = useAuth();
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -131,6 +134,19 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               </button>
             </Link>
 
+            {user?.role === 'vendedor' && (
+              <button
+                onClick={() => {
+                  setShowProfileModal(true);
+                  closeMobileMenu();
+                }}
+                className="w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 mobile-button"
+              >
+                <User className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Meu Perfil</span>
+              </button>
+            )}
+
             {user?.role !== 'vendedor' && (
               <button
                 onClick={() => {
@@ -148,10 +164,29 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <span className="mobile-text">Configurações</span>
               </button>
             )}
-            </nav>
+
+            <button
+              onClick={logout}
+              className="w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors text-red-700 hover:bg-red-50 mobile-button"
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Sair</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {user && showProfileModal && (
+        <VendorProfileModal
+          open={showProfileModal}
+          onOpenChange={setShowProfileModal}
+          user={user}
+          onUpdate={(updatedUser) => {
+            // Aqui você pode atualizar o contexto do usuário se necessário
+            console.log("Perfil atualizado:", updatedUser);
+          }}
+        />
+      )}
     </>
   );
 }
