@@ -9,7 +9,7 @@ import {
   clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lt, isNotNull, sql, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -106,7 +106,7 @@ export class DatabaseStorage implements IStorage {
       const bcrypt = await import('bcrypt');
       insertUser.password = await bcrypt.hash(insertUser.password, 10);
     }
-    
+
     const [user] = await db
       .insert(users)
       .values(insertUser)
@@ -120,7 +120,7 @@ export class DatabaseStorage implements IStorage {
       const bcrypt = await import('bcrypt');
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
-    
+
     const [user] = await db
       .update(users)
       .set({ ...updateData, updatedAt: new Date() })
@@ -197,7 +197,7 @@ export class DatabaseStorage implements IStorage {
         WHERE markers IS NOT NULL AND array_length(markers, 1) > 0
         ORDER BY marker
       `);
-      
+
       return result.rows.map((row: any) => row.marker);
     } catch (error) {
       console.error('Erro ao buscar marcadores únicos:', error);
@@ -312,20 +312,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
-    let query = db.select().from(deals);
+    const dealsWithClients: DealWithClient[] = [];
+    let deals;
 
-    const conditions = [];
-    if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
-    if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
-
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    if (userRole === 'vendedor' && userId) {
+      // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
+      deals = await db.select().from(deals)
+        .where(or(
+          eq(deals.createdBy, userId),
+          eq(deals.assignedTo, userId)
+        ))
+        .orderBy(deals.createdAt);
+    } else {
+      // Admins e gerentes veem todos os deals
+      deals = await db.select().from(deals).orderBy(deals.createdAt);
     }
 
-    const allDeals = await query.orderBy(deals.createdAt);
-    const dealsWithClients: DealWithClient[] = [];
-
-    for (const deal of allDeals.reverse()) {
+    for (const deal of deals) {
       const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
       if (client) {
         dealsWithClients.push({

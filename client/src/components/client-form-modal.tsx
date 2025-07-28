@@ -34,6 +34,7 @@ import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MarkerSelect from "./marker-select";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClientFormModalProps {
   open: boolean;
@@ -75,6 +76,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMarker, setNewMarker] = useState("");
+  const { user } = useAuth();
 
   // Buscar usuários do sistema para o campo responsável
   const { data: users = [] } = useQuery({

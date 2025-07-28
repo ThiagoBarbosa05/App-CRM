@@ -39,8 +39,9 @@ export default function Home() {
 
   // Buscar dados dos clientes para exportação
   const { data: allClients } = useQuery({
-    queryKey: ["/api/clients"],
-    enabled: activeTab === "clientes", // Só busca quando está na aba de clientes
+    queryKey: ["/api/clients", user?.id, user?.role],
+    queryFn: () => apiRequest(`/api/clients?userId=${user?.id}&userRole=${user?.role}`),
+    enabled: !!user,
   });
 
   const clientsArray = Array.isArray(allClients) ? allClients : [];
@@ -220,3 +221,5 @@ export default function Home() {
     </div>
   );
 }
+
+import { apiRequest } from "@/lib/api";

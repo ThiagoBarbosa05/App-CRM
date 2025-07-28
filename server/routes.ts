@@ -362,7 +362,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client routes
   app.get("/api/clients", async (req, res) => {
     try {
-      const clients = await storage.getClients();
+      const { userId, userRole } = req.query;
+      const clients = await storage.getClients(userId as string, userRole as string);
       res.json(clients);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar clientes" });
@@ -486,7 +487,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
-      const deals = await storage.getDealsWithClients();
+      const { userId, userRole } = req.query;
+      const deals = await storage.getDealsWithClients(userId as string, userRole as string);
       res.json(deals);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar negócios" });

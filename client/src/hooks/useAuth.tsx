@@ -1,13 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "gerente" | "vendedor";
+  role: string;
   isActive: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface AuthContextType {
@@ -19,31 +17,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for saved user data
-    const savedUser = localStorage.getItem("vinocrm_user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        localStorage.removeItem("vinocrm_user");
-      }
+    // Check for stored user data on app start
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
   }, []);
 
   const login = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("vinocrm_user", JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("vinocrm_user");
+    localStorage.removeItem("user");
   };
 
   return (

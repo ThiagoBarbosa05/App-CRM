@@ -48,8 +48,17 @@ export default function KanbanBoard() {
   const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
   const [editingClient, setEditingClient] = useState<DealWithClient['client'] | null>(null);
 
-  const { data: deals, isLoading } = useQuery({
+  const { data: deals = [], isLoading } = useQuery({
     queryKey: ["/api/deals"],
+    queryFn: () => {
+      // Get user data from localStorage for the query
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}`);
+      }
+      return apiRequest("/api/deals");
+    },
   });
 
   const updateDealMutation = useMutation({
@@ -148,7 +157,7 @@ export default function KanbanBoard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
           {stages.map((stage) => {
             const stageDeals = getDealsForStage(stage.id);
-            
+
             return (
               <div
                 key={stage.id}
@@ -165,7 +174,7 @@ export default function KanbanBoard() {
                     {stageDeals.length}
                   </span>
                 </div>
-                
+
                 <div className="space-y-3">
                   {stageDeals.map((deal: DealWithClient) => (
                     <div

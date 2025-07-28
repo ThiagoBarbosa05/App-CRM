@@ -1,8 +1,8 @@
-import { Wine, Users, BarChart3, Settings, User, GitBranch, CalendarDays, Menu, X } from "lucide-react";
+import { Store, Users, BarChart3, Settings, User, GitBranch, CalendarDays, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   activeTab: string;
@@ -62,7 +62,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900">GRAND CRU</h1>
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
 
@@ -99,7 +99,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               <span className="mobile-text">Funil de Vendas</span>
             </button>
 
-            
+
 
             <Link href="/reports">
               <button 
@@ -131,21 +131,23 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               </button>
             </Link>
 
-            <button
-              onClick={() => {
-                onTabChange("configuracoes");
-                closeMobileMenu();
-              }}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                activeTab === "configuracoes"
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <Settings className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Configurações</span>
-            </button>
+            {user?.role !== 'vendedor' && (
+              <button
+                onClick={() => {
+                  onTabChange("configuracoes");
+                  closeMobileMenu();
+                }}
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  activeTab === "configuracoes"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <Settings className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Configurações</span>
+              </button>
+            )}
             </nav>
           </div>
         </div>

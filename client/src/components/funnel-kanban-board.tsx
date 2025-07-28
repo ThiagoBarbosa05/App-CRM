@@ -56,7 +56,15 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
-    queryFn: () => fetch(`/api/deals?funnelId=${funnelId}`).then(res => res.json()),
+    queryFn: () => {
+      // Get user data from localStorage for the query
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const user = JSON.parse(userData);
+        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`);
+      }
+      return apiRequest(`/api/deals?funnelId=${funnelId}`);
+    },
   });
 
   const updateDealMutation = useMutation({
@@ -142,7 +150,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
         <div className="grid gap-6 h-full" style={{ gridTemplateColumns: `repeat(${funnel.stages?.length || 1}, 1fr)` }}>
           {funnel.stages?.map((stage) => {
             const stageDeals = getDealsForStage(stage.id);
-            
+
             return (
               <div
                 key={stage.id}
@@ -162,7 +170,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                     {stageDeals.length}
                   </span>
                 </div>
-                
+
                 <div className="space-y-3">
                   {stageDeals.map((deal: DealWithClient) => (
                     <div
@@ -194,7 +202,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                           </Button>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <p className="text-xs text-gray-600">
                           Cliente: <button 
@@ -218,7 +226,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                       </div>
                     </div>
                   ))}
-                  
+
                   {stageDeals.length === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       <p className="text-sm">Nenhum deal neste estágio</p>
