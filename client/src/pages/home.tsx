@@ -40,8 +40,13 @@ export default function Home() {
 
   // Buscar dados dos clientes para exportação
   const { data: allClients } = useQuery({
-    queryKey: ["/api/clients"],
-    enabled: activeTab === "clientes", // Só busca quando está na aba de clientes
+    queryKey: ["/api/clients", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      return response.json();
+    },
+    enabled: activeTab === "clientes" && !!user, // Só busca quando está na aba de clientes e tem usuário
   });
 
   const clientsArray = Array.isArray(allClients) ? allClients : [];

@@ -21,6 +21,7 @@ import {
 import { formatCpf, formatPhone, formatDate } from "@/lib/utils";
 
 import { ClientFilters } from "./client-filters";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClientsTableProps {
   searchQuery: string;

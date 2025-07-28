@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
@@ -28,8 +27,15 @@ export default function CalendarPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: clients = [], isLoading } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+  const user = { id: 'someUserId', role: 'seller' }; // Mock user, replace with actual user object
+  const { data: clients = [] } = useQuery({
+    queryKey: ["/api/clients", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const { data: upcomingBirthdays = [] } = useQuery({
@@ -258,7 +264,7 @@ export default function CalendarPage() {
                 {selectedDateClients.map((client) => {
                   const birthdayDate = parseISO(client.birthday!);
                   const age = new Date().getFullYear() - birthdayDate.getFullYear();
-                  
+
                   return (
                     <div
                       key={client.id}
@@ -272,7 +278,7 @@ export default function CalendarPage() {
                           <p className="text-sm text-gray-600 mb-3">
                             Completando {age} anos 🎉
                           </p>
-                          
+
                           <div className="space-y-2">
                             {client.phone && (
                               <div className="flex items-center gap-2 text-sm">
@@ -286,7 +292,7 @@ export default function CalendarPage() {
                                 </a>
                               </div>
                             )}
-                            
+
                             {client.email && (
                               <div className="flex items-center gap-2 text-sm">
                                 <Mail className="h-4 w-4 text-gray-500" />
@@ -301,7 +307,7 @@ export default function CalendarPage() {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="text-center">
                           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2">
                             <Gift className="h-6 w-6 text-amber-600" />
@@ -324,7 +330,7 @@ export default function CalendarPage() {
                             Ligar
                           </Button>
                         )}
-                        
+
                         {client.email && (
                           <Button
                             size="sm"
@@ -336,7 +342,7 @@ export default function CalendarPage() {
                             Email
                           </Button>
                         )}
-                        
+
                         <Button
                           size="sm"
                           variant="outline"
@@ -349,7 +355,7 @@ export default function CalendarPage() {
                           <MessageSquare className="h-3 w-3 mr-1" />
                           WhatsApp
                         </Button>
-                        
+
                         <Dialog open={reminderModalOpen} onOpenChange={setReminderModalOpen}>
                           <DialogTrigger asChild>
                             <Button
@@ -371,7 +377,7 @@ export default function CalendarPage() {
                                 <Label>Cliente</Label>
                                 <Input value={selectedClient?.name || ""} disabled />
                               </div>
-                              
+
                               <div>
                                 <Label>Dias antes do aniversário</Label>
                                 <Select value={reminderDays} onValueChange={setReminderDays}>
@@ -387,7 +393,7 @@ export default function CalendarPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              
+
                               <div>
                                 <Label>Tipo de lembrete</Label>
                                 <Select value={reminderType} onValueChange={setReminderType}>
@@ -401,7 +407,7 @@ export default function CalendarPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              
+
                               <div>
                                 <Label>Mensagem personalizada (opcional)</Label>
                                 <Textarea
@@ -410,7 +416,7 @@ export default function CalendarPage() {
                                   placeholder="Digite uma mensagem personalizada para o lembrete..."
                                 />
                               </div>
-                              
+
                               <div className="flex gap-2 justify-end">
                                 <Button
                                   variant="outline"
@@ -504,7 +510,7 @@ export default function CalendarPage() {
                 const birthdayDate = parseISO(client.birthday);
                 const age = new Date().getFullYear() - birthdayDate.getFullYear();
                 const daysUntil = Math.ceil((new Date(client.nextBirthday).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                
+
                 return (
                   <div key={client.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
                     <div className="flex-1">
