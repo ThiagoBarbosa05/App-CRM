@@ -259,6 +259,9 @@ export const insertCategorySchema = insertTagSchema;
 // Marker schemas (também usar tags como markers)
 export const insertMarkerSchema = insertTagSchema;
 
+// Origin schemas (também usar tags como origins)
+export const insertOriginSchema = insertTagSchema;
+
 export const insertClientInteractionSchema = createInsertSchema(clientInteractions).omit({
   id: true,
   createdAt: true,

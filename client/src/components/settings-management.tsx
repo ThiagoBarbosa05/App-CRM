@@ -5,6 +5,7 @@ import { Settings } from "lucide-react";
 import UsersManagement from "./users-management";
 import CategoriesManagement from "./categories-management";
 import MarkersManagement from "./markers-management";
+import OriginsManagement from "./origins-management";
 
 export default function SettingsManagement() {
   return (
@@ -18,10 +19,11 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="users">Usuários do Sistema</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="markers">Marcadores</TabsTrigger>
+          <TabsTrigger value="origins">Origens</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -34,6 +36,10 @@ export default function SettingsManagement() {
 
         <TabsContent value="markers">
           <MarkersManagement />
+        </TabsContent>
+
+        <TabsContent value="origins">
+          <OriginsManagement />
         </TabsContent>
       </Tabs>
     </div>

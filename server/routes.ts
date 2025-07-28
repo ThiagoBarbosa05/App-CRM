@@ -5,7 +5,8 @@ import {
   insertClientSchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
-  insertTagSchema, insertClientInteractionSchema
+  insertTagSchema,
+  insertOriginSchema, insertClientInteractionSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -233,6 +234,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Marcador excluído com sucesso" });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir marcador" });
+    }
+  });
+
+  // Origin routes
+  app.get("/api/origins", async (req, res) => {
+    try {
+      const origins = await storage.getTags();
+      // Filter for origins only
+      const originsOnly = origins.filter(tag => tag.type === 'origem');
+      res.json(originsOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar origens" });
+    }
+  });
+
+  app.post("/api/origins", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: 'origem'
+      });
+      const origin = await storage.createTag(validatedData);
+      res.status(201).json(origin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar origem" });
+    }
+  });
+
+  app.put("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: 'origem'
+      });
+      const origin = await storage.updateTag(id, validatedData);
+      if (!origin) {
+        return res.status(404).json({ message: "Origem não encontrada" });
+      }
+      res.json(origin);
+    } catch (error) {
+      console.error("Error updating origin:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ 
+        message: "Erro ao atualizar origem",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.delete("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Origem não encontrada" });
+      }
+      res.json({ message: "Origem excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir origem" });
     }
   });
 
