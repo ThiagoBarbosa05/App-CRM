@@ -1,5 +1,6 @@
 import { Wine, Users, BarChart3, Settings, User, GitBranch, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link, useLocation } from "wouter";
 
 interface SidebarProps {
   activeTab: "clientes" | "funis" | "lembretes" | "configuracoes";
@@ -7,6 +8,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const [location] = useLocation();
   return (
     <div className="w-64 bg-white sidebar-shadow flex flex-col">
       {/* Logo & Title */}
@@ -24,18 +26,19 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2">
-        <button
-          onClick={() => onTabChange("clientes")}
-          className={cn(
-            "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
-            activeTab === "clientes"
-              ? "bg-primary text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <Users className="mr-3 h-4 w-4" />
-          Clientes
-        </button>
+        <Link href="/">
+          <button
+            className={cn(
+              "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
+              location === "/" && activeTab === "clientes"
+                ? "bg-primary text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <Users className="mr-3 h-4 w-4" />
+            Clientes
+          </button>
+        </Link>
 
         <button
           onClick={() => onTabChange("funis")}
@@ -63,10 +66,19 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           Lembretes
         </button>
 
-        <button className="w-full flex items-center px-4 py-3 text-left rounded-lg text-gray-700 hover:bg-gray-100 font-medium">
-          <BarChart3 className="mr-3 h-4 w-4" />
-          Relatórios
-        </button>
+        <Link href="/reports">
+          <button 
+            className={cn(
+              "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
+              location === "/reports"
+                ? "bg-primary text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <BarChart3 className="mr-3 h-4 w-4" />
+            Relatórios
+          </button>
+        </Link>
 
         <button
           onClick={() => onTabChange("configuracoes")}
