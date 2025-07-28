@@ -54,7 +54,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <div 
             className="flex items-center space-x-3 mb-6 sm:mb-8 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => {
-              onTabChange("clientes");
+              window.location.href = "/clientes";
               closeMobileMenu();
             }}
           >
@@ -66,21 +66,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
             <nav className="space-y-2">
-              <button
-                onClick={() => {
-                  onTabChange("clientes");
-                  closeMobileMenu();
-                }}
-                className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                  activeTab === "clientes"
-                    ? "bg-primary text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                <Users className="mr-3 h-4 w-4" />
-                <span className="mobile-text">Clientes</span>
-              </button>
+              <Link href="/clientes">
+                <button 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/clientes"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <Users className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Clientes</span>
+                </button>
+              </Link>
 
               <Link href="/empresas">
                 <button 

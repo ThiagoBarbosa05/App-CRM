@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
+import Clients from "@/pages/clients";
 import Companies from "@/pages/companies";
 import Funnel from "@/pages/funnel";
 import Reports from "@/pages/reports";
@@ -33,6 +34,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/clientes" component={Clients} />
       <Route path="/empresas" component={Companies} />
       <Route path="/funil" component={Funnel} />
       <Route path="/files" component={lazy(() => import("./pages/files"))} />
