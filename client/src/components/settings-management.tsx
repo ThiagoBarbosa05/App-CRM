@@ -87,7 +87,7 @@ export default function SettingsManagement() {
       name: "",
       email: "",
       password: "",
-      role: "vendedor",
+      role: "seller",
     },
   });
 
@@ -221,34 +221,34 @@ export default function SettingsManagement() {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case "admin": return "Administrador";
-      case "gerente": return "Gerente";
-      case "vendedor": return "Vendedor";
+      case "administrator": return "Administrador";
+      case "manager": return "Gerente";
+      case "seller": return "Vendedor";
       default: return role;
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "admin": return <Crown className="h-4 w-4" />;
-      case "gerente": return <ShieldCheck className="h-4 w-4" />;
-      case "vendedor": return <Shield className="h-4 w-4" />;
+      case "administrator": return <Crown className="h-4 w-4" />;
+      case "manager": return <ShieldCheck className="h-4 w-4" />;
+      case "seller": return <Shield className="h-4 w-4" />;
       default: return <Shield className="h-4 w-4" />;
     }
   };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case "admin": return "bg-red-100 text-red-800";
-      case "gerente": return "bg-blue-100 text-blue-800";
-      case "vendedor": return "bg-green-100 text-green-800";
+      case "administrator": return "bg-red-100 text-red-800";
+      case "manager": return "bg-blue-100 text-blue-800";
+      case "seller": return "bg-green-100 text-green-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
 
   const getTagTypeLabel = (type: string) => {
     switch (type) {
-      case "marker": return "Marcador";
+      case "marcador": return "Marcador";
       case "origem": return "Origem";
       case "categoria": return "Categoria";
       default: return type;
@@ -314,8 +314,12 @@ export default function SettingsManagement() {
                         <Input
                           id="name"
                           {...userForm.register("name")}
-                          error={userForm.formState.errors.name?.message}
                         />
+                        {userForm.formState.errors.name && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {userForm.formState.errors.name.message}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="email">Email</Label>
@@ -323,8 +327,12 @@ export default function SettingsManagement() {
                           id="email"
                           type="email"
                           {...userForm.register("email")}
-                          error={userForm.formState.errors.email?.message}
                         />
+                        {userForm.formState.errors.email && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {userForm.formState.errors.email.message}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="password">
@@ -334,8 +342,12 @@ export default function SettingsManagement() {
                           id="password"
                           type="password"
                           {...userForm.register("password")}
-                          error={userForm.formState.errors.password?.message}
                         />
+                        {userForm.formState.errors.password && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {userForm.formState.errors.password.message}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="role">Perfil</Label>
@@ -347,9 +359,9 @@ export default function SettingsManagement() {
                             <SelectValue placeholder="Selecione um perfil" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Administrador</SelectItem>
-                            <SelectItem value="gerente">Gerente</SelectItem>
-                            <SelectItem value="vendedor">Vendedor</SelectItem>
+                            <SelectItem value="administrator">Administrador</SelectItem>
+                            <SelectItem value="manager">Gerente</SelectItem>
+                            <SelectItem value="seller">Vendedor</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -435,7 +447,7 @@ export default function SettingsManagement() {
                 </CardTitle>
                 <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingTag(null); setTagType("marker"); }}>
+                    <Button onClick={() => { setEditingTag(null); setTagType("marcador"); }}>
                       <Plus className="h-4 w-4 mr-2" />
                       Novo Marcador
                     </Button>
@@ -452,8 +464,12 @@ export default function SettingsManagement() {
                         <Input
                           id="tagName"
                           {...tagForm.register("name")}
-                          error={tagForm.formState.errors.name?.message}
                         />
+                        {tagForm.formState.errors.name && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {tagForm.formState.errors.name.message}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="tagColor">Cor</Label>
@@ -482,7 +498,7 @@ export default function SettingsManagement() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filterTagsByType("marker").map((tag) => (
+                {filterTagsByType("marcador").map((tag) => (
                   <div key={tag.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-2">
                       <div 
