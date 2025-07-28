@@ -157,6 +157,20 @@
     background: hsl(0 0% 100%) !important;
     color: hsl(222.2 84% 4.9%) !important;
   }
+
+  /* Ensure buttons are visible in dialogs */
+  [role="dialog"] button {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: inline-flex !important;
+  }
+
+  /* Make sure dialog footer is visible */
+  [role="dialog"] .flex.justify-end {
+    background: white !important;
+    padding: 1rem !important;
+    border-top: 1px solid #e5e7eb;
+  }
 }
 
 /* Mobile responsiveness */

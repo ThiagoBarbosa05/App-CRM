@@ -503,18 +503,20 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end space-x-3 pt-4 bg-white">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-primary hover:bg-primary-dark text-white"
+                className="bg-purple-700 hover:bg-purple-800 text-white border-0"
+                style={{ backgroundColor: '#7c3aed', color: 'white' }}
               >
                 {isSubmitting ? "Salvando..." : client ? "Atualizar Cliente" : "Salvar Cliente"}
               </Button>
