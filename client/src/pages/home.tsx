@@ -74,13 +74,13 @@ export default function Home() {
     }
 
     setIsExporting(true);
-    
+
     try {
       const formattedData = formatClientDataForExport(clientsArray);
       const fileName = `clientes_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}_${new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-')}`;
-      
+
       exportToExcel(formattedData, fileName, 'Clientes');
-      
+
       toast({
         title: "Exportação realizada com sucesso",
         description: `${clientsArray.length} clientes foram exportados para Excel`,
@@ -105,7 +105,7 @@ export default function Home() {
             <Wine className="h-8 w-8 text-wine-600" />
             <h1 className="text-xl font-bold text-gray-900">VinoCRM</h1>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
@@ -136,7 +136,7 @@ export default function Home() {
       <div className="pt-16">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
-      
+
       <div className="flex-1 flex flex-col overflow-hidden pt-16">
         {activeTab === "clientes" ? (
           <div className="flex-1 flex flex-col">
