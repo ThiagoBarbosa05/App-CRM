@@ -20,12 +20,12 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Initialize Replit Object Storage client
 let objectStorageClient: Client | null = null;
 try {
-  // Only initialize if we have a bucket configured
-  if (process.env.REPLIT_DB_URL || process.env.NODE_ENV === 'production') {
+  // Skip Object Storage in development to avoid bucket configuration issues
+  if (process.env.NODE_ENV === 'production') {
     objectStorageClient = new Client();
     console.log("Object Storage initialized successfully");
   } else {
-    console.log("Object Storage not configured - running in development mode");
+    console.log("Object Storage disabled in development mode");
   }
 } catch (error) {
   console.warn("Object Storage not available:", error);
