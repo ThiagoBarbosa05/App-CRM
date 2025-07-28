@@ -74,8 +74,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
       (filters.name === "" || client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
       (filters.phone === "" || client.phone.includes(filters.phone)) &&
       (filters.cpf === "" || client.cpf.includes(filters.cpf)) &&
-      (filters.email === "" || client.email?.toLowerCase().includes(filters.email.toLowerCase())) &&
-      (filters.responsible === "" || client.responsible?.toLowerCase().includes(filters.responsible.toLowerCase())) &&
+      (filters.responsavelId === "" || client.responsible === filters.responsavelId) &&
       (filters.categoria === "" || client.categoria?.toLowerCase().includes(filters.categoria.toLowerCase())) &&
       (filters.origem === "" || client.origem?.toLowerCase().includes(filters.origem.toLowerCase())) &&
       (filters.markers === "" || client.markers?.some(marker => 

@@ -31,7 +31,6 @@ export default function Home() {
     name: "",
     phone: "",
     cpf: "",
-    email: "",
     responsavelId: "",
     categoria: "",
     origem: "",

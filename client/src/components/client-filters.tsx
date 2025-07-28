@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -6,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
@@ -18,7 +20,6 @@ export interface ClientFilters {
   name: string;
   phone: string;
   cpf: string;
-  email: string;
   responsavelId: string;
   categoria: string;
   origem: string;
@@ -28,6 +29,11 @@ export interface ClientFilters {
 export default function ClientFilters({ onFiltersChange, currentFilters }: ClientFiltersProps) {
   const [localFilters, setLocalFilters] = useState<ClientFilters>(currentFilters);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Buscar usuários para o dropdown
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
+  });
 
   const handleFilterChange = (key: keyof ClientFilters, value: string) => {
     setLocalFilters(prev => ({ ...prev, [key]: value }));
@@ -43,7 +49,6 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
       name: "",
       phone: "",
       cpf: "",
-      email: "",
       responsavelId: "",
       categoria: "",
       origem: "",
@@ -121,27 +126,25 @@ export default function ClientFilters({ onFiltersChange, currentFilters }: Clien
             </div>
 
             <div>
-              <Label htmlFor="filter-email" className="text-sm font-medium">
-                E-mail
-              </Label>
-              <Input
-                id="filter-email"
-                placeholder="Filtrar por e-mail..."
-                value={localFilters.email}
-                onChange={(e) => handleFilterChange("email", e.target.value)}
-              />
-            </div>
-
-            <div>
               <Label htmlFor="filter-responsible" className="text-sm font-medium">
-                Responsável
+                Usuário Responsável
               </Label>
-              <Input
-                id="filter-responsible"
-                placeholder="Filtrar por responsável..."
-                value={localFilters.responsavelId}
-                onChange={(e) => handleFilterChange("responsavelId", e.target.value)}
-              />
+              <Select 
+                value={localFilters.responsavelId} 
+                onValueChange={(value) => handleFilterChange("responsavelId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um usuário..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os usuários</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
