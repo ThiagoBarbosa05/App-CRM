@@ -9,6 +9,7 @@ import { CalendarIcon, Gift, Phone, Mail } from "lucide-react";
 import { format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
+import Sidebar from "@/components/sidebar";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -49,12 +50,15 @@ export default function CalendarPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-80 bg-gray-200 rounded"></div>
-            <div className="h-80 bg-gray-200 rounded"></div>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar activeTab="clientes" onTabChange={() => {}} />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="h-80 bg-gray-200 rounded"></div>
+              <div className="h-80 bg-gray-200 rounded"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -62,16 +66,17 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <CalendarIcon className="h-8 w-8 text-wine-600" />
-          Calendário de Aniversários
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Visualize os aniversários dos seus clientes no calendário
-        </p>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar activeTab="clientes" onTabChange={() => {}} />
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto p-6 space-y-6">
+          <div className="flex items-center gap-3 mb-6">
+            <CalendarIcon className="h-8 w-8 text-wine-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Calendário de Aniversários</h1>
+              <p className="text-gray-600">Visualize os aniversários dos seus clientes no calendário</p>
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendário */}
@@ -274,6 +279,8 @@ export default function CalendarPage() {
           </div>
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   );
 }
