@@ -226,7 +226,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="cpf"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CPF *</FormLabel>
+                    <FormLabel>CPF</FormLabel>
                     <FormControl>
                       <InputMask
                         mask="999.999.999-99"
@@ -262,7 +262,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 name="birthday"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Aniversário *</FormLabel>
+                    <FormLabel>Data de Aniversário</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>

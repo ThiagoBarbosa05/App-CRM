@@ -176,7 +176,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       <div className="text-sm text-gray-900">{formatPhone(client.phone)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCpf(client.cpf)}
+                      {client.cpf ? formatCpf(client.cpf) : "Não informado"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {client.email || "-"}
@@ -211,7 +211,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(client.birthday)}
+                      {client.birthday ? formatDate(client.birthday) : "Não informado"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button

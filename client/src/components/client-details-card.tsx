@@ -24,7 +24,8 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
   };
 
-  const formatCPF = (cpf: string) => {
+  const formatCPF = (cpf: string | null | undefined) => {
+    if (!cpf) return "Não informado";
     // Remove caracteres não numéricos
     const numbers = cpf.replace(/\D/g, '');
     // Aplica máscara 999.999.999-99
@@ -35,7 +36,8 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     return `${client.address}, ${client.number} - ${client.neighborhood}, ${client.city}/${client.state} - CEP: ${client.cep}`;
   };
 
-  const formatBirthday = (birthday: string) => {
+  const formatBirthday = (birthday: string | null | undefined) => {
+    if (!birthday) return "Não informado";
     try {
       // Assumindo formato YYYY-MM-DD
       const [year, month, day] = birthday.split('-');
