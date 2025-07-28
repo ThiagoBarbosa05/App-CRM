@@ -67,95 +67,119 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
             <nav className="space-y-2">
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onTabChange("clientes");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                   activeTab === "clientes"
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white hover:bg-primary/90"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <Users className="mr-3 h-4 w-4" />
+                <Users className="mr-3 h-4 w-4 flex-shrink-0" />
                 <span className="mobile-text">Clientes</span>
               </button>
 
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onTabChange("funil");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                   activeTab === "funil"
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white hover:bg-primary/90"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <GitBranch className="mr-3 h-4 w-4" />
+                <GitBranch className="mr-3 h-4 w-4 flex-shrink-0" />
                 <span className="mobile-text">Funil de Vendas</span>
               </button>
 
               <Link href="/reports">
-                <button 
-                  onClick={closeMobileMenu}
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeMobileMenu();
+                  }}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                     location === "/reports"
-                      ? "bg-primary text-white"
+                      ? "bg-primary text-white hover:bg-primary/90"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <BarChart3 className="mr-3 h-4 w-4" />
+                  <BarChart3 className="mr-3 h-4 w-4 flex-shrink-0" />
                   <span className="mobile-text">Relatórios</span>
-                </button>
+                </div>
               </Link>
 
               <Link href="/calendario">
-                <button 
-                  onClick={closeMobileMenu}
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeMobileMenu();
+                  }}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                     location === "/calendario"
-                      ? "bg-primary text-white"
+                      ? "bg-primary text-white hover:bg-primary/90"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <CalendarDays className="mr-3 h-4 w-4" />
+                  <CalendarDays className="mr-3 h-4 w-4 flex-shrink-0" />
                   <span className="mobile-text">Calendário</span>
-                </button>
+                </div>
               </Link>
 
               <Link href="/metas">
-                <button 
-                  onClick={closeMobileMenu}
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeMobileMenu();
+                  }}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                     location === "/metas"
-                      ? "bg-primary text-white"
+                      ? "bg-primary text-white hover:bg-primary/90"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <Target className="mr-3 h-4 w-4" />
+                  <Target className="mr-3 h-4 w-4 flex-shrink-0" />
                   <span className="mobile-text">Metas</span>
-                </button>
+                </div>
               </Link>
 
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onTabChange("configuracoes");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
+                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                   activeTab === "configuracoes"
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white hover:bg-primary/90"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <Settings className="mr-3 h-4 w-4" />
+                <Settings className="mr-3 h-4 w-4 flex-shrink-0" />
                 <span className="mobile-text">Configurações</span>
               </button>
             </nav>

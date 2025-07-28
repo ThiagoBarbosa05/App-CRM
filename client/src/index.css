@@ -251,6 +251,38 @@
   background: rgb(156 163 175);
 }
 
+/* Sidebar Navigation - Ensure buttons are always clickable */
+nav button,
+nav a > div {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto !important;
+  user-select: none;
+}
+
+/* Prevent any overlay issues */
+nav button:disabled {
+  pointer-events: none;
+}
+
+/* Ensure proper cursor on interactive elements */
+nav button:not(:disabled),
+nav a {
+  cursor: pointer !important;
+}
+
+/* Mobile button specific styles */
+.mobile-button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure text is not selectable in navigation */
+nav .mobile-text {
+  user-select: none;
+  pointer-events: none;
+}
+
 /* Mobile-first responsive breakpoints */
 @media (max-width: 640px) {
   .container {
