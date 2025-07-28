@@ -6,8 +6,8 @@ import {
   type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
-  type ClientInteractionWithUser,
-  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
+  type ClientInteractionWithUser, type Sector, type InsertSector,
+  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -41,6 +41,13 @@ export interface IStorage {
   updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined>;
   deleteCompany(id: string): Promise<boolean>;
   deleteCompanies(ids: string[]): Promise<number>;
+
+  // Sectors
+  getSectors(): Promise<Sector[]>;
+  getSector(id: string): Promise<Sector | undefined>;
+  createSector(sector: InsertSector): Promise<Sector>;
+  updateSector(id: string, sector: Partial<InsertSector>): Promise<Sector | undefined>;
+  deleteSector(id: string): Promise<boolean>;
 
   // Sales Funnels
   getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
@@ -273,6 +280,39 @@ export class DatabaseStorage implements IStorage {
   async deleteCompanies(ids: string[]): Promise<number> {
     const result = await db.delete(companies).where(inArray(companies.id, ids));
     return result.rowCount || 0;
+  }
+
+  // Sector methods
+  async getSectors(): Promise<Sector[]> {
+    const result = await db.select().from(sectors).orderBy(sectors.name);
+    return result;
+  }
+
+  async getSector(id: string): Promise<Sector | undefined> {
+    const [sector] = await db.select().from(sectors).where(eq(sectors.id, id));
+    return sector || undefined;
+  }
+
+  async createSector(insertSector: InsertSector): Promise<Sector> {
+    const [sector] = await db
+      .insert(sectors)
+      .values(insertSector)
+      .returning();
+    return sector;
+  }
+
+  async updateSector(id: string, updateData: Partial<InsertSector>): Promise<Sector | undefined> {
+    const [sector] = await db
+      .update(sectors)
+      .set(updateData)
+      .where(eq(sectors.id, id))
+      .returning();
+    return sector || undefined;
+  }
+
+  async deleteSector(id: string): Promise<boolean> {
+    const result = await db.delete(sectors).where(eq(sectors.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Sales Funnel methods

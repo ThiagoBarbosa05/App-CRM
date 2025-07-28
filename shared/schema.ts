@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -57,10 +57,19 @@ export const clients = pgTable("clients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const sectors = pgTable("sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#3B82F6"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const companies = pgTable("companies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
+  nomeFantasia: text("nome_fantasia").notNull(), // Nome Fantasia (antes era name)
+  razaoSocial: text("razao_social").notNull(), // Razão Social
   cnpj: text("cnpj").unique(),
+  inscricaoEstadual: text("inscricao_estadual"), // Inscrição Estadual (números)
   phone: text("phone"),
   email: text("email"),
   website: text("website"),
@@ -68,9 +77,9 @@ export const companies = pgTable("companies", {
   address: text("address"),
   city: text("city"),
   state: text("state"),
-  industry: text("industry"), // Setor da empresa
+  sectorId: varchar("sector_id").references(() => sectors.id), // Referência para setor
   notes: text("notes"), // Observações
-  active: text("active").notNull().default("true"), // Status ativo/inativo
+  active: boolean("active").notNull().default(true), // Status ativo/inativo como boolean
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -123,7 +132,15 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   }),
 }));
 
-export const companiesRelations = relations(companies, ({ many }) => ({
+export const sectorsRelations = relations(sectors, ({ many }) => ({
+  companies: many(companies),
+}));
+
+export const companiesRelations = relations(companies, ({ one, many }) => ({
+  sector: one(sectors, {
+    fields: [companies.sectorId],
+    references: [sectors.id],
+  }),
   deals: many(deals),
 }));
 
@@ -280,6 +297,11 @@ export const insertClientSchema = createInsertSchema(clients).omit({
   createdAt: true,
 });
 
+export const insertSectorSchema = createInsertSchema(sectors).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertCompanySchema = createInsertSchema(companies).omit({
   id: true,
   createdAt: true,
@@ -345,6 +367,8 @@ export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
 export type FunnelStage = typeof funnelStages.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
+export type InsertSector = z.infer<typeof insertSectorSchema>;
+export type Sector = typeof sectors.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Company = typeof companies.$inferSelect;
 export type InsertDeal = z.infer<typeof insertDealSchema>;

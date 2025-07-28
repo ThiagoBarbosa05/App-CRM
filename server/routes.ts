@@ -5,7 +5,7 @@ import {
   insertClientSchema, insertCompanySchema, insertDealSchema, insertUserSchema, 
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
-  insertTagSchema,
+  insertTagSchema, insertSectorSchema,
   insertOriginSchema, insertClientInteractionSchema
 } from "@shared/schema";
 import { z } from "zod";
@@ -613,6 +613,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir empresas:", error);
       res.status(500).json({ message: "Erro ao excluir empresas" });
+    }
+  });
+
+  // Sector routes
+  app.get("/api/sectors", async (req, res) => {
+    try {
+      const sectors = await storage.getSectors();
+      res.json(sectors);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar setores" });
+    }
+  });
+
+  app.get("/api/sectors/:id", async (req, res) => {
+    try {
+      const sector = await storage.getSector(req.params.id);
+      if (!sector) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json(sector);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar setor" });
+    }
+  });
+
+  app.post("/api/sectors", async (req, res) => {
+    try {
+      const validatedData = insertSectorSchema.parse(req.body);
+      const sector = await storage.createSector(validatedData);
+      res.status(201).json(sector);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar setor" });
+    }
+  });
+
+  app.put("/api/sectors/:id", async (req, res) => {
+    try {
+      const validatedData = insertSectorSchema.partial().parse(req.body);
+      const sector = await storage.updateSector(req.params.id, validatedData);
+      if (!sector) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json(sector);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar setor" });
+    }
+  });
+
+  app.delete("/api/sectors/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteSector(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json({ message: "Setor excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar setor" });
     }
   });
 

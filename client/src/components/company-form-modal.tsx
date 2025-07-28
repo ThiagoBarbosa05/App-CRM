@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -14,14 +15,16 @@ import {
 } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { Company } from "../../shared/schema";
+import { Company, Sector } from "@shared/schema";
 
 const companyFormSchema = z.object({
-  name: z.string().min(1, "Nome da empresa é obrigatório"),
+  nomeFantasia: z.string().min(1, "Nome Fantasia é obrigatório"),
+  razaoSocial: z.string().min(1, "Razão Social é obrigatória"),
   cnpj: z.string().optional(),
+  inscricaoEstadual: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -29,7 +32,7 @@ const companyFormSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   website: z.string().optional(),
-  industry: z.string().optional(),
+  sectorId: z.string().optional(),
   notes: z.string().optional(),
   active: z.boolean().default(true),
 });
@@ -51,6 +54,12 @@ export default function CompanyFormModal({
   const queryClient = useQueryClient();
   const isEditing = !!company;
 
+  // Buscar setores disponíveis
+  const { data: sectors = [] } = useQuery<Sector[]>({
+    queryKey: ["/api/sectors"],
+    enabled: isOpen,
+  });
+
   const {
     register,
     handleSubmit,
@@ -61,8 +70,10 @@ export default function CompanyFormModal({
   } = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
-      name: "",
+      nomeFantasia: "",
+      razaoSocial: "",
       cnpj: "",
+      inscricaoEstadual: "",
       email: "",
       phone: "",
       address: "",
@@ -70,7 +81,7 @@ export default function CompanyFormModal({
       city: "",
       state: "",
       website: "",
-      industry: "",
+      sectorId: "",
       notes: "",
       active: true,
     },
@@ -81,8 +92,10 @@ export default function CompanyFormModal({
   useEffect(() => {
     if (company) {
       reset({
-        name: company.name,
+        nomeFantasia: company.nomeFantasia,
+        razaoSocial: company.razaoSocial,
         cnpj: company.cnpj || "",
+        inscricaoEstadual: company.inscricaoEstadual || "",
         email: company.email || "",
         phone: company.phone || "",
         address: company.address || "",
@@ -90,14 +103,16 @@ export default function CompanyFormModal({
         city: company.city || "",
         state: company.state || "",
         website: company.website || "",
-        industry: company.industry || "",
+        sectorId: company.sectorId || "",
         notes: company.notes || "",
         active: company.active,
       });
     } else {
       reset({
-        name: "",
+        nomeFantasia: "",
+        razaoSocial: "",
         cnpj: "",
+        inscricaoEstadual: "",
         email: "",
         phone: "",
         address: "",
@@ -105,7 +120,7 @@ export default function CompanyFormModal({
         city: "",
         state: "",
         website: "",
-        industry: "",
+        sectorId: "",
         notes: "",
         active: true,
       });
@@ -194,14 +209,26 @@ export default function CompanyFormModal({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome da Empresa *</Label>
+              <Label htmlFor="nomeFantasia">Nome Fantasia *</Label>
               <Input
-                id="name"
-                {...register("name")}
-                placeholder="Nome da empresa"
+                id="nomeFantasia"
+                {...register("nomeFantasia")}
+                placeholder="Nome fantasia da empresa"
               />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
+              {errors.nomeFantasia && (
+                <p className="text-sm text-destructive">{errors.nomeFantasia.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="razaoSocial">Razão Social *</Label>
+              <Input
+                id="razaoSocial"
+                {...register("razaoSocial")}
+                placeholder="Razão social da empresa"
+              />
+              {errors.razaoSocial && (
+                <p className="text-sm text-destructive">{errors.razaoSocial.message}</p>
               )}
             </div>
 
@@ -214,6 +241,19 @@ export default function CompanyFormModal({
               />
               {errors.cnpj && (
                 <p className="text-sm text-destructive">{errors.cnpj.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="inscricaoEstadual">Inscrição Estadual</Label>
+              <Input
+                id="inscricaoEstadual"
+                {...register("inscricaoEstadual")}
+                placeholder="Somente números"
+                type="tel"
+              />
+              {errors.inscricaoEstadual && (
+                <p className="text-sm text-destructive">{errors.inscricaoEstadual.message}</p>
               )}
             </div>
 
@@ -255,14 +295,22 @@ export default function CompanyFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="industry">Setor</Label>
-              <Input
-                id="industry"
-                {...register("industry")}
-                placeholder="Tecnologia, Varejo, etc."
-              />
-              {errors.industry && (
-                <p className="text-sm text-destructive">{errors.industry.message}</p>
+              <Label htmlFor="sectorId">Setor</Label>
+              <Select onValueChange={(value) => setValue("sectorId", value)} value={watch("sectorId")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um setor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum setor selecionado</SelectItem>
+                  {sectors.map((sector) => (
+                    <SelectItem key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.sectorId && (
+                <p className="text-sm text-destructive">{errors.sectorId.message}</p>
               )}
             </div>
 

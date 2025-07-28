@@ -8,7 +8,7 @@ import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
-import { Company } from "../../shared/schema";
+import { Company } from "@shared/schema";
 
 interface CompaniesManagementProps {
   currentUser: any;
@@ -54,9 +54,9 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   });
 
   const filteredCompanies = companies.filter((company: Company) =>
-    company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (company.cnpj && company.cnpj.includes(searchQuery)) ||
-    (company.email && company.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    company.nomeFantasia.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    company.razaoSocial.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (company.cnpj && company.cnpj.includes(searchQuery))
   );
 
   const handleEdit = (company: Company) => {
@@ -86,7 +86,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar empresas..."
+              placeholder="Buscar por Nome Fantasia, Razão Social ou CNPJ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
@@ -107,10 +107,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead>Nome Fantasia</TableHead>
+                <TableHead>Razão Social</TableHead>
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Telefone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -129,10 +129,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               ) : (
                 filteredCompanies.map((company: Company) => (
                   <TableRow key={company.id}>
-                    <TableCell className="font-medium">{company.name}</TableCell>
+                    <TableCell className="font-medium">{company.nomeFantasia}</TableCell>
+                    <TableCell>{company.razaoSocial}</TableCell>
                     <TableCell>{company.cnpj || "-"}</TableCell>
                     <TableCell>{company.email || "-"}</TableCell>
-                    <TableCell>{company.phone || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={company.active ? "default" : "secondary"}>
                         {company.active ? "Ativa" : "Inativa"}
