@@ -80,6 +80,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </button>
         </Link>
 
+        <Link href="/calendario">
+          <button 
+            className={cn(
+              "w-full flex items-center px-4 py-3 text-left rounded-lg font-medium transition-colors",
+              location === "/calendario"
+                ? "bg-primary text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <Calendar className="mr-3 h-4 w-4" />
+            Calendário
+          </button>
+        </Link>
+
         <button
           onClick={() => onTabChange("configuracoes")}
           className={cn(
