@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import ClientFormModal from "./client-form-modal";
+import ClientDetailsModal from "./client-details-modal";
 import { type Client } from "@shared/schema";
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ interface ClientsTableWithSelectionProps {
 export default function ClientsTableWithSelection({ clients, searchQuery = "", filters }: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
 
@@ -185,8 +187,18 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
             </thead>
             <tbody>
               {filteredClients.map((client) => (
-                <tr key={client.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4">
+                <tr 
+                  key={client.id} 
+                  className="border-b hover:bg-gray-50 cursor-pointer"
+                  onClick={(e) => {
+                    // Não abrir modal se clicou no checkbox ou botão de editar
+                    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="checkbox"]')) {
+                      return;
+                    }
+                    setViewingClient(client);
+                  }}
+                >
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedClientIds.includes(client.id)}
                       onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
@@ -247,7 +259,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                       {formatBirthday(client.birthday)}
                     </div>
                   </td>
-                  <td className="p-4">
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="ghost"
@@ -280,6 +292,13 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
           client={editingClient}
         />
       )}
+
+      {/* Client Details Modal */}
+      <ClientDetailsModal
+        client={viewingClient}
+        isOpen={!!viewingClient}
+        onClose={() => setViewingClient(null)}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
