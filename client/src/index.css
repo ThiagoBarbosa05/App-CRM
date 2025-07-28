@@ -69,6 +69,82 @@
   }
 }
 
+/* Force light theme for modals and popups */
+@layer components {
+  [data-radix-portal] {
+    --background: 0 0% 100% !important;
+    --foreground: 222.2 84% 4.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 222.2 84% 4.9% !important;
+    --popover: 0 0% 100% !important;
+    --popover-foreground: 222.2 84% 4.9% !important;
+    --border: 214.3 31.8% 91.4% !important;
+    --input: 214.3 31.8% 91.4% !important;
+  }
+
+  /* Ensure dialog content is light */
+  [role="dialog"] {
+    background: hsl(0 0% 100%) !important;
+    color: hsl(222.2 84% 4.9%) !important;
+    border-color: hsl(214.3 31.8% 91.4%) !important;
+  }
+
+  /* Ensure select content is light */
+  [role="listbox"] {
+    background: hsl(0 0% 100%) !important;
+    color: hsl(222.2 84% 4.9%) !important;
+    border-color: hsl(214.3 31.8% 91.4%) !important;
+  }
+
+  /* Ensure dropdown menus are light */
+  [role="menu"] {
+    background: hsl(0 0% 100%) !important;
+    color: hsl(222.2 84% 4.9%) !important;
+    border-color: hsl(214.3 31.8% 91.4%) !important;
+  }
+
+  /* Force popover content to be light */
+  [data-radix-popper-content-wrapper] {
+    --background: 0 0% 100% !important;
+    --foreground: 222.2 84% 4.9% !important;
+  }
+
+  /* Additional specific selectors for common UI components */
+  .bg-popover {
+    background: hsl(0 0% 100%) !important;
+  }
+
+  .text-popover-foreground {
+    color: hsl(222.2 84% 4.9%) !important;
+  }
+
+  .bg-card {
+    background: hsl(0 0% 100%) !important;
+  }
+
+  .text-card-foreground {
+    color: hsl(222.2 84% 4.9%) !important;
+  }
+
+  /* Ensure modal overlays don't interfere */
+  .bg-background {
+    background: hsl(0 0% 100%) !important;
+  }
+
+  .text-foreground {
+    color: hsl(222.2 84% 4.9%) !important;
+  }
+
+  /* Force light theme on all shadcn components */
+  [data-theme="dark"] [role="dialog"],
+  [data-theme="dark"] [role="listbox"],
+  [data-theme="dark"] [role="menu"],
+  [data-theme="dark"] [data-radix-portal] {
+    background: hsl(0 0% 100%) !important;
+    color: hsl(222.2 84% 4.9%) !important;
+  }
+}
+
 /* Mobile responsiveness */
 @layer utilities {
   .mobile-responsive {
