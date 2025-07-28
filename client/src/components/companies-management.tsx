@@ -8,6 +8,7 @@ import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
+import CompanyDetailsModal from "./company-details-modal";
 import { Company } from "@shared/schema";
 
 interface CompaniesManagementProps {
@@ -18,6 +19,8 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -75,6 +78,23 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     setEditingCompany(null);
   };
 
+  const handleCompanyClick = (company: Company) => {
+    setSelectedCompany(company);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleDetailsModalClose = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedCompany(null);
+  };
+
+  const handleEditFromDetails = (company: Company) => {
+    setSelectedCompany(null);
+    setIsDetailsModalOpen(false);
+    setEditingCompany(company);
+    setIsModalOpen(true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -129,7 +149,14 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               ) : (
                 filteredCompanies.map((company: Company) => (
                   <TableRow key={company.id}>
-                    <TableCell className="font-medium">{company.nomeFantasia}</TableCell>
+                    <TableCell className="font-medium">
+                      <button 
+                        onClick={() => handleCompanyClick(company)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                      >
+                        {company.nomeFantasia}
+                      </button>
+                    </TableCell>
                     <TableCell>{company.razaoSocial}</TableCell>
                     <TableCell>{company.cnpj || "-"}</TableCell>
                     <TableCell>{company.email || "-"}</TableCell>
@@ -169,6 +196,13 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         isOpen={isModalOpen}
         onClose={handleModalClose}
         company={editingCompany}
+      />
+
+      <CompanyDetailsModal
+        company={selectedCompany}
+        isOpen={isDetailsModalOpen}
+        onClose={handleDetailsModalClose}
+        onEdit={handleEditFromDetails}
       />
     </Card>
   );
