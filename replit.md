@@ -65,6 +65,9 @@ Preferred communication style: Simple, everyday language.
 - Origem dropdown now pulls from /api/origins (created in Settings)
 - Removed hardcoded values, ensuring centralized data management
 - Added user-friendly messages when no options are available
+- Updated database with comprehensive sets of categories, origins, and markers
+- Database now contains 14 categories, 18 origins, and 25 markers with appropriate colors
+- Removed mandatory requirement for address fields in client registration
 
 ### Client Flow
 1. User creates/edits client through modal forms
