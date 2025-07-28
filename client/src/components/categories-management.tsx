@@ -60,10 +60,11 @@ export default function CategoriesManagement() {
         description: "Categoria criada com sucesso",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error creating category:", error);
       toast({
         title: "Erro",
-        description: "Erro ao criar categoria",
+        description: error instanceof Error ? error.message : "Erro ao criar categoria",
         variant: "destructive",
       });
     },
@@ -82,10 +83,11 @@ export default function CategoriesManagement() {
         description: "Categoria atualizada com sucesso",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error updating category:", error);
       toast({
         title: "Erro",
-        description: "Erro ao atualizar categoria",
+        description: error instanceof Error ? error.message : "Erro ao atualizar categoria",
         variant: "destructive",
       });
     },

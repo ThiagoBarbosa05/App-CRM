@@ -60,10 +60,11 @@ export default function MarkersManagement() {
         description: "Marcador criado com sucesso",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error creating marker:", error);
       toast({
         title: "Erro",
-        description: "Erro ao criar marcador",
+        description: error instanceof Error ? error.message : "Erro ao criar marcador",
         variant: "destructive",
       });
     },
@@ -82,10 +83,11 @@ export default function MarkersManagement() {
         description: "Marcador atualizado com sucesso",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error updating marker:", error);
       toast({
         title: "Erro",
-        description: "Erro ao atualizar marcador",
+        description: error instanceof Error ? error.message : "Erro ao atualizar marcador",
         variant: "destructive",
       });
     },
