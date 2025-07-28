@@ -194,11 +194,6 @@ export const clientInteractionsRelations = relations(clientInteractions, ({ one 
   }),
 }));
 
-// Birthday reminder relations
-export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
-  client: one(clients, {
-
-
 // Email Marketing Campaign tables
 export const emailCampaigns = pgTable("email_campaigns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -228,7 +223,9 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-
+// Birthday reminder relations
+export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
+  client: one(clients, {
     fields: [birthdayReminders.clientId],
     references: [clients.id],
   }),
@@ -320,9 +317,6 @@ export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
 export type FunnelStage = typeof funnelStages.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
-
-
-
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type Deal = typeof deals.$inferSelect;
 export type InsertBirthdayReminder = z.infer<typeof insertBirthdayReminderSchema>;
