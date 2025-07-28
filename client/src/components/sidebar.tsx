@@ -89,21 +89,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               <span className="mobile-text">Funil de Vendas</span>
             </button>
 
-            <button
-              onClick={() => {
-                onTabChange("lembretes");
-                closeMobileMenu();
-              }}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                activeTab === "lembretes"
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <CalendarDays className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Lembretes</span>
-            </button>
+            
 
             <Link href="/reports" onClick={closeMobileMenu}>
               <button 

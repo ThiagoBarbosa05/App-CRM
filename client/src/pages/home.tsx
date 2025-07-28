@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
-type Tab = "clientes" | "funis" | "configuracoes";
+type Tab = "clientes" | "funil" | "configuracoes";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -201,7 +201,7 @@ export default function Home() {
               filters={clientFilters}
             />
           </div>
-        ) : activeTab === "funis" ? (
+        ) : activeTab === "funil" ? (
           <FunnelsManagement />
         ) : activeTab === "configuracoes" ? (
           <SettingsManagement />
