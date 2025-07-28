@@ -46,7 +46,7 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">("list");
+  const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages" | "new-deal" | "edit">("list");
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
 
   const { data: funnels, isLoading } = useQuery({
@@ -135,6 +135,33 @@ export default function FunnelsManagement() {
           </div>
         </div>
         <FunnelKanbanBoard funnelId={selectedFunnel.id} funnel={selectedFunnel} />
+      </div>
+    );
+  }
+
+  // Show new deal modal directly
+  if (viewMode === "new-deal" && selectedFunnel) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setViewMode("list");
+                setSelectedFunnel(null);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar aos Funis
+            </Button>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{selectedFunnel.name}</h2>
+              <p className="text-gray-600 mt-1">Novo Negócio</p>
+            </div>
+          </div>
+        </div>
+        <FunnelKanbanBoard funnelId={selectedFunnel.id} funnel={selectedFunnel} openNewDeal={true} />
       </div>
     );
   }
@@ -273,6 +300,20 @@ export default function FunnelsManagement() {
                     <Eye className="h-4 w-4 mr-1" />
                     Ver Board
                   </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFunnel(funnel);
+                      setViewMode("new-deal");
+                    }}
+                    className="text-wine-600 hover:text-wine-800"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Novo Deal
+                  </Button>
+                  
                   {(user?.role === 'admin' || user?.id === funnel.createdBy) && (
                     <>
                       <Button 
@@ -289,7 +330,10 @@ export default function FunnelsManagement() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => setEditingFunnel(funnel)}
+                        onClick={() => {
+                          setEditingFunnel(funnel);
+                          setViewMode("edit");
+                        }}
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Editar

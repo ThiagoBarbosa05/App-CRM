@@ -323,33 +323,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
-    const dealsWithClients: DealWithClient[] = [];
-    let deals;
+    try {
+      console.log("getDealsWithClients params:", { funnelId, userId, userRole });
+      const dealsWithClients: DealWithClient[] = [];
+      let query = db.select().from(deals);
 
-    if (userRole === 'vendedor' && userId) {
-      // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
-      deals = await db.select().from(deals)
-        .where(or(
+      const conditions = [];
+      if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
+      if (userRole === 'vendedor' && userId) {
+        conditions.push(or(
           eq(deals.createdBy, userId),
           eq(deals.assignedTo, userId)
-        ))
-        .orderBy(deals.createdAt);
-    } else {
-      // Admins e gerentes veem todos os deals
-      deals = await db.select().from(deals).orderBy(deals.createdAt);
-    }
-
-    for (const deal of deals) {
-      const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
-      if (client) {
-        dealsWithClients.push({
-          ...deal,
-          client,
-        });
+        ));
       }
-    }
 
-    return dealsWithClients;
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      const dealsQuery = await query.orderBy(deals.createdAt);
+      console.log("Found deals:", dealsQuery.length);
+
+      for (const deal of dealsQuery) {
+        const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
+        if (client) {
+          dealsWithClients.push({
+            ...deal,
+            client,
+          });
+        }
+      }
+
+      console.log("Returning deals with clients:", dealsWithClients.length);
+      return dealsWithClients;
+    } catch (error) {
+      console.error("Erro em getDealsWithClients:", error);
+      throw error;
+    }
   }
 
   async getDeal(id: string): Promise<Deal | undefined> {
@@ -360,10 +370,7 @@ export class DatabaseStorage implements IStorage {
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     const [deal] = await db
       .insert(deals)
-      .values({
-        ...insertDeal,
-        stage: insertDeal.stage || "prospeccao",
-      })
+      .values(insertDeal)
       .returning();
     return deal;
   }
@@ -582,7 +589,7 @@ export class DatabaseStorage implements IStorage {
         const [adminUser] = await db
           .select()
           .from(users)
-          .where(eq(users.role, "administrator"))
+          .where(eq(users.role, "admin"))
           .limit(1);
 
         if (adminUser) {

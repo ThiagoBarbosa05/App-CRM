@@ -532,10 +532,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
-      const { userId, userRole } = req.query;
-      const deals = await storage.getDealsWithClients(userId as string, userRole as string);
+      const { userId, userRole, funnelId } = req.query;
+      console.log("GET /api/deals params:", { userId, userRole, funnelId });
+      const deals = await storage.getDealsWithClients(funnelId as string, userId as string, userRole as string);
       res.json(deals);
     } catch (error) {
+      console.error("Erro na API deals:", error);
       res.status(500).json({ message: "Erro ao buscar negócios" });
     }
   });
