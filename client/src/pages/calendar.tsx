@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, Gift, Phone, Mail } from "lucide-react";
+import { Calendar as CalendarIcon, Gift, Phone, Mail, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 import { format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
@@ -63,14 +62,20 @@ export default function CalendarPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <CalendarIcon className="h-8 w-8 text-wine-600" />
-          Calendário de Aniversários
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Visualize os aniversários dos seus clientes no calendário
-        </p>
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Calendário de Aniversários</h2>
+            <p className="text-gray-600 mt-1">Visualize e acompanhe os aniversários dos seus clientes</p>
+          </div>
+          <Link href="/">
+            <Button variant="outline" className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -122,7 +127,7 @@ export default function CalendarPage() {
                 {selectedDateClients.map((client) => {
                   const birthdayDate = parseISO(client.birthday!);
                   const age = new Date().getFullYear() - birthdayDate.getFullYear();
-                  
+
                   return (
                     <div
                       key={client.id}
@@ -136,7 +141,7 @@ export default function CalendarPage() {
                           <p className="text-sm text-gray-600 mb-3">
                             Completando {age} anos 🎉
                           </p>
-                          
+
                           <div className="space-y-2">
                             {client.phone && (
                               <div className="flex items-center gap-2 text-sm">
@@ -150,7 +155,7 @@ export default function CalendarPage() {
                                 </a>
                               </div>
                             )}
-                            
+
                             {client.email && (
                               <div className="flex items-center gap-2 text-sm">
                                 <Mail className="h-4 w-4 text-gray-500" />
@@ -165,7 +170,7 @@ export default function CalendarPage() {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="text-center">
                           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2">
                             <Gift className="h-6 w-6 text-amber-600" />
@@ -188,7 +193,7 @@ export default function CalendarPage() {
                             Ligar
                           </Button>
                         )}
-                        
+
                         {client.email && (
                           <Button
                             size="sm"
@@ -200,7 +205,7 @@ export default function CalendarPage() {
                             Email
                           </Button>
                         )}
-                        
+
                         <Button
                           size="sm"
                           variant="outline"
