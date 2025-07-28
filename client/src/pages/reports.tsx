@@ -26,6 +26,18 @@ export default function Reports() {
     queryKey: ["/api/clients"],
   });
 
+  const { data: categories = [] } = useQuery<{id: string; name: string}[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const { data: origins = [] } = useQuery<{id: string; name: string}[]>({
+    queryKey: ["/api/origins"],
+  });
+
+  // Criar sets com nomes válidos para validação
+  const validCategoryNames = new Set(categories.map(cat => cat.name));
+  const validOriginNames = new Set(origins.map(origin => origin.name));
+
   // Calcular próximos aniversários (próximos 30 dias)
   const getUpcomingBirthdays = () => {
     const today = startOfDay(new Date());
@@ -60,17 +72,33 @@ export default function Reports() {
   const upcomingBirthdays = getUpcomingBirthdays();
   const totalClients = clients.length;
 
-  // Estatísticas por categoria
+  // Estatísticas por categoria (apenas categorias válidas)
   const clientsByCategory = clients.reduce((acc, client) => {
-    const category = client.categoria || "Sem categoria";
-    acc[category] = (acc[category] || 0) + 1;
+    const category = client.categoria;
+    // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
+    if (!category) {
+      acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
+    } else if (validCategoryNames.has(category)) {
+      acc[category] = (acc[category] || 0) + 1;
+    } else {
+      // Categoria foi excluída - contar como "Categoria removida"
+      acc["Categoria removida"] = (acc["Categoria removida"] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
-  // Estatísticas por origem
+  // Estatísticas por origem (apenas origens válidas)
   const clientsByOrigin = clients.reduce((acc, client) => {
-    const origin = client.origem || "Sem origem";
-    acc[origin] = (acc[origin] || 0) + 1;
+    const origin = client.origem;
+    // Só contar se a origem ainda existe nas configurações ou se não tem origem
+    if (!origin) {
+      acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
+    } else if (validOriginNames.has(origin)) {
+      acc[origin] = (acc[origin] || 0) + 1;
+    } else {
+      // Origem foi excluída - contar como "Origem removida"
+      acc["Origem removida"] = (acc["Origem removida"] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
@@ -201,12 +229,26 @@ export default function Reports() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Object.entries(clientsByCategory).map(([category, count]) => (
-                <div key={category} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{category}</span>
-                  <Badge variant="secondary">{count}</Badge>
-                </div>
-              ))}
+              {Object.entries(clientsByCategory)
+                .sort(([,a], [,b]) => b - a)
+                .map(([category, count]) => (
+                  <div key={category} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={category === "Categoria removida" ? "destructive" : "secondary"}
+                        className="text-xs"
+                      >
+                        {category}
+                      </Badge>
+                      {category === "Categoria removida" && (
+                        <span className="text-xs text-red-500">
+                          (Categoria foi excluída das configurações)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-medium text-wine-600">{count}</span>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -220,12 +262,26 @@ export default function Reports() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Object.entries(clientsByOrigin).map(([origin, count]) => (
-                <div key={origin} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{origin}</span>
-                  <Badge variant="secondary">{count}</Badge>
-                </div>
-              ))}
+              {Object.entries(clientsByOrigin)
+                .sort(([,a], [,b]) => b - a)
+                .map(([origin, count]) => (
+                  <div key={origin} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={origin === "Origem removida" ? "destructive" : "secondary"}
+                        className="text-xs"
+                      >
+                        {origin}
+                      </Badge>
+                      {origin === "Origem removida" && (
+                        <span className="text-xs text-red-500">
+                          (Origem foi excluída das configurações)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-medium text-wine-600">{count}</span>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
