@@ -4,7 +4,7 @@ import ClientsTableWithSelection from "@/components/clients-table-with-selection
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 import FunnelsManagement from "@/components/funnels-management";
-import VendorDashboard from "@/components/vendor-dashboard";
+
 
 import ClientImportModal from "@/components/client-import-modal";
 import SettingsManagement from "@/components/settings-management";
@@ -40,13 +40,8 @@ export default function Home() {
 
   // Buscar dados dos clientes para exportação
   const { data: allClients } = useQuery({
-    queryKey: ["/api/clients", user?.id, user?.role],
-    queryFn: async () => {
-      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
-      if (!response.ok) throw new Error('Failed to fetch clients');
-      return response.json();
-    },
-    enabled: !!user,
+    queryKey: ["/api/clients"],
+    enabled: activeTab === "clientes", // Só busca quando está na aba de clientes
   });
 
   const clientsArray = Array.isArray(allClients) ? allClients : [];
@@ -145,10 +140,7 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col overflow-hidden pt-16">
         {activeTab === "clientes" ? (
-          user?.role === "vendedor" ? (
-            <VendorDashboard />
-          ) : (
-            <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col">
               {/* Header */}
               <div className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex items-center justify-between">
@@ -210,7 +202,6 @@ export default function Home() {
                 filters={clientFilters}
               />
             </div>
-          )
         ) : activeTab === "funil" ? (
           <FunnelsManagement />
         ) : activeTab === "configuracoes" ? (

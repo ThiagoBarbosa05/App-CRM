@@ -1,20 +1,17 @@
-import { Store, Users, BarChart3, Settings, User, GitBranch, CalendarDays, Menu, X } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import VendorProfileModal from "./vendor-profile-modal";
+import { Button } from "./ui/button";
 
-export interface SidebarProps {
+interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { user, logout } = useAuth();
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -65,89 +62,72 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900">GRAND CRU</h1>
           </div>
         </div>
-
+        
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
-
             <nav className="space-y-2">
-            <button
-              onClick={() => {
-                onTabChange("clientes");
-                closeMobileMenu();
-              }}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                activeTab === "clientes"
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <Users className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Clientes</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onTabChange("funil");
-                closeMobileMenu();
-              }}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                activeTab === "funil"
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <GitBranch className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Funil de Vendas</span>
-            </button>
-
-
-
-            <Link href="/reports">
-              <button 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                  location === "/reports"
-                    ? "bg-primary text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                <BarChart3 className="mr-3 h-4 w-4" />
-                <span className="mobile-text">Relatórios</span>
-              </button>
-            </Link>
-
-            <Link href="/calendario">
-              <button 
-                onClick={closeMobileMenu}
-                className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                  location === "/calendario"
-                    ? "bg-primary text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                <CalendarDays className="mr-3 h-4 w-4" />
-                <span className="mobile-text">Calendário</span>
-              </button>
-            </Link>
-
-            {user?.role === 'vendedor' && (
               <button
                 onClick={() => {
-                  setShowProfileModal(true);
+                  onTabChange("clientes");
                   closeMobileMenu();
                 }}
-                className="w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 mobile-button"
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  activeTab === "clientes"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
-                <User className="mr-3 h-4 w-4" />
-                <span className="mobile-text">Meu Perfil</span>
+                <Users className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Clientes</span>
               </button>
-            )}
 
-            {user?.role !== 'vendedor' && (
+              <button
+                onClick={() => {
+                  onTabChange("funil");
+                  closeMobileMenu();
+                }}
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                  activeTab === "funil"
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <GitBranch className="mr-3 h-4 w-4" />
+                <span className="mobile-text">Funil de Vendas</span>
+              </button>
+
+              <Link href="/reports">
+                <button 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/reports"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <BarChart3 className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Relatórios</span>
+                </button>
+              </Link>
+
+              <Link href="/calendario">
+                <button 
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/calendario"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <CalendarDays className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Calendário</span>
+                </button>
+              </Link>
+
               <button
                 onClick={() => {
                   onTabChange("configuracoes");
@@ -163,30 +143,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <Settings className="mr-3 h-4 w-4" />
                 <span className="mobile-text">Configurações</span>
               </button>
-            )}
-
-            <button
-              onClick={logout}
-              className="w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors text-red-700 hover:bg-red-50 mobile-button"
-            >
-              <LogOut className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Sair</span>
-            </button>
+            </nav>
           </div>
         </div>
       </div>
-
-      {user && showProfileModal && (
-        <VendorProfileModal
-          open={showProfileModal}
-          onOpenChange={setShowProfileModal}
-          user={user}
-          onUpdate={(updatedUser) => {
-            // Aqui você pode atualizar o contexto do usuário se necessário
-            console.log("Perfil atualizado:", updatedUser);
-          }}
-        />
-      )}
     </>
   );
 }

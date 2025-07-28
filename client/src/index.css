@@ -173,9 +173,8 @@
   }
 
   /* Remove any problematic styles that might hide content */
-  * {
-    visibility: visible !important;
-    opacity: 1 !important;
+  .hidden {
+    display: none !important;
   }
 
   /* Ensure primary buttons have proper styling */
