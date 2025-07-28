@@ -61,9 +61,9 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
       const userData = localStorage.getItem("user");
       if (userData) {
         const user = JSON.parse(userData);
-        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`);
+        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`, "GET");
       }
-      return apiRequest(`/api/deals?funnelId=${funnelId}`);
+      return apiRequest(`/api/deals?funnelId=${funnelId}`, "GET");
     },
   });
 
@@ -183,20 +183,26 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                         <h4 className="font-medium text-gray-900 text-sm leading-tight">
                           {deal.title}
                         </h4>
-                        <div className="flex gap-1 ml-2">
+                        <div className="deal-actions">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setEditingDeal(deal)}
-                            className="h-6 w-6 p-0 hover:bg-gray-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingDeal(deal);
+                            }}
+                            className="deal-action-btn hover:bg-gray-100"
                           >
                             <Edit className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDeletingDeal(deal)}
-                            className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingDeal(deal);
+                            }}
+                            className="deal-action-btn hover:bg-red-100 text-red-600"
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>

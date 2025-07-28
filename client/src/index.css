@@ -298,3 +298,46 @@
     -webkit-text-size-adjust: 100%;
   }
 }
+
+/* Kanban board specific styles */
+.kanban-column {
+  min-height: 600px;
+  max-width: 300px;
+}
+
+.kanban-card {
+  cursor: move;
+  position: relative;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.deal-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.kanban-card:hover .deal-actions {
+  opacity: 1;
+}
+
+.deal-action-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  min-width: 24px !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+}

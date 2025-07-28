@@ -161,7 +161,7 @@ export default function FunnelsManagement() {
             </div>
           </div>
         </div>
-        <FunnelStagesManager funnel={editingFunnel} />
+        <FunnelStagesManager funnel={editingFunnel as any} />
       </div>
     );
   }
@@ -286,7 +286,11 @@ export default function FunnelsManagement() {
                         <Settings className="h-4 w-4 mr-1" />
                         Etapas
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setEditingFunnel(funnel)}
+                      >
                         <Edit className="h-4 w-4 mr-1" />
                         Editar
                       </Button>

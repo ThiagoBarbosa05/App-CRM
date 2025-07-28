@@ -35,9 +35,19 @@ export default function Reports() {
     queryKey: ["/api/origins"],
   });
 
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: markers = [] } = useQuery<{id: string; name: string; color: string}[]>({
+    queryKey: ["/api/markers"],
+  });
+
   // Criar sets com nomes válidos para validação
   const validCategoryNames = new Set(categories.map(cat => cat.name));
   const validOriginNames = new Set(origins.map(origin => origin.name));
+  const validUserIds = new Set(users.map(user => user.id));
+  const validMarkerNames = new Set(markers.map(marker => marker.name));
 
   // Calcular próximos aniversários (próximos 30 dias)
   const getUpcomingBirthdays = () => {
@@ -99,6 +109,38 @@ export default function Reports() {
     } else {
       // Origem foi excluída - contar como "Origem removida"
       acc["Origem removida"] = (acc["Origem removida"] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Estatísticas por usuário responsável
+  const clientsByUser = clients.reduce((acc, client) => {
+    const responsibleId = client.responsible;
+    if (!responsibleId) {
+      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
+    } else if (validUserIds.has(responsibleId)) {
+      const user = users.find(u => u.id === responsibleId);
+      const userName = user ? user.name : "Usuário não encontrado";
+      acc[userName] = (acc[userName] || 0) + 1;
+    } else {
+      acc["Usuário removido"] = (acc["Usuário removido"] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Estatísticas por marcadores
+  const clientsByMarkers = clients.reduce((acc, client) => {
+    const clientMarkers = client.markers || [];
+    if (clientMarkers.length === 0) {
+      acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
+    } else {
+      clientMarkers.forEach(markerName => {
+        if (validMarkerNames.has(markerName)) {
+          acc[markerName] = (acc[markerName] || 0) + 1;
+        } else {
+          acc["Marcador removido"] = (acc["Marcador removido"] || 0) + 1;
+        }
+      });
     }
     return acc;
   }, {} as Record<string, number>);
@@ -289,6 +331,79 @@ export default function Reports() {
                     <span className="font-medium text-wine-600">{count}</span>
                   </div>
                 ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Relatórios por Usuário e Marcadores */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Clientes por Usuário</CardTitle>
+            <CardDescription>
+              Distribuição dos clientes por responsável
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(clientsByUser)
+                .sort(([,a], [,b]) => b - a)
+                .map(([userName, count]) => (
+                  <div key={userName} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={userName === "Usuário removido" ? "destructive" : "default"}
+                        className="text-xs"
+                      >
+                        {userName}
+                      </Badge>
+                      {userName === "Usuário removido" && (
+                        <span className="text-xs text-red-500">
+                          (Usuário foi removido do sistema)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-medium text-wine-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Clientes por Marcadores</CardTitle>
+            <CardDescription>
+              Distribuição dos clientes por marcadores
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(clientsByMarkers)
+                .sort(([,a], [,b]) => b - a)
+                .map(([markerName, count]) => {
+                  const marker = markers.find(m => m.name === markerName);
+                  return (
+                    <div key={markerName} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={markerName === "Marcador removido" ? "destructive" : "secondary"}
+                          className="text-xs"
+                          style={marker ? { backgroundColor: marker.color, color: 'white' } : {}}
+                        >
+                          {markerName}
+                        </Badge>
+                        {markerName === "Marcador removido" && (
+                          <span className="text-xs text-red-500">
+                            (Marcador foi excluído das configurações)
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-medium text-wine-600">{count}</span>
+                    </div>
+                  );
+                })}
             </div>
           </CardContent>
         </Card>
