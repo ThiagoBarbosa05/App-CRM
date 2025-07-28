@@ -59,6 +59,13 @@ Preferred communication style: Simple, everyday language.
 ## Data Flow
 
 ### Recent Updates (July 28, 2025)
+- Fixed Calendar icon import error that was preventing app startup
+- Corrected component type errors in deal forms and kanban boards  
+- Fixed data type issues with array handling and date formatting
+- Updated property names to match schema (stageId vs stage)
+- Fixed authentication system to properly use bcrypt for password comparison
+- App now starts successfully and loads properly
+- Login credentials: admin@vinocrm.com / 123456 or admin@vinocrm.com.br / 123456
 - Modified client registration form to use dynamic data from Settings page
 - Marcadores dropdown now pulls from /api/markers (created in Settings)
 - Categoria dropdown now pulls from /api/categories (created in Settings)  

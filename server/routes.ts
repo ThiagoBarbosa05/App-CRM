@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -30,7 +31,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Email não encontrado" });
       }
 
-      if (user.password !== password) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
         return res.status(401).json({ message: "Senha incorreta" });
       }
 
