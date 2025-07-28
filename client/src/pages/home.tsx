@@ -41,7 +41,11 @@ export default function Home() {
   // Buscar dados dos clientes para exportação
   const { data: allClients } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
-    queryFn: () => apiRequest(`/api/clients?userId=${user?.id}&userRole=${user?.role}`),
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      return response.json();
+    },
     enabled: !!user,
   });
 
@@ -226,5 +230,3 @@ export default function Home() {
     </div>
   );
 }
-
-import { apiRequest } from "@/lib/api";
