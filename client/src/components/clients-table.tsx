@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { User, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ClientFormModal from "./client-form-modal";
+import ClientDetailsCard from "./client-details-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   const { toast } = useToast();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["/api/clients"],
@@ -158,7 +160,12 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                           <User className="text-primary h-4 w-4" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                          <button 
+                            onClick={() => setSelectedClient(client)}
+                            className="text-sm font-medium text-wine-600 hover:text-wine-800 underline text-left"
+                          >
+                            {client.name}
+                          </button>
                           <div className="text-sm text-gray-500">
                             Cliente desde {new Date(client.createdAt).getFullYear()}
                           </div>
@@ -239,6 +246,12 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
           client={editingClient}
         />
       )}
+
+      <ClientDetailsCard
+        client={selectedClient}
+        open={!!selectedClient}
+        onOpenChange={(open) => !open && setSelectedClient(null)}
+      />
 
       <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
         <AlertDialogContent>

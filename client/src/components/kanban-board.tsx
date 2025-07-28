@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
+import ClientDetailsCard from "./client-details-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +44,7 @@ export default function KanbanBoard() {
   const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
+  const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals"],
@@ -177,7 +179,12 @@ export default function KanbanBoard() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-3">
-                        Cliente: {deal.client.name}
+                        Cliente: <button 
+                          onClick={() => setSelectedClient(deal.client)}
+                          className="text-wine-600 hover:text-wine-800 underline font-medium"
+                        >
+                          {deal.client.name}
+                        </button>
                       </p>
                       {deal.notes && (
                         <p className="text-sm text-gray-500 mb-3 line-clamp-2">
@@ -223,6 +230,12 @@ export default function KanbanBoard() {
           deal={editingDeal}
         />
       )}
+
+      <ClientDetailsCard
+        client={selectedClient}
+        open={!!selectedClient}
+        onOpenChange={(open) => !open && setSelectedClient(null)}
+      />
 
       <AlertDialog open={!!deletingDeal} onOpenChange={(open) => !open && setDeletingDeal(null)}>
         <AlertDialogContent>

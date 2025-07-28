@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
+import ClientDetailsCard from "./client-details-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,7 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -200,7 +202,12 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
                       
                       <div className="space-y-2">
                         <p className="text-xs text-gray-600">
-                          Cliente: {deal.client?.name}
+                          Cliente: <button 
+                            onClick={() => setSelectedClient(deal.client)}
+                            className="text-wine-600 hover:text-wine-800 underline font-medium"
+                          >
+                            {deal.client?.name}
+                          </button>
                         </p>
                         <p className="text-sm font-semibold text-green-600">
                           {formatCurrency(parseFloat(deal.value))}
@@ -243,6 +250,12 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
           onOpenChange={(open) => !open && setIsCreateModalOpen(false)}
         />
       )}
+
+      <ClientDetailsCard
+        client={selectedClient}
+        open={!!selectedClient}
+        onOpenChange={(open) => !open && setSelectedClient(null)}
+      />
 
       <AlertDialog open={!!deletingDeal} onOpenChange={() => setDeletingDeal(null)}>
         <AlertDialogContent>
