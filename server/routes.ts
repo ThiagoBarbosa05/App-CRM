@@ -212,10 +212,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(marker);
     } catch (error) {
+      console.error("Error updating marker:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).toString() });
       }
-      res.status(500).json({ message: "Erro ao atualizar marcador" });
+      res.status(500).json({ 
+        message: "Erro ao atualizar marcador",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

@@ -31,7 +31,9 @@ interface Category {
   id: string;
   name: string;
   color: string;
+  type: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export default function CategoriesManagement() {
@@ -178,7 +180,7 @@ export default function CategoriesManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {categories.length === 0 ? (
+          {!categories || (categories as Category[]).length === 0 ? (
             <div className="text-center py-8">
               <Tag className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma categoria cadastrada</h3>
@@ -190,7 +192,7 @@ export default function CategoriesManagement() {
             </div>
           ) : (
             <div className="grid gap-3">
-              {categories.map((category: Category) => (
+              {(categories as Category[]).map((category: Category) => (
                 <div
                   key={category.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"

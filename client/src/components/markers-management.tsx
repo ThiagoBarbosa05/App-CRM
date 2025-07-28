@@ -31,7 +31,9 @@ interface Marker {
   id: string;
   name: string;
   color: string;
+  type: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export default function MarkersManagement() {
@@ -178,7 +180,7 @@ export default function MarkersManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {markers.length === 0 ? (
+          {!markers || (markers as Marker[]).length === 0 ? (
             <div className="text-center py-8">
               <Bookmark className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum marcador cadastrado</h3>
@@ -190,7 +192,7 @@ export default function MarkersManagement() {
             </div>
           ) : (
             <div className="grid gap-3">
-              {markers.map((marker: Marker) => (
+              {(markers as Marker[]).map((marker: Marker) => (
                 <div
                   key={marker.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"

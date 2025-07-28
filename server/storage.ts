@@ -616,12 +616,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTag(id: string, updateData: Partial<InsertTag>): Promise<Tag | undefined> {
-    const [tag] = await db
-      .update(tags)
-      .set({ ...updateData, updatedAt: new Date() })
-      .where(eq(tags.id, id))
-      .returning();
-    return tag || undefined;
+    try {
+      const [tag] = await db
+        .update(tags)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(tags.id, id))
+        .returning();
+      return tag || undefined;
+    } catch (error) {
+      console.error("Error in updateTag:", error);
+      throw error;
+    }
   }
 
   async deleteTag(id: string): Promise<boolean> {
