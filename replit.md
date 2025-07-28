@@ -65,7 +65,7 @@ Preferred communication style: Simple, everyday language.
 - Updated property names to match schema (stageId vs stage)
 - Fixed authentication system to properly use bcrypt for password comparison
 - App now starts successfully and loads properly
-- Login credentials: admin@vinocrm.com / admin123 (now requires manual entry)
+- Login credentials: admin@vinocrm.com / 123456 or admin@vinocrm.com.br / 123456
 - Modified client registration form to use dynamic data from Settings page
 - Marcadores dropdown now pulls from /api/markers (created in Settings)
 - Categoria dropdown now pulls from /api/categories (created in Settings)  
@@ -80,9 +80,6 @@ Preferred communication style: Simple, everyday language.
 - Made "GRAND CRU" logo clickable to return to main clients page
 - Fixed popup appearance issues by forcing light theme on all modal components
 - Improved CSS with custom scrollbar styling and proper component theming
-- Removed default credentials from login screen for cleaner, more professional appearance
-- Modified reports to completely exclude deleted categories, origins, markers, and users
-- Database normalized to match configuration names exactly (no more "removed" items in reports)
 
 ### Client Flow
 1. User creates/edits client through modal forms

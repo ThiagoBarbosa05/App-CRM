@@ -13,8 +13,8 @@ interface LoginProps {
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@vinocrm.com");
+  const [password, setPassword] = useState("admin123");
   const { toast } = useToast();
 
   const loginMutation = useMutation({
@@ -115,7 +115,15 @@ export default function Login({ onLogin }: LoginProps) {
               {loginMutation.isPending ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-
+          <div className="mt-6 p-4 bg-bordeaux-50 dark:bg-bordeaux-900/20 rounded-lg">
+            <p className="text-sm text-bordeaux-600 dark:text-bordeaux-400 font-medium mb-2">
+              Credenciais padrão:
+            </p>
+            <p className="text-xs text-bordeaux-500 dark:text-bordeaux-500">
+              Email: admin@vinocrm.com<br />
+              Senha: admin123
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

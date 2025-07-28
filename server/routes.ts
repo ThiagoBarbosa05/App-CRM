@@ -6,8 +6,7 @@ import {
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
   insertTagSchema,
-  insertOriginSchema, insertClientInteractionSchema,
-  insertCompanySchema
+  insertOriginSchema, insertClientInteractionSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -533,12 +532,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
-      const { userId, userRole, funnelId } = req.query;
-      console.log("GET /api/deals params:", { userId, userRole, funnelId });
-      const deals = await storage.getDealsWithClients(funnelId as string, userId as string, userRole as string);
+      const { userId, userRole } = req.query;
+      const deals = await storage.getDealsWithClients(userId as string, userRole as string);
       res.json(deals);
     } catch (error) {
-      console.error("Erro na API deals:", error);
       res.status(500).json({ message: "Erro ao buscar negócios" });
     }
   });
@@ -1001,88 +998,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao enviar campanha" });
-    }
-  });
-
-  // Company routes
-  app.get("/api/companies", async (req, res) => {
-    try {
-      const companies = await storage.getCompanies();
-      res.json(companies);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar empresas" });
-    }
-  });
-
-  app.get("/api/companies/:id", async (req, res) => {
-    try {
-      const company = await storage.getCompany(req.params.id);
-      if (!company) {
-        return res.status(404).json({ message: "Empresa não encontrada" });
-      }
-      res.json(company);
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar empresa" });
-    }
-  });
-
-  app.post("/api/companies", async (req, res) => {
-    try {
-      const validatedData = insertCompanySchema.parse(req.body);
-
-      // Check if CNPJ already exists
-      const existingCompany = await storage.getCompanyByCNPJ(validatedData.cnpj);
-      if (existingCompany) {
-        return res.status(400).json({ message: "CNPJ já cadastrado" });
-      }
-
-      const company = await storage.createCompany(validatedData);
-      res.status(201).json(company);
-    } catch (error) {
-      console.error("Error creating company:", error);
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      res.status(500).json({ message: "Erro ao criar empresa", error: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  app.put("/api/companies/:id", async (req, res) => {
-    try {
-      const validatedData = insertCompanySchema.partial().parse(req.body);
-
-      // If CNPJ is being updated, check if it's already in use by another company
-      if (validatedData.cnpj) {
-        const existingCompany = await storage.getCompanyByCNPJ(validatedData.cnpj);
-        if (existingCompany && existingCompany.id !== req.params.id) {
-          return res.status(400).json({ message: "CNPJ já cadastrado" });
-        }
-      }
-
-      const company = await storage.updateCompany(req.params.id, validatedData);
-      if (!company) {
-        return res.status(404).json({ message: "Empresa não encontrada" });
-      }
-      res.json(company);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      res.status(500).json({ message: "Erro ao atualizar empresa" });
-    }
-  });
-
-  app.delete("/api/companies/:id", async (req, res) => {
-    try {
-      const success = await storage.deleteCompany(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Empresa não encontrada" });
-      }
-      res.json({ message: "Empresa excluída com sucesso" });
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao deletar empresa" });
     }
   });
 

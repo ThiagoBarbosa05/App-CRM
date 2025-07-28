@@ -6,10 +6,7 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser,
-  users, clients, deals, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, emailCampaignRecipients, companies,
-  type Company,
-  type InsertCompany,
-  type EmailCampaignRecipient
+  clients, deals, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -92,14 +89,6 @@ export interface IStorage {
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
   sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
-
-  // Company methods
-  getCompanies(): Promise<Company[]>;
-  getCompany(id: string): Promise<Company | undefined>;
-  getCompanyByCNPJ(cnpj: string): Promise<Company | undefined>;
-  createCompany(data: InsertCompany): Promise<Company>;
-  updateCompany(id: string, data: Partial<InsertCompany>): Promise<Company | undefined>;
-  deleteCompany(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -334,43 +323,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
-    try {
-      console.log("getDealsWithClients params:", { funnelId, userId, userRole });
-      const dealsWithClients: DealWithClient[] = [];
-      let query = db.select().from(deals);
+    const dealsWithClients: DealWithClient[] = [];
+    let deals;
 
-      const conditions = [];
-      if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
-      if (userRole === 'vendedor' && userId) {
-        conditions.push(or(
+    if (userRole === 'vendedor' && userId) {
+      // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
+      deals = await db.select().from(deals)
+        .where(or(
           eq(deals.createdBy, userId),
           eq(deals.assignedTo, userId)
-        ));
-      }
-
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      const dealsQuery = await query.orderBy(deals.createdAt);
-      console.log("Found deals:", dealsQuery.length);
-
-      for (const deal of dealsQuery) {
-        const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
-        if (client) {
-          dealsWithClients.push({
-            ...deal,
-            client,
-          });
-        }
-      }
-
-      console.log("Returning deals with clients:", dealsWithClients.length);
-      return dealsWithClients;
-    } catch (error) {
-      console.error("Erro em getDealsWithClients:", error);
-      throw error;
+        ))
+        .orderBy(deals.createdAt);
+    } else {
+      // Admins e gerentes veem todos os deals
+      deals = await db.select().from(deals).orderBy(deals.createdAt);
     }
+
+    for (const deal of deals) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
+      if (client) {
+        dealsWithClients.push({
+          ...deal,
+          client,
+        });
+      }
+    }
+
+    return dealsWithClients;
   }
 
   async getDeal(id: string): Promise<Deal | undefined> {
@@ -381,7 +360,10 @@ export class DatabaseStorage implements IStorage {
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     const [deal] = await db
       .insert(deals)
-      .values(insertDeal)
+      .values({
+        ...insertDeal,
+        stage: insertDeal.stage || "prospeccao",
+      })
       .returning();
     return deal;
   }
@@ -600,7 +582,7 @@ export class DatabaseStorage implements IStorage {
         const [adminUser] = await db
           .select()
           .from(users)
-          .where(eq(users.role, "admin"))
+          .where(eq(users.role, "administrator"))
           .limit(1);
 
         if (adminUser) {
@@ -810,7 +792,7 @@ export class DatabaseStorage implements IStorage {
 
     // Buscar destinatários baseado no targetType
     let recipients: Client[] = [];
-
+    
     if (campaign.targetType === "all") {
       recipients = await this.getClients();
     } else if (campaign.targetType === "category" && campaign.targetCriteria) {
@@ -840,39 +822,6 @@ export class DatabaseStorage implements IStorage {
       sentCount: sentCount,
       errors: []
     };
-  }
-
-  // Company methods
-  async getCompanies(): Promise<Company[]> {
-    return await db.select().from(companies).orderBy(companies.razaoSocial);
-  }
-
-  async getCompany(id: string): Promise<Company | undefined> {
-    const result = await db.select().from(companies).where(eq(companies.id, id));
-    return result[0];
-  }
-
-  async getCompanyByCNPJ(cnpj: string): Promise<Company | undefined> {
-    const result = await db.select().from(companies).where(eq(companies.cnpj, cnpj));
-    return result[0];
-  }
-
-  async createCompany(data: InsertCompany): Promise<Company> {
-    const result = await db.insert(companies).values(data).returning();
-    return result[0];
-  }
-
-  async updateCompany(id: string, data: Partial<InsertCompany>): Promise<Company | undefined> {
-    const result = await db.update(companies)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(companies.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteCompany(id: string): Promise<boolean> {
-    const result = await db.delete(companies).where(eq(companies.id, id));
-    return result.rowCount > 0;
   }
 }
 

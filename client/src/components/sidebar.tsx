@@ -1,4 +1,4 @@
-import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Building2 } from "lucide-react";
+import { Wine, Users, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -67,139 +67,95 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <div className="mobile-responsive px-4 sm:px-6 pb-6">
             <nav className="space-y-2">
               <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={() => {
                   onTabChange("clientes");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                   activeTab === "clientes"
-                    ? "bg-primary text-white hover:bg-primary/90"
+                    ? "bg-primary text-white"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <Users className="mr-3 h-4 w-4 flex-shrink-0" />
+                <Users className="mr-3 h-4 w-4" />
                 <span className="mobile-text">Clientes</span>
               </button>
 
               <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={() => {
                   onTabChange("funil");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                   activeTab === "funil"
-                    ? "bg-primary text-white hover:bg-primary/90"
+                    ? "bg-primary text-white"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <GitBranch className="mr-3 h-4 w-4 flex-shrink-0" />
+                <GitBranch className="mr-3 h-4 w-4" />
                 <span className="mobile-text">Funil de Vendas</span>
               </button>
 
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onTabChange("empresas");
-                  closeMobileMenu();
-                }}
-                className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-                  activeTab === "empresas"
-                    ? "bg-primary text-white hover:bg-primary/90"
-                    : "text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                <Building2 className="mr-3 h-4 w-4 flex-shrink-0" />
-                <span className="mobile-text">Empresas</span>
-              </button>
-
               <Link href="/reports">
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeMobileMenu();
-                  }}
+                <button 
+                  onClick={closeMobileMenu}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/reports"
-                      ? "bg-primary text-white hover:bg-primary/90"
+                      ? "bg-primary text-white"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <BarChart3 className="mr-3 h-4 w-4 flex-shrink-0" />
+                  <BarChart3 className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Relatórios</span>
-                </div>
+                </button>
               </Link>
 
               <Link href="/calendario">
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeMobileMenu();
-                  }}
+                <button 
+                  onClick={closeMobileMenu}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/calendario"
-                      ? "bg-primary text-white hover:bg-primary/90"
+                      ? "bg-primary text-white"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <CalendarDays className="mr-3 h-4 w-4 flex-shrink-0" />
+                  <CalendarDays className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Calendário</span>
-                </div>
+                </button>
               </Link>
 
               <Link href="/metas">
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeMobileMenu();
-                  }}
+                <button 
+                  onClick={closeMobileMenu}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                    "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/metas"
-                      ? "bg-primary text-white hover:bg-primary/90"
+                      ? "bg-primary text-white"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
-                  <Target className="mr-3 h-4 w-4 flex-shrink-0" />
+                  <Target className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Metas</span>
-                </div>
+                </button>
               </Link>
 
               <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={() => {
                   onTabChange("configuracoes");
                   closeMobileMenu();
                 }}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors cursor-pointer select-none",
-                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                   activeTab === "configuracoes"
-                    ? "bg-primary text-white hover:bg-primary/90"
+                    ? "bg-primary text-white"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
-                <Settings className="mr-3 h-4 w-4 flex-shrink-0" />
+                <Settings className="mr-3 h-4 w-4" />
                 <span className="mobile-text">Configurações</span>
               </button>
             </nav>

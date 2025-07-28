@@ -43,15 +43,14 @@ import { FunnelStage } from "@shared/schema";
 interface FunnelKanbanBoardProps {
   funnelId: string;
   funnel: SalesFunnel;
-  openNewDeal?: boolean;
 }
 
-export default function FunnelKanbanBoard({ funnelId, funnel, openNewDeal = false }: FunnelKanbanBoardProps) {
+export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoardProps) {
   const { toast } = useToast();
   const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(openNewDeal);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
   const [editingClient, setEditingClient] = useState<DealWithClient['client'] | null>(null);
 
