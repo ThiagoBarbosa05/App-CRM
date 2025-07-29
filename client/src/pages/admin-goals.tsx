@@ -2,24 +2,68 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Target, Edit, Users, DollarSign, ShoppingCart, Package } from "lucide-react";
+import {
+  Target,
+  Edit,
+  Users,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Trash2,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 
 const goalSchema = z.object({
   userId: z.string().min(1, "Usuário é obrigatório"),
-  salesGoal: z.string().min(1, "Meta de vendas é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  averageTicket: z.string().min(1, "Ticket médio é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  itemsPerSale: z.string().min(1, "Itens por venda é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
+  salesGoal: z
+    .string()
+    .min(1, "Meta de vendas é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 0,
+      "Valor deve ser um número positivo",
+    ),
+  averageTicket: z
+    .string()
+    .min(1, "Ticket médio é obrigatório")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 0,
+      "Valor deve ser um número positivo",
+    ),
+  itemsPerSale: z
+    .string()
+    .min(1, "Itens por venda é obrigatório")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
 });
@@ -54,10 +98,34 @@ interface UserGoal {
 
 const weeklyResultSchema = z.object({
   goalId: z.string().min(1, "Meta é obrigatória"),
-  week: z.string().min(1, "Semana é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
-  salesAchieved: z.string().min(1, "Vendas atingidas é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  ticketAchieved: z.string().min(1, "Ticket atingido é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  itemsAchieved: z.string().min(1, "Itens atingidos é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
+  week: z
+    .string()
+    .min(1, "Semana é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
+  salesAchieved: z
+    .string()
+    .min(1, "Vendas atingidas é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 0,
+      "Valor deve ser um número positivo",
+    ),
+  ticketAchieved: z
+    .string()
+    .min(1, "Ticket atingido é obrigatório")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 0,
+      "Valor deve ser um número positivo",
+    ),
+  itemsAchieved: z
+    .string()
+    .min(1, "Itens atingidos é obrigatório")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
 });
 
 type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
@@ -70,11 +138,14 @@ export default function AdminGoals() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<UserGoal | null>(null);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [selectedGoalForResults, setSelectedGoalForResults] = useState<UserGoal | null>(null);
+  const [selectedGoalForResults, setSelectedGoalForResults] =
+    useState<UserGoal | null>(null);
 
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.getMonth() + 1,
+  );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Verificar se o usuário é admin
@@ -85,8 +156,8 @@ export default function AdminGoals() {
           <CardHeader>
             <CardTitle className="text-red-600">Acesso Negado</CardTitle>
             <CardDescription>
-              Você não tem permissão para acessar esta página.
-              Apenas administradores podem gerenciar metas de usuários.
+              Você não tem permissão para acessar esta página. Apenas
+              administradores podem gerenciar metas de usuários.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -94,11 +165,23 @@ export default function AdminGoals() {
     );
   }
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<GoalFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<GoalFormData>({
     resolver: zodResolver(goalSchema),
   });
 
-  const { register: registerResult, handleSubmit: handleSubmitResult, reset: resetResult, setValue: setValueResult, formState: { errors: resultErrors } } = useForm<WeeklyResultFormData>({
+  const {
+    register: registerResult,
+    handleSubmit: handleSubmitResult,
+    reset: resetResult,
+    setValue: setValueResult,
+    formState: { errors: resultErrors },
+  } = useForm<WeeklyResultFormData>({
     resolver: zodResolver(weeklyResultSchema),
   });
 
@@ -108,7 +191,9 @@ export default function AdminGoals() {
   });
 
   // Buscar todos os usuários
-  const { data: users = [] } = useQuery<{id: string; name: string; email: string; role: string}[]>({
+  const { data: users = [] } = useQuery<
+    { id: string; name: string; email: string; role: string }[]
+  >({
     queryKey: ["/api/users"],
   });
 
@@ -131,7 +216,11 @@ export default function AdminGoals() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
+      });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
         description: `Meta do usuário foi ${editingGoal ? "atualizada" : "criada"} com sucesso.`,
@@ -142,7 +231,9 @@ export default function AdminGoals() {
       console.error("Error creating goal:", error);
       toast({
         title: "Erro",
-        description: error.message || `Erro ao ${editingGoal ? "atualizar" : "criar"} meta.`,
+        description:
+          error.message ||
+          `Erro ao ${editingGoal ? "atualizar" : "criar"} meta.`,
         variant: "destructive",
       });
     },
@@ -162,7 +253,11 @@ export default function AdminGoals() {
       return apiRequest("/api/weekly-results", "POST", resultData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
+      });
       toast({
         title: "Resultado salvo",
         description: "Resultado semanal foi salvo com sucesso.",
@@ -177,6 +272,37 @@ export default function AdminGoals() {
       });
     },
   });
+
+  // Mutation para deletar meta
+  const deleteMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest(`/api/user-goals/${goalId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
+      });
+      toast({
+        title: "Meta excluída",
+        description: "Meta do usuário foi excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir meta.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteGoal = (goal: UserGoal) => {
+    if (confirm(`Tem certeza que deseja excluir a meta de ${goal.userName}?`)) {
+      deleteMutation.mutate(goal.id);
+    }
+  };
 
   const handleEditGoal = (goal: UserGoal) => {
     setEditingGoal(goal);
@@ -201,16 +327,19 @@ export default function AdminGoals() {
 
   // Função para formatar valores monetários
   const formatCurrency = (value: string) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(Number(value));
   };
 
   // Função para calcular o total alcançado até o momento
-  const getTotalAchieved = (weeklyResults: WeeklyResult[], field: 'salesAchieved' | 'ticketAchieved' | 'itemsAchieved') => {
+  const getTotalAchieved = (
+    weeklyResults: WeeklyResult[],
+    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
+  ) => {
     return weeklyResults.reduce((sum, result) => {
-      if (field === 'itemsAchieved') {
+      if (field === "itemsAchieved") {
         return sum + result[field];
       }
       return sum + Number(result[field]);
@@ -218,11 +347,11 @@ export default function AdminGoals() {
   };
 
   // Obter usuários sem metas para novo cadastro
-  const usersWithoutGoals = users.filter(user => 
-    !userGoals.some(goal => goal.userId === user.id)
+  const usersWithoutGoals = users.filter(
+    (user) => !userGoals.some((goal) => goal.userId === user.id),
   );
 
-    const handleOpenResultModal = (goal: UserGoal) => {
+  const handleOpenResultModal = (goal: UserGoal) => {
     setSelectedGoalForResults(goal);
     setValueResult("goalId", goal.id);
     setIsResultModalOpen(true);
@@ -242,7 +371,7 @@ export default function AdminGoals() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 sm:ml-64">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 ">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -252,7 +381,8 @@ export default function AdminGoals() {
                   Administração de Metas
                 </h1>
                 <p className="text-gray-600 mt-2">
-                  Gerencie as metas de vendas, ticket médio e itens por venda de todos os usuários do sistema
+                  Gerencie as metas de vendas, ticket médio e itens por venda de
+                  todos os usuários do sistema
                 </p>
               </div>
 
@@ -265,11 +395,15 @@ export default function AdminGoals() {
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                      <option key={month} value={month}>
-                        {new Date(0, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
-                      </option>
-                    ))}
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                      (month) => (
+                        <option key={month} value={month}>
+                          {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                            month: "long",
+                          })}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
 
@@ -281,7 +415,10 @@ export default function AdminGoals() {
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   >
-                    {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i).map(year => (
+                    {Array.from(
+                      { length: 5 },
+                      (_, i) => currentDate.getFullYear() - 2 + i,
+                    ).map((year) => (
                       <option key={year} value={year}>
                         {year}
                       </option>
@@ -290,7 +427,7 @@ export default function AdminGoals() {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 onClick={() => {
                   setValue("month", selectedMonth.toString());
                   setValue("year", selectedYear.toString());
@@ -309,7 +446,9 @@ export default function AdminGoals() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total de Usuários
+                </CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -322,7 +461,9 @@ export default function AdminGoals() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Metas Definidas</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Metas Definidas
+                </CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -335,13 +476,17 @@ export default function AdminGoals() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Meta Total</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Meta Total
+                </CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {formatCurrency(
-                    userGoals.reduce((sum, goal) => sum + Number(goal.salesGoal), 0).toString()
+                    userGoals
+                      .reduce((sum, goal) => sum + Number(goal.salesGoal), 0)
+                      .toString(),
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -352,17 +497,23 @@ export default function AdminGoals() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ticket Médio Geral</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Ticket Médio Geral
+                </CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {userGoals.length > 0 
+                  {userGoals.length > 0
                     ? formatCurrency(
-                        (userGoals.reduce((sum, goal) => sum + Number(goal.averageTicket), 0) / userGoals.length).toString()
+                        (
+                          userGoals.reduce(
+                            (sum, goal) => sum + Number(goal.averageTicket),
+                            0,
+                          ) / userGoals.length
+                        ).toString(),
                       )
-                    : "R$ 0,00"
-                  }
+                    : "R$ 0,00"}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Média dos tickets
@@ -391,7 +542,9 @@ export default function AdminGoals() {
                 <div className="text-center py-8 text-gray-500">
                   <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p className="text-lg font-medium">Nenhuma meta cadastrada</p>
-                  <p className="text-sm">Comece definindo metas para os usuários do sistema</p>
+                  <p className="text-sm">
+                    Comece definindo metas para os usuários do sistema
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -409,24 +562,42 @@ export default function AdminGoals() {
                     </TableHeader>
                     <TableBody>
                       {userGoals.map((goal) => {
-                        const totalSalesAchieved = getTotalAchieved(goal.weeklyResults || [], 'salesAchieved');
-                        const progressPercentage = Number(goal.salesGoal) > 0 
-                          ? Math.min((totalSalesAchieved / Number(goal.salesGoal)) * 100, 100)
-                          : 0;
+                        const totalSalesAchieved = getTotalAchieved(
+                          goal.weeklyResults || [],
+                          "salesAchieved",
+                        );
+                        const progressPercentage =
+                          Number(goal.salesGoal) > 0
+                            ? Math.min(
+                                (totalSalesAchieved / Number(goal.salesGoal)) *
+                                  100,
+                                100,
+                              )
+                            : 0;
 
                         return (
                           <TableRow key={goal.id}>
-                            <TableCell className="font-medium">{goal.userName}</TableCell>
                             <TableCell className="font-medium">
-                              {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
+                              {goal.userName}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {new Date(0, goal.month - 1).toLocaleDateString(
+                                "pt-BR",
+                                { month: "long" },
+                              )}{" "}
+                              {goal.year}
                             </TableCell>
                             <TableCell className="font-semibold text-green-600">
                               {formatCurrency(goal.salesGoal)}
                             </TableCell>
                             <TableCell className="font-semibold">
                               <div className="flex flex-col gap-1">
-                                <span className={`${progressPercentage >= 100 ? 'text-green-600' : progressPercentage >= 75 ? 'text-blue-600' : progressPercentage >= 50 ? 'text-orange-600' : 'text-red-600'}`}>
-                                  {formatCurrency(totalSalesAchieved.toString())}
+                                <span
+                                  className={`${progressPercentage >= 100 ? "text-green-600" : progressPercentage >= 75 ? "text-blue-600" : progressPercentage >= 50 ? "text-orange-600" : "text-red-600"}`}
+                                >
+                                  {formatCurrency(
+                                    totalSalesAchieved.toString(),
+                                  )}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   {progressPercentage.toFixed(1)}% da meta
@@ -440,22 +611,34 @@ export default function AdminGoals() {
                               {goal.itemsPerSale} itens
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditGoal(goal)}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Editar
-                              </Button>
-                               <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleOpenResultModal(goal)}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Add result
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditGoal(goal)}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenResultModal(goal)}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Add result
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteGoal(goal)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  disabled={deleteMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Excluir
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -488,20 +671,19 @@ export default function AdminGoals() {
                 disabled={!!editingGoal}
               >
                 <option value="">Selecione um usuário</option>
-                {editingGoal 
+                {editingGoal
                   ? users
-                      .filter(u => u.id === editingGoal.userId)
-                      .map(u => (
+                      .filter((u) => u.id === editingGoal.userId)
+                      .map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.name} ({u.email})
                         </option>
                       ))
-                  : usersWithoutGoals.map(u => (
+                  : usersWithoutGoals.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.name} ({u.email})
                       </option>
-                    ))
-                }
+                    ))}
               </select>
               {errors.userId && (
                 <p className="text-sm text-red-600">{errors.userId.message}</p>
@@ -519,7 +701,9 @@ export default function AdminGoals() {
                 {...register("salesGoal")}
               />
               {errors.salesGoal && (
-                <p className="text-sm text-red-600">{errors.salesGoal.message}</p>
+                <p className="text-sm text-red-600">
+                  {errors.salesGoal.message}
+                </p>
               )}
             </div>
 
@@ -534,7 +718,9 @@ export default function AdminGoals() {
                 {...register("averageTicket")}
               />
               {errors.averageTicket && (
-                <p className="text-sm text-red-600">{errors.averageTicket.message}</p>
+                <p className="text-sm text-red-600">
+                  {errors.averageTicket.message}
+                </p>
               )}
             </div>
 
@@ -548,7 +734,9 @@ export default function AdminGoals() {
                 {...register("itemsPerSale")}
               />
               {errors.itemsPerSale && (
-                <p className="text-sm text-red-600">{errors.itemsPerSale.message}</p>
+                <p className="text-sm text-red-600">
+                  {errors.itemsPerSale.message}
+                </p>
               )}
             </div>
 
@@ -562,9 +750,11 @@ export default function AdminGoals() {
                   disabled={!!editingGoal}
                 >
                   <option value="">Selecione o mês</option>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                     <option key={month} value={month}>
-                      {new Date(0, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
                     </option>
                   ))}
                 </select>
@@ -582,7 +772,10 @@ export default function AdminGoals() {
                   disabled={!!editingGoal}
                 >
                   <option value="">Selecione o ano</option>
-                  {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i).map(year => (
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
                     <option key={year} value={year}>
                       {year}
                     </option>
@@ -607,27 +800,27 @@ export default function AdminGoals() {
                 disabled={goalMutation.isPending}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {goalMutation.isPending 
-                  ? "Salvando..." 
-                  : editingGoal 
-                    ? "Atualizar Meta" 
-                    : "Criar Meta"
-                }
+                {goalMutation.isPending
+                  ? "Salvando..."
+                  : editingGoal
+                    ? "Atualizar Meta"
+                    : "Criar Meta"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
-       {/* Modal de formulário de resultado semanal */}
+      {/* Modal de formulário de resultado semanal */}
       <Dialog open={isResultModalOpen} onOpenChange={handleCloseResultModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Adicionar Resultado Semanal
-            </DialogTitle>
+            <DialogTitle>Adicionar Resultado Semanal</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmitResult(onSubmitResult)} className="space-y-4">
+          <form
+            onSubmit={handleSubmitResult(onSubmitResult)}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <Label htmlFor="week">Semana</Label>
               <Input
@@ -638,7 +831,9 @@ export default function AdminGoals() {
                 {...registerResult("week")}
               />
               {resultErrors.week && (
-                <p className="text-sm text-red-600">{resultErrors.week.message}</p>
+                <p className="text-sm text-red-600">
+                  {resultErrors.week.message}
+                </p>
               )}
             </div>
 
@@ -653,7 +848,9 @@ export default function AdminGoals() {
                 {...registerResult("salesAchieved")}
               />
               {resultErrors.salesAchieved && (
-                <p className="text-sm text-red-600">{resultErrors.salesAchieved.message}</p>
+                <p className="text-sm text-red-600">
+                  {resultErrors.salesAchieved.message}
+                </p>
               )}
             </div>
 
@@ -668,7 +865,9 @@ export default function AdminGoals() {
                 {...registerResult("ticketAchieved")}
               />
               {resultErrors.ticketAchieved && (
-                <p className="text-sm text-red-600">{resultErrors.ticketAchieved.message}</p>
+                <p className="text-sm text-red-600">
+                  {resultErrors.ticketAchieved.message}
+                </p>
               )}
             </div>
 
@@ -682,7 +881,9 @@ export default function AdminGoals() {
                 {...registerResult("itemsAchieved")}
               />
               {resultErrors.itemsAchieved && (
-                <p className="text-sm text-red-600">{resultErrors.itemsAchieved.message}</p>
+                <p className="text-sm text-red-600">
+                  {resultErrors.itemsAchieved.message}
+                </p>
               )}
             </div>
 
@@ -699,10 +900,7 @@ export default function AdminGoals() {
                 disabled={resultMutation.isPending}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {resultMutation.isPending
-                  ? "Salvando..."
-                  : "Salvar Resultado"
-                }
+                {resultMutation.isPending ? "Salvando..." : "Salvar Resultado"}
               </Button>
             </div>
           </form>
