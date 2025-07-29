@@ -399,7 +399,6 @@ export default function AdminGoals() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Usuário</TableHead>
-                        <TableHead>Email</TableHead>
                         <TableHead>Período</TableHead>
                         <TableHead>Meta de Vendas</TableHead>
                         <TableHead>Valor Alcançado</TableHead>
@@ -418,7 +417,6 @@ export default function AdminGoals() {
                         return (
                           <TableRow key={goal.id}>
                             <TableCell className="font-medium">{goal.userName}</TableCell>
-                            <TableCell>{goal.userEmail}</TableCell>
                             <TableCell className="font-medium">
                               {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
                             </TableCell>
