@@ -1,4 +1,4 @@
-import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Folder, Shield, Sparkles, Video } from "lucide-react";
+import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Shield, Sparkles, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -155,21 +155,6 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 >
                   <BarChart3 className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Relatórios</span>
-                </button>
-              </Link>
-
-              <Link href="/arquivos">
-                <button 
-                  onClick={closeMobileMenu}
-                  className={cn(
-                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/arquivos"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}
-                >
-                  <Folder className="mr-3 h-4 w-4" />
-                  <span className="mobile-text">Arquivos</span>
                 </button>
               </Link>
 

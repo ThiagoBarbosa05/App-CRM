@@ -17,7 +17,6 @@ import Settings from "@/pages/settings";
 import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
-import { lazy } from 'react';
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -40,7 +39,7 @@ function Router() {
       <Route path="/clientes" component={Clients} />
       <Route path="/empresas" component={Companies} />
       <Route path="/funil" component={Funnel} />
-      <Route path="/arquivos" component={lazy(() => import("./pages/files"))} />
+
       <Route path="/reports" component={Reports} />
       <Route path="/calendario" component={Calendar} />
       <Route path="/metas" component={Metas} />
