@@ -7,7 +7,7 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser, type Sector, type InsertSector,
-  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals
+  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -107,7 +107,7 @@ export interface IStorage {
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
   sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
-  
+
   // User Goals methods
   getUserGoals(): Promise<any[]>;
   getUserGoalById(id: string): Promise<any | null>;
@@ -903,7 +903,7 @@ export class DatabaseStorage implements IStorage {
 
     // Buscar destinatários baseado no targetType
     let recipients: Client[] = [];
-    
+
     if (campaign.targetType === "all") {
       recipients = await this.getClients();
     } else if (campaign.targetType === "category" && campaign.targetCriteria) {
@@ -952,7 +952,7 @@ export class DatabaseStorage implements IStorage {
       .from(userGoals)
       .leftJoin(users, eq(userGoals.userId, users.id))
       .orderBy(users.name);
-    
+
     return result;
   }
 
@@ -972,7 +972,7 @@ export class DatabaseStorage implements IStorage {
       .from(userGoals)
       .leftJoin(users, eq(userGoals.userId, users.id))
       .where(eq(userGoals.id, id));
-    
+
     return result || null;
   }
 
@@ -981,7 +981,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(userGoals)
       .where(eq(userGoals.userId, userId));
-    
+
     return result || null;
   }
 
@@ -990,7 +990,7 @@ export class DatabaseStorage implements IStorage {
       .insert(userGoals)
       .values(goal)
       .returning();
-    
+
     return result;
   }
 
@@ -1000,7 +1000,7 @@ export class DatabaseStorage implements IStorage {
       .set({ ...goal, updatedAt: new Date() })
       .where(eq(userGoals.id, id))
       .returning();
-    
+
     return result;
   }
 

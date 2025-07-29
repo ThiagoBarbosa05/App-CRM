@@ -1414,6 +1414,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas para resultados semanais
+  app.get("/api/weekly-results/:goalId", async (req, res) => {
+    try {
+      const results = await storage.getWeeklyResultsByGoalId(req.params.goalId);
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching weekly results:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados semanais" });
+    }
+  });
+
+  app.post("/api/weekly-results", async (req, res) => {
+    try {
+      const resultData = req.body;
+      
+      // Verificar se já existe resultado para essa semana
+      const existingResult = await storage.getWeeklyResult(resultData.goalId, resultData.week);
+      
+      if (existingResult) {
+        // Atualizar resultado existente
+        const updatedResult = await storage.updateWeeklyResult(
+          resultData.goalId, 
+          resultData.week, 
+          resultData
+        );
+        res.json(updatedResult);
+      } else {
+        // Criar novo resultado
+        const newResult = await storage.createWeeklyResult(resultData);
+        res.status(201).json(newResult);
+      }
+    } catch (error) {
+      console.error("Error creating/updating weekly result:", error);
+      res.status(500).json({ message: "Erro ao salvar resultado semanal" });
+    }
+  });
+
+  app.get("/api/user-goals-with-results/:month/:year", async (req, res) => {
+    try {
+      const month = parseInt(req.params.month);
+      const year = parseInt(req.params.year);
+      
+      const goalsWithResults = await storage.getUserGoalsWithResults(month, year);
+      
+      // Buscar resultados semanais para cada meta
+      const goalsWithWeeklyResults = await Promise.all(
+        goalsWithResults.map(async (goal) => {
+          const weeklyResults = await storage.getWeeklyResultsByGoalId(goal.id);
+          return { ...goal, weeklyResults };
+        })
+      );
+      
+      res.json(goalsWithWeeklyResults);
+    } catch (error) {
+      console.error("Error fetching goals with results:", error);
+      res.status(500).json({ message: "Erro ao buscar metas com resultados" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -20,6 +20,8 @@ const goalSchema = z.object({
   salesGoal: z.string().min(1, "Meta de vendas é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
   averageTicket: z.string().min(1, "Ticket médio é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
   itemsPerSale: z.string().min(1, "Itens por venda é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
+  month: z.string().min(1, "Mês é obrigatório"),
+  year: z.string().min(1, "Ano é obrigatório"),
 });
 
 type GoalFormData = z.infer<typeof goalSchema>;
@@ -30,6 +32,8 @@ interface UserGoal {
   salesGoal: string;
   averageTicket: string;
   itemsPerSale: number;
+  month: number;
+  year: number;
   userName: string;
   userEmail: string;
   createdAt: string;
@@ -43,6 +47,11 @@ export default function AdminGoals() {
   const [activeTab, setActiveTab] = useState("admin-metas");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<UserGoal | null>(null);
+  
+  // Estado para controlar mês/ano atual
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Verificar se o usuário é admin
   if (user?.role !== "admin") {
@@ -65,9 +74,9 @@ export default function AdminGoals() {
     resolver: zodResolver(goalSchema),
   });
 
-  // Buscar metas dos usuários
+  // Buscar metas dos usuários do mês/ano selecionado
   const { data: userGoals = [], isLoading } = useQuery<UserGoal[]>({
-    queryKey: ["/api/user-goals"],
+    queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
   });
 
   // Buscar todos os usuários
@@ -83,6 +92,8 @@ export default function AdminGoals() {
         salesGoal: data.salesGoal,
         averageTicket: data.averageTicket,
         itemsPerSale: parseInt(data.itemsPerSale),
+        month: parseInt(data.month),
+        year: parseInt(data.year),
       };
 
       if (editingGoal) {
@@ -92,7 +103,7 @@ export default function AdminGoals() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user-goals"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
         description: `Meta do usuário foi ${editingGoal ? "atualizada" : "criada"} com sucesso.`,
@@ -114,6 +125,8 @@ export default function AdminGoals() {
     setValue("salesGoal", goal.salesGoal);
     setValue("averageTicket", goal.averageTicket);
     setValue("itemsPerSale", goal.itemsPerSale.toString());
+    setValue("month", goal.month.toString());
+    setValue("year", goal.year.toString());
     setIsModalOpen(true);
   };
 
@@ -158,8 +171,46 @@ export default function AdminGoals() {
                 </p>
               </div>
               
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="month-select">Mês:</Label>
+                  <select
+                    id="month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                      <option key={month} value={month}>
+                        {new Date(0, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-select">Ano:</Label>
+                  <select
+                    id="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i).map(year => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
               <Button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setValue("month", selectedMonth.toString());
+                  setValue("year", selectedYear.toString());
+                  setIsModalOpen(true);
+                }}
                 disabled={usersWithoutGoals.length === 0}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -264,10 +315,10 @@ export default function AdminGoals() {
                       <TableRow>
                         <TableHead>Usuário</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Período</TableHead>
                         <TableHead>Meta de Vendas</TableHead>
                         <TableHead>Ticket Médio</TableHead>
                         <TableHead>Itens por Venda</TableHead>
-                        <TableHead>Última Atualização</TableHead>
                         <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -276,6 +327,9 @@ export default function AdminGoals() {
                         <TableRow key={goal.id}>
                           <TableCell className="font-medium">{goal.userName}</TableCell>
                           <TableCell>{goal.userEmail}</TableCell>
+                          <TableCell className="font-medium">
+                            {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
+                          </TableCell>
                           <TableCell className="font-semibold text-green-600">
                             {formatCurrency(goal.salesGoal)}
                           </TableCell>
@@ -284,9 +338,6 @@ export default function AdminGoals() {
                           </TableCell>
                           <TableCell className="font-semibold">
                             {goal.itemsPerSale} itens
-                          </TableCell>
-                          <TableCell>
-                            {new Date(goal.updatedAt).toLocaleDateString("pt-BR")}
                           </TableCell>
                           <TableCell>
                             <Button
@@ -390,6 +441,48 @@ export default function AdminGoals() {
               {errors.itemsPerSale && (
                 <p className="text-sm text-red-600">{errors.itemsPerSale.message}</p>
               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="month">Mês</Label>
+                <select
+                  id="month"
+                  {...register("month")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={!!editingGoal}
+                >
+                  <option value="">Selecione o mês</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString('pt-BR', { month: 'long' })}
+                    </option>
+                  ))}
+                </select>
+                {errors.month && (
+                  <p className="text-sm text-red-600">{errors.month.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="year">Ano</Label>
+                <select
+                  id="year"
+                  {...register("year")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={!!editingGoal}
+                >
+                  <option value="">Selecione o ano</option>
+                  {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i).map(year => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                {errors.year && (
+                  <p className="text-sm text-red-600">{errors.year.message}</p>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

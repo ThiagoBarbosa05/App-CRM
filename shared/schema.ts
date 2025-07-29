@@ -275,6 +275,20 @@ export const userGoals = pgTable("user_goals", {
   salesGoal: decimal("sales_goal", { precision: 12, scale: 2 }).notNull().default("0.00"), // Meta de vendas em reais
   averageTicket: decimal("average_ticket", { precision: 12, scale: 2 }).notNull().default("0.00"), // Ticket médio em reais
   itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
+  month: integer("month").notNull(), // Mês da meta (1-12)
+  year: integer("year").notNull(), // Ano da meta
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de resultados semanais das metas
+export const weeklyResults = pgTable("weekly_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  goalId: varchar("goal_id").references(() => userGoals.id, { onDelete: "cascade" }).notNull(),
+  week: integer("week").notNull(), // Semana do mês (1-4)
+  salesAchieved: decimal("sales_achieved", { precision: 12, scale: 2 }).notNull().default("0.00"), // Vendas alcançadas
+  ticketAchieved: decimal("ticket_achieved", { precision: 12, scale: 2 }).notNull().default("0.00"), // Ticket médio alcançado
+  itemsAchieved: integer("items_achieved").notNull().default(0), // Itens vendidos
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -381,6 +395,12 @@ export const insertUserGoalSchema = createInsertSchema(userGoals).omit({
   updatedAt: true,
 });
 
+export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -410,6 +430,8 @@ export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRec
 export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
 export type InsertUserGoal = z.infer<typeof insertUserGoalSchema>;
 export type UserGoal = typeof userGoals.$inferSelect;
+export type InsertWeeklyResult = z.infer<typeof insertWeeklyResultSchema>;
+export type WeeklyResult = typeof weeklyResults.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -445,4 +467,10 @@ export interface EmailCampaignWithStats extends EmailCampaign {
 
 export interface UserWithGoals extends User {
   goals?: UserGoal;
+}
+
+export interface UserGoalWithResults extends UserGoal {
+  weeklyResults: WeeklyResult[];
+  userName: string;
+  userEmail: string;
 }
