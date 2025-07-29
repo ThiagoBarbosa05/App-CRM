@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Edit2, Trash2, Trash, Download } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Trash, Download, Upload } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
 import CompanyDetailsModal from "./company-details-modal";
+import CompanyImportModal from "./company-import-modal";
 import { Company } from "@shared/schema";
 import { exportCompaniesToExcel } from "@/lib/excel-export";
 
@@ -28,6 +29,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -241,6 +243,13 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
+                onClick={() => setIsImportModalOpen(true)}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+              </Button>
+              <Button 
+                variant="outline" 
                 onClick={handleExport}
                 disabled={exportMutation.isPending}
               >
@@ -425,6 +434,11 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         isOpen={isDetailsModalOpen}
         onClose={handleDetailsModalClose}
         onEdit={handleEditFromDetails}
+      />
+
+      <CompanyImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
       />
     </Card>
   );

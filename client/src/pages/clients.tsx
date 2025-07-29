@@ -2,7 +2,9 @@ import { useState } from "react";
 import Sidebar from "@/components/sidebar";
 import ClientsTableWithSelection from "@/components/clients-table-with-selection";
 import ClientFormModal from "@/components/client-form-modal";
-import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
+import ClientFilters, {
+  ClientFilters as ClientFiltersType,
+} from "@/components/client-filters";
 import ClientImportModal from "@/components/client-import-modal";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Download, Upload } from "lucide-react";
@@ -34,8 +36,12 @@ export default function Clients() {
   const { data: allClients } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
-      if (!response.ok) throw new Error('Failed to fetch clients');
+      const response = await fetch(
+        user?.role === "admin"
+          ? "/api/clients"
+          : `/api/clients?userId=${user?.id}&userRole=${user?.role}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
     },
     enabled: !!user,
@@ -56,21 +62,21 @@ export default function Clients() {
     setIsExporting(true);
     try {
       const formattedData = formatClientDataForExport(clientsArray);
-      await exportToExcel(formattedData, 'clientes');
-      
+      await exportToExcel(formattedData, "clientes");
+
       toast({
         title: "Exportação concluída",
         description: `${clientsArray.length} clientes foram exportados com sucesso`,
       });
     } catch (error) {
-      console.error('Erro na exportação:', error);
+      console.error("Erro na exportação:", error);
       toast({
         title: "Erro na exportação",
         description: "Ocorreu um erro ao exportar os dados dos clientes",
         variant: "destructive",
       });
     } finally {
-      setIsExporting(false);  
+      setIsExporting(false);
     }
   };
 
@@ -85,7 +91,9 @@ export default function Clients() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
-                  <p className="text-gray-600 mt-1">Gerencie seus clientes e informações de contato</p>
+                  <p className="text-gray-600 mt-1">
+                    Gerencie seus clientes e informações de contato
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <Button
