@@ -116,6 +116,13 @@ export default function CompanyDetailsModal({
                   </div>
                 )}
 
+                {company.nomeComprador && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Nome do Comprador</p>
+                    <p>{company.nomeComprador}</p>
+                  </div>
+                )}
+
                 {sector && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Setor</p>

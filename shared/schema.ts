@@ -70,6 +70,7 @@ export const companies = pgTable("companies", {
   razaoSocial: text("razao_social").notNull(), // Razão Social
   cnpj: text("cnpj").unique(),
   inscricaoEstadual: text("inscricao_estadual"), // Inscrição Estadual (números)
+  nomeComprador: text("nome_comprador"), // Nome do Comprador
   phone: text("phone"),
   email: text("email"),
   website: text("website"),

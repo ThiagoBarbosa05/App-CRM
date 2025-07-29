@@ -5,13 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Edit2, Trash2, Trash } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Trash, Download } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
 import CompanyDetailsModal from "./company-details-modal";
 import { Company } from "@shared/schema";
+import { exportCompaniesToExcel } from "@/lib/excel-export";
 
 interface CompaniesManagementProps {
   currentUser: any;
@@ -38,6 +39,18 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       return response.json();
     },
   });
+
+  // Buscar usuários para mostrar responsáveis
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+  });
+
+  // Função para buscar nome do responsável
+  const getResponsavelName = (responsavelId: string | null) => {
+    if (!responsavelId) return "-";
+    const user = (users as any[]).find(u => u.id === responsavelId);
+    return user ? user.name : "-";
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -87,6 +100,25 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao excluir as empresas.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async () => {
+      await exportCompaniesToExcel(filteredCompanies, users);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sucesso",
+        description: "Empresas exportadas com sucesso.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao exportar empresas.",
         variant: "destructive",
       });
     },
@@ -171,6 +203,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     }
   };
 
+  const handleExport = () => {
+    exportMutation.mutate();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -202,10 +238,20 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 </Button>
               )}
             </div>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Empresa
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleExport}
+                disabled={exportMutation.isPending}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {exportMutation.isPending ? "Gerando..." : "Exportar"}
+              </Button>
+              <Button onClick={() => setIsModalOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Empresa
+              </Button>
+            </div>
           </div>
           
           {/* Filtros específicos */}
@@ -281,6 +327,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -288,7 +335,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             <TableBody>
               {filteredCompanies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <p className="text-muted-foreground">
                       {searchQuery
                         ? "Nenhuma empresa encontrada com os critérios de busca."
@@ -334,6 +381,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       )}
                     </TableCell>
                     <TableCell>{company.email || "-"}</TableCell>
+                    <TableCell>{getResponsavelName(company.responsavelId)}</TableCell>
                     <TableCell>
                       <Badge variant={company.active ? "default" : "secondary"}>
                         {company.active ? "Ativa" : "Inativa"}

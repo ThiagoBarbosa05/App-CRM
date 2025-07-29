@@ -25,6 +25,7 @@ const companyFormSchema = z.object({
   razaoSocial: z.string().min(1, "Razão Social é obrigatória"),
   cnpj: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
+  nomeComprador: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -81,6 +82,7 @@ export default function CompanyFormModal({
       razaoSocial: "",
       cnpj: "",
       inscricaoEstadual: "",
+      nomeComprador: "",
       email: "",
       phone: "",
       address: "",
@@ -104,6 +106,7 @@ export default function CompanyFormModal({
         razaoSocial: company.razaoSocial,
         cnpj: company.cnpj || "",
         inscricaoEstadual: company.inscricaoEstadual || "",
+        nomeComprador: company.nomeComprador || "",
         email: company.email || "",
         phone: company.phone || "",
         address: company.address || "",
@@ -122,6 +125,7 @@ export default function CompanyFormModal({
         razaoSocial: "",
         cnpj: "",
         inscricaoEstadual: "",
+        nomeComprador: "",
         email: "",
         phone: "",
         address: "",
@@ -263,6 +267,18 @@ export default function CompanyFormModal({
               />
               {errors.inscricaoEstadual && (
                 <p className="text-sm text-destructive">{errors.inscricaoEstadual.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nomeComprador">Nome do Comprador</Label>
+              <Input
+                id="nomeComprador"
+                {...register("nomeComprador")}
+                placeholder="Nome da pessoa responsável pelas compras"
+              />
+              {errors.nomeComprador && (
+                <p className="text-sm text-destructive">{errors.nomeComprador.message}</p>
               )}
             </div>
 

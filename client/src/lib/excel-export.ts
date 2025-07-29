@@ -63,3 +63,41 @@ export function formatClientDataForExport(clients: any[]) {
     'Última Atualização': client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('pt-BR') : ''
   }));
 }
+
+export function exportCompaniesToExcel(companies: any[], users: any[] = []) {
+  try {
+    // Criar mapa de responsáveis para busca rápida
+    const usersMap = users.reduce((map, user) => {
+      map[user.id] = user.name;
+      return map;
+    }, {});
+
+    // Preparar dados das empresas para exportação
+    const formattedData = companies.map(company => ({
+      'Nome Fantasia': company.nomeFantasia || '',
+      'Razão Social': company.razaoSocial || '',
+      'CNPJ': company.cnpj || '',
+      'Inscrição Estadual': company.inscricaoEstadual || '',
+      'Nome do Comprador': company.nomeComprador || '',
+      'Telefone': company.phone || '',
+      'E-mail': company.email || '',
+      'Website': company.website || '',
+      'CEP': company.cep || '',
+      'Endereço': company.address || '',
+      'Cidade': company.city || '',
+      'Estado': company.state || '',
+      'Setor': company.sector?.name || '',
+      'Responsável': usersMap[company.responsavelId] || '',
+      'Observações': company.notes || '',
+      'Status': company.active ? 'Ativo' : 'Inativo',
+      'Data de Cadastro': company.createdAt ? new Date(company.createdAt).toLocaleDateString('pt-BR') : '',
+      'Última Atualização': company.updatedAt ? new Date(company.updatedAt).toLocaleDateString('pt-BR') : ''
+    }));
+
+    // Exportar para Excel
+    exportToExcel(formattedData, `empresas_${new Date().toISOString().split('T')[0]}`, 'Empresas');
+  } catch (error) {
+    console.error('Erro ao exportar empresas:', error);
+    throw error;
+  }
+}
