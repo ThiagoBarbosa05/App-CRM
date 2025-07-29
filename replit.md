@@ -6,7 +6,7 @@ VinoCRM is a full-stack customer relationship management (CRM) application built
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language in Portuguese (Brazilian Portuguese).
 
 ## System Architecture
 
