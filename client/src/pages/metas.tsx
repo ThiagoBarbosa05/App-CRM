@@ -1,33 +1,14 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Target, Users, TrendingUp, Calendar, BarChart3, Plus } from "lucide-react";
+import { Target, Users, TrendingUp, Calendar, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-
-const weeklyResultSchema = z.object({
-  goalId: z.string().min(1, "ID da meta é obrigatório"),
-  week: z.string().min(1, "Semana é obrigatória"),
-  salesAchieved: z.string().min(1, "Vendas alcançadas é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  ticketAchieved: z.string().min(1, "Ticket médio alcançado é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-  itemsAchieved: z.string().min(1, "Itens alcançados é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
-});
-
-type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
 
 interface WeeklyResult {
   id: string;
@@ -55,70 +36,16 @@ interface UserGoal {
 
 export default function Metas() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
-
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<WeeklyResultFormData>({
-    resolver: zodResolver(weeklyResultSchema),
-  });
 
   // Buscar metas do mês/ano selecionado
   const { data: userGoals = [], isLoading } = useQuery<UserGoal[]>({
     queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
   });
-
-  // Mutation para salvar resultado semanal
-  const resultMutation = useMutation({
-    mutationFn: async (data: WeeklyResultFormData) => {
-      const resultData = {
-        goalId: data.goalId,
-        week: parseInt(data.week),
-        salesAchieved: data.salesAchieved,
-        ticketAchieved: data.ticketAchieved,
-        itemsAchieved: parseInt(data.itemsAchieved),
-      };
-
-      return apiRequest("/api/weekly-results", "POST", resultData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
-      toast({
-        title: "Resultado salvo",
-        description: "Resultado semanal foi salvo com sucesso.",
-      });
-      handleCloseResultModal();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao salvar resultado semanal.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleOpenResultModal = (goal: UserGoal) => {
-    setSelectedGoal(goal);
-    setValue("goalId", goal.id);
-    setIsResultModalOpen(true);
-  };
-
-  const handleCloseResultModal = () => {
-    setIsResultModalOpen(false);
-    setSelectedGoal(null);
-    reset();
-  };
-
-  const onSubmit = (data: WeeklyResultFormData) => {
-    resultMutation.mutate(data);
-  };
 
   // Função para calcular percentual atingido
   const calculatePercentage = (achieved: number, goal: number) => {
@@ -163,7 +90,7 @@ export default function Metas() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Label htmlFor="month-select">Mês:</Label>
@@ -180,7 +107,7 @@ export default function Metas() {
                   ))}
                 </select>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <Label htmlFor="year-select">Ano:</Label>
                 <select
@@ -198,6 +125,18 @@ export default function Metas() {
               </div>
             </div>
           </div>
+
+          {/* Nota informativa para vendedores */}
+          {user?.role === "vendedor" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <p className="text-blue-800 font-medium">
+                  Os resultados semanais são cadastrados pelos gerentes e administradores do sistema.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Cards de Metas por Usuário */}
           {isLoading ? (
@@ -227,16 +166,9 @@ export default function Metas() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">{goal.userName}</CardTitle>
-                        {(user?.role === "admin" || user?.role === "gerente") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenResultModal(goal)}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Resultado
-                          </Button>
-                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {goal.weeklyResults.length}/4 semanas
+                        </Badge>
                       </div>
                       <CardDescription>{goal.userEmail}</CardDescription>
                     </CardHeader>
@@ -322,98 +254,6 @@ export default function Metas() {
           )}
         </div>
       </div>
-
-      {/* Modal de Resultado Semanal */}
-      <Dialog open={isResultModalOpen} onOpenChange={handleCloseResultModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              Adicionar Resultado Semanal - {selectedGoal?.userName}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="week">Semana</Label>
-              <select
-                id="week"
-                {...register("week")}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Selecione a semana</option>
-                <option value="1">Semana 1</option>
-                <option value="2">Semana 2</option>
-                <option value="3">Semana 3</option>
-                <option value="4">Semana 4</option>
-              </select>
-              {errors.week && (
-                <p className="text-sm text-red-600">{errors.week.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="salesAchieved">Vendas Alcançadas (R$)</Label>
-              <Input
-                id="salesAchieved"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                {...register("salesAchieved")}
-              />
-              {errors.salesAchieved && (
-                <p className="text-sm text-red-600">{errors.salesAchieved.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ticketAchieved">Ticket Médio Alcançado (R$)</Label>
-              <Input
-                id="ticketAchieved"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                {...register("ticketAchieved")}
-              />
-              {errors.ticketAchieved && (
-                <p className="text-sm text-red-600">{errors.ticketAchieved.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="itemsAchieved">Itens Vendidos</Label>
-              <Input
-                id="itemsAchieved"
-                type="number"
-                min="0"
-                placeholder="0"
-                {...register("itemsAchieved")}
-              />
-              {errors.itemsAchieved && (
-                <p className="text-sm text-red-600">{errors.itemsAchieved.message}</p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseResultModal}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={resultMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {resultMutation.isPending ? "Salvando..." : "Salvar Resultado"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

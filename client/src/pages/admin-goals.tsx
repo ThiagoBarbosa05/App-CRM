@@ -40,6 +40,16 @@ interface UserGoal {
   updatedAt: string;
 }
 
+const weeklyResultSchema = z.object({
+  goalId: z.string().min(1, "Meta é obrigatória"),
+  week: z.string().min(1, "Semana é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
+  salesAchieved: z.string().min(1, "Vendas atingidas é obrigatória").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
+  ticketAchieved: z.string().min(1, "Ticket atingido é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 0, "Valor deve ser um número positivo"),
+  itemsAchieved: z.string().min(1, "Itens atingidos é obrigatório").refine((val) => !isNaN(Number(val)) && Number(val) >= 1, "Deve ser pelo menos 1"),
+});
+
+type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
+
 export default function AdminGoals() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,7 +57,9 @@ export default function AdminGoals() {
   const [activeTab, setActiveTab] = useState("admin-metas");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<UserGoal | null>(null);
-  
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [selectedGoalForResults, setSelectedGoalForResults] = useState<UserGoal | null>(null);
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
@@ -72,6 +84,10 @@ export default function AdminGoals() {
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<GoalFormData>({
     resolver: zodResolver(goalSchema),
+  });
+
+  const { register: registerResult, handleSubmit: handleSubmitResult, reset: resetResult, setValue: setValueResult, formState: { errors: resultErrors } } = useForm<WeeklyResultFormData>({
+    resolver: zodResolver(weeklyResultSchema),
   });
 
   // Buscar metas dos usuários do mês/ano selecionado
@@ -111,9 +127,40 @@ export default function AdminGoals() {
       handleCloseModal();
     },
     onError: (error: any) => {
+      console.error("Error creating goal:", error);
       toast({
         title: "Erro",
         description: error.message || `Erro ao ${editingGoal ? "atualizar" : "criar"} meta.`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para salvar resultado semanal
+  const resultMutation = useMutation({
+    mutationFn: async (data: WeeklyResultFormData) => {
+      const resultData = {
+        goalId: data.goalId,
+        week: parseInt(data.week),
+        salesAchieved: data.salesAchieved,
+        ticketAchieved: data.ticketAchieved,
+        itemsAchieved: parseInt(data.itemsAchieved),
+      };
+
+      return apiRequest("/api/weekly-results", "POST", resultData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
+      toast({
+        title: "Resultado salvo",
+        description: "Resultado semanal foi salvo com sucesso.",
+      });
+      handleCloseResultModal();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao salvar resultado semanal.",
         variant: "destructive",
       });
     },
@@ -153,10 +200,26 @@ export default function AdminGoals() {
     !userGoals.some(goal => goal.userId === user.id)
   );
 
+    const handleOpenResultModal = (goal: UserGoal) => {
+    setSelectedGoalForResults(goal);
+    setValueResult("goalId", goal.id);
+    setIsResultModalOpen(true);
+  };
+
+  const handleCloseResultModal = () => {
+    setIsResultModalOpen(false);
+    setSelectedGoalForResults(null);
+    resetResult();
+  };
+
+  const onSubmitResult = (data: WeeklyResultFormData) => {
+    resultMutation.mutate(data);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 sm:ml-64">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
@@ -170,7 +233,7 @@ export default function AdminGoals() {
                   Gerencie as metas de vendas, ticket médio e itens por venda de todos os usuários do sistema
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Label htmlFor="month-select">Mês:</Label>
@@ -187,7 +250,7 @@ export default function AdminGoals() {
                     ))}
                   </select>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Label htmlFor="year-select">Ano:</Label>
                   <select
@@ -204,7 +267,7 @@ export default function AdminGoals() {
                   </select>
                 </div>
               </div>
-              
+
               <Button 
                 onClick={() => {
                   setValue("month", selectedMonth.toString());
@@ -348,6 +411,14 @@ export default function AdminGoals() {
                               <Edit className="h-4 w-4 mr-1" />
                               Editar
                             </Button>
+                             <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenResultModal(goal)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Add result
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -368,7 +439,7 @@ export default function AdminGoals() {
               {editingGoal ? "Editar Meta" : "Nova Meta de Usuário"}
             </DialogTitle>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="userId">Usuário</Label>
@@ -503,6 +574,96 @@ export default function AdminGoals() {
                   : editingGoal 
                     ? "Atualizar Meta" 
                     : "Criar Meta"
+                }
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+       {/* Modal de formulário de resultado semanal */}
+      <Dialog open={isResultModalOpen} onOpenChange={handleCloseResultModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Adicionar Resultado Semanal
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitResult(onSubmitResult)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="week">Semana</Label>
+              <Input
+                id="week"
+                type="number"
+                min="1"
+                placeholder="1"
+                {...registerResult("week")}
+              />
+              {resultErrors.week && (
+                <p className="text-sm text-red-600">{resultErrors.week.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="salesAchieved">Vendas Atingidas (R$)</Label>
+              <Input
+                id="salesAchieved"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                {...registerResult("salesAchieved")}
+              />
+              {resultErrors.salesAchieved && (
+                <p className="text-sm text-red-600">{resultErrors.salesAchieved.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ticketAchieved">Ticket Médio Atingido (R$)</Label>
+              <Input
+                id="ticketAchieved"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                {...registerResult("ticketAchieved")}
+              />
+              {resultErrors.ticketAchieved && (
+                <p className="text-sm text-red-600">{resultErrors.ticketAchieved.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="itemsAchieved">Itens por Venda Atingidos</Label>
+              <Input
+                id="itemsAchieved"
+                type="number"
+                min="1"
+                placeholder="1"
+                {...registerResult("itemsAchieved")}
+              />
+              {resultErrors.itemsAchieved && (
+                <p className="text-sm text-red-600">{resultErrors.itemsAchieved.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseResultModal}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={resultMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {resultMutation.isPending
+                  ? "Salvando..."
+                  : "Salvar Resultado"
                 }
               </Button>
             </div>

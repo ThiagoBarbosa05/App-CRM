@@ -116,7 +116,7 @@ export interface IStorage {
   createUserGoal(goal: any): Promise<any>;
   updateUserGoal(id: string, goal: any): Promise<any>;
   deleteUserGoal(id: string): Promise<void>;
-  
+
   // Weekly Results methods
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   createWeeklyResult(result: any): Promise<any>;
