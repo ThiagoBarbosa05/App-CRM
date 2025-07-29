@@ -12,11 +12,16 @@ import {
   Shield,
   Sparkles,
   Video,
+  User,
+  LogOut,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Separator } from "./ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
@@ -74,7 +79,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       >
         <div className="mobile-responsive py-4 sm:p-6 flex-shrink-0">
           <div
-            className="flex items-center space-x-3 mb-6 sm:mb-8 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center space-x-3 mb-4 sm:mb-6 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => {
               window.location.href = "/clientes";
               closeMobileMenu();
@@ -85,10 +90,38 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               GRAND CRU
             </h1>
           </div>
+
+          {/* User Info Section */}
+          <div className="mb-4 sm:mb-6 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {user?.name || "Usuário"}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.email || ""}
+                </p>
+              </div>
+            </div>
+            {user?.role && (
+              <div className="mt-2">
+                <Badge variant="secondary" className="text-xs">
+                  {user.role === "admin" ? "Administrador" : 
+                   user.role === "gerente" ? "Gerente" :
+                   user.role === "vendedor" ? "Vendedor" : "Usuário"}
+                </Badge>
+              </div>
+            )}
+          </div>
+          
+          <Separator className="mb-4 sm:mb-6" />
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-          <div className="mobile-responsive px-4 sm:px-6 pb-6">
+          <div className="mobile-responsive px-4 sm:px-6">
             <nav className="space-y-2">
               <Link href="/clientes">
                 <button
@@ -242,6 +275,37 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 </button>
               </Link>
             </nav>
+          </div>
+        </div>
+
+        {/* User Actions Section */}
+        <div className="flex-shrink-0 mobile-responsive px-4 sm:px-6 pb-4 sm:pb-6">
+          <Separator className="mb-4" />
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-gray-700 hover:bg-gray-100"
+              onClick={() => {
+                window.location.href = "/";
+                closeMobileMenu();
+              }}
+            >
+              <UserCheck className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Trocar Usuário</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => {
+                logout();
+                window.location.reload();
+                closeMobileMenu();
+              }}
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Sair</span>
+            </Button>
           </div>
         </div>
       </div>
