@@ -148,8 +148,8 @@ export default function AdminGoals() {
   );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
-  // Verificar se o usuário é admin
-  if (user?.role !== "admin") {
+  // Verificar se o usuário é admin ou gerente
+  if (user?.role !== "admin" && user?.role !== "gerente") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md">
@@ -157,7 +157,7 @@ export default function AdminGoals() {
             <CardTitle className="text-red-600">Acesso Negado</CardTitle>
             <CardDescription>
               Você não tem permissão para acessar esta página. Apenas
-              administradores podem gerenciar metas de usuários.
+              administradores e gerentes podem gerenciar metas de usuários.
             </CardDescription>
           </CardHeader>
         </Card>

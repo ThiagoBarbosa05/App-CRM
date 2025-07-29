@@ -101,6 +101,8 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Added company cards showing total companies, sectors breakdown, and geographical distribution
 - Implemented company filtering by sector, responsible user, state, and city
 - Reports page now displays both client and company metrics with permission-based data filtering
+- Updated permission system to allow GERENTE role access to Admin Metas page alongside administrators
+- Sidebar already configured to show Admin Metas link for both admin and gerente roles
 
 ### Client Flow
 1. User creates/edits client through modal forms
