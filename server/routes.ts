@@ -1373,7 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user-goals", async (req, res) => {
     try {
       const goalData = req.body;
-      
+
       // Verificar se já existe uma meta para este usuário no mês/ano especificado
       const existingGoal = await storage.getUserGoalByUserIdMonthYear(
         goalData.userId, 
@@ -1398,11 +1398,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const goalData = req.body;
       const goal = await storage.updateUserGoal(req.params.id, goalData);
-      
+
       if (!goal) {
         return res.status(404).json({ message: "Meta não encontrada" });
       }
-      
+
       res.json(goal);
     } catch (error) {
       console.error("Error updating user goal:", error);
@@ -1431,25 +1431,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Weekly Results endpoints
   app.post("/api/weekly-results", async (req, res) => {
     try {
-      const resultData = req.body;
-      
-      // Verificar se já existe resultado para essa semana
-      const existingResult = await storage.getWeeklyResult(resultData.goalId, resultData.week);
-      
+      const { goalId, week, salesAchieved, ticketAchieved, itemsAchieved } = req.body;
+
+      // Verificar se já existe resultado para esta semana
+      const existingResult = await storage.getWeeklyResult(goalId, week);
+
       if (existingResult) {
-        // Atualizar resultado existente
-        const updatedResult = await storage.updateWeeklyResult(existingResult.id, resultData);
-        res.json(updatedResult);
-      } else {
-        // Criar novo resultado
-        const newResult = await storage.createWeeklyResult(resultData);
-        res.status(201).json(newResult);
+        return res.status(400).json({ error: "Resultado já existe para esta semana" });
       }
-    } catch (error) {
-      console.error("Error creating/updating weekly result:", error);
-      res.status(500).json({ message: "Erro ao salvar resultado semanal" });
+
+      const result = await storage.createWeeklyResult({
+        goalId,
+        week,
+        salesAchieved,
+        ticketAchieved,
+        itemsAchieved,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error creating weekly result:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User Registration Statistics
+  app.get("/api/user-registration-stats", async (req, res) => {
+    try {
+      const stats = await storage.getUserRegistrationStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching user registration stats:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -1457,9 +1473,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
-      
+
       const goalsWithResults = await storage.getUserGoalsWithResults(month, year);
-      
+
       // Buscar resultados semanais para cada meta
       const goalsWithWeeklyResults = await Promise.all(
         goalsWithResults.map(async (goal) => {
@@ -1467,7 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return { ...goal, weeklyResults };
         })
       );
-      
+
       res.json(goalsWithWeeklyResults);
     } catch (error) {
       console.error("Error fetching goals with results:", error);

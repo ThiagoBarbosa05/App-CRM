@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Target, Users, TrendingUp, Calendar, BarChart3 } from "lucide-react";
+import { Target, Users, TrendingUp, Calendar, BarChart3, Trophy, Medal, Award } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
@@ -34,6 +34,13 @@ interface UserGoal {
   weeklyResults: WeeklyResult[];
 }
 
+interface UserRegistrationStats {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  registrationCount: number;
+}
+
 export default function Metas() {
   const { user } = useAuth();
 
@@ -45,6 +52,11 @@ export default function Metas() {
   // Buscar metas do mês/ano selecionado
   const { data: userGoals = [], isLoading } = useQuery<UserGoal[]>({
     queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de cadastros dos usuários
+  const { data: registrationStats = [] } = useQuery<UserRegistrationStats[]>({
+    queryKey: ["/api/user-registration-stats"],
   });
 
   // Função para calcular percentual atingido
@@ -251,6 +263,71 @@ export default function Metas() {
                 );
               })}
             </div>
+
+            {/* Ranking de Cadastros */}
+            {registrationStats.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <Trophy className="h-8 w-8 text-yellow-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Ranking de Cadastros</h2>
+                    <p className="text-gray-600">Usuários com mais clientes cadastrados no sistema</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {registrationStats.slice(0, 10).map((stat, index) => {
+                    let rankIcon;
+                    let rankColor;
+                    
+                    if (index === 0) {
+                      rankIcon = <Trophy className="h-6 w-6 text-yellow-500" />;
+                      rankColor = "bg-gradient-to-r from-yellow-400 to-yellow-600";
+                    } else if (index === 1) {
+                      rankIcon = <Medal className="h-6 w-6 text-gray-400" />;
+                      rankColor = "bg-gradient-to-r from-gray-300 to-gray-500";
+                    } else if (index === 2) {
+                      rankIcon = <Award className="h-6 w-6 text-amber-600" />;
+                      rankColor = "bg-gradient-to-r from-amber-400 to-amber-600";
+                    } else {
+                      rankIcon = <span className="text-lg font-bold text-gray-600">#{index + 1}</span>;
+                      rankColor = "bg-gradient-to-r from-blue-500 to-blue-600";
+                    }
+
+                    return (
+                      <Card key={stat.userId} className="relative overflow-hidden">
+                        <div className={`h-2 ${rankColor}`}></div>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {rankIcon}
+                              <div>
+                                <CardTitle className="text-lg">{stat.userName}</CardTitle>
+                                <CardDescription className="text-sm">{stat.userEmail}</CardDescription>
+                              </div>
+                            </div>
+                            <Badge variant="secondary" className="text-lg font-bold">
+                              {stat.registrationCount}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Clientes cadastrados</span>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-blue-600" />
+                              <span className="text-2xl font-bold text-blue-600">
+                                {stat.registrationCount}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           )}
         </div>
       </div>

@@ -1100,6 +1100,23 @@ export class DatabaseStorage implements IStorage {
 
     return result || null;
   }
+
+  async getUserRegistrationStats(): Promise<any[]> {
+    const clientStats = await db
+      .select({
+        userId: clients.createdBy,
+        userName: users.name,
+        userEmail: users.email,
+        registrationCount: sql<number>`count(${clients.id})`.as('registrationCount'),
+      })
+      .from(clients)
+      .leftJoin(users, eq(clients.createdBy, users.id))
+      .where(isNotNull(clients.createdBy))
+      .groupBy(clients.createdBy, users.name, users.email)
+      .orderBy(desc(sql`count(${clients.id})`));
+
+    return clientStats;
+  }
 }
 
 export const storage = new DatabaseStorage();
