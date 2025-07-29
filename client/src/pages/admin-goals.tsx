@@ -86,9 +86,9 @@ export default function AdminGoals() {
       };
 
       if (editingGoal) {
-        return apiRequest("PUT", `/api/user-goals/${editingGoal.id}`, goalData);
+        return apiRequest(`/api/user-goals/${editingGoal.id}`, "PUT", goalData);
       } else {
-        return apiRequest("POST", "/api/user-goals", goalData);
+        return apiRequest("/api/user-goals", "POST", goalData);
       }
     },
     onSuccess: () => {
