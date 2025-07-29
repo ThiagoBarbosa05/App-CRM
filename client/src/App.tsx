@@ -18,6 +18,9 @@ import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import { lazy } from 'react';
 
+// Placeholder import for the Trainings component
+const Trainings = lazy(() => import("./pages/trainings"));
+
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -45,6 +48,7 @@ function Router() {
       <Route path="/metas" component={Metas} />
       <Route path="/admin-metas" component={AdminGoals} />
       <Route path="/assistente-ia" component={AIAssistant} />
+      <Route path="/treinamentos" component={Trainings} />
       <Route path="/configuracoes" component={Settings} />
       <Route component={NotFound} />
     </Switch>
