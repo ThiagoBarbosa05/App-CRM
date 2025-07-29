@@ -40,7 +40,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="sm:hidden fixed top-4 left-4 z-50">
+      <div className="sm:hidden absolute top-3 left-3">
         <Button
           variant="outline"
           size="sm"
@@ -227,22 +227,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 </Link>
               )}
 
-              {user?.role === "admin" && (
-                <Link href="/configuracoes">
-                  <button
-                    onClick={closeMobileMenu}
-                    className={cn(
-                      "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                      location === "/configuracoes"
-                        ? "bg-primary text-white"
-                        : "text-gray-700 hover:bg-gray-100",
-                    )}
-                  >
-                    <Settings className="mr-3 h-4 w-4" />
-                    <span className="mobile-text">Configurações</span>
-                  </button>
-                </Link>
-              )}
+              <Link href="/configuracoes">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/configuracoes"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100",
+                  )}
+                >
+                  <Settings className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Configurações</span>
+                </button>
+              </Link>
             </nav>
           </div>
         </div>

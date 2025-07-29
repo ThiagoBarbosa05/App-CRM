@@ -370,6 +370,17 @@ export default function Reports() {
         </CardContent>
       </Card>
 
+      {/* Título da seção de clientes */}
+      <div className="pt-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Users className="h-8 w-8 text-wine-600" />
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Relatórios de Clientes</h2>
+            <p className="text-gray-600">Estatísticas e informações importantes dos clientes</p>
+          </div>
+        </div>
+      </div>
+
       {/* Estatísticas por Categoria */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
