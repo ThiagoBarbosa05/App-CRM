@@ -402,8 +402,8 @@ export class DatabaseStorage implements IStorage {
       .insert(companies)
       .values({
         ...insertCompany,
-        sectorId: insertCompany.sectorId || null,
-        responsavelId: insertCompany.responsavelId || null,
+        sectorId: insertCompany.sectorId && insertCompany.sectorId.trim() !== '' ? insertCompany.sectorId : null,
+        responsavelId: insertCompany.responsavelId && insertCompany.responsavelId.trim() !== '' ? insertCompany.responsavelId : null,
       })
       .returning();
     return company;
@@ -413,9 +413,23 @@ export class DatabaseStorage implements IStorage {
     id: string,
     updateData: Partial<InsertCompany>,
   ): Promise<Company | undefined> {
+    // Handle empty string conversion to null for foreign keys
+    const processedData = {
+      ...updateData,
+      updatedAt: new Date()
+    };
+    
+    if ('sectorId' in updateData) {
+      processedData.sectorId = updateData.sectorId && updateData.sectorId.trim() !== '' ? updateData.sectorId : null;
+    }
+    
+    if ('responsavelId' in updateData) {
+      processedData.responsavelId = updateData.responsavelId && updateData.responsavelId.trim() !== '' ? updateData.responsavelId : null;
+    }
+
     const [company] = await db
       .update(companies)
-      .set({ ...updateData, updatedAt: new Date() })
+      .set(processedData)
       .where(eq(companies.id, id))
       .returning();
     return company || undefined;
