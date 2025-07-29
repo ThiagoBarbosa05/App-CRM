@@ -40,7 +40,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="sm:hidden absolute top-3 left-3">
+      <div className="sm:hidden absolute top-3 left-5">
         <Button
           variant="outline"
           size="sm"
