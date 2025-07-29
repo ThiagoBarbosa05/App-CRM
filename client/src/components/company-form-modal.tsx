@@ -33,6 +33,7 @@ const companyFormSchema = z.object({
   state: z.string().optional(),
   website: z.string().optional(),
   sectorId: z.string().optional(),
+  responsavelId: z.string().optional(),
   notes: z.string().optional(),
   active: z.boolean().default(true),
 });
@@ -60,6 +61,12 @@ export default function CompanyFormModal({
     enabled: isOpen,
   });
 
+  // Buscar usuários para o campo responsável
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+    enabled: isOpen,
+  });
+
   const {
     register,
     handleSubmit,
@@ -82,6 +89,7 @@ export default function CompanyFormModal({
       state: "",
       website: "",
       sectorId: "",
+      responsavelId: "",
       notes: "",
       active: true,
     },
@@ -104,6 +112,7 @@ export default function CompanyFormModal({
         state: company.state || "",
         website: company.website || "",
         sectorId: company.sectorId || "",
+        responsavelId: company.responsavelId || "",
         notes: company.notes || "",
         active: company.active,
       });
@@ -314,6 +323,26 @@ export default function CompanyFormModal({
               </Select>
               {errors.sectorId && (
                 <p className="text-sm text-destructive">{errors.sectorId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="responsavelId">Responsável</Label>
+              <Select onValueChange={(value) => setValue("responsavelId", value)} value={watch("responsavelId")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um responsável..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum responsável</SelectItem>
+                  {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.responsavelId && (
+                <p className="text-sm text-destructive">{errors.responsavelId.message}</p>
               )}
             </div>
 

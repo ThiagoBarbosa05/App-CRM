@@ -78,6 +78,7 @@ export const companies = pgTable("companies", {
   city: text("city"),
   state: text("state"),
   sectorId: varchar("sector_id").references(() => sectors.id), // Referência para setor
+  responsavelId: varchar("responsavel_id").references(() => users.id), // Responsável pela empresa
   notes: text("notes"), // Observações
   active: boolean("active").notNull().default(true), // Status ativo/inativo como boolean
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -140,6 +141,10 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
   sector: one(sectors, {
     fields: [companies.sectorId],
     references: [sectors.id],
+  }),
+  responsavel: one(users, {
+    fields: [companies.responsavelId],
+    references: [users.id],
   }),
   deals: many(deals),
 }));
