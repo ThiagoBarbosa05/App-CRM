@@ -10,7 +10,7 @@ import {
   clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, sql, inArray, or, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -437,7 +437,7 @@ export class DatabaseStorage implements IStorage {
     if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
 
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      query = query.where(and(...conditions)) as any;
     }
 
     const result = await query.orderBy(deals.createdAt);
@@ -446,11 +446,11 @@ export class DatabaseStorage implements IStorage {
 
   async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
     const dealsWithClients: DealWithClient[] = [];
-    let deals;
+    let dealsResult;
 
     if (userRole === 'vendedor' && userId) {
       // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
-      deals = await db.select().from(deals)
+      dealsResult = await db.select().from(deals)
         .where(or(
           eq(deals.createdBy, userId),
           eq(deals.assignedTo, userId)
@@ -458,10 +458,10 @@ export class DatabaseStorage implements IStorage {
         .orderBy(deals.createdAt);
     } else {
       // Admins e gerentes veem todos os deals
-      deals = await db.select().from(deals).orderBy(deals.createdAt);
+      dealsResult = await db.select().from(deals).orderBy(deals.createdAt);
     }
 
-    for (const deal of deals) {
+    for (const deal of dealsResult) {
       const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
       if (client) {
         dealsWithClients.push({
@@ -1104,15 +1104,15 @@ export class DatabaseStorage implements IStorage {
   async getUserRegistrationStats(): Promise<any[]> {
     const clientStats = await db
       .select({
-        userId: clients.createdBy,
+        userId: clients.responsavelId,
         userName: users.name,
         userEmail: users.email,
         registrationCount: sql<number>`count(${clients.id})`.as('registrationCount'),
       })
       .from(clients)
-      .leftJoin(users, eq(clients.createdBy, users.id))
-      .where(isNotNull(clients.createdBy))
-      .groupBy(clients.createdBy, users.name, users.email)
+      .leftJoin(users, eq(clients.responsavelId, users.id))
+      .where(isNotNull(clients.responsavelId))
+      .groupBy(clients.responsavelId, users.name, users.email)
       .orderBy(desc(sql`count(${clients.id})`));
 
     return clientStats;

@@ -1189,8 +1189,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prefix = folder ? `company-files/${folder}/` : "company-files/";
 
       const objects = await objectStorageClient.list({ prefix });
+      
+      if (!objects || !Array.isArray(objects)) {
+        return res.json([]);
+      }
 
-      const files = objects.map(obj => ({
+      const files = objects.map((obj: any) => ({
         name: obj.key.replace(prefix, "").split("/")[0],
         size: obj.size,
         type: obj.key.endsWith("/") ? "folder" : obj.contentType || "application/octet-stream",
@@ -1199,8 +1203,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Remove duplicates and empty entries
-      const uniqueFiles = files.filter((file, index, self) => 
-        file.name && self.findIndex(f => f.name === file.name) === index
+      const uniqueFiles = files.filter((file: any, index: number, self: any[]) => 
+        file.name && self.findIndex((f: any) => f.name === file.name) === index
       );
 
       res.json(uniqueFiles);
@@ -1228,9 +1232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? `company-files/${folder}/${file.originalname}`
           : `company-files/${file.originalname}`;
 
-        await objectStorageClient.uploadFromBytes(key, file.buffer, {
-          contentType: file.mimetype
-        });
+        await objectStorageClient!.uploadFromBytes(key, file.buffer);
 
         return {
           name: file.originalname,
@@ -1268,7 +1270,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `company-files/${folder}/${filename}`
         : `company-files/${filename}`;
 
-      const fileBuffer = await objectStorageClient.downloadAsBytes(key);
+      const fileData = await objectStorageClient!.downloadAsBytes(key);
+      
+      // Handle the result which might be wrapped in a Result type
+      let fileBuffer;
+      if (fileData && typeof fileData === 'object' && 'data' in fileData) {
+        fileBuffer = fileData.data;
+      } else if (Array.isArray(fileData)) {
+        fileBuffer = fileData[0];
+      } else {
+        fileBuffer = fileData;
+      }
 
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', 'application/octet-stream');
@@ -1325,9 +1337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : `company-files/${name}/`;
 
       // Create empty file to represent folder
-      await objectStorageClient.uploadFromText(key, "", {
-        contentType: "application/x-directory"
-      });
+      await objectStorageClient!.uploadFromText(key, "");
 
       res.json({ message: "Pasta criada com sucesso", name });
     } catch (error) {

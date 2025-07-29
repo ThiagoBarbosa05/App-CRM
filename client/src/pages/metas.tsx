@@ -161,6 +161,7 @@ export default function Metas() {
               <p className="text-gray-500 mb-4">Nenhuma meta encontrada para este período</p>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGoals.map((goal) => {
                 const totalSalesAchieved = getTotalAchieved(goal.weeklyResults, 'salesAchieved');
@@ -264,7 +265,6 @@ export default function Metas() {
               })}
             </div>
 
-            {/* Ranking de Cadastros */}
             {registrationStats.length > 0 && (
               <div className="mt-12">
                 <div className="flex items-center gap-3 mb-6">
@@ -328,6 +328,7 @@ export default function Metas() {
                 </div>
               </div>
             )}
+            </>
           )}
         </div>
       </div>
