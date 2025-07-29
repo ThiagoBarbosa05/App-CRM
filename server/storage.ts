@@ -236,8 +236,15 @@ export class DatabaseStorage implements IStorage {
 
   // Company methods
   async getCompanies(userId?: string, userRole?: string): Promise<Company[]> {
-    const result = await db.select().from(companies).orderBy(companies.createdAt);
-    return result.reverse();
+    try {
+      console.log("Executando query para buscar empresas...");
+      const result = await db.select().from(companies).orderBy(companies.createdAt);
+      console.log("Query executada com sucesso, resultados:", result.length);
+      return result.reverse();
+    } catch (error) {
+      console.error("Erro na query getCompanies:", error);
+      throw error;
+    }
   }
 
   async getCompany(id: string): Promise<Company | undefined> {
@@ -678,7 +685,7 @@ export class DatabaseStorage implements IStorage {
         const [adminUser] = await db
           .select()
           .from(users)
-          .where(eq(users.role, "administrator"))
+          .where(eq(users.role, "admin"))
           .limit(1);
 
         if (adminUser) {

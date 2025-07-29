@@ -551,10 +551,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Company routes
   app.get("/api/companies", async (req, res) => {
     try {
+      console.log("Tentando buscar empresas...");
       const companies = await storage.getCompanies();
+      console.log("Empresas encontradas:", companies.length);
       res.json(companies);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar empresas" });
+      console.error("Erro ao buscar empresas:", error);
+      res.status(500).json({ 
+        message: "Erro ao buscar empresas",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
