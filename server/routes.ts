@@ -1440,11 +1440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (existingResult) {
         // Atualizar resultado existente
-        const updatedResult = await storage.updateWeeklyResult(
-          resultData.goalId, 
-          resultData.week, 
-          resultData
-        );
+        const updatedResult = await storage.updateWeeklyResult(existingResult.id, resultData);
         res.json(updatedResult);
       } else {
         // Criar novo resultado

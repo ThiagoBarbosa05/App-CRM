@@ -122,6 +122,7 @@ export interface IStorage {
   createWeeklyResult(result: any): Promise<any>;
   updateWeeklyResult(id: string, result: any): Promise<any>;
   getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null>;
+  getWeeklyResult(goalId: string, week: number): Promise<any | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1083,6 +1084,18 @@ export class DatabaseStorage implements IStorage {
         eq(userGoals.userId, userId),
         eq(userGoals.month, month),
         eq(userGoals.year, year)
+      ));
+
+    return result || null;
+  }
+
+  async getWeeklyResult(goalId: string, week: number): Promise<any | null> {
+    const [result] = await db
+      .select()
+      .from(weeklyResults)
+      .where(and(
+        eq(weeklyResults.goalId, goalId),
+        eq(weeklyResults.week, week)
       ));
 
     return result || null;
