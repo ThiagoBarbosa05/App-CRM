@@ -268,6 +268,17 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Tabela de metas dos usuários
+export const userGoals = pgTable("user_goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  salesGoal: decimal("sales_goal", { precision: 12, scale: 2 }).notNull().default("0.00"), // Meta de vendas em reais
+  averageTicket: decimal("average_ticket", { precision: 12, scale: 2 }).notNull().default("0.00"), // Ticket médio em reais
+  itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
   client: one(clients, {
@@ -364,6 +375,12 @@ export const insertEmailCampaignRecipientSchema = createInsertSchema(emailCampai
   createdAt: true,
 });
 
+export const insertUserGoalSchema = createInsertSchema(userGoals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -391,6 +408,8 @@ export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;
 export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
+export type InsertUserGoal = z.infer<typeof insertUserGoalSchema>;
+export type UserGoal = typeof userGoals.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -422,4 +441,8 @@ export interface ClientInteractionWithUser extends ClientInteraction {
 export interface EmailCampaignWithStats extends EmailCampaign {
   creator: User;
   recipients: EmailCampaignRecipient[];
+}
+
+export interface UserWithGoals extends User {
+  goals?: UserGoal;
 }

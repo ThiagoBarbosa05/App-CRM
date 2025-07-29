@@ -7,7 +7,7 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser, type Sector, type InsertSector,
-  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors
+  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or } from "drizzle-orm";
@@ -107,6 +107,14 @@ export interface IStorage {
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
   sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
+  
+  // User Goals methods
+  getUserGoals(): Promise<any[]>;
+  getUserGoalById(id: string): Promise<any | null>;
+  getUserGoalByUserId(userId: string): Promise<any | null>;
+  createUserGoal(goal: any): Promise<any>;
+  updateUserGoal(id: string, goal: any): Promise<any>;
+  deleteUserGoal(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -925,6 +933,79 @@ export class DatabaseStorage implements IStorage {
       sentCount: sentCount,
       errors: []
     };
+  }
+
+  // User Goals methods
+  async getUserGoals(): Promise<any[]> {
+    const result = await db
+      .select({
+        id: userGoals.id,
+        userId: userGoals.userId,
+        salesGoal: userGoals.salesGoal,
+        averageTicket: userGoals.averageTicket,
+        itemsPerSale: userGoals.itemsPerSale,
+        createdAt: userGoals.createdAt,
+        updatedAt: userGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(userGoals)
+      .leftJoin(users, eq(userGoals.userId, users.id))
+      .orderBy(users.name);
+    
+    return result;
+  }
+
+  async getUserGoalById(id: string): Promise<any | null> {
+    const [result] = await db
+      .select({
+        id: userGoals.id,
+        userId: userGoals.userId,
+        salesGoal: userGoals.salesGoal,
+        averageTicket: userGoals.averageTicket,
+        itemsPerSale: userGoals.itemsPerSale,
+        createdAt: userGoals.createdAt,
+        updatedAt: userGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(userGoals)
+      .leftJoin(users, eq(userGoals.userId, users.id))
+      .where(eq(userGoals.id, id));
+    
+    return result || null;
+  }
+
+  async getUserGoalByUserId(userId: string): Promise<any | null> {
+    const [result] = await db
+      .select()
+      .from(userGoals)
+      .where(eq(userGoals.userId, userId));
+    
+    return result || null;
+  }
+
+  async createUserGoal(goal: any): Promise<any> {
+    const [result] = await db
+      .insert(userGoals)
+      .values(goal)
+      .returning();
+    
+    return result;
+  }
+
+  async updateUserGoal(id: string, goal: any): Promise<any> {
+    const [result] = await db
+      .update(userGoals)
+      .set({ ...goal, updatedAt: new Date() })
+      .where(eq(userGoals.id, id))
+      .returning();
+    
+    return result;
+  }
+
+  async deleteUserGoal(id: string): Promise<void> {
+    await db.delete(userGoals).where(eq(userGoals.id, id));
   }
 }
 

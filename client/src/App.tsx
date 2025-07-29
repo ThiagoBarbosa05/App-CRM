@@ -12,6 +12,7 @@ import Funnel from "@/pages/funnel";
 import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
+import AdminGoals from "@/pages/admin-goals";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 import { lazy } from 'react';
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/calendario" component={Calendar} />
       <Route path="/metas" component={Metas} />
+      <Route path="/admin-metas" component={AdminGoals} />
       <Route path="/configuracoes" component={Settings} />
       <Route component={NotFound} />
     </Switch>

@@ -6,7 +6,7 @@ import {
   insertSalesFunnelSchema, insertFunnelStageSchema,
   insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
   insertTagSchema, insertSectorSchema,
-  insertOriginSchema, insertClientInteractionSchema
+  insertOriginSchema, insertClientInteractionSchema, insertUserGoalSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1333,6 +1333,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating folder:", error);
       res.status(500).json({ message: "Erro ao criar pasta" });
+    }
+  });
+
+  // User Goals routes
+  app.get("/api/user-goals", async (req, res) => {
+    try {
+      const goals = await storage.getUserGoals();
+      res.json(goals);
+    } catch (error) {
+      console.error("Error fetching user goals:", error);
+      res.status(500).json({ message: "Erro ao buscar metas dos usuários" });
+    }
+  });
+
+  app.get("/api/user-goals/:id", async (req, res) => {
+    try {
+      const goal = await storage.getUserGoalById(req.params.id);
+      if (!goal) {
+        return res.status(404).json({ message: "Meta não encontrada" });
+      }
+      res.json(goal);
+    } catch (error) {
+      console.error("Error fetching user goal:", error);
+      res.status(500).json({ message: "Erro ao buscar meta do usuário" });
+    }
+  });
+
+  app.get("/api/user-goals/user/:userId", async (req, res) => {
+    try {
+      const goal = await storage.getUserGoalByUserId(req.params.userId);
+      res.json(goal);
+    } catch (error) {
+      console.error("Error fetching user goal by user ID:", error);
+      res.status(500).json({ message: "Erro ao buscar meta do usuário" });
+    }
+  });
+
+  app.post("/api/user-goals", async (req, res) => {
+    try {
+      const goalData = req.body;
+      
+      // Verificar se já existe uma meta para este usuário
+      const existingGoal = await storage.getUserGoalByUserId(goalData.userId);
+      if (existingGoal) {
+        return res.status(400).json({ message: "Usuário já possui metas cadastradas" });
+      }
+
+      const goal = await storage.createUserGoal(goalData);
+      res.status(201).json(goal);
+    } catch (error) {
+      console.error("Error creating user goal:", error);
+      res.status(500).json({ message: "Erro ao criar meta do usuário" });
+    }
+  });
+
+  app.put("/api/user-goals/:id", async (req, res) => {
+    try {
+      const goalData = req.body;
+      const goal = await storage.updateUserGoal(req.params.id, goalData);
+      
+      if (!goal) {
+        return res.status(404).json({ message: "Meta não encontrada" });
+      }
+      
+      res.json(goal);
+    } catch (error) {
+      console.error("Error updating user goal:", error);
+      res.status(500).json({ message: "Erro ao atualizar meta do usuário" });
+    }
+  });
+
+  app.delete("/api/user-goals/:id", async (req, res) => {
+    try {
+      await storage.deleteUserGoal(req.params.id);
+      res.json({ message: "Meta excluída com sucesso" });
+    } catch (error) {
+      console.error("Error deleting user goal:", error);
+      res.status(500).json({ message: "Erro ao excluir meta do usuário" });
     }
   });
 

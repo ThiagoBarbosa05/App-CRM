@@ -1,8 +1,9 @@
-import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Folder } from "lucide-react";
+import { Wine, Users, Building2, BarChart3, Settings, GitBranch, CalendarDays, Menu, X, Target, Folder, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   activeTab: string;
@@ -12,6 +13,7 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -170,6 +172,23 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   <span className="mobile-text">Metas</span>
                 </button>
               </Link>
+
+              {user?.role === "admin" && (
+                <Link href="/admin-metas">
+                  <button 
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                      location === "/admin-metas"
+                        ? "bg-primary text-white"
+                        : "text-gray-700 hover:bg-gray-100"
+                    )}
+                  >
+                    <Shield className="mr-3 h-4 w-4" />
+                    <span className="mobile-text">Admin Metas</span>
+                  </button>
+                </Link>
+              )}
 
               <Link href="/configuracoes">
                 <button 
