@@ -112,9 +112,15 @@ export interface IStorage {
   getUserGoals(): Promise<any[]>;
   getUserGoalById(id: string): Promise<any | null>;
   getUserGoalByUserId(userId: string): Promise<any | null>;
+  getUserGoalsWithResults(month: number, year: number): Promise<any[]>;
   createUserGoal(goal: any): Promise<any>;
   updateUserGoal(id: string, goal: any): Promise<any>;
   deleteUserGoal(id: string): Promise<void>;
+  
+  // Weekly Results methods
+  getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
+  createWeeklyResult(result: any): Promise<any>;
+  updateWeeklyResult(id: string, result: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
