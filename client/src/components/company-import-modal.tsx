@@ -109,15 +109,18 @@ export default function CompanyImportModal({
               company.razaoSocial ||
               company["Nome Fantasia"] ||
               "",
-            cnpj: company.CNPJ || company.cnpj || "",
+            cnpj: company.CNPJ.toString() || company.cnpj.toString() || "",
             inscricaoEstadual:
-              company["Inscrição Estadual"].toString() || company.inscricaoEstadual.toString() || "",
+              company["Inscrição Estadual"].toString() ||
+              company.inscricaoEstadual.toString() ||
+              "",
             nomeComprador:
               company["Nome do Comprador"] || company.nomeComprador || "",
-            phone: company.Telefone || company.phone || "",
+            phone:
+              company.Telefone.toString() || company.phone.toString() || "",
             email: company.Email || company.email || null,
             website: company.Website || company.website || "",
-            cep: company.CEP || company.cep || "",
+            cep: company.CEP.toString() || company.cep.toString() || "",
             address: company.Endereco || company.address || "",
             city: company.Cidade || company.city || "",
             state: company.Estado || company.state || "",
