@@ -21,6 +21,7 @@ import {
   Edit,
   Tag
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { Company, Sector } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 
@@ -165,14 +166,25 @@ export default function CompanyDetailsModal({
                   {company.phone && (
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-medium text-muted-foreground">Telefone</p>
-                        <a 
-                          href={`tel:${company.phone}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {company.phone}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`tel:${company.phone}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {company.phone}
+                          </a>
+                          <a
+                            href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-700 transition-colors"
+                            title="Abrir no WhatsApp"
+                          >
+                            <FaWhatsapp className="h-4 w-4" />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   )}
