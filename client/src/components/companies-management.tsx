@@ -130,6 +130,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 <TableHead>Nome Fantasia</TableHead>
                 <TableHead>Razão Social</TableHead>
                 <TableHead>CNPJ</TableHead>
+                <TableHead>Telefone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -138,7 +139,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             <TableBody>
               {filteredCompanies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <p className="text-muted-foreground">
                       {searchQuery
                         ? "Nenhuma empresa encontrada com os critérios de busca."
@@ -159,6 +160,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                     </TableCell>
                     <TableCell>{company.razaoSocial}</TableCell>
                     <TableCell>{company.cnpj || "-"}</TableCell>
+                    <TableCell>{company.phone || "-"}</TableCell>
                     <TableCell>{company.email || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={company.active ? "default" : "secondary"}>
