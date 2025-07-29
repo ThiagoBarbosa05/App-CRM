@@ -1506,13 +1506,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Assistant routes
   app.post("/api/ai/chat", async (req, res) => {
     try {
-      const { message, context, conversationHistory } = req.body;
+      const { message, context, conversationHistory, aiConfig } = req.body;
       
       if (!message) {
         return res.status(400).json({ message: "Mensagem é obrigatória" });
       }
 
-      const response = await generateAIResponse(message, context || 'wine_expert');
+      const response = await generateAIResponse(message, context || 'wine_expert', aiConfig);
       res.json({ response });
     } catch (error) {
       console.error("Erro no chat da IA:", error);
@@ -1522,14 +1522,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/generate-message", async (req, res) => {
     try {
-      const { clientName, messageType, context, industry } = req.body;
+      const { clientName, messageType, context, industry, aiConfig } = req.body;
       
       if (!clientName || !messageType) {
         return res.status(400).json({ message: "Nome do cliente e tipo de mensagem são obrigatórios" });
       }
 
       const prompt = `Cliente: ${clientName}\nTipo: ${messageType}\nContexto adicional: ${context || ''}`;
-      const message = await generateAIMessage(prompt);
+      const message = await generateAIMessage(prompt, aiConfig);
       
       res.json({ message });
     } catch (error) {

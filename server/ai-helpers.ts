@@ -12,18 +12,20 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
 
-export async function generateAIResponse(message: string, context: string): Promise<string> {
+export async function generateAIResponse(message: string, context: string, aiConfig?: any): Promise<string> {
   // Try to use OpenAI API if available
   if (openai) {
     try {
+      const systemPrompt = getSystemPrompt(context, aiConfig);
+      
       const completion = await openai.chat.completions.create({
         messages: [
-          { role: "system", content: getSystemPrompt(context) },
+          { role: "system", content: systemPrompt },
           { role: "user", content: message }
         ],
         model: "gpt-3.5-turbo",
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: aiConfig?.maxTokens || 500,
+        temperature: aiConfig?.temperature || 0.7,
       });
 
       return completion.choices[0].message.content || "Desculpe, não consegui processar sua pergunta.";
@@ -117,9 +119,30 @@ Posso te auxiliar com:
 Sobre o que gostaria de saber mais? Fique à vontade para perguntar!`;
 }
 
-export async function generateAIMessage(prompt: string): Promise<string> {
-  // Aqui você faria a chamada real para gerar mensagens personalizadas
-  // Por enquanto, retornamos uma mensagem melhorada
+export async function generateAIMessage(prompt: string, aiConfig?: any): Promise<string> {
+  // Try to use OpenAI API if available
+  if (openai && aiConfig) {
+    try {
+      const systemPrompt = getMessageGenerationPrompt(aiConfig);
+      
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt }
+        ],
+        model: "gpt-3.5-turbo",
+        max_tokens: aiConfig.maxTokens || 500,
+        temperature: aiConfig.temperature || 0.7,
+      });
+
+      return completion.choices[0].message.content || "Não foi possível gerar a mensagem.";
+    } catch (error) {
+      console.error("Erro da API OpenAI:", error);
+      // Fall back to local templates
+    }
+  }
+
+  // Fallback para templates estáticos melhorados baseados na configuração
   
   const templates = {
     prospeccao: (name: string) => `Olá ${name}! 🍷
@@ -203,20 +226,92 @@ Feliz aniversário e vida longa! 🎂🍷
   return templates[messageType as keyof typeof templates](name, context);
 }
 
-function getSystemPrompt(context: string): string {
-  const prompts = {
-    wine_expert: `Você é um especialista em vinhos brasileiro com vasta experiência no mercado nacional e internacional. 
+function getSystemPrompt(context: string, aiConfig?: any): string {
+  let basePrompt = `Você é um especialista em vinhos brasileiro com vasta experiência no mercado nacional e internacional.`;
 
-Suas características:
-- Conhecimento profundo sobre vinhos brasileiros e importados
-- Linguagem acessível mas técnica quando necessário
-- Sempre educado e prestativo
-- Foca na experiência do cliente
-- Usa emojis moderadamente
-- Dá dicas práticas e aplicáveis
+  // Personalidade
+  if (aiConfig?.personality) {
+    const personalityMap = {
+      profissional: "Mantenha sempre um tom profissional e técnico.",
+      amigavel: "Seja caloroso, amigável e próximo ao cliente.",
+      formal: "Use linguagem formal e respeitosa.",
+      casual: "Use linguagem descontraída e informal."
+    };
+    basePrompt += ` ${personalityMap[aiConfig.personality as keyof typeof personalityMap] || ''}`;
+  }
 
-Responda sempre em português brasileiro de forma clara e útil.`
-  };
+  // Nível de expertise
+  if (aiConfig?.wineExpertise) {
+    const expertiseMap = {
+      iniciante: "Use linguagem simples e evite termos muito técnicos.",
+      intermediario: "Use linguagem acessível mas inclua alguns termos técnicos.",
+      especialista: "Use linguagem técnica detalhada e termos específicos do mundo do vinho."
+    };
+    basePrompt += ` ${expertiseMap[aiConfig.wineExpertise as keyof typeof expertiseMap] || ''}`;
+  }
 
-  return prompts[context as keyof typeof prompts] || prompts.wine_expert;
+  // Estilo de resposta
+  if (aiConfig?.responseStyle) {
+    const styleMap = {
+      consultivo: "Foque em orientar e aconselhar o cliente com base em suas necessidades.",
+      vendas: "Sempre inclua sugestões de produtos e oportunidades de venda.",
+      educativo: "Priorize ensinar e educar sobre vinhos de forma didática."
+    };
+    basePrompt += ` ${styleMap[aiConfig.responseStyle as keyof typeof styleMap] || ''}`;
+  }
+
+  // Emojis
+  if (aiConfig?.useEmojis === false) {
+    basePrompt += " Não use emojis nas respostas.";
+  } else {
+    basePrompt += " Use emojis moderadamente para tornar as respostas mais expressivas.";
+  }
+
+  // Tamanho da mensagem
+  if (aiConfig?.messageLength) {
+    const lengthMap = {
+      curto: "Mantenha suas respostas concisas e diretas (50-100 palavras).",
+      medio: "Forneça respostas equilibradas (100-200 palavras).",
+      longo: "Dê respostas detalhadas e completas (200+ palavras)."
+    };
+    basePrompt += ` ${lengthMap[aiConfig.messageLength as keyof typeof lengthMap] || ''}`;
+  }
+
+  // Prompt personalizado
+  if (aiConfig?.customPrompt) {
+    basePrompt += ` ${aiConfig.customPrompt}`;
+  }
+
+  basePrompt += " Responda sempre em português brasileiro de forma clara e útil.";
+
+  return basePrompt;
+}
+
+function getMessageGenerationPrompt(aiConfig: any): string {
+  let prompt = `Você é um especialista em marketing e vendas de vinhos. Gere mensagens personalizadas para clientes.`;
+
+  // Aplicar configurações similares
+  if (aiConfig.personality === 'profissional') {
+    prompt += " Use tom profissional e respeitoso.";
+  } else if (aiConfig.personality === 'amigavel') {
+    prompt += " Use tom amigável e caloroso.";
+  }
+
+  if (aiConfig.messageLength === 'curto') {
+    prompt += " Mantenha as mensagens concisas e diretas.";
+  } else if (aiConfig.messageLength === 'longo') {
+    prompt += " Crie mensagens detalhadas e elaboradas.";
+  }
+
+  if (aiConfig.useEmojis) {
+    prompt += " Inclua emojis apropriados.";
+  } else {
+    prompt += " Não use emojis.";
+  }
+
+  if (aiConfig.customPrompt) {
+    prompt += ` ${aiConfig.customPrompt}`;
+  }
+
+  return prompt;
 }

@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { 
   Wine, 
   MessageSquare, 
@@ -16,7 +20,9 @@ import {
   User,
   Sparkles,
   Copy,
-  Check
+  Check,
+  Settings,
+  Save
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,7 +50,37 @@ export default function AIAssistant() {
   const [messageContext, setMessageContext] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
+  // AI Configuration State
+  const [aiConfig, setAiConfig] = useState({
+    personality: "profissional", // profissional, amigavel, formal, casual
+    messageLength: "medio", // curto, medio, longo
+    creativity: 70, // 0-100
+    useEmojis: true,
+    wineExpertise: "intermediario", // iniciante, intermediario, especialista
+    customPrompt: "",
+    temperature: 0.7, // 0-1
+    maxTokens: 500,
+    responseStyle: "consultivo" // consultivo, vendas, educativo
+  });
+  
   const { toast } = useToast();
+
+  const saveAiConfig = () => {
+    // Salvar configuração no localStorage
+    localStorage.setItem('ai-config', JSON.stringify(aiConfig));
+    toast({
+      title: "Configuração salva!",
+      description: "As configurações da IA foram atualizadas com sucesso.",
+    });
+  };
+
+  // Carregar configuração ao inicializar
+  useState(() => {
+    const savedConfig = localStorage.getItem('ai-config');
+    if (savedConfig) {
+      setAiConfig(JSON.parse(savedConfig));
+    }
+  });
 
   // Simulação de respostas do assistente de vinhos
   const wineKnowledge = {
@@ -80,7 +116,8 @@ export default function AIAssistant() {
         body: JSON.stringify({
           message: currentInput,
           context: 'wine_expert',
-          conversationHistory: chatMessages.slice(-5) // Últimas 5 mensagens para contexto
+          conversationHistory: chatMessages.slice(-5), // Últimas 5 mensagens para contexto
+          aiConfig: aiConfig // Enviar configurações da IA
         }),
       });
 
@@ -153,7 +190,8 @@ export default function AIAssistant() {
           clientName,
           messageType,
           context: messageContext,
-          industry: 'wine_business'
+          industry: 'wine_business',
+          aiConfig: aiConfig // Enviar configurações da IA
         }),
       });
 
@@ -238,7 +276,7 @@ export default function AIAssistant() {
       </div>
 
       <Tabs defaultValue="wine-assistant" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="wine-assistant" className="flex items-center gap-2">
             <Wine className="h-4 w-4" />
             Assistente Virtual do Vinho
@@ -246,6 +284,10 @@ export default function AIAssistant() {
           <TabsTrigger value="message-generator" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Gerador de Mensagens
+          </TabsTrigger>
+          <TabsTrigger value="ai-config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configurações da IA
           </TabsTrigger>
         </TabsList>
 
@@ -506,6 +548,216 @@ export default function AIAssistant() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Configurações da IA */}
+        <TabsContent value="ai-config">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-wine-600" />
+                Configurações da IA 🤖
+              </CardTitle>
+              <CardDescription>
+                Personalize o comportamento e respostas do assistente de IA
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Personalidade */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Personalidade da IA</Label>
+                  <Select 
+                    value={aiConfig.personality} 
+                    onValueChange={(value) => setAiConfig({...aiConfig, personality: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="profissional">Profissional</SelectItem>
+                      <SelectItem value="amigavel">Amigável</SelectItem>
+                      <SelectItem value="formal">Formal</SelectItem>
+                      <SelectItem value="casual">Casual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tamanho da Mensagem */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Tamanho das Respostas</Label>
+                  <Select 
+                    value={aiConfig.messageLength} 
+                    onValueChange={(value) => setAiConfig({...aiConfig, messageLength: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="curto">Curto (50-100 palavras)</SelectItem>
+                      <SelectItem value="medio">Médio (100-200 palavras)</SelectItem>
+                      <SelectItem value="longo">Longo (200+ palavras)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Nível de Expertise */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Nível de Expertise em Vinhos</Label>
+                  <Select 
+                    value={aiConfig.wineExpertise} 
+                    onValueChange={(value) => setAiConfig({...aiConfig, wineExpertise: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="iniciante">Iniciante (linguagem simples)</SelectItem>
+                      <SelectItem value="intermediario">Intermediário</SelectItem>
+                      <SelectItem value="especialista">Especialista (técnico)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Estilo de Resposta */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Estilo de Resposta</Label>
+                  <Select 
+                    value={aiConfig.responseStyle} 
+                    onValueChange={(value) => setAiConfig({...aiConfig, responseStyle: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="consultivo">Consultivo</SelectItem>
+                      <SelectItem value="vendas">Vendas</SelectItem>
+                      <SelectItem value="educativo">Educativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+              </div>
+
+              {/* Criatividade */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">
+                  Criatividade: {aiConfig.creativity}%
+                </Label>
+                <Slider
+                  value={[aiConfig.creativity]}
+                  onValueChange={(value) => setAiConfig({...aiConfig, creativity: value[0]})}
+                  max={100}
+                  step={10}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Conservador</span>
+                  <span>Criativo</span>
+                </div>
+              </div>
+
+              {/* Temperatura */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">
+                  Temperatura (OpenAI): {aiConfig.temperature}
+                </Label>
+                <Slider
+                  value={[aiConfig.temperature * 100]}
+                  onValueChange={(value) => setAiConfig({...aiConfig, temperature: value[0] / 100})}
+                  max={100}
+                  step={5}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Determinístico (0.0)</span>
+                  <span>Aleatório (1.0)</span>
+                </div>
+              </div>
+
+              {/* Max Tokens */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Máximo de Tokens</Label>
+                <Input
+                  type="number"
+                  value={aiConfig.maxTokens}
+                  onChange={(e) => setAiConfig({...aiConfig, maxTokens: parseInt(e.target.value)})}
+                  min={100}
+                  max={2000}
+                  step={50}
+                />
+                <p className="text-xs text-gray-500">
+                  Controla o tamanho máximo das respostas (100-2000)
+                </p>
+              </div>
+
+              {/* Switch para Emojis */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Usar Emojis</Label>
+                  <p className="text-xs text-gray-500">
+                    Incluir emojis nas respostas para torná-las mais expressivas
+                  </p>
+                </div>
+                <Switch
+                  checked={aiConfig.useEmojis}
+                  onCheckedChange={(checked) => setAiConfig({...aiConfig, useEmojis: checked})}
+                />
+              </div>
+
+              {/* Prompt Personalizado */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Prompt Personalizado (Opcional)</Label>
+                <Textarea
+                  placeholder="Ex: Sempre mencione a região de origem dos vinhos, foque em harmonizações com comida brasileira..."
+                  value={aiConfig.customPrompt}
+                  onChange={(e) => setAiConfig({...aiConfig, customPrompt: e.target.value})}
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500">
+                  Instruções específicas que serão adicionadas ao contexto da IA
+                </p>
+              </div>
+
+              {/* Botão Salvar */}
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={saveAiConfig}
+                  className="bg-wine-600 hover:bg-wine-700"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Configurações
+                </Button>
+              </div>
+
+              {/* Preview da Configuração */}
+              <div className="bg-gray-50 rounded-lg p-4 mt-6">
+                <h4 className="font-medium text-gray-900 mb-3">Prévia da Configuração:</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Personalidade:</span> {aiConfig.personality}
+                  </div>
+                  <div>
+                    <span className="font-medium">Tamanho:</span> {aiConfig.messageLength}
+                  </div>
+                  <div>
+                    <span className="font-medium">Expertise:</span> {aiConfig.wineExpertise}
+                  </div>
+                  <div>
+                    <span className="font-medium">Estilo:</span> {aiConfig.responseStyle}
+                  </div>
+                  <div>
+                    <span className="font-medium">Criatividade:</span> {aiConfig.creativity}%
+                  </div>
+                  <div>
+                    <span className="font-medium">Emojis:</span> {aiConfig.useEmojis ? 'Sim' : 'Não'}
+                  </div>
+                </div>
+              </div>
+
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
