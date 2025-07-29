@@ -14,7 +14,6 @@ import {
   Video,
   User,
   LogOut,
-  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -282,18 +281,6 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex-shrink-0 mobile-responsive px-4 sm:px-6 pb-4 sm:pb-6">
           <Separator className="mb-4" />
           <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-gray-700 hover:bg-gray-100"
-              onClick={() => {
-                window.location.href = "/";
-                closeMobileMenu();
-              }}
-            >
-              <UserCheck className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Trocar Usuário</span>
-            </Button>
-            
             <Button
               variant="ghost"
               className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
