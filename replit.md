@@ -93,6 +93,10 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Added role-based access control - "Admin Metas" link only visible to administrators
 - Fixed admin login credentials and created test users for goals functionality
 - Backend API tested and working correctly for goals CRUD operations
+- Implemented permission-based filtering for COMPANIES tab - sellers only see companies they are responsible for
+- Added role-based access control to Settings page - restricted to administrators only
+- Updated sidebar to hide "Configurações" link for non-admin users
+- Backend and frontend updated with user permission filtering for both clients and companies
 
 ### Client Flow
 1. User creates/edits client through modal forms
