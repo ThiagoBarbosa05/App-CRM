@@ -7,7 +7,7 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser, type Sector, type InsertSector,
-  type WeeklyResult, type EmailCampaign, type Goal, type UserGoal, type WeeklyResultData,
+  type WeeklyResult, type EmailCampaign, type UserGoal,
   type LearningImage, type InsertLearningImage,
   clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults, learningImages
 } from "@shared/schema";

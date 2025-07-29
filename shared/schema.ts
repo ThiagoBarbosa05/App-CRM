@@ -486,5 +486,7 @@ export const learningImages = pgTable("learning_images", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const insertLearningImageSchema = createInsertSchema(learningImages);
+
 export type LearningImage = typeof learningImages.$inferSelect;
-export type InsertLearningImage = z.infer<typeof learningImages.$inferInsert>;
+export type InsertLearningImage = z.infer<typeof insertLearningImageSchema>;

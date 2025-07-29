@@ -1603,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: category || "Geral",
         imageUrl,
         fileName,
-        createdBy: req.session?.userId || "system"
+        createdBy: "system"
       });
 
       res.json(newImage);
