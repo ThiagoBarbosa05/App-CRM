@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +24,15 @@ interface TrainingDocument {
   category: string;
   fileUrl: string;
   fileType: 'pdf' | 'doc' | 'ppt';
+}
+
+interface LearningImage {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  imageUrl: string;
+  createdAt: Date;
 }
 
 export default function Trainings() {
@@ -80,7 +88,7 @@ export default function Trainings() {
       title: "Manual do Usuário VinoCRM",
       description: "Guia completo de uso do sistema",
       category: "Sistema",
-      fileUrl: "#",
+      fileUrl: "https://exemplo.com/seu-documento.pdf",
       fileType: "pdf"
     },
     {
@@ -109,6 +117,34 @@ export default function Trainings() {
     }
   ];
 
+  // Mock data para imagens de aprendizado - em produção viria da API
+  const mockLearningImages: LearningImage[] = [
+    {
+      id: "1",
+      title: "Processo de Venda Consultiva",
+      description: "Fluxograma do processo de venda consultiva",
+      category: "Vendas",
+      imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&h=300&fit=crop",
+      createdAt: new Date()
+    },
+    {
+      id: "2",
+      title: "Características dos Vinhos",
+      description: "Infográfico sobre características dos vinhos",
+      category: "Produtos",
+      imageUrl: "https://images.unsplash.com/photo-1506377585622-bedcbb027afc?w=500&h=300&fit=crop",
+      createdAt: new Date()
+    },
+    {
+      id: "3",
+      title: "Interface do Sistema",
+      description: "Tutorial visual da interface do VinoCRM",
+      category: "Sistema",
+      imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&h=300&fit=crop",
+      createdAt: new Date()
+    }
+  ];
+
   const getCategoryColor = (category: string) => {
     const colors = {
       vendas: "bg-green-100 text-green-800",
@@ -131,7 +167,7 @@ export default function Trainings() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeTab="treinamentos" onTabChange={() => {}} />
-      
+
       <div className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
@@ -145,7 +181,7 @@ export default function Trainings() {
           </div>
 
           <Tabs defaultValue="videos" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="h-4 w-4" />
                 Vídeos de Treinamento
@@ -153,6 +189,10 @@ export default function Trainings() {
               <TabsTrigger value="documents" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Documentos e Manuais
+              </TabsTrigger>
+               <TabsTrigger value="learning" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Aprendizado
               </TabsTrigger>
             </TabsList>
 
@@ -166,7 +206,7 @@ export default function Trainings() {
                   >
                     ← Voltar aos vídeos
                   </Button>
-                  
+
                   <Card>
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -270,6 +310,33 @@ export default function Trainings() {
                           <BookOpen className="h-4 w-4 mr-2" />
                           Abrir
                         </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="learning" className="space-y-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {mockLearningImages.map((image) => (
+                  <Card key={image.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{image.title}</CardTitle>
+                          <CardDescription className="mt-2">{image.description}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <img 
+                          src={image.imageUrl} 
+                          alt={image.title}
+                          className="w-full h-48 object-cover rounded-t-lg"
+                        />
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline">{image.category}</Badge>
                       </div>
                     </CardContent>
                   </Card>

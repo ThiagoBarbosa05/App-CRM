@@ -182,7 +182,7 @@ export const birthdayReminders = pgTable("birthday_reminders", {
   reminderDate: timestamp("reminder_date").notNull(),
   reminderType: varchar("reminder_type").notNull().default("email"), // email, notification, both
   daysBeforeBirthday: integer("days_before_birthday").notNull().default(1),
-  isSent: varchar("is_sent").notNull().default("false"),
+  isSent: text("is_sent").notNull().default("false"),
   sentAt: timestamp("sent_at"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -192,9 +192,9 @@ export const birthdayReminders = pgTable("birthday_reminders", {
 // Birthday reminder settings (global settings for the system)
 export const birthdayReminderSettings = pgTable("birthday_reminder_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  isEnabled: varchar("is_enabled").notNull().default("true"),
+  isEnabled: text("is_enabled").notNull().default("true"),
   defaultDaysBeforeBirthday: integer("default_days_before_birthday").notNull().default(1),
-  reminderTime: varchar("reminder_time").notNull().default("09:00"), // HH:MM format
+  reminderTime: text("reminder_time").notNull().default("09:00"), // HH:MM format
   emailTemplate: text("email_template"),
   smsTemplate: text("sms_template"),
   lastProcessedDate: timestamp("last_processed_date"),
@@ -474,3 +474,17 @@ export interface UserGoalWithResults extends UserGoal {
   userName: string;
   userEmail: string;
 }
+export const learningImages = pgTable("learning_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  category: text("category").notNull().default("Geral"),
+  imageUrl: text("image_url").notNull(),
+  fileName: text("file_name").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type LearningImage = typeof learningImages.$inferSelect;
+export type InsertLearningImage = z.infer<typeof learningImages.$inferInsert>;

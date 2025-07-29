@@ -7,7 +7,9 @@ import {
   type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
   type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
   type ClientInteractionWithUser, type Sector, type InsertSector,
-  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults
+  type WeeklyResult, type EmailCampaign, type Goal, type UserGoal, type WeeklyResultData,
+  type LearningImage, type InsertLearningImage,
+  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults, learningImages
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lt, isNotNull, sql, inArray, or, desc } from "drizzle-orm";
@@ -123,6 +125,13 @@ export interface IStorage {
   updateWeeklyResult(id: string, result: any): Promise<any>;
   getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null>;
   getWeeklyResult(goalId: string, week: number): Promise<any | null>;
+
+    // Learning Images methods
+    getLearningImages(): Promise<LearningImage[]>;
+    getLearningImage(id: string): Promise<LearningImage | undefined>;
+    createLearningImage(image: InsertLearningImage): Promise<LearningImage>;
+    updateLearningImage(id: string, image: Partial<InsertLearningImage>): Promise<LearningImage | undefined>;
+    deleteLearningImage(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1100,6 +1109,39 @@ export class DatabaseStorage implements IStorage {
 
     return result || null;
   }
+
+    // Learning Images methods
+    async getLearningImages(): Promise<LearningImage[]> {
+        const result = await db.select().from(learningImages).orderBy(learningImages.createdAt);
+        return result.reverse();
+    }
+
+    async getLearningImage(id: string): Promise<LearningImage | undefined> {
+        const [image] = await db.select().from(learningImages).where(eq(learningImages.id, id));
+        return image || undefined;
+    }
+
+    async createLearningImage(insertImage: InsertLearningImage): Promise<LearningImage> {
+        const [image] = await db
+            .insert(learningImages)
+            .values(insertImage)
+            .returning();
+        return image;
+    }
+
+    async updateLearningImage(id: string, updateData: Partial<InsertLearningImage>): Promise<LearningImage | undefined> {
+        const [image] = await db
+            .update(learningImages)
+            .set({ ...updateData, updatedAt: new Date() })
+            .where(eq(learningImages.id, id))
+            .returning();
+        return image || undefined;
+    }
+
+    async deleteLearningImage(id: string): Promise<boolean> {
+        const result = await db.delete(learningImages).where(eq(learningImages.id, id));
+        return result.rowCount !== null && result.rowCount > 0;
+    }
 
   async getUserRegistrationStats(): Promise<any[]> {
     const clientStats = await db

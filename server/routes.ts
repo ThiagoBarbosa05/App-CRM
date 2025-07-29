@@ -17,7 +17,23 @@ import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 
 // Configure multer for file uploads
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Configure multer for image uploads
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit for images
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos de imagem são permitidos!'));
+    }
+  }
+});
 
 // Initialize Replit Object Storage client
 let objectStorageClient: Client | null = null;
@@ -1507,7 +1523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const { message, context, conversationHistory, aiConfig } = req.body;
-      
+
       if (!message) {
         return res.status(400).json({ message: "Mensagem é obrigatória" });
       }
@@ -1523,18 +1539,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/generate-message", async (req, res) => {
     try {
       const { clientName, messageType, context, industry, aiConfig } = req.body;
-      
+
       if (!clientName || !messageType) {
         return res.status(400).json({ message: "Nome do cliente e tipo de mensagem são obrigatórios" });
       }
 
       const prompt = `Cliente: ${clientName}\nTipo: ${messageType}\nContexto adicional: ${context || ''}`;
       const message = await generateAIMessage(prompt, aiConfig);
-      
+
       res.json({ message });
     } catch (error) {
       console.error("Erro ao gerar mensagem:", error);
       res.status(500).json({ message: "Erro ao gerar mensagem" });
+    }
+  });
+
+  // Learning Images endpoints
+  app.get("/api/learning-images", async (req, res) => {
+    try {
+      const images = await storage.getLearningImages();
+      res.json(images);
+    } catch (error) {
+      console.error('Erro ao buscar imagens:', error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/learning-images", imageUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo foi enviado" });
+      }
+
+      const { title, description, category } = req.body;
+
+      if (!title?.trim()) {
+        return res.status(400).json({ error: "Título é obrigatório" });
+      }
+
+      // Upload para Object Storage se estiver em produção
+      let imageUrl: string;
+      let fileName: string;
+
+      if (process.env.NODE_ENV === 'production' && objectStorageClient) {
+        fileName = `learning-images/${nanoid()}-${req.file.originalname}`;
+
+        const uploadResult = await objectStorageClient.uploadFromBytes(fileName, req.file.buffer);
+        if (!uploadResult.ok) {
+          throw new Error('Erro no upload para Object Storage');
+        }
+
+        // Construir URL da imagem
+        imageUrl = `/api/files/${fileName}`;
+      } else {
+        // Em desenvolvimento, usar uma URL de exemplo
+        imageUrl = `https://images.unsplash.com/photo-${nanoid()}?w=500&h=300&fit=crop`;
+        fileName = req.file.originalname;
+      }
+
+      const newImage = await storage.createLearningImage({
+        title: title.trim(),
+        description: description?.trim() || "",
+        category: category || "Geral",
+        imageUrl,
+        fileName,
+        createdBy: req.session?.userId || "system"
+      });
+
+      res.json(newImage);
+    } catch (error) {
+      console.error('Erro ao criar imagem:', error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.delete("/api/learning-images/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Buscar a imagem antes de deletar para obter o fileName
+      const image = await storage.getLearningImage(id);
+      if (!image) {
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+
+      // Deletar do Object Storage se estiver em produção
+      if (process.env.NODE_ENV === 'production' && objectStorageClient && image.fileName) {
+        try {
+          await objectStorageClient.delete(image.fileName);
+        } catch (error) {
+          console.warn('Erro ao deletar arquivo do Object Storage:', error);
+        }
+      }
+
+      const deleted = await storage.deleteLearningImage(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao deletar imagem:', error);
+      res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
 
