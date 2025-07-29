@@ -88,7 +88,7 @@ export default function Clients() {
           <div className="space-y-6">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
                   <p className="text-gray-600 mt-1">
@@ -117,7 +117,7 @@ export default function Clients() {
 
             {/* Search and Filters */}
             <div className="bg-white border border-gray-200 px-6 py-4 rounded-lg shadow-sm">
-              <div className="flex items-center space-x-4">
+              <div className="grid grid-cols-1 sm:grid-cols space-x-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
@@ -125,7 +125,7 @@ export default function Clients() {
                     placeholder="Buscar clientes..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                 </div>
                 <ClientFilters
@@ -136,6 +136,7 @@ export default function Clients() {
                   variant="outline"
                   onClick={handleExportClients}
                   disabled={isExporting}
+                  className="w-full"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {isExporting ? "Exportando..." : "Exportar"}

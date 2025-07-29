@@ -570,7 +570,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/companies", async (req, res) => {
     try {
       console.log("Tentando buscar empresas...");
-      const companies = await storage.getCompanies();
+      const { userId, userRole } = req.query;
+      const companies = await storage.getCompanies(userId as string, userRole as string);
       console.log("Empresas encontradas:", companies.length);
       res.json(companies);
     } catch (error) {

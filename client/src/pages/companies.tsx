@@ -7,7 +7,7 @@ export default function Companies() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
+      <Sidebar activeTab="empresas" onTabChange={() => {}} />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           <CompaniesManagement currentUser={user} />

@@ -34,12 +34,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const queryClient = useQueryClient();
 
   const { data: companies = [], isLoading } = useQuery({
-    queryKey: ["/api/companies"],
+    queryKey: ["/api/companies", currentUser?.id, currentUser?.role],
     queryFn: async () => {
-      const response = await fetch("/api/companies");
+      const response = await fetch(
+        currentUser?.role === "admin"
+          ? "/api/companies"
+          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`,
+      );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
     },
+    enabled: !!currentUser,
   });
 
   // Buscar usuários para mostrar responsáveis
@@ -109,7 +114,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      await exportCompaniesToExcel(filteredCompanies, users);
+      await exportCompaniesToExcel(filteredCompanies, users as any[]);
     },
     onSuccess: () => {
       toast({

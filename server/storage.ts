@@ -361,10 +361,14 @@ export class DatabaseStorage implements IStorage {
   async getCompanies(userId?: string, userRole?: string): Promise<Company[]> {
     try {
       console.log("Executando query para buscar empresas...");
-      const result = await db
-        .select()
-        .from(companies)
-        .orderBy(companies.createdAt);
+      let query = db.select().from(companies);
+
+      // Se for vendedor, só mostra empresas onde ele é responsável
+      if (userRole === "vendedor" && userId) {
+        query = query.where(eq(companies.responsavelId, userId)) as typeof query;
+      }
+
+      const result = await query.orderBy(companies.createdAt);
       console.log("Query executada com sucesso, resultados:", result.length);
       return result.reverse();
     } catch (error) {
