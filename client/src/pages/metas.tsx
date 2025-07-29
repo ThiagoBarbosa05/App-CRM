@@ -198,10 +198,7 @@ export default function Metas() {
                             style={{ width: `${Math.min(salesPercentage, 100)}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-600 mt-1">
-                          <span>{formatCurrency(totalSalesAchieved)}</span>
-                          <span>{formatCurrency(goal.salesGoal)}</span>
-                        </div>
+
                       </div>
 
                       {/* Meta de Ticket Médio */}
@@ -216,10 +213,7 @@ export default function Metas() {
                             style={{ width: `${Math.min(ticketPercentage, 100)}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-600 mt-1">
-                          <span>{formatCurrency(avgTicketAchieved)}</span>
-                          <span>{formatCurrency(goal.averageTicket)}</span>
-                        </div>
+
                       </div>
 
                       {/* Meta de Itens por Venda */}
@@ -234,10 +228,7 @@ export default function Metas() {
                             style={{ width: `${Math.min(itemsPercentage, 100)}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-600 mt-1">
-                          <span>{totalItemsAchieved} itens</span>
-                          <span>{goal.itemsPerSale} itens</span>
-                        </div>
+
                       </div>
 
                       {/* Resumo das Semanas */}

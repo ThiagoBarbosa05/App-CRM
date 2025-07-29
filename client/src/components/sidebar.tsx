@@ -68,7 +68,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         className={cn(
           "bg-white shadow-lg border-r border-gray-200 transition-transform duration-300 ease-in-out z-40 flex flex-col",
           "sm:relative sm:translate-x-0 sm:w-64",
-          "fixed left-0 top-0 h-full w-80 max-w-[80vw]",
+          "fixed left-0 top-0 bottom-0 h-full w-80 max-w-[80vw]",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
