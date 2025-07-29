@@ -111,7 +111,7 @@ export default function CompanyImportModal({
               "",
             cnpj: company.CNPJ || company.cnpj || "",
             inscricaoEstadual:
-              (company["Inscrição Estadual"] || company.inscricaoEstadual || "").toString(),
+              company["Inscrição Estadual"].toString() || company.inscricaoEstadual.toString() || "",
             nomeComprador:
               company["Nome do Comprador"] || company.nomeComprador || "",
             phone: company.Telefone || company.phone || "",
