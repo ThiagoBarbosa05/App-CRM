@@ -121,6 +121,7 @@ export interface IStorage {
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   createWeeklyResult(result: any): Promise<any>;
   updateWeeklyResult(id: string, result: any): Promise<any>;
+  getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -950,6 +951,8 @@ export class DatabaseStorage implements IStorage {
         salesGoal: userGoals.salesGoal,
         averageTicket: userGoals.averageTicket,
         itemsPerSale: userGoals.itemsPerSale,
+        month: userGoals.month,
+        year: userGoals.year,
         createdAt: userGoals.createdAt,
         updatedAt: userGoals.updatedAt,
         userName: users.name,
@@ -970,6 +973,8 @@ export class DatabaseStorage implements IStorage {
         salesGoal: userGoals.salesGoal,
         averageTicket: userGoals.averageTicket,
         itemsPerSale: userGoals.itemsPerSale,
+        month: userGoals.month,
+        year: userGoals.year,
         createdAt: userGoals.createdAt,
         updatedAt: userGoals.updatedAt,
         userName: users.name,
@@ -1012,6 +1017,75 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserGoal(id: string): Promise<void> {
     await db.delete(userGoals).where(eq(userGoals.id, id));
+  }
+
+  async getUserGoalsWithResults(month: number, year: number): Promise<any[]> {
+    const result = await db
+      .select({
+        id: userGoals.id,
+        userId: userGoals.userId,
+        salesGoal: userGoals.salesGoal,
+        averageTicket: userGoals.averageTicket,
+        itemsPerSale: userGoals.itemsPerSale,
+        month: userGoals.month,
+        year: userGoals.year,
+        createdAt: userGoals.createdAt,
+        updatedAt: userGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(userGoals)
+      .leftJoin(users, eq(userGoals.userId, users.id))
+      .where(and(
+        eq(userGoals.month, month),
+        eq(userGoals.year, year)
+      ))
+      .orderBy(users.name);
+
+    return result;
+  }
+
+  // Weekly Results methods
+  async getWeeklyResultsByGoalId(goalId: string): Promise<any[]> {
+    const results = await db
+      .select()
+      .from(weeklyResults)
+      .where(eq(weeklyResults.goalId, goalId))
+      .orderBy(weeklyResults.week);
+
+    return results;
+  }
+
+  async createWeeklyResult(result: any): Promise<any> {
+    const [createdResult] = await db
+      .insert(weeklyResults)
+      .values(result)
+      .returning();
+
+    return createdResult;
+  }
+
+  async updateWeeklyResult(id: string, result: any): Promise<any> {
+    const [updatedResult] = await db
+      .update(weeklyResults)
+      .set({ ...result, updatedAt: new Date() })
+      .where(eq(weeklyResults.id, id))
+      .returning();
+
+    return updatedResult;
+  }
+
+  async getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null> {
+    const [result] = await db
+      .select()
+      .from(userGoals)
+      .where(and(
+        eq(userGoals.userId, userId),
+        eq(userGoals.month, month),
+        eq(userGoals.year, year)
+      ));
+
+    return result || null;
   }
 }
 

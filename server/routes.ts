@@ -1374,10 +1374,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const goalData = req.body;
       
-      // Verificar se já existe uma meta para este usuário
-      const existingGoal = await storage.getUserGoalByUserId(goalData.userId);
+      // Verificar se já existe uma meta para este usuário no mês/ano especificado
+      const existingGoal = await storage.getUserGoalByUserIdMonthYear(
+        goalData.userId, 
+        goalData.month, 
+        goalData.year
+      );
       if (existingGoal) {
-        return res.status(400).json({ message: "Usuário já possui metas cadastradas" });
+        return res.status(400).json({ 
+          message: `Usuário já possui meta cadastrada para ${goalData.month}/${goalData.year}` 
+        });
       }
 
       const goal = await storage.createUserGoal(goalData);
