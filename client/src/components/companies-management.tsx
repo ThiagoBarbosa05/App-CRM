@@ -19,6 +19,9 @@ interface CompaniesManagementProps {
 
 export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [nomeFantasiaFilter, setNomeFantasiaFilter] = useState("");
+  const [razaoSocialFilter, setRazaoSocialFilter] = useState("");
+  const [cnpjFilter, setCnpjFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -89,11 +92,24 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     },
   });
 
-  const filteredCompanies = companies.filter((company: Company) =>
-    company.nomeFantasia.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.razaoSocial.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (company.cnpj && company.cnpj.includes(searchQuery))
-  );
+  const filteredCompanies = companies.filter((company: Company) => {
+    const matchesSearch = searchQuery === "" || (
+      company.nomeFantasia.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      company.razaoSocial.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (company.cnpj && company.cnpj.includes(searchQuery))
+    );
+    
+    const matchesNomeFantasia = nomeFantasiaFilter === "" || 
+      company.nomeFantasia.toLowerCase().includes(nomeFantasiaFilter.toLowerCase());
+    
+    const matchesRazaoSocial = razaoSocialFilter === "" || 
+      company.razaoSocial.toLowerCase().includes(razaoSocialFilter.toLowerCase());
+    
+    const matchesCnpj = cnpjFilter === "" || 
+      (company.cnpj && company.cnpj.includes(cnpjFilter));
+    
+    return matchesSearch && matchesNomeFantasia && matchesRazaoSocial && matchesCnpj;
+  });
 
   const handleEdit = (company: Company) => {
     setEditingCompany(company);
@@ -162,33 +178,87 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         <CardDescription>
           Gerencie as empresas cadastradas no sistema
         </CardDescription>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Busca geral..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              {selectedCompanies.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteMutation.isPending}
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  Excluir Selecionadas ({selectedCompanies.length})
+                </Button>
+              )}
+            </div>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Empresa
+            </Button>
+          </div>
+          
+          {/* Filtros específicos */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Nome Fantasia
+              </label>
               <Input
-                placeholder="Buscar por Nome Fantasia, Razão Social ou CNPJ..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
+                placeholder="Filtrar por Nome Fantasia..."
+                value={nomeFantasiaFilter}
+                onChange={(e) => setNomeFantasiaFilter(e.target.value)}
               />
             </div>
-            {selectedCompanies.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteMutation.isPending}
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Excluir Selecionadas ({selectedCompanies.length})
-              </Button>
-            )}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Razão Social
+              </label>
+              <Input
+                placeholder="Filtrar por Razão Social..."
+                value={razaoSocialFilter}
+                onChange={(e) => setRazaoSocialFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                CNPJ
+              </label>
+              <Input
+                placeholder="Filtrar por CNPJ..."
+                value={cnpjFilter}
+                onChange={(e) => setCnpjFilter(e.target.value)}
+              />
+            </div>
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Empresa
-          </Button>
+          
+          {/* Botão de limpar filtros */}
+          {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || searchQuery) && (
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setNomeFantasiaFilter("");
+                  setRazaoSocialFilter("");
+                  setCnpjFilter("");
+                }}
+              >
+                Limpar Filtros
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
