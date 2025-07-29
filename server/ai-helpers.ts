@@ -1,30 +1,37 @@
 
 // Funções auxiliares para integração com IA
-// Substitua por chamadas reais para OpenAI, Claude, etc.
+import OpenAI from 'openai';
 
 interface AIResponse {
   content: string;
   tokens?: number;
 }
 
+// Initialize OpenAI client
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+}) : null;
+
 export async function generateAIResponse(message: string, context: string): Promise<string> {
-  // Aqui você faria a chamada real para a API de IA
-  // Exemplo com OpenAI:
-  /*
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
+  // Try to use OpenAI API if available
+  if (openai) {
+    try {
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { role: "system", content: getSystemPrompt(context) },
+          { role: "user", content: message }
+        ],
+        model: "gpt-3.5-turbo",
+        max_tokens: 500,
+        temperature: 0.7,
+      });
 
-  const completion = await openai.chat.completions.create({
-    messages: [
-      { role: "system", content: getSystemPrompt(context) },
-      { role: "user", content: message }
-    ],
-    model: "gpt-3.5-turbo",
-  });
-
-  return completion.choices[0].message.content || "Desculpe, não consegui processar sua pergunta.";
-  */
+      return completion.choices[0].message.content || "Desculpe, não consegui processar sua pergunta.";
+    } catch (error) {
+      console.error("Erro da API OpenAI:", error);
+      // Fall back to local responses
+    }
+  }
 
   // Simulação melhorada baseada no contexto
   const lowerMessage = message.toLowerCase();

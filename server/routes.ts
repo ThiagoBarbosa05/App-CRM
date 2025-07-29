@@ -814,7 +814,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertBirthdayReminderSchema.parse(req.body);
       const reminder = await storage.createBirthdayReminder(validatedData);
-```text
       res.status(201).json(reminder);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1501,6 +1500,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching goals with results:", error);
       res.status(500).json({ message: "Erro ao buscar metas com resultados" });
+    }
+  });
+
+  // AI Assistant routes
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { message, context, conversationHistory } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Mensagem é obrigatória" });
+      }
+
+      const response = await generateAIResponse(message, context || 'wine_expert');
+      res.json({ response });
+    } catch (error) {
+      console.error("Erro no chat da IA:", error);
+      res.status(500).json({ message: "Erro ao processar mensagem" });
+    }
+  });
+
+  app.post("/api/ai/generate-message", async (req, res) => {
+    try {
+      const { clientName, messageType, context, industry } = req.body;
+      
+      if (!clientName || !messageType) {
+        return res.status(400).json({ message: "Nome do cliente e tipo de mensagem são obrigatórios" });
+      }
+
+      const prompt = `Cliente: ${clientName}\nTipo: ${messageType}\nContexto adicional: ${context || ''}`;
+      const message = await generateAIMessage(prompt);
+      
+      res.json({ message });
+    } catch (error) {
+      console.error("Erro ao gerar mensagem:", error);
+      res.status(500).json({ message: "Erro ao gerar mensagem" });
     }
   });
 
