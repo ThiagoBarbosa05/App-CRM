@@ -26,6 +26,17 @@ const goalSchema = z.object({
 
 type GoalFormData = z.infer<typeof goalSchema>;
 
+interface WeeklyResult {
+  id: string;
+  goalId: string;
+  week: number;
+  salesAchieved: string;
+  ticketAchieved: string;
+  itemsAchieved: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface UserGoal {
   id: string;
   userId: string;
@@ -38,6 +49,7 @@ interface UserGoal {
   userEmail: string;
   createdAt: string;
   updatedAt: string;
+  weeklyResults: WeeklyResult[];
 }
 
 const weeklyResultSchema = z.object({
@@ -193,6 +205,16 @@ export default function AdminGoals() {
       style: 'currency',
       currency: 'BRL'
     }).format(Number(value));
+  };
+
+  // Função para calcular o total alcançado até o momento
+  const getTotalAchieved = (weeklyResults: WeeklyResult[], field: 'salesAchieved' | 'ticketAchieved' | 'itemsAchieved') => {
+    return weeklyResults.reduce((sum, result) => {
+      if (field === 'itemsAchieved') {
+        return sum + result[field];
+      }
+      return sum + Number(result[field]);
+    }, 0);
   };
 
   // Obter usuários sem metas para novo cadastro
@@ -380,48 +402,66 @@ export default function AdminGoals() {
                         <TableHead>Email</TableHead>
                         <TableHead>Período</TableHead>
                         <TableHead>Meta de Vendas</TableHead>
+                        <TableHead>Valor Alcançado</TableHead>
                         <TableHead>Ticket Médio</TableHead>
                         <TableHead>Itens por Venda</TableHead>
                         <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {userGoals.map((goal) => (
-                        <TableRow key={goal.id}>
-                          <TableCell className="font-medium">{goal.userName}</TableCell>
-                          <TableCell>{goal.userEmail}</TableCell>
-                          <TableCell className="font-medium">
-                            {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
-                          </TableCell>
-                          <TableCell className="font-semibold text-green-600">
-                            {formatCurrency(goal.salesGoal)}
-                          </TableCell>
-                          <TableCell className="font-semibold text-blue-600">
-                            {formatCurrency(goal.averageTicket)}
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {goal.itemsPerSale} itens
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditGoal(goal)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Editar
-                            </Button>
-                             <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenResultModal(goal)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Add result
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {userGoals.map((goal) => {
+                        const totalSalesAchieved = getTotalAchieved(goal.weeklyResults || [], 'salesAchieved');
+                        const progressPercentage = Number(goal.salesGoal) > 0 
+                          ? Math.min((totalSalesAchieved / Number(goal.salesGoal)) * 100, 100)
+                          : 0;
+
+                        return (
+                          <TableRow key={goal.id}>
+                            <TableCell className="font-medium">{goal.userName}</TableCell>
+                            <TableCell>{goal.userEmail}</TableCell>
+                            <TableCell className="font-medium">
+                              {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-600">
+                              {formatCurrency(goal.salesGoal)}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              <div className="flex flex-col gap-1">
+                                <span className={`${progressPercentage >= 100 ? 'text-green-600' : progressPercentage >= 75 ? 'text-blue-600' : progressPercentage >= 50 ? 'text-orange-600' : 'text-red-600'}`}>
+                                  {formatCurrency(totalSalesAchieved.toString())}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {progressPercentage.toFixed(1)}% da meta
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-blue-600">
+                              {formatCurrency(goal.averageTicket)}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {goal.itemsPerSale} itens
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditGoal(goal)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Editar
+                              </Button>
+                               <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenResultModal(goal)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Add result
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
