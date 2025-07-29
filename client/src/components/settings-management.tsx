@@ -7,7 +7,7 @@ import CategoriesManagement from "./categories-management";
 import MarkersManagement from "./markers-management";
 import OriginsManagement from "./origins-management";
 import SectorsManagement from "./sectors-management";
-import EmailCampaignsManagement from "./email-campaigns-management";
+
 import LearningImagesManagement from "./learning-images-management";
 
 export default function SettingsManagement() {
@@ -22,13 +22,12 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="markers">Marcadores</TabsTrigger>
           <TabsTrigger value="origins">Origens</TabsTrigger>
           <TabsTrigger value="sectors">Setores</TabsTrigger>
-          <TabsTrigger value="email-campaigns">Email Marketing</TabsTrigger>
           <TabsTrigger value="learning-images">Imagens</TabsTrigger>
         </TabsList>
 
@@ -50,10 +49,6 @@ export default function SettingsManagement() {
 
         <TabsContent value="sectors">
           <SectorsManagement />
-        </TabsContent>
-
-        <TabsContent value="email-campaigns">
-          <EmailCampaignsManagement />
         </TabsContent>
 
         <TabsContent value="learning-images">
