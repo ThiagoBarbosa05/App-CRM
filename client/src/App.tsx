@@ -14,6 +14,7 @@ import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
 import AdminGoals from "@/pages/admin-goals";
 import Settings from "@/pages/settings";
+import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import { lazy } from 'react';
 
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/calendario" component={Calendar} />
       <Route path="/metas" component={Metas} />
       <Route path="/admin-metas" component={AdminGoals} />
+      <Route path="/assistente-ia" component={AIAssistant} />
       <Route path="/configuracoes" component={Settings} />
       <Route component={NotFound} />
     </Switch>
