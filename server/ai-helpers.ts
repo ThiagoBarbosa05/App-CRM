@@ -1,229 +1,88 @@
-
 // Funções auxiliares para integração com IA
 import OpenAI from 'openai';
 
-interface AIResponse {
-  content: string;
-  tokens?: number;
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
+
+interface MessageTemplate {
+  [key: string]: (name: string, context?: string) => string;
 }
 
-// Initialize OpenAI client
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-}) : null;
+const messageTemplates: MessageTemplate = {
+  prospeccao: (name: string, context?: string) => 
+    `Olá ${name}! 🍷\n\nSou especialista em vinhos e gostaria de apresentar nossa seleção exclusiva de rótulos premium. ${context ? `Considerando seu interesse em ${context}, ` : ''}Temos opções que se adequam a diferentes paladares e ocasiões especiais.\n\nPodemos agendar uma conversa para conhecer suas preferências? Tenho certeza que encontraremos o vinho perfeito para você!\n\nUm brinde aos bons momentos! 🥂`,
 
-export async function generateAIResponse(message: string, context: string, aiConfig?: any): Promise<string> {
-  // Try to use OpenAI API if available
-  if (openai) {
-    try {
-      const systemPrompt = getSystemPrompt(context, aiConfig);
-      
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ],
-        model: "gpt-3.5-turbo",
-        max_tokens: aiConfig?.maxTokens || 500,
-        temperature: aiConfig?.temperature || 0.7,
-      });
+  followup: (name: string, context?: string) => 
+    `Oi ${name}! 😊\n\nEspero que esteja aproveitando o vinho que adquiriu conosco! Como foi a experiência?\n\n${context ? `Lembrei que você mencionou interesse em ${context}, ` : ''}Tenho algumas novidades que podem te interessar:\n\n🍷 Novos rótulos chegaram\n🎯 Ofertas especiais para clientes fiéis\n📚 Dicas de harmonização\n\nQue tal conversarmos sobre suas próximas escolhas?`,
 
-      return completion.choices[0].message.content || "Desculpe, não consegui processar sua pergunta.";
-    } catch (error) {
-      console.error("Erro da API OpenAI:", error);
-      // Fall back to local responses
+  oferta: (name: string, context?: string) => 
+    `${name}, oportunidade especial! 🌟\n\nTemos uma seleção limitada de vinhos premium com condições exclusivas:\n\n🍷 Descontos especiais\n📦 Frete grátis para compras acima de R$ 200\n🎁 Brinde surpresa\n\n${context ? `Considerando seu gosto por ${context}, ` : ''}Separei algumas opções que vão te surpreender!\n\nOferta válida por tempo limitado. Vamos conversar?`,
+
+  aniversario: (name: string, context?: string) => 
+    `Parabéns, ${name}! 🎉🍷\n\nUm brinde ao seu dia especial! Para celebrar esta data única, que tal um vinho excepcional?\n\nTenho sugestões perfeitas para tornar sua comemoração ainda mais especial:\n\n🥂 Espumantes premium\n🍾 Vinhos de safras especiais\n🎁 Embalagem gift exclusiva\n\nSeu aniversário merece um brinde à altura! Vamos escolher juntos?`
+};
+
+export async function generateAIResponse(message: string, context: string = 'wine_expert', aiConfig?: any): Promise<string> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
     }
+
+    const systemPrompt = getSystemPrompt(context, aiConfig);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ],
+      temperature: aiConfig?.temperature || 0.7,
+      max_tokens: aiConfig?.maxTokens || 500,
+    });
+
+    return completion.choices[0]?.message?.content || "Desculpe, não consegui processar sua pergunta.";
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    throw error;
   }
-
-  // Simulação melhorada baseada no contexto
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('harmoniza') || lowerMessage.includes('combina')) {
-    return `Para harmonizar vinhos, considere essas dicas importantes:
-
-🍷 **Vinhos Tintos**: 
-- Carnes vermelhas (boi, cordeiro)
-- Queijos maturados
-- Pratos com molhos encorpados
-
-🍾 **Vinhos Brancos**:
-- Peixes e frutos do mar
-- Aves (frango, peru)
-- Queijos frescos e saladas
-
-🥂 **Espumantes**:
-- Aperitivos e canapés
-- Comida japonesa
-- Sobremesas à base de frutas
-
-A regra básica é equilibrar a intensidade do prato com a do vinho. Quer dicas mais específicas sobre algum tipo de harmonização?`;
-  }
-
-  if (lowerMessage.includes('temperatura')) {
-    return `🌡️ **Temperaturas Ideais para Servir Vinhos:**
-
-**Vinhos Tintos:**
-- Tintos jovens e frutados: 14-16°C
-- Tintos médios: 16-18°C  
-- Tintos encorpados e taninos: 18-20°C
-
-**Vinhos Brancos:**
-- Brancos leves e frescos: 8-10°C
-- Brancos aromáticos: 10-12°C
-- Brancos encorpados: 12-14°C
-
-**Espumantes:**
-- Todos os tipos: 6-8°C
-
-**Dica importante:** Retire da geladeira 10-15 minutos antes de servir brancos, e coloque tintos na geladeira por 30 minutos se estiver muito quente!`;
-  }
-
-  if (lowerMessage.includes('guarda') || lowerMessage.includes('armazen')) {
-    return `🏠 **Como Guardar Vinhos Adequadamente:**
-
-**Condições Ideais:**
-- Temperatura: 12-14°C (constante)
-- Umidade: 60-70%
-- Sem luz direta
-- Sem vibrações
-- Ventilação adequada
-
-**Posição:**
-- Garrafas com rolha: deitadas
-- Garrafas com tampa de rosca: em pé ou deitadas
-
-**Locais apropriados:**
-- Adega climatizada (ideal)
-- Porão ou local fresco
-- Armário longe de janelas
-- Evitar: cozinha, lavanderia, sótão
-
-**Tempo de guarda:**
-- Vinhos do dia a dia: 1-3 anos
-- Vinhos de guarda: 5-20+ anos
-
-Precisa de dicas para um vinho específico?`;
-  }
-
-  // Resposta genérica mais inteligente
-  return `Olá! Sou especialista em vinhos e estou aqui para ajudar! 🍷
-
-Posso te auxiliar com:
-- 🥂 Harmonizações (que vinho combina com cada prato)
-- 🌡️ Temperaturas de serviço
-- 🏠 Armazenamento e guarda
-- 🗺️ Regiões vinícolas
-- 🍇 Tipos de uva e estilos
-- 💰 Sugestões por faixa de preço
-
-Sobre o que gostaria de saber mais? Fique à vontade para perguntar!`;
 }
 
 export async function generateAIMessage(prompt: string, aiConfig?: any): Promise<string> {
-  // Try to use OpenAI API if available
-  if (openai && aiConfig) {
-    try {
-      const systemPrompt = getMessageGenerationPrompt(aiConfig);
-      
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt }
-        ],
-        model: "gpt-3.5-turbo",
-        max_tokens: aiConfig.maxTokens || 500,
-        temperature: aiConfig.temperature || 0.7,
-      });
-
-      return completion.choices[0].message.content || "Não foi possível gerar a mensagem.";
-    } catch (error) {
-      console.error("Erro da API OpenAI:", error);
-      // Fall back to local templates
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
     }
+
+    const systemPrompt = getSystemPrompt('wine_business', aiConfig);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Gere uma mensagem personalizada baseada nos seguintes dados:\n${prompt}` }
+      ],
+      temperature: aiConfig?.temperature || 0.7,
+      max_tokens: aiConfig?.maxTokens || 500,
+    });
+
+    return completion.choices[0]?.message?.content || generateFallbackMessage(prompt);
+  } catch (error) {
+    console.error('Error generating AI message:', error);
+    return generateFallbackMessage(prompt);
   }
+}
 
-  // Fallback para templates estáticos melhorados baseados na configuração
-  
-  const templates = {
-    prospeccao: (name: string) => `Olá ${name}! 🍷
+function generateFallbackMessage(prompt: string): string {
+  const nameMatch = prompt.match(/Cliente:\s*([^\n]+)/);
+  const typeMatch = prompt.match(/Tipo:\s*([^\n]+)/);
+  const contextMatch = prompt.match(/Contexto adicional:\s*([^\n]+)/);
 
-Espero que esteja bem! Sou [Seu Nome], especialista em vinhos, e trabalho ajudando pessoas a descobrirem rótulos excepcionais que marcam momentos especiais.
-
-Percebi que você tem interesse em vinhos de qualidade, e gostaria de apresentar nossa curadoria exclusiva. Temos desde vinhos para o dia a dia até rótulos premium para ocasiões especiais.
-
-O que acha de agendarmos uma conversa rápida para conhecer seu perfil e preferências? Tenho certeza que posso sugerir opções que vão surpreender você!
-
-Um brinde aos bons momentos! 🥂
-[Seu Nome]`,
-
-    followup: (name: string, context?: string) => `Oi ${name}! 😊
-
-Como você está? Espero que tenha aproveitado nossa última conversa sobre vinhos!
-
-${context ? `Lembro que você demonstrou interesse em ${context}, e ` : ''}Tenho algumas novidades que podem te interessar:
-
-✨ Chegaram rótulos únicos de pequenos produtores
-🎯 Condições especiais para clientes especiais
-📚 Curso online gratuito sobre degustação
-
-Que tal marcarmos um bate-papo? Adoraria saber como está sua jornada no mundo dos vinhos!
-
-Abraço,
-[Seu Nome]`,
-
-    oferta: (name: string, context?: string) => `${name}, oportunidade imperdível! 🌟
-
-Temos uma seleção limitada de vinhos premium com condições exclusivas apenas para você:
-
-🍷 Descontos especiais de até 30%
-📦 Frete grátis para todo o Brasil
-🎁 Kit degustação de cortesia
-⭐ Garantia de satisfação 100%
-
-${context ? `Sabendo do seu interesse por ${context}, ` : ''}Separei pessoalmente algumas opções que sei que vão te encantar!
-
-Esta oferta é por tempo limitado. Vamos conversar ainda hoje?
-
-Saúde! 🥂
-[Seu Nome]`,
-
-    aniversario: (name: string) => `🎉 Parabéns, ${name}! 🎉
-
-Que alegria saber que é seu aniversário! Um brinde à sua vida e aos momentos especiais que estão por vir! 🍷
-
-Para celebrar essa data única, que tal brindar com algo excepcional? Tenho sugestões perfeitas:
-
-🥂 Espumantes de safras especiais
-🍾 Vinhos de regiões nobres
-🎁 Embalagem gift exclusiva
-✨ Desconto especial de aniversário
-
-Seu dia merece um brinde à altura! Vamos escolher juntos o vinho perfeito para sua comemoração?
-
-Feliz aniversário e vida longa! 🎂🍷
-[Seu Nome]`
-  };
-
-  // Análise simples do prompt para determinar o tipo
-  const promptLower = prompt.toLowerCase();
-  let messageType = 'prospeccao';
-  
-  if (promptLower.includes('follow') || promptLower.includes('acompanhamento')) {
-    messageType = 'followup';
-  } else if (promptLower.includes('oferta') || promptLower.includes('promoção')) {
-    messageType = 'oferta';
-  } else if (promptLower.includes('aniversário') || promptLower.includes('parabéns')) {
-    messageType = 'aniversario';
-  }
-
-  // Extração simples do nome (melhorar com regex mais robusta)
-  const nameMatch = prompt.match(/Cliente:\s*([^\\n]+)/);
   const name = nameMatch ? nameMatch[1].trim() : 'Cliente';
-
-  const contextMatch = prompt.match(/Contexto adicional:\s*([^\\n]+)/);
+  const messageType = typeMatch ? typeMatch[1].trim() : 'prospeccao';
   const context = contextMatch ? contextMatch[1].trim() : '';
 
-  return templates[messageType as keyof typeof templates](name, context);
+  return messageTemplates[messageType as keyof typeof messageTemplates](name, context);
 }
 
 function getSystemPrompt(context: string, aiConfig?: any): string {
@@ -254,64 +113,39 @@ function getSystemPrompt(context: string, aiConfig?: any): string {
   if (aiConfig?.responseStyle) {
     const styleMap = {
       consultivo: "Foque em orientar e aconselhar o cliente com base em suas necessidades.",
-      vendas: "Sempre inclua sugestões de produtos e oportunidades de venda.",
-      educativo: "Priorize ensinar e educar sobre vinhos de forma didática."
+      vendas: "Sempre inclua sugestões de produtos e incentive a compra de forma sutil.",
+      educativo: "Priorize ensinar e educar sobre vinhos, compartilhando conhecimento técnico."
     };
     basePrompt += ` ${styleMap[aiConfig.responseStyle as keyof typeof styleMap] || ''}`;
-  }
-
-  // Emojis
-  if (aiConfig?.useEmojis === false) {
-    basePrompt += " Não use emojis nas respostas.";
-  } else {
-    basePrompt += " Use emojis moderadamente para tornar as respostas mais expressivas.";
   }
 
   // Tamanho da mensagem
   if (aiConfig?.messageLength) {
     const lengthMap = {
-      curto: "Mantenha suas respostas concisas e diretas (50-100 palavras).",
-      medio: "Forneça respostas equilibradas (100-200 palavras).",
-      longo: "Dê respostas detalhadas e completas (200+ palavras)."
+      curto: "Mantenha respostas concisas e diretas (50-100 palavras).",
+      medio: "Use respostas de tamanho médio (100-200 palavras).",
+      longo: "Forneça respostas detalhadas e completas (200+ palavras)."
     };
     basePrompt += ` ${lengthMap[aiConfig.messageLength as keyof typeof lengthMap] || ''}`;
   }
 
+  // Emojis
+  if (aiConfig?.useEmojis) {
+    basePrompt += " Use emojis para tornar as mensagens mais expressivas e amigáveis.";
+  } else {
+    basePrompt += " Evite usar emojis, mantenha um estilo mais formal.";
+  }
+
   // Prompt personalizado
   if (aiConfig?.customPrompt) {
-    basePrompt += ` ${aiConfig.customPrompt}`;
+    basePrompt += ` Instruções adicionais: ${aiConfig.customPrompt}`;
   }
 
-  basePrompt += " Responda sempre em português brasileiro de forma clara e útil.";
+  if (context === 'wine_expert') {
+    basePrompt += ` Você deve responder perguntas sobre vinhos, harmonizações, temperaturas de serviço, regiões produtoras, métodos de produção e tudo relacionado ao mundo do vinho. Seja sempre preciso e útil.`;
+  } else if (context === 'wine_business') {
+    basePrompt += ` Você está criando mensagens comerciais para um negócio de vinhos. Foque em gerar conteúdo persuasivo mas não invasivo, que demonstre conhecimento e crie conexão com o cliente.`;
+  }
 
   return basePrompt;
-}
-
-function getMessageGenerationPrompt(aiConfig: any): string {
-  let prompt = `Você é um especialista em marketing e vendas de vinhos. Gere mensagens personalizadas para clientes.`;
-
-  // Aplicar configurações similares
-  if (aiConfig.personality === 'profissional') {
-    prompt += " Use tom profissional e respeitoso.";
-  } else if (aiConfig.personality === 'amigavel') {
-    prompt += " Use tom amigável e caloroso.";
-  }
-
-  if (aiConfig.messageLength === 'curto') {
-    prompt += " Mantenha as mensagens concisas e diretas.";
-  } else if (aiConfig.messageLength === 'longo') {
-    prompt += " Crie mensagens detalhadas e elaboradas.";
-  }
-
-  if (aiConfig.useEmojis) {
-    prompt += " Inclua emojis apropriados.";
-  } else {
-    prompt += " Não use emojis.";
-  }
-
-  if (aiConfig.customPrompt) {
-    prompt += ` ${aiConfig.customPrompt}`;
-  }
-
-  return prompt;
 }
