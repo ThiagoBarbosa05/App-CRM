@@ -13,6 +13,8 @@ import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
 import { Client } from "@replit/object-storage";
 import multer from "multer";
+import { nanoid } from "nanoid";
+import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
@@ -812,6 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertBirthdayReminderSchema.parse(req.body);
       const reminder = await storage.createBirthdayReminder(validatedData);
+```text
       res.status(201).json(reminder);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1189,7 +1192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prefix = folder ? `company-files/${folder}/` : "company-files/";
 
       const objects = await objectStorageClient.list({ prefix });
-      
+
       if (!objects || !Array.isArray(objects)) {
         return res.json([]);
       }
@@ -1271,7 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : `company-files/${filename}`;
 
       const fileData = await objectStorageClient!.downloadAsBytes(key);
-      
+
       // Handle the result which might be wrapped in a Result type
       let fileBuffer;
       if (fileData && typeof fileData === 'object' && 'data' in fileData) {

@@ -67,13 +67,44 @@ export default function AIAssistant() {
 
     setChatMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    const currentInput = chatInput;
     setChatInput("");
 
-    // Simular resposta do assistente
-    setTimeout(() => {
-      let response = "Desculpe, não tenho informações específicas sobre essa pergunta. Posso ajudar com harmonizações, temperaturas de serviço, guarda de vinhos, regiões produtoras ou tipos de vinho.";
+    try {
+      // Chamar API de IA real
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          context: 'wine_expert',
+          conversationHistory: chatMessages.slice(-5) // Últimas 5 mensagens para contexto
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha na comunicação com a IA');
+      }
+
+      const data = await response.json();
+
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: data.response || "Desculpe, não consegui processar sua pergunta no momento.",
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Erro ao chamar IA:', error);
       
-      const input = chatInput.toLowerCase();
+      // Fallback para conhecimento local
+      let response = "Desculpe, estou com dificuldades técnicas. Posso ajudar com harmonizações, temperaturas de serviço, guarda de vinhos, regiões produtoras ou tipos de vinho.";
+      
+      const input = currentInput.toLowerCase();
       if (input.includes("harmoniza") || input.includes("combina")) {
         response = wineKnowledge.harmonizacao;
       } else if (input.includes("temperatura")) {
@@ -94,11 +125,12 @@ export default function AIAssistant() {
       };
 
       setChatMessages(prev => [...prev, assistantMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
-  const generateMessage = () => {
+  const generateMessage = async () => {
     if (!clientName.trim()) {
       toast({
         title: "Nome obrigatório",
@@ -108,29 +140,73 @@ export default function AIAssistant() {
       return;
     }
 
-    const messageTemplates = {
-      prospeccao: `Olá ${clientName}! 🍷\n\nSou especialista em vinhos e gostaria de apresentar nossa seleção exclusiva de rótulos premium. Temos opções que se adequam a diferentes paladares e ocasiões especiais.\n\nPodemos agendar uma conversa para conhecer suas preferências? Tenho certeza que encontraremos o vinho perfeito para você!\n\nUm brinde aos bons momentos! 🥂`,
-      
-      followup: `Oi ${clientName}! 😊\n\nEspero que esteja aproveitando o vinho que adquiriu conosco! Como foi a experiência?\n\n${messageContext ? `Lembrei que você mencionou interesse em ${messageContext}, ` : ''}Tenho algumas novidades que podem te interessar:\n\n🍷 Novos rótulos chegaram\n🎯 Ofertas especiais para clientes fiéis\n📚 Dicas de harmonização\n\nQue tal conversarmos sobre suas próximas escolhas?`,
-      
-      oferta: `${clientName}, oportunidade especial! 🌟\n\nTemos uma seleção limitada de vinhos premium com condições exclusivas:\n\n🍷 Descontos especiais\n📦 Frete grátis para compras acima de R$ 200\n🎁 Brinde surpresa\n\n${messageContext ? `Considerando seu gosto por ${messageContext}, ` : ''}Separei algumas opções que vão te surpreender!\n\nOferta válida por tempo limitado. Vamos conversar?`,
-      
-      aniversario: `Parabéns, ${clientName}! 🎉🍷\n\nUm brinde ao seu dia especial! Para celebrar esta data única, que tal um vinho excepcional?\n\nTenho sugestões perfeitas para tornar sua comemoração ainda mais especial:\n\n🥂 Espumantes premium\n🍾 Vinhos de safras especiais\n🎁 Embalagem gift exclusiva\n\nSeu aniversário merece um brinde à altura! Vamos escolher juntos?`
-    };
+    setIsLoading(true);
 
-    const newMessage: GeneratedMessage = {
-      id: Date.now().toString(),
-      type: messageType,
-      content: messageTemplates[messageType as keyof typeof messageTemplates],
-      timestamp: new Date()
-    };
+    try {
+      // Gerar mensagem com IA
+      const response = await fetch('/api/ai/generate-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientName,
+          messageType,
+          context: messageContext,
+          industry: 'wine_business'
+        }),
+      });
 
-    setGeneratedMessages(prev => [newMessage, ...prev]);
-    
-    toast({
-      title: "Mensagem gerada!",
-      description: "Sua mensagem personalizada foi criada com sucesso.",
-    });
+      if (!response.ok) {
+        throw new Error('Falha ao gerar mensagem');
+      }
+
+      const data = await response.json();
+
+      const newMessage: GeneratedMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        content: data.message,
+        timestamp: new Date()
+      };
+
+      setGeneratedMessages(prev => [newMessage, ...prev]);
+      
+      toast({
+        title: "Mensagem gerada com IA!",
+        description: "Sua mensagem personalizada foi criada com sucesso.",
+      });
+
+    } catch (error) {
+      console.error('Erro ao gerar mensagem:', error);
+      
+      // Fallback para templates estáticos
+      const messageTemplates = {
+        prospeccao: `Olá ${clientName}! 🍷\n\nSou especialista em vinhos e gostaria de apresentar nossa seleção exclusiva de rótulos premium. Temos opções que se adequam a diferentes paladares e ocasiões especiais.\n\nPodemos agendar uma conversa para conhecer suas preferências? Tenho certeza que encontraremos o vinho perfeito para você!\n\nUm brinde aos bons momentos! 🥂`,
+        
+        followup: `Oi ${clientName}! 😊\n\nEspero que esteja aproveitando o vinho que adquiriu conosco! Como foi a experiência?\n\n${messageContext ? `Lembrei que você mencionou interesse em ${messageContext}, ` : ''}Tenho algumas novidades que podem te interessar:\n\n🍷 Novos rótulos chegaram\n🎯 Ofertas especiais para clientes fiéis\n📚 Dicas de harmonização\n\nQue tal conversarmos sobre suas próximas escolhas?`,
+        
+        oferta: `${clientName}, oportunidade especial! 🌟\n\nTemos uma seleção limitada de vinhos premium com condições exclusivas:\n\n🍷 Descontos especiais\n📦 Frete grátis para compras acima de R$ 200\n🎁 Brinde surpresa\n\n${messageContext ? `Considerando seu gosto por ${messageContext}, ` : ''}Separei algumas opções que vão te surpreender!\n\nOferta válida por tempo limitado. Vamos conversar?`,
+        
+        aniversario: `Parabéns, ${clientName}! 🎉🍷\n\nUm brinde ao seu dia especial! Para celebrar esta data única, que tal um vinho excepcional?\n\nTenho sugestões perfeitas para tornar sua comemoração ainda mais especial:\n\n🥂 Espumantes premium\n🍾 Vinhos de safras especiais\n🎁 Embalagem gift exclusiva\n\nSeu aniversário merece um brinde à altura! Vamos escolher juntos?`
+      };
+
+      const newMessage: GeneratedMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        content: messageTemplates[messageType as keyof typeof messageTemplates],
+        timestamp: new Date()
+      };
+
+      setGeneratedMessages(prev => [newMessage, ...prev]);
+      
+      toast({
+        title: "Mensagem gerada!",
+        description: "Usando template padrão devido a problemas técnicos.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyToClipboard = async (content: string, id: string) => {
@@ -287,6 +363,27 @@ export default function AIAssistant() {
                     onClick={() => setChatInput("Como guardar vinhos corretamente?")}
                   >
                     Armazenamento
+                  </Badge>
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-wine-50"
+                    onClick={() => setChatInput("Quais regiões produzem os melhores vinhos tintos?")}
+                  >
+                    Regiões
+                  </Badge>
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-wine-50"
+                    onClick={() => setChatInput("Qual vinho combina com comida japonesa?")}
+                  >
+                    Culinária
+                  </Badge>
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-wine-50"
+                    onClick={() => setChatInput("Como identificar um vinho de qualidade?")}
+                  >
+                    Qualidade
                   </Badge>
                 </div>
               </div>
