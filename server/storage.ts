@@ -1,18 +1,63 @@
-import { 
-  type Client, type InsertClient, type Deal, type InsertDeal, type DealWithClient,
-  type Company, type InsertCompany,
-  type User, type InsertUser, type SalesFunnel, type InsertSalesFunnel,
-  type FunnelStage, type InsertFunnelStage, type SalesFunnelWithStages,
-  type BirthdayReminder, type InsertBirthdayReminder, type BirthdayReminderWithClient,
-  type BirthdayReminderSettings, type InsertBirthdayReminderSettings,
-  type Tag, type InsertTag, type ClientInteraction, type InsertClientInteraction,
-  type ClientInteractionWithUser, type Sector, type InsertSector,
-  type WeeklyResult, type EmailCampaign, type UserGoal,
-  type LearningImage, type InsertLearningImage,
-  clients, deals, companies, users, salesFunnels, funnelStages, birthdayReminders, birthdayReminderSettings, tags, clientInteractions, emailCampaigns, sectors, userGoals, weeklyResults, learningImages
+import {
+  type Client,
+  type InsertClient,
+  type Deal,
+  type InsertDeal,
+  type DealWithClient,
+  type Company,
+  type InsertCompany,
+  type User,
+  type InsertUser,
+  type SalesFunnel,
+  type InsertSalesFunnel,
+  type FunnelStage,
+  type InsertFunnelStage,
+  type SalesFunnelWithStages,
+  type BirthdayReminder,
+  type InsertBirthdayReminder,
+  type BirthdayReminderWithClient,
+  type BirthdayReminderSettings,
+  type InsertBirthdayReminderSettings,
+  type Tag,
+  type InsertTag,
+  type ClientInteraction,
+  type InsertClientInteraction,
+  type ClientInteractionWithUser,
+  type Sector,
+  type InsertSector,
+  type WeeklyResult,
+  type EmailCampaign,
+  type UserGoal,
+  type LearningImage,
+  type InsertLearningImage,
+  clients,
+  deals,
+  companies,
+  users,
+  salesFunnels,
+  funnelStages,
+  birthdayReminders,
+  birthdayReminderSettings,
+  tags,
+  clientInteractions,
+  emailCampaigns,
+  sectors,
+  userGoals,
+  weeklyResults,
+  learningImages,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lt, isNotNull, sql, inArray, or, desc } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gte,
+  lt,
+  isNotNull,
+  sql,
+  inArray,
+  or,
+  desc,
+} from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -29,7 +74,10 @@ export interface IStorage {
   getClientByCpf(cpf: string): Promise<Client | undefined>;
   getClientByPhone(phone: string): Promise<Client | undefined>;
   createClient(client: InsertClient): Promise<Client>;
-  updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
+  updateClient(
+    id: string,
+    client: Partial<InsertClient>,
+  ): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
   deleteClients(ids: string[]): Promise<number>;
   getUniqueMarkers(): Promise<string[]>;
@@ -40,7 +88,10 @@ export interface IStorage {
   getCompanyByCnpj(cnpj: string): Promise<Company | undefined>;
   getCompanyByPhone(phone: string): Promise<Company | undefined>;
   createCompany(company: InsertCompany): Promise<Company>;
-  updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  updateCompany(
+    id: string,
+    company: Partial<InsertCompany>,
+  ): Promise<Company | undefined>;
   deleteCompany(id: string): Promise<boolean>;
   deleteCompanies(ids: string[]): Promise<number>;
 
@@ -48,25 +99,42 @@ export interface IStorage {
   getSectors(): Promise<Sector[]>;
   getSector(id: string): Promise<Sector | undefined>;
   createSector(sector: InsertSector): Promise<Sector>;
-  updateSector(id: string, sector: Partial<InsertSector>): Promise<Sector | undefined>;
+  updateSector(
+    id: string,
+    sector: Partial<InsertSector>,
+  ): Promise<Sector | undefined>;
   deleteSector(id: string): Promise<boolean>;
 
   // Sales Funnels
   getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
   getSalesFunnel(id: string): Promise<SalesFunnelWithStages | undefined>;
   createSalesFunnel(funnel: InsertSalesFunnel): Promise<SalesFunnel>;
-  updateSalesFunnel(id: string, funnel: Partial<InsertSalesFunnel>): Promise<SalesFunnel | undefined>;
+  updateSalesFunnel(
+    id: string,
+    funnel: Partial<InsertSalesFunnel>,
+  ): Promise<SalesFunnel | undefined>;
   deleteSalesFunnel(id: string): Promise<boolean>;
 
   // Funnel Stages
   getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
-  updateFunnelStage(id: string, stage: Partial<InsertFunnelStage>): Promise<FunnelStage | undefined>;
+  updateFunnelStage(
+    id: string,
+    stage: Partial<InsertFunnelStage>,
+  ): Promise<FunnelStage | undefined>;
   deleteFunnelStage(id: string): Promise<boolean>;
 
   // Deals
-  getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]>;
-  getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]>;
+  getDeals(
+    funnelId?: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Deal[]>;
+  getDealsWithClients(
+    funnelId?: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<DealWithClient[]>;
   getDeal(id: string): Promise<Deal | undefined>;
   createDeal(deal: InsertDeal): Promise<Deal>;
   updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
@@ -75,14 +143,21 @@ export interface IStorage {
   // Birthday Reminder methods
   getBirthdayReminders(): Promise<BirthdayReminderWithClient[]>;
   getBirthdayRemindersForToday(): Promise<BirthdayReminderWithClient[]>;
-  createBirthdayReminder(reminder: InsertBirthdayReminder): Promise<BirthdayReminder>;
-  updateBirthdayReminder(id: string, reminder: Partial<InsertBirthdayReminder>): Promise<BirthdayReminder | undefined>;
+  createBirthdayReminder(
+    reminder: InsertBirthdayReminder,
+  ): Promise<BirthdayReminder>;
+  updateBirthdayReminder(
+    id: string,
+    reminder: Partial<InsertBirthdayReminder>,
+  ): Promise<BirthdayReminder | undefined>;
   deleteBirthdayReminder(id: string): Promise<boolean>;
   markReminderAsSent(id: string): Promise<boolean>;
 
   // Birthday Reminder Settings methods
   getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined>;
-  updateBirthdayReminderSettings(settings: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined>;
+  updateBirthdayReminderSettings(
+    settings: Partial<InsertBirthdayReminderSettings>,
+  ): Promise<BirthdayReminderSettings | undefined>;
 
   // Birthday utility methods
   getUpcomingBirthdays(days?: number): Promise<Client[]>;
@@ -98,8 +173,13 @@ export interface IStorage {
   // Client Interactions methods
   getClientInteractions(clientId: string): Promise<ClientInteractionWithUser[]>;
   getClientInteraction(id: string): Promise<ClientInteraction | undefined>;
-  createClientInteraction(interaction: InsertClientInteraction): Promise<ClientInteraction>;
-  updateClientInteraction(id: string, interaction: Partial<InsertClientInteraction>): Promise<ClientInteraction | undefined>;
+  createClientInteraction(
+    interaction: InsertClientInteraction,
+  ): Promise<ClientInteraction>;
+  updateClientInteraction(
+    id: string,
+    interaction: Partial<InsertClientInteraction>,
+  ): Promise<ClientInteraction | undefined>;
   deleteClientInteraction(id: string): Promise<boolean>;
 
   // Email Campaign methods
@@ -108,7 +188,9 @@ export interface IStorage {
   createEmailCampaign(campaign: any): Promise<any>;
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
-  sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
+  sendEmailCampaign(
+    id: string,
+  ): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
 
   // User Goals methods
   getUserGoals(): Promise<any[]>;
@@ -123,15 +205,22 @@ export interface IStorage {
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   createWeeklyResult(result: any): Promise<any>;
   updateWeeklyResult(id: string, result: any): Promise<any>;
-  getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null>;
+  getUserGoalByUserIdMonthYear(
+    userId: string,
+    month: number,
+    year: number,
+  ): Promise<any | null>;
   getWeeklyResult(goalId: string, week: number): Promise<any | null>;
 
-    // Learning Images methods
-    getLearningImages(): Promise<LearningImage[]>;
-    getLearningImage(id: string): Promise<LearningImage | undefined>;
-    createLearningImage(image: InsertLearningImage): Promise<LearningImage>;
-    updateLearningImage(id: string, image: Partial<InsertLearningImage>): Promise<LearningImage | undefined>;
-    deleteLearningImage(id: string): Promise<boolean>;
+  // Learning Images methods
+  getLearningImages(): Promise<LearningImage[]>;
+  getLearningImage(id: string): Promise<LearningImage | undefined>;
+  createLearningImage(image: InsertLearningImage): Promise<LearningImage>;
+  updateLearningImage(
+    id: string,
+    image: Partial<InsertLearningImage>,
+  ): Promise<LearningImage | undefined>;
+  deleteLearningImage(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -154,21 +243,21 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     // Hash password before saving
     if (insertUser.password) {
-      const bcrypt = await import('bcrypt');
+      const bcrypt = await import("bcrypt");
       insertUser.password = await bcrypt.hash(insertUser.password, 10);
     }
 
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
-  async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(
+    id: string,
+    updateData: Partial<InsertUser>,
+  ): Promise<User | undefined> {
     // Hash password if provided
     if (updateData.password) {
-      const bcrypt = await import('bcrypt');
+      const bcrypt = await import("bcrypt");
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
@@ -190,7 +279,7 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(clients);
 
     // Se for vendedor, só mostra clientes onde ele é responsável
-    if (userRole === 'vendedor' && userId) {
+    if (userRole === "vendedor" && userId) {
       query = query.where(eq(clients.responsavelId, userId)) as typeof query;
     }
 
@@ -204,12 +293,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClientByCpf(cpf: string): Promise<Client | undefined> {
-    const [client] = await db.select().from(clients).where(eq(clients.cpf, cpf));
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.cpf, cpf));
     return client || undefined;
   }
 
   async getClientByPhone(phone: string): Promise<Client | undefined> {
-    const [client] = await db.select().from(clients).where(eq(clients.phone, phone));
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.phone, phone));
     return client || undefined;
   }
 
@@ -224,7 +319,10 @@ export class DatabaseStorage implements IStorage {
     return client;
   }
 
-  async updateClient(id: string, updateData: Partial<InsertClient>): Promise<Client | undefined> {
+  async updateClient(
+    id: string,
+    updateData: Partial<InsertClient>,
+  ): Promise<Client | undefined> {
     const [client] = await db
       .update(clients)
       .set(updateData)
@@ -254,7 +352,7 @@ export class DatabaseStorage implements IStorage {
 
       return result.rows.map((row: any) => row.marker);
     } catch (error) {
-      console.error('Erro ao buscar marcadores únicos:', error);
+      console.error("Erro ao buscar marcadores únicos:", error);
       return [];
     }
   }
@@ -263,7 +361,10 @@ export class DatabaseStorage implements IStorage {
   async getCompanies(userId?: string, userRole?: string): Promise<Company[]> {
     try {
       console.log("Executando query para buscar empresas...");
-      const result = await db.select().from(companies).orderBy(companies.createdAt);
+      const result = await db
+        .select()
+        .from(companies)
+        .orderBy(companies.createdAt);
       console.log("Query executada com sucesso, resultados:", result.length);
       return result.reverse();
     } catch (error) {
@@ -273,29 +374,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompany(id: string): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, id));
     return company || undefined;
   }
 
   async getCompanyByCnpj(cnpj: string): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.cnpj, cnpj));
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.cnpj, cnpj));
     return company || undefined;
   }
 
   async getCompanyByPhone(phone: string): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.phone, phone));
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.phone, phone));
     return company || undefined;
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
     const [company] = await db
       .insert(companies)
-      .values(insertCompany)
+      .values({
+        ...insertCompany,
+        sectorId: insertCompany.sectorId || null,
+        responsavelId: insertCompany.responsavelId || null,
+      })
       .returning();
     return company;
   }
 
-  async updateCompany(id: string, updateData: Partial<InsertCompany>): Promise<Company | undefined> {
+  async updateCompany(
+    id: string,
+    updateData: Partial<InsertCompany>,
+  ): Promise<Company | undefined> {
     const [company] = await db
       .update(companies)
       .set({ ...updateData, updatedAt: new Date() })
@@ -326,14 +443,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSector(insertSector: InsertSector): Promise<Sector> {
-    const [sector] = await db
-      .insert(sectors)
-      .values(insertSector)
-      .returning();
+    const [sector] = await db.insert(sectors).values(insertSector).returning();
     return sector;
   }
 
-  async updateSector(id: string, updateData: Partial<InsertSector>): Promise<Sector | undefined> {
+  async updateSector(
+    id: string,
+    updateData: Partial<InsertSector>,
+  ): Promise<Sector | undefined> {
     const [sector] = await db
       .update(sectors)
       .set(updateData)
@@ -349,15 +466,23 @@ export class DatabaseStorage implements IStorage {
 
   // Sales Funnel methods
   async getSalesFunnels(): Promise<SalesFunnelWithStages[]> {
-    const funnels = await db.select().from(salesFunnels).orderBy(salesFunnels.createdAt);
+    const funnels = await db
+      .select()
+      .from(salesFunnels)
+      .orderBy(salesFunnels.createdAt);
     const funnelsWithStages: SalesFunnelWithStages[] = [];
 
     for (const funnel of funnels) {
-      const stages = await db.select().from(funnelStages)
+      const stages = await db
+        .select()
+        .from(funnelStages)
         .where(eq(funnelStages.funnelId, funnel.id))
         .orderBy(funnelStages.order);
 
-      const [creator] = await db.select().from(users).where(eq(users.id, funnel.createdBy));
+      const [creator] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, funnel.createdBy));
 
       funnelsWithStages.push({
         ...funnel,
@@ -370,14 +495,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSalesFunnel(id: string): Promise<SalesFunnelWithStages | undefined> {
-    const [funnel] = await db.select().from(salesFunnels).where(eq(salesFunnels.id, id));
+    const [funnel] = await db
+      .select()
+      .from(salesFunnels)
+      .where(eq(salesFunnels.id, id));
     if (!funnel) return undefined;
 
-    const stages = await db.select().from(funnelStages)
+    const stages = await db
+      .select()
+      .from(funnelStages)
       .where(eq(funnelStages.funnelId, funnel.id))
       .orderBy(funnelStages.order);
 
-    const [creator] = await db.select().from(users).where(eq(users.id, funnel.createdBy));
+    const [creator] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, funnel.createdBy));
 
     return {
       ...funnel,
@@ -386,7 +519,9 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createSalesFunnel(insertFunnel: InsertSalesFunnel): Promise<SalesFunnel> {
+  async createSalesFunnel(
+    insertFunnel: InsertSalesFunnel,
+  ): Promise<SalesFunnel> {
     const [funnel] = await db
       .insert(salesFunnels)
       .values(insertFunnel)
@@ -394,7 +529,10 @@ export class DatabaseStorage implements IStorage {
     return funnel;
   }
 
-  async updateSalesFunnel(id: string, updateData: Partial<InsertSalesFunnel>): Promise<SalesFunnel | undefined> {
+  async updateSalesFunnel(
+    id: string,
+    updateData: Partial<InsertSalesFunnel>,
+  ): Promise<SalesFunnel | undefined> {
     const [funnel] = await db
       .update(salesFunnels)
       .set({ ...updateData, updatedAt: new Date() })
@@ -410,12 +548,16 @@ export class DatabaseStorage implements IStorage {
 
   // Funnel Stage methods
   async getFunnelStages(funnelId: string): Promise<FunnelStage[]> {
-    return await db.select().from(funnelStages)
+    return await db
+      .select()
+      .from(funnelStages)
       .where(eq(funnelStages.funnelId, funnelId))
       .orderBy(funnelStages.order);
   }
 
-  async createFunnelStage(insertStage: InsertFunnelStage): Promise<FunnelStage> {
+  async createFunnelStage(
+    insertStage: InsertFunnelStage,
+  ): Promise<FunnelStage> {
     const [stage] = await db
       .insert(funnelStages)
       .values(insertStage)
@@ -423,7 +565,10 @@ export class DatabaseStorage implements IStorage {
     return stage;
   }
 
-  async updateFunnelStage(id: string, updateData: Partial<InsertFunnelStage>): Promise<FunnelStage | undefined> {
+  async updateFunnelStage(
+    id: string,
+    updateData: Partial<InsertFunnelStage>,
+  ): Promise<FunnelStage | undefined> {
     const [stage] = await db
       .update(funnelStages)
       .set(updateData)
@@ -438,12 +583,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Deal methods
-  async getDeals(funnelId?: string, userId?: string, userRole?: string): Promise<Deal[]> {
+  async getDeals(
+    funnelId?: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Deal[]> {
     let query = db.select().from(deals);
 
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
-    if (userRole === 'vendedor' && userId) conditions.push(eq(deals.assignedTo, userId));
+    if (userRole === "vendedor" && userId)
+      conditions.push(eq(deals.assignedTo, userId));
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
@@ -453,17 +603,20 @@ export class DatabaseStorage implements IStorage {
     return result.reverse(); // Most recent first
   }
 
-  async getDealsWithClients(funnelId?: string, userId?: string, userRole?: string): Promise<DealWithClient[]> {
+  async getDealsWithClients(
+    funnelId?: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<DealWithClient[]> {
     const dealsWithClients: DealWithClient[] = [];
     let dealsResult;
 
-    if (userRole === 'vendedor' && userId) {
+    if (userRole === "vendedor" && userId) {
       // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
-      dealsResult = await db.select().from(deals)
-        .where(or(
-          eq(deals.createdBy, userId),
-          eq(deals.assignedTo, userId)
-        ))
+      dealsResult = await db
+        .select()
+        .from(deals)
+        .where(or(eq(deals.createdBy, userId), eq(deals.assignedTo, userId)))
         .orderBy(deals.createdAt);
     } else {
       // Admins e gerentes veem todos os deals
@@ -471,7 +624,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     for (const deal of dealsResult) {
-      const [client] = await db.select().from(clients).where(eq(clients.id, deal.clientId));
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, deal.clientId));
       if (client) {
         dealsWithClients.push({
           ...deal,
@@ -489,14 +645,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
-    const [deal] = await db
-      .insert(deals)
-      .values(insertDeal)
-      .returning();
+    const [deal] = await db.insert(deals).values(insertDeal).returning();
     return deal;
   }
 
-  async updateDeal(id: string, updateData: Partial<InsertDeal>): Promise<Deal | undefined> {
+  async updateDeal(
+    id: string,
+    updateData: Partial<InsertDeal>,
+  ): Promise<Deal | undefined> {
     const [deal] = await db
       .update(deals)
       .set(updateData)
@@ -520,8 +676,14 @@ export class DatabaseStorage implements IStorage {
     const remindersWithClients: BirthdayReminderWithClient[] = [];
 
     for (const reminder of reminders) {
-      const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
-      const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, reminder.clientId));
+      const [creator] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, reminder.createdBy));
 
       if (client && creator) {
         remindersWithClients.push({
@@ -548,15 +710,21 @@ export class DatabaseStorage implements IStorage {
         and(
           gte(birthdayReminders.reminderDate, today),
           lt(birthdayReminders.reminderDate, tomorrow),
-          eq(birthdayReminders.isSent, "false")
-        )
+          eq(birthdayReminders.isSent, "false"),
+        ),
       );
 
     const remindersWithClients: BirthdayReminderWithClient[] = [];
 
     for (const reminder of reminders) {
-      const [client] = await db.select().from(clients).where(eq(clients.id, reminder.clientId));
-      const [creator] = await db.select().from(users).where(eq(users.id, reminder.createdBy));
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, reminder.clientId));
+      const [creator] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, reminder.createdBy));
 
       if (client && creator) {
         remindersWithClients.push({
@@ -570,7 +738,9 @@ export class DatabaseStorage implements IStorage {
     return remindersWithClients;
   }
 
-  async createBirthdayReminder(insertReminder: InsertBirthdayReminder): Promise<BirthdayReminder> {
+  async createBirthdayReminder(
+    insertReminder: InsertBirthdayReminder,
+  ): Promise<BirthdayReminder> {
     const [reminder] = await db
       .insert(birthdayReminders)
       .values(insertReminder)
@@ -578,7 +748,10 @@ export class DatabaseStorage implements IStorage {
     return reminder;
   }
 
-  async updateBirthdayReminder(id: string, updateData: Partial<InsertBirthdayReminder>): Promise<BirthdayReminder | undefined> {
+  async updateBirthdayReminder(
+    id: string,
+    updateData: Partial<InsertBirthdayReminder>,
+  ): Promise<BirthdayReminder | undefined> {
     const [reminder] = await db
       .update(birthdayReminders)
       .set({ ...updateData, updatedAt: new Date() })
@@ -588,17 +761,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBirthdayReminder(id: string): Promise<boolean> {
-    const result = await db.delete(birthdayReminders).where(eq(birthdayReminders.id, id));
+    const result = await db
+      .delete(birthdayReminders)
+      .where(eq(birthdayReminders.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   async markReminderAsSent(id: string): Promise<boolean> {
     const [reminder] = await db
       .update(birthdayReminders)
-      .set({ 
-        isSent: "true", 
+      .set({
+        isSent: "true",
         sentAt: new Date(),
-        updatedAt: new Date() 
+        updatedAt: new Date(),
       })
       .where(eq(birthdayReminders.id, id))
       .returning();
@@ -606,12 +781,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Birthday Reminder Settings methods
-  async getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined> {
-    const [settings] = await db.select().from(birthdayReminderSettings).limit(1);
+  async getBirthdayReminderSettings(): Promise<
+    BirthdayReminderSettings | undefined
+  > {
+    const [settings] = await db
+      .select()
+      .from(birthdayReminderSettings)
+      .limit(1);
     return settings || undefined;
   }
 
-  async updateBirthdayReminderSettings(updateData: Partial<InsertBirthdayReminderSettings>): Promise<BirthdayReminderSettings | undefined> {
+  async updateBirthdayReminderSettings(
+    updateData: Partial<InsertBirthdayReminderSettings>,
+  ): Promise<BirthdayReminderSettings | undefined> {
     const existingSettings = await this.getBirthdayReminderSettings();
 
     if (existingSettings) {
@@ -635,12 +817,19 @@ export class DatabaseStorage implements IStorage {
     const today = new Date();
     const upcomingClients: Client[] = [];
 
-    const allClients = await db.select().from(clients).where(isNotNull(clients.birthday));
+    const allClients = await db
+      .select()
+      .from(clients)
+      .where(isNotNull(clients.birthday));
 
     for (const client of allClients) {
       if (client.birthday) {
         const birthday = new Date(client.birthday);
-        const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+        const thisYearBirthday = new Date(
+          today.getFullYear(),
+          birthday.getMonth(),
+          birthday.getDate(),
+        );
 
         // Se o aniversário já passou este ano, considere o do próximo ano
         if (thisYearBirthday < today) {
@@ -659,8 +848,16 @@ export class DatabaseStorage implements IStorage {
     return upcomingClients.sort((a, b) => {
       const aBirthday = new Date(a.birthday!);
       const bBirthday = new Date(b.birthday!);
-      const aThisYear = new Date(today.getFullYear(), aBirthday.getMonth(), aBirthday.getDate());
-      const bThisYear = new Date(today.getFullYear(), bBirthday.getMonth(), bBirthday.getDate());
+      const aThisYear = new Date(
+        today.getFullYear(),
+        aBirthday.getMonth(),
+        aBirthday.getDate(),
+      );
+      const bThisYear = new Date(
+        today.getFullYear(),
+        bBirthday.getMonth(),
+        bBirthday.getDate(),
+      );
 
       if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
       if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
@@ -675,7 +872,9 @@ export class DatabaseStorage implements IStorage {
       return 0;
     }
 
-    const upcomingClients = await this.getUpcomingBirthdays(settings.defaultDaysBeforeBirthday);
+    const upcomingClients = await this.getUpcomingBirthdays(
+      settings.defaultDaysBeforeBirthday,
+    );
     let remindersCreated = 0;
 
     for (const client of upcomingClients) {
@@ -683,14 +882,20 @@ export class DatabaseStorage implements IStorage {
 
       const birthday = new Date(client.birthday);
       const today = new Date();
-      const thisYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+      const thisYearBirthday = new Date(
+        today.getFullYear(),
+        birthday.getMonth(),
+        birthday.getDate(),
+      );
 
       if (thisYearBirthday < today) {
         thisYearBirthday.setFullYear(today.getFullYear() + 1);
       }
 
       const reminderDate = new Date(thisYearBirthday);
-      reminderDate.setDate(reminderDate.getDate() - settings.defaultDaysBeforeBirthday);
+      reminderDate.setDate(
+        reminderDate.getDate() - settings.defaultDaysBeforeBirthday,
+      );
 
       // Verificar se já existe um lembrete para este cliente nesta data
       const existingReminder = await db
@@ -700,8 +905,11 @@ export class DatabaseStorage implements IStorage {
           and(
             eq(birthdayReminders.clientId, client.id),
             gte(birthdayReminders.reminderDate, reminderDate),
-            lt(birthdayReminders.reminderDate, new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000))
-          )
+            lt(
+              birthdayReminders.reminderDate,
+              new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000),
+            ),
+          ),
         )
         .limit(1);
 
@@ -747,14 +955,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTag(insertTag: InsertTag): Promise<Tag> {
-    const [tag] = await db
-      .insert(tags)
-      .values(insertTag)
-      .returning();
+    const [tag] = await db.insert(tags).values(insertTag).returning();
     return tag;
   }
 
-  async updateTag(id: string, updateData: Partial<InsertTag>): Promise<Tag | undefined> {
+  async updateTag(
+    id: string,
+    updateData: Partial<InsertTag>,
+  ): Promise<Tag | undefined> {
     try {
       const [tag] = await db
         .update(tags)
@@ -774,7 +982,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Interactions methods
-  async getClientInteractions(clientId: string): Promise<ClientInteractionWithUser[]> {
+  async getClientInteractions(
+    clientId: string,
+  ): Promise<ClientInteractionWithUser[]> {
     const interactions = await db
       .select({
         id: clientInteractions.id,
@@ -801,18 +1011,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(clientInteractions.clientId, clientId))
       .orderBy(clientInteractions.date);
 
-    return interactions.map(interaction => ({
+    return interactions.map((interaction) => ({
       ...interaction,
       user: interaction.user as User,
     })) as ClientInteractionWithUser[];
   }
 
-  async getClientInteraction(id: string): Promise<ClientInteraction | undefined> {
-    const [interaction] = await db.select().from(clientInteractions).where(eq(clientInteractions.id, id));
+  async getClientInteraction(
+    id: string,
+  ): Promise<ClientInteraction | undefined> {
+    const [interaction] = await db
+      .select()
+      .from(clientInteractions)
+      .where(eq(clientInteractions.id, id));
     return interaction || undefined;
   }
 
-  async createClientInteraction(insertInteraction: InsertClientInteraction): Promise<ClientInteraction> {
+  async createClientInteraction(
+    insertInteraction: InsertClientInteraction,
+  ): Promise<ClientInteraction> {
     const [interaction] = await db
       .insert(clientInteractions)
       .values(insertInteraction)
@@ -820,7 +1037,10 @@ export class DatabaseStorage implements IStorage {
     return interaction;
   }
 
-  async updateClientInteraction(id: string, updateData: Partial<InsertClientInteraction>): Promise<ClientInteraction | undefined> {
+  async updateClientInteraction(
+    id: string,
+    updateData: Partial<InsertClientInteraction>,
+  ): Promise<ClientInteraction | undefined> {
     const [interaction] = await db
       .update(clientInteractions)
       .set({ ...updateData, updatedAt: new Date() })
@@ -830,7 +1050,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClientInteraction(id: string): Promise<boolean> {
-    const result = await db.delete(clientInteractions).where(eq(clientInteractions.id, id));
+    const result = await db
+      .delete(clientInteractions)
+      .where(eq(clientInteractions.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
@@ -897,7 +1119,10 @@ export class DatabaseStorage implements IStorage {
     return campaign;
   }
 
-  async updateEmailCampaign(id: string, updateData: any): Promise<any | undefined> {
+  async updateEmailCampaign(
+    id: string,
+    updateData: any,
+  ): Promise<any | undefined> {
     const [campaign] = await db
       .update(emailCampaigns)
       .set({ ...updateData, updatedAt: new Date() })
@@ -907,15 +1132,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEmailCampaign(id: string): Promise<boolean> {
-    const result = await db.delete(emailCampaigns).where(eq(emailCampaigns.id, id));
+    const result = await db
+      .delete(emailCampaigns)
+      .where(eq(emailCampaigns.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
-  async sendEmailCampaign(id: string): Promise<{ success: boolean; sentCount: number; errors: string[] }> {
+  async sendEmailCampaign(
+    id: string,
+  ): Promise<{ success: boolean; sentCount: number; errors: string[] }> {
     // Simula o envio de email (sem SendGrid)
     const campaign = await this.getEmailCampaign(id);
     if (!campaign) {
-      return { success: false, sentCount: 0, errors: ["Campanha não encontrada"] };
+      return {
+        success: false,
+        sentCount: 0,
+        errors: ["Campanha não encontrada"],
+      };
     }
 
     // Buscar destinatários baseado no targetType
@@ -924,17 +1157,25 @@ export class DatabaseStorage implements IStorage {
     if (campaign.targetType === "all") {
       recipients = await this.getClients();
     } else if (campaign.targetType === "category" && campaign.targetCriteria) {
-      recipients = (await this.getClients()).filter(c => c.categoria === campaign.targetCriteria);
+      recipients = (await this.getClients()).filter(
+        (c) => c.categoria === campaign.targetCriteria,
+      );
     } else if (campaign.targetType === "origin" && campaign.targetCriteria) {
-      recipients = (await this.getClients()).filter(c => c.origem === campaign.targetCriteria);
+      recipients = (await this.getClients()).filter(
+        (c) => c.origem === campaign.targetCriteria,
+      );
     } else if (campaign.targetType === "markers" && campaign.targetCriteria) {
-      recipients = (await this.getClients()).filter(c => 
-        c.markers && c.markers.some(m => m.includes(campaign.targetCriteria))
+      recipients = (await this.getClients()).filter(
+        (c) =>
+          c.markers &&
+          c.markers.some((m) => m.includes(campaign.targetCriteria)),
       );
     }
 
     // Filtrar apenas clientes com email
-    const recipientsWithEmail = recipients.filter(c => c.email && c.email.trim() !== "");
+    const recipientsWithEmail = recipients.filter(
+      (c) => c.email && c.email.trim() !== "",
+    );
     const sentCount = recipientsWithEmail.length;
 
     // Atualizar campanha com dados do envio
@@ -942,13 +1183,13 @@ export class DatabaseStorage implements IStorage {
       status: "sent",
       sentAt: new Date(),
       totalRecipients: sentCount,
-      sentCount: sentCount
+      sentCount: sentCount,
     });
 
     return {
       success: true,
       sentCount: sentCount,
-      errors: []
+      errors: [],
     };
   }
 
@@ -1007,10 +1248,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserGoal(goal: any): Promise<any> {
-    const [result] = await db
-      .insert(userGoals)
-      .values(goal)
-      .returning();
+    const [result] = await db.insert(userGoals).values(goal).returning();
 
     return result;
   }
@@ -1046,10 +1284,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(userGoals)
       .leftJoin(users, eq(userGoals.userId, users.id))
-      .where(and(
-        eq(userGoals.month, month),
-        eq(userGoals.year, year)
-      ))
+      .where(and(eq(userGoals.month, month), eq(userGoals.year, year)))
       .orderBy(users.name);
 
     return result;
@@ -1085,15 +1320,21 @@ export class DatabaseStorage implements IStorage {
     return updatedResult;
   }
 
-  async getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null> {
+  async getUserGoalByUserIdMonthYear(
+    userId: string,
+    month: number,
+    year: number,
+  ): Promise<any | null> {
     const [result] = await db
       .select()
       .from(userGoals)
-      .where(and(
-        eq(userGoals.userId, userId),
-        eq(userGoals.month, month),
-        eq(userGoals.year, year)
-      ));
+      .where(
+        and(
+          eq(userGoals.userId, userId),
+          eq(userGoals.month, month),
+          eq(userGoals.year, year),
+        ),
+      );
 
     return result || null;
   }
@@ -1102,46 +1343,58 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db
       .select()
       .from(weeklyResults)
-      .where(and(
-        eq(weeklyResults.goalId, goalId),
-        eq(weeklyResults.week, week)
-      ));
+      .where(
+        and(eq(weeklyResults.goalId, goalId), eq(weeklyResults.week, week)),
+      );
 
     return result || null;
   }
 
-    // Learning Images methods
-    async getLearningImages(): Promise<LearningImage[]> {
-        const result = await db.select().from(learningImages).orderBy(learningImages.createdAt);
-        return result.reverse();
-    }
+  // Learning Images methods
+  async getLearningImages(): Promise<LearningImage[]> {
+    const result = await db
+      .select()
+      .from(learningImages)
+      .orderBy(learningImages.createdAt);
+    return result.reverse();
+  }
 
-    async getLearningImage(id: string): Promise<LearningImage | undefined> {
-        const [image] = await db.select().from(learningImages).where(eq(learningImages.id, id));
-        return image || undefined;
-    }
+  async getLearningImage(id: string): Promise<LearningImage | undefined> {
+    const [image] = await db
+      .select()
+      .from(learningImages)
+      .where(eq(learningImages.id, id));
+    return image || undefined;
+  }
 
-    async createLearningImage(insertImage: InsertLearningImage): Promise<LearningImage> {
-        const [image] = await db
-            .insert(learningImages)
-            .values(insertImage)
-            .returning();
-        return image;
-    }
+  async createLearningImage(
+    insertImage: InsertLearningImage,
+  ): Promise<LearningImage> {
+    const [image] = await db
+      .insert(learningImages)
+      .values(insertImage)
+      .returning();
+    return image;
+  }
 
-    async updateLearningImage(id: string, updateData: Partial<InsertLearningImage>): Promise<LearningImage | undefined> {
-        const [image] = await db
-            .update(learningImages)
-            .set({ ...updateData, updatedAt: new Date() })
-            .where(eq(learningImages.id, id))
-            .returning();
-        return image || undefined;
-    }
+  async updateLearningImage(
+    id: string,
+    updateData: Partial<InsertLearningImage>,
+  ): Promise<LearningImage | undefined> {
+    const [image] = await db
+      .update(learningImages)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(learningImages.id, id))
+      .returning();
+    return image || undefined;
+  }
 
-    async deleteLearningImage(id: string): Promise<boolean> {
-        const result = await db.delete(learningImages).where(eq(learningImages.id, id));
-        return result.rowCount !== null && result.rowCount > 0;
-    }
+  async deleteLearningImage(id: string): Promise<boolean> {
+    const result = await db
+      .delete(learningImages)
+      .where(eq(learningImages.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
 
   async getUserRegistrationStats(): Promise<any[]> {
     const clientStats = await db
@@ -1149,7 +1402,9 @@ export class DatabaseStorage implements IStorage {
         userId: clients.responsavelId,
         userName: users.name,
         userEmail: users.email,
-        registrationCount: sql<number>`count(${clients.id})`.as('registrationCount'),
+        registrationCount: sql<number>`count(${clients.id})`.as(
+          "registrationCount",
+        ),
       })
       .from(clients)
       .leftJoin(users, eq(clients.responsavelId, users.id))
