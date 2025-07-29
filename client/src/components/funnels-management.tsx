@@ -267,7 +267,10 @@ export default function FunnelsManagement() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {(funnels as SalesFunnel[])?.map((funnel: SalesFunnel) => (
-          <Card key={funnel.id} className="hover:shadow-lg flex flex-col transition-shadow">
+          <Card
+            key={funnel.id}
+            className="hover:shadow-lg flex flex-col transition-shadow"
+          >
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -285,7 +288,7 @@ export default function FunnelsManagement() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 flex">
-              <div  className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex-1">
                   <p className="text-sm text-gray-600 mb-2">
                     Estágios ({funnel.stages?.length || 0}):
