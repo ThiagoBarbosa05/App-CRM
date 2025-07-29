@@ -1,16 +1,27 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Download } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
+  Download,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 interface ClientImportModalProps {
   open: boolean;
@@ -23,15 +34,20 @@ interface ImportResult {
   total: number;
 }
 
-export default function ClientImportModal({ open, onOpenChange }: ClientImportModalProps) {
+export default function ClientImportModal({
+  open,
+  onOpenChange,
+}: ClientImportModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [file, setFile] = useState<File | null>(null);
   const [importData, setImportData] = useState<any[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'result'>('upload');
+  const [step, setStep] = useState<
+    "upload" | "preview" | "importing" | "result"
+  >("upload");
   const [progress, setProgress] = useState(0);
 
   const processFileMutation = useMutation({
@@ -41,7 +57,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
         reader.onload = (e) => {
           try {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, { type: "array" });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
@@ -56,12 +72,13 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
     },
     onSuccess: (data: any) => {
       setImportData(data);
-      setStep('preview');
+      setStep("preview");
     },
     onError: () => {
       toast({
         title: "Erro",
-        description: "Falha ao processar o arquivo. Verifique se é um arquivo Excel válido.",
+        description:
+          "Falha ao processar o arquivo. Verifique se é um arquivo Excel válido.",
         variant: "destructive",
       });
     },
@@ -72,7 +89,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
       const results: ImportResult = {
         success: 0,
         errors: [],
-        total: clients.length
+        total: clients.length,
       };
 
       for (let i = 0; i < clients.length; i++) {
@@ -82,31 +99,41 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
         try {
           // Mapear campos do Excel para formato esperado
           const clientData = {
-            name: client.Nome || client.name || '',
-            phone: client.Telefone || client.phone || '',
-            cpf: client.CPF || client.cpf || '',
+            name: client.Nome || client.name || "",
+            phone: client.Telefone || client.phone || "",
+            cpf: client.CPF || client.cpf || "",
             email: client.Email || client.email || null,
-            birthday: client.Aniversario || client.birthday || '01/01/1990',
-            cep: client.CEP || client.cep || '00000-000',
-            address: client.Endereco || client.address || 'Não informado',
-            number: client.Numero || client.number || 'S/N',
-            neighborhood: client.Bairro || client.neighborhood || 'Não informado',
-            city: client.Cidade || client.city || 'Não informado',
-            state: client.Estado || client.state || 'SP',
-            categoria: client.Categoria || client.categoria || 'Regular',
-            origem: client.Origem || client.origem || 'Importação',
-            markers: client.Marcadores ? 
-              (Array.isArray(client.Marcadores) ? client.Marcadores : [client.Marcadores.toString()]) : 
-              [],
-            responsible: client.Responsavel || client.responsible || 'Sistema',
+            birthday: 
+              client.Aniversario.toString() ||
+              client.birthday.toString() ||
+              "01/01/1990",
+            cep: client.CEP || client.cep || "00000-000",
+            address: client.Endereco || client.address || "Não informado",
+            number: client.Numero || client.number || "S/N",
+            neighborhood:
+              client.Bairro || client.neighborhood || "Não informado",
+            city: client.Cidade || client.city || "Não informado",
+            state: client.Estado || client.state || "SP",
+            categoria: client.Categoria || client.categoria || "Regular",
+            origem: client.Origem || client.origem || "Importação",
+            markers: client.Marcadores
+              ? Array.isArray(client.Marcadores)
+                ? client.Marcadores
+                : [client.Marcadores.toString()]
+              : [],
+            responsible: client.Responsavel || client.responsible || "Sistema",
           };
 
           // Validações básicas
-          if (!clientData.name?.trim() || !clientData.phone?.trim() || !clientData.cpf?.trim()) {
+          if (
+            !clientData.name?.trim() ||
+            !clientData.phone?.trim() ||
+            !clientData.cpf?.trim()
+          ) {
             results.errors.push({
               row: i + 2, // +2 porque Excel começa em 1 e tem cabeçalho
               error: "Campos obrigatórios faltando: Nome, Telefone ou CPF",
-              data: client
+              data: client,
             });
             continue;
           }
@@ -121,23 +148,23 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
           results.success++;
         } catch (error: any) {
           let errorMessage = "Erro desconhecido";
-          
+
           if (error.message) {
             if (error.message.includes("CPF já cadastrado")) {
-              errorMessage = `CPF ${client.CPF || client.cpf || 'não informado'} já existe no sistema`;
+              errorMessage = `CPF ${client.CPF || client.cpf || "não informado"} já existe no sistema`;
             } else if (error.message.includes("Telefone já cadastrado")) {
-              errorMessage = `Telefone ${client.Telefone || client.phone || 'não informado'} já existe no sistema`;
+              errorMessage = `Telefone ${client.Telefone || client.phone || "não informado"} já existe no sistema`;
             } else if (error.message.includes("400:")) {
               errorMessage = error.message.replace("400: ", "");
             } else {
               errorMessage = error.message;
             }
           }
-          
+
           results.errors.push({
             row: i + 2,
             error: errorMessage,
-            data: client
+            data: client,
           });
         }
       }
@@ -146,13 +173,13 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
     },
     onSuccess: (result) => {
       setImportResult(result);
-      setStep('result');
+      setStep("result");
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      
+
       if (result.success > 0) {
         toast({
           title: "Importação concluída",
-          description: `${result.success} clientes importados com sucesso${result.errors.length > 0 ? ` (${result.errors.length} com erro)` : ''}`,
+          description: `${result.success} clientes importados com sucesso${result.errors.length > 0 ? ` (${result.errors.length} com erro)` : ""}`,
         });
       }
     },
@@ -162,7 +189,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
         description: "Falha na importação dos clientes",
         variant: "destructive",
       });
-      setStep('preview');
+      setStep("preview");
     },
   });
 
@@ -180,7 +207,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
   };
 
   const handleImport = () => {
-    setStep('importing');
+    setStep("importing");
     setProgress(0);
     importClientsMutation.mutate(importData);
   };
@@ -189,7 +216,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
     setFile(null);
     setImportData([]);
     setImportResult(null);
-    setStep('upload');
+    setStep("upload");
     setProgress(0);
     onOpenChange(false);
   };
@@ -211,8 +238,8 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
         Categoria: "Premium",
         Origem: "Site",
         Marcadores: "VIP",
-        Responsavel: "admin@vinocrm.com"
-      }
+        Responsavel: "admin@vinocrm.com",
+      },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -231,13 +258,18 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'upload' && (
+        {step === "upload" && (
           <div className="space-y-4">
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Faça upload de um arquivo Excel (.xlsx) com os dados dos clientes. 
-                <Button variant="link" onClick={downloadTemplate} className="p-0 h-auto ml-1">
+                Faça upload de um arquivo Excel (.xlsx) com os dados dos
+                clientes.
+                <Button
+                  variant="link"
+                  onClick={downloadTemplate}
+                  className="p-0 h-auto ml-1"
+                >
                   Baixar modelo
                 </Button>
               </AlertDescription>
@@ -274,22 +306,25 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
               <Button variant="outline" onClick={handleClose}>
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleUpload} 
+              <Button
+                onClick={handleUpload}
                 disabled={!file || processFileMutation.isPending}
               >
-                {processFileMutation.isPending ? "Processando..." : "Processar Arquivo"}
+                {processFileMutation.isPending
+                  ? "Processando..."
+                  : "Processar Arquivo"}
               </Button>
             </div>
           </div>
         )}
 
-        {step === 'preview' && (
+        {step === "preview" && (
           <div className="space-y-4">
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                {importData.length} registros encontrados. Revise os dados antes de importar.
+                {importData.length} registros encontrados. Revise os dados antes
+                de importar.
               </AlertDescription>
             </Alert>
 
@@ -307,11 +342,21 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
                 <tbody>
                   {importData.slice(0, 10).map((client, index) => (
                     <tr key={index} className="border-t">
-                      <td className="px-3 py-2">{client.Nome || client.name || 'N/A'}</td>
-                      <td className="px-3 py-2">{client.Telefone || client.phone || 'N/A'}</td>
-                      <td className="px-3 py-2">{client.CPF || client.cpf || 'N/A'}</td>
-                      <td className="px-3 py-2">{client.Email || client.email || 'N/A'}</td>
-                      <td className="px-3 py-2">{client.Categoria || client.categoria || 'Regular'}</td>
+                      <td className="px-3 py-2">
+                        {client.Nome || client.name || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {client.Telefone || client.phone || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {client.CPF || client.cpf || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {client.Email || client.email || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {client.Categoria || client.categoria || "Regular"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -324,7 +369,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setStep('upload')}>
+              <Button variant="outline" onClick={() => setStep("upload")}>
                 Voltar
               </Button>
               <Button onClick={handleImport}>
@@ -334,23 +379,25 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
           </div>
         )}
 
-        {step === 'importing' && (
+        {step === "importing" && (
           <div className="space-y-4">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <h3 className="text-lg font-medium">Importando clientes...</h3>
-              <p className="text-gray-500">Processando {importData.length} registros</p>
+              <p className="text-gray-500">
+                Processando {importData.length} registros
+              </p>
             </div>
-            
+
             <Progress value={progress} className="w-full" />
-            
+
             <p className="text-center text-sm text-gray-500">
               {Math.round(progress)}% concluído
             </p>
           </div>
         )}
 
-        {step === 'result' && importResult && (
+        {step === "result" && importResult && (
           <div className="space-y-4">
             <div className="text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -360,19 +407,25 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
             <div className="grid grid-cols-3 gap-4 text-center">
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-600">{importResult.success}</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {importResult.success}
+                  </div>
                   <p className="text-sm text-gray-500">Sucessos</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-red-600">{importResult.errors.length}</div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {importResult.errors.length}
+                  </div>
                   <p className="text-sm text-gray-500">Erros</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-blue-600">{importResult.total}</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {importResult.total}
+                  </div>
                   <p className="text-sm text-gray-500">Total</p>
                 </CardContent>
               </Card>
@@ -395,9 +448,7 @@ export default function ClientImportModal({ open, onOpenChange }: ClientImportMo
             )}
 
             <div className="flex justify-end">
-              <Button onClick={handleClose}>
-                Fechar
-              </Button>
+              <Button onClick={handleClose}>Fechar</Button>
             </div>
           </div>
         )}
