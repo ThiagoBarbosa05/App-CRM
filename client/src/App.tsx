@@ -40,7 +40,7 @@ function Router() {
       <Route path="/empresas" component={Companies} />
       <Route path="/funil" component={Funnel} />
 
-      <Route path="/reports" component={Reports} />
+      <Route path="/relatorios" component={Reports} />
       <Route path="/calendario" component={Calendar} />
       <Route path="/metas" component={Metas} />
       <Route path="/admin-metas" component={AdminGoals} />
