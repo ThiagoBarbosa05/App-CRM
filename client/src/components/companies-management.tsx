@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Search, Edit2, Trash2, Trash } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
@@ -21,6 +23,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -42,6 +45,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+      setSelectedCompanies([]);
       toast({
         title: "Empresa excluída",
         description: "A empresa foi excluída com sucesso.",
@@ -51,6 +55,35 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao excluir a empresa.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await fetch(`/api/companies`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) throw new Error("Failed to delete companies");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+      setSelectedCompanies([]);
+      toast({
+        title: "Empresas excluídas",
+        description: `${data.deletedCount} empresa(s) excluída(s) com sucesso.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir as empresas.",
         variant: "destructive",
       });
     },
@@ -95,6 +128,33 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     setIsModalOpen(true);
   };
 
+  const handleSelectCompany = (companyId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCompanies(prev => [...prev, companyId]);
+    } else {
+      setSelectedCompanies(prev => prev.filter(id => id !== companyId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedCompanies(filteredCompanies.map((company: Company) => company.id));
+    } else {
+      setSelectedCompanies([]);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedCompanies.length === 0) return;
+    
+    const count = selectedCompanies.length;
+    const message = count === 1 ? "esta empresa" : `estas ${count} empresas`;
+    
+    if (confirm(`Tem certeza que deseja excluir ${message}?`)) {
+      bulkDeleteMutation.mutate(selectedCompanies);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -103,14 +163,27 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           Gerencie as empresas cadastradas no sistema
         </CardDescription>
         <div className="flex items-center justify-between">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por Nome Fantasia, Razão Social ou CNPJ..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
-            />
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por Nome Fantasia, Razão Social ou CNPJ..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            {selectedCompanies.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Excluir Selecionadas ({selectedCompanies.length})
+              </Button>
+            )}
           </div>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -127,6 +200,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedCompanies.length === filteredCompanies.length && filteredCompanies.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Nome Fantasia</TableHead>
                 <TableHead>Razão Social</TableHead>
                 <TableHead>CNPJ</TableHead>
@@ -139,7 +218,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             <TableBody>
               {filteredCompanies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <p className="text-muted-foreground">
                       {searchQuery
                         ? "Nenhuma empresa encontrada com os critérios de busca."
@@ -150,6 +229,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               ) : (
                 filteredCompanies.map((company: Company) => (
                   <TableRow key={company.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedCompanies.includes(company.id)}
+                        onCheckedChange={(checked) => handleSelectCompany(company.id, checked as boolean)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <button 
                         onClick={() => handleCompanyClick(company)}
@@ -160,7 +245,24 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                     </TableCell>
                     <TableCell>{company.razaoSocial}</TableCell>
                     <TableCell>{company.cnpj || "-"}</TableCell>
-                    <TableCell>{company.phone || "-"}</TableCell>
+                    <TableCell>
+                      {company.phone ? (
+                        <div className="flex items-center gap-2">
+                          <span>{company.phone}</span>
+                          <a
+                            href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-700 transition-colors"
+                            title="Abrir no WhatsApp"
+                          >
+                            <FaWhatsapp className="h-4 w-4" />
+                          </a>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
                     <TableCell>{company.email || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={company.active ? "default" : "secondary"}>

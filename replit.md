@@ -58,7 +58,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Data Flow
 
-### Recent Updates (July 28, 2025)
+### Recent Updates (July 28-29, 2025)
 - Fixed Calendar icon import error that was preventing app startup
 - Corrected component type errors in deal forms and kanban boards  
 - Fixed data type issues with array handling and date formatting
@@ -80,6 +80,12 @@ Preferred communication style: Simple, everyday language.
 - Made "GRAND CRU" logo clickable to return to main clients page
 - Fixed popup appearance issues by forcing light theme on all modal components
 - Improved CSS with custom scrollbar styling and proper component theming
+- Converted all tabs into separate dedicated pages for better navigation
+- Created comprehensive company details modal accessible by clicking company names
+- Added WhatsApp integration with clickable icons next to phone numbers
+- Implemented company selection and bulk deletion functionality
+- Added phone column to company table with WhatsApp integration
+- Fixed Select component errors in company registration form
 
 ### Client Flow
 1. User creates/edits client through modal forms
