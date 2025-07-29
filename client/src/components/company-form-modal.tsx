@@ -89,7 +89,7 @@ export default function CompanyFormModal({
       state: "",
       website: "",
       sectorId: "",
-      responsavelId: "",
+      responsavelId: "none",
       notes: "",
       active: true,
     },
@@ -112,7 +112,7 @@ export default function CompanyFormModal({
         state: company.state || "",
         website: company.website || "",
         sectorId: company.sectorId || "",
-        responsavelId: company.responsavelId || "",
+        responsavelId: company.responsavelId || "none",
         notes: company.notes || "",
         active: company.active,
       });
@@ -328,12 +328,12 @@ export default function CompanyFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="responsavelId">Responsável</Label>
-              <Select onValueChange={(value) => setValue("responsavelId", value)} value={watch("responsavelId")}>
+              <Select onValueChange={(value) => setValue("responsavelId", value === "none" ? "" : value)} value={watch("responsavelId") || "none"}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um responsável..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum responsável</SelectItem>
+                  <SelectItem value="none">Nenhum responsável</SelectItem>
                   {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}
