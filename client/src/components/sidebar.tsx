@@ -210,7 +210,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 </button>
               </Link>
 
-              {(user?.role === "administrador" || user?.role === "gerente") && (
+              {(user?.role === "admin" || user?.role === "gerente") && (
                 <Link href="/admin-metas">
                   <button
                     onClick={closeMobileMenu}
