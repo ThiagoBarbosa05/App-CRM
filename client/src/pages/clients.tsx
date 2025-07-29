@@ -117,7 +117,7 @@ export default function Clients() {
 
             {/* Search and Filters */}
             <div className="bg-white border border-gray-200 px-6 py-4 rounded-lg shadow-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="flex flex-col lg:flex-row gap-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
@@ -128,19 +128,20 @@ export default function Clients() {
                     className="pl-10 w-full"
                   />
                 </div>
-                <ClientFilters
-                  currentFilters={clientFilters}
-                  onFiltersChange={setClientFilters}
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleExportClients}
-                  disabled={isExporting}
-                  className="w-full m-0"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? "Exportando..." : "Exportar"}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <ClientFilters
+                    currentFilters={clientFilters}
+                    onFiltersChange={setClientFilters}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleExportClients}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? "Exportando..." : "Exportar"}
+                  </Button>
+                </div>
               </div>
             </div>
 

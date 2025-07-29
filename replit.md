@@ -97,6 +97,10 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Added role-based access control to Settings page - restricted to administrators only
 - Updated sidebar to hide "Configurações" link for non-admin users
 - Backend and frontend updated with user permission filtering for both clients and companies
+- Enhanced Reports page with comprehensive company statistics and analytics
+- Added company cards showing total companies, sectors breakdown, and geographical distribution
+- Implemented company filtering by sector, responsible user, state, and city
+- Reports page now displays both client and company metrics with permission-based data filtering
 
 ### Client Flow
 1. User creates/edits client through modal forms

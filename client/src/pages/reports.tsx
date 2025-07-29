@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Gift, Phone, Mail } from "lucide-react";
+import { Calendar, Users, Gift, Phone, Mail, Building2, FileText } from "lucide-react";
 import { format, parseISO, isWithinInterval, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
@@ -22,9 +22,51 @@ interface Client {
   createdAt: string;
 }
 
+interface Company {
+  id: string;
+  nomeFantasia: string;
+  razaoSocial: string;
+  cnpj?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  sectorId?: string;
+  responsavelId?: string;
+  createdAt: string;
+}
+
 export default function Reports() {
+  const { user } = useAuth();
+
   const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch(
+        user?.role === "admin"
+          ? "/api/clients"
+          : `/api/clients?userId=${user?.id}&userRole=${user?.role}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch clients");
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ["/api/companies", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch(
+        user?.role === "admin"
+          ? "/api/companies"
+          : `/api/companies?userId=${user?.id}&userRole=${user?.role}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch companies");
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const { data: categories = [] } = useQuery<{id: string; name: string}[]>({
@@ -43,11 +85,16 @@ export default function Reports() {
     queryKey: ["/api/markers"],
   });
 
+  const { data: sectors = [] } = useQuery<{id: string; name: string}[]>({
+    queryKey: ["/api/sectors"],
+  });
+
   // Criar sets com nomes válidos para validação
   const validCategoryNames = new Set(categories.map(cat => cat.name));
   const validOriginNames = new Set(origins.map(origin => origin.name));
   const validUserIds = new Set(users.map(user => user.id));
   const validMarkerNames = new Set(markers.map(marker => marker.name));
+  const validSectorIds = new Set(sectors.map(sector => sector.id));
 
   // Calcular próximos aniversários (próximos 30 dias)
   const getUpcomingBirthdays = () => {
@@ -82,6 +129,7 @@ export default function Reports() {
 
   const upcomingBirthdays = getUpcomingBirthdays();
   const totalClients = clients.length;
+  const totalCompanies = companies.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
   const clientsByCategory = clients.reduce((acc, client) => {
@@ -139,6 +187,54 @@ export default function Reports() {
     return acc;
   }, {} as Record<string, number>);
 
+  // Estatísticas de empresas por setor
+  const companiesBySector = companies.reduce((acc, company) => {
+    const sectorId = company.sectorId;
+    if (!sectorId) {
+      acc["Sem setor"] = (acc["Sem setor"] || 0) + 1;
+    } else if (validSectorIds.has(sectorId)) {
+      const sector = sectors.find(s => s.id === sectorId);
+      const sectorName = sector ? sector.name : "Setor não encontrado";
+      acc[sectorName] = (acc[sectorName] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Estatísticas de empresas por usuário responsável
+  const companiesByUser = companies.reduce((acc, company) => {
+    const responsibleId = company.responsavelId;
+    if (!responsibleId) {
+      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
+    } else if (validUserIds.has(responsibleId)) {
+      const user = users.find(u => u.id === responsibleId);
+      const userName = user ? user.name : "Usuário não encontrado";
+      acc[userName] = (acc[userName] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Estatísticas de empresas por estado
+  const companiesByState = companies.reduce((acc, company) => {
+    const state = company.state;
+    if (!state) {
+      acc["Sem estado"] = (acc["Sem estado"] || 0) + 1;
+    } else {
+      acc[state] = (acc[state] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Estatísticas de empresas por cidade
+  const companiesByCity = companies.reduce((acc, company) => {
+    const city = company.city;
+    if (!city) {
+      acc["Sem cidade"] = (acc["Sem cidade"] || 0) + 1;
+    } else {
+      acc[city] = (acc[city] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar activeTab="clientes" onTabChange={() => {}} />
@@ -148,12 +244,12 @@ export default function Reports() {
             <Calendar className="h-8 w-8 text-wine-600" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-              <p className="text-gray-600">Acompanhe métricas e informações importantes dos clientes</p>
+              <p className="text-gray-600">Acompanhe métricas e informações importantes dos clientes e empresas</p>
             </div>
           </div>
 
       {/* Estatísticas Gerais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
@@ -163,6 +259,19 @@ export default function Reports() {
             <div className="text-2xl font-bold text-wine-600">{totalClients}</div>
             <p className="text-xs text-muted-foreground">
               clientes cadastrados no sistema
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Empresas</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{totalCompanies}</div>
+            <p className="text-xs text-muted-foreground">
+              empresas cadastradas no sistema
             </p>
           </CardContent>
         </Card>
@@ -182,13 +291,13 @@ export default function Reports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Categorias Ativas</CardTitle>
-            <Badge className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Setores Ativos</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{Object.keys(clientsByCategory).length}</div>
+            <div className="text-2xl font-bold text-green-600">{Object.keys(companiesBySector).length}</div>
             <p className="text-xs text-muted-foreground">
-              categorias diferentes
+              setores diferentes
             </p>
           </CardContent>
         </Card>
@@ -380,6 +489,129 @@ export default function Reports() {
                   );
                 })}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Título da seção de empresas */}
+      <div className="pt-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Building2 className="h-8 w-8 text-blue-600" />
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Relatórios de Empresas</h2>
+            <p className="text-gray-600">Estatísticas e informações importantes das empresas</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Estatísticas por Setor e Usuário (Empresas) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas por Setor</CardTitle>
+            <CardDescription>
+              Distribuição das empresas por setor de atividade
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(companiesBySector)
+                .sort(([,a], [,b]) => b - a)
+                .map(([sector, count]) => (
+                  <div key={sector} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {sector}
+                      </Badge>
+                    </div>
+                    <span className="font-medium text-blue-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas por Usuário</CardTitle>
+            <CardDescription>
+              Distribuição das empresas por responsável
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(companiesByUser)
+                .sort(([,a], [,b]) => b - a)
+                .map(([userName, count]) => (
+                  <div key={userName} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-xs">
+                        {userName}
+                      </Badge>
+                    </div>
+                    <span className="font-medium text-blue-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Estatísticas por Estado e Cidade (Empresas) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas por Estado</CardTitle>
+            <CardDescription>
+              Distribuição das empresas por estado
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(companiesByState)
+                .sort(([,a], [,b]) => b - a)
+                .map(([state, count]) => (
+                  <div key={state} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {state}
+                      </Badge>
+                    </div>
+                    <span className="font-medium text-green-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas por Cidade</CardTitle>
+            <CardDescription>
+              Distribuição das empresas por cidade
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(companiesByCity)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 10) // Mostrar apenas as 10 principais cidades
+                .map(([city, count]) => (
+                  <div key={city} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {city}
+                      </Badge>
+                    </div>
+                    <span className="font-medium text-green-600">{count}</span>
+                  </div>
+                ))}
+            </div>
+            {Object.keys(companiesByCity).length > 10 && (
+              <p className="text-xs text-gray-500 mt-3">
+                Mostrando as 10 principais cidades de {Object.keys(companiesByCity).length} total
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
