@@ -154,8 +154,21 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     Endereço
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <p className="text-gray-700">{formatAddress()}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const address = formatAddress();
+                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+                      window.open(mapsUrl, '_blank');
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Ver no Mapa
+                  </Button>
                 </CardContent>
               </Card>
 

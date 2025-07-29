@@ -199,6 +199,31 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
                     </p>
                   )}
                 </div>
+                
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const addressParts = [
+                        client.address,
+                        client.number && `${client.number}`,
+                        client.neighborhood,
+                        client.city,
+                        client.state,
+                        client.cep && `CEP: ${client.cep}`
+                      ].filter(Boolean);
+                      
+                      const fullAddress = addressParts.join(', ');
+                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+                      window.open(mapsUrl, '_blank');
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Ver no Mapa
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
