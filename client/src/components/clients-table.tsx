@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Client } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { User, Edit, Trash2 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsCard from "./client-details-card";
@@ -177,13 +178,24 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <a 
-                        href={`tel:${client.phone}`}
-                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                        title="Clique para ligar"
-                      >
-                        {formatPhone(client.phone)}
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a 
+                          href={`tel:${client.phone}`}
+                          className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          title="Clique para ligar"
+                        >
+                          {formatPhone(client.phone)}
+                        </a>
+                        <a
+                          href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-700 transition-colors"
+                          title="Abrir no WhatsApp"
+                        >
+                          <FaWhatsapp className="h-4 w-4" />
+                        </a>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {client.cpf ? formatCpf(client.cpf) : "Não informado"}

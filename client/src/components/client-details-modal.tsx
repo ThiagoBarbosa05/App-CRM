@@ -20,6 +20,7 @@ import {
   Building,
   CreditCard
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { type Client } from "@shared/schema";
@@ -100,15 +101,26 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-gray-500" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600">Telefone</p>
-                    <a 
-                      href={`tel:${client.phone}`}
-                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                      title="Clique para ligar"
-                    >
-                      {formatPhone(client.phone)}
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <a 
+                        href={`tel:${client.phone}`}
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                        title="Clique para ligar"
+                      >
+                        {formatPhone(client.phone)}
+                      </a>
+                      <a
+                        href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:text-green-700 transition-colors"
+                        title="Abrir no WhatsApp"
+                      >
+                        <FaWhatsapp className="h-4 w-4" />
+                      </a>
+                    </div>
                   </div>
                 </div>
 
