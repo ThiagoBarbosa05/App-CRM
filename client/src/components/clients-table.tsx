@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { Client } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { User, Edit, Trash2 } from "lucide-react";
+import { User, Edit, Trash2, Eye } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
 import ClientFormModal from "./client-form-modal";
@@ -248,8 +248,18 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setSelectedClient(client)}
+                        className="text-blue-600 hover:text-blue-900 mr-2"
+                        title="Ver detalhes"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setEditingClient(client)}
                         className="text-primary hover:text-primary-dark mr-2"
+                        title="Editar"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -258,6 +268,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                         size="sm"
                         onClick={() => setDeletingClient(client)}
                         className="text-red-600 hover:text-red-900"
+                        title="Excluir"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

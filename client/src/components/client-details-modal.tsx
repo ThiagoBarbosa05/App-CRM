@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -256,15 +257,7 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
                   </div>
                 )}
 
-                {client.responsible && (
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">Responsável</p>
-                      <p className="font-medium">{client.responsible}</p>
-                    </div>
-                  </div>
-                )}
+
               </div>
 
               {client.markers && client.markers.length > 0 && (

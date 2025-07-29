@@ -136,12 +136,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Responsável:</strong> {client.responsible}
-                      </span>
-                    </div>
+
                   </div>
                 </CardContent>
               </Card>
@@ -223,7 +218,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-gray-600">
-                    <p><strong>Cliente desde:</strong> {formatDate(client.createdAt)}</p>
+                    <p><strong>Cliente desde:</strong> {formatDate(client.createdAt.toString())}</p>
                   </div>
                 </CardContent>
               </Card>
