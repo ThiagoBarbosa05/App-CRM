@@ -115,6 +115,10 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Fixed cashback settings validation error with empty date fields (July 30, 2025)
 - Updated frontend to properly handle empty strings by converting to null for optional fields
 - Resolved "Expected date, received string" error when validUntil field is empty
+- Implemented cashback redemption functionality in client details and cashback page (July 30, 2025)
+- Added "Saldos" tab to cashback page with full redemption capabilities
+- Completed "Transações" and "Relatórios" tabs showing real system data and analytics
+- Fixed cashback redemption UI components now fully visible and functional
 
 ### Client Flow
 1. User creates/edits client through modal forms

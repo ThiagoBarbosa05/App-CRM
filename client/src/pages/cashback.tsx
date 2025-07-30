@@ -240,13 +240,51 @@ export default function Cashback() {
                   <CardDescription>Todas as transações de cashback do sistema</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Em Desenvolvimento</h3>
-                    <p className="text-gray-500">
-                      Esta funcionalidade está sendo desenvolvida e estará disponível em breve.
-                    </p>
-                  </div>
+                  {transactions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação</h3>
+                      <p className="text-gray-500">
+                        As transações de cashback aparecerão aqui conforme forem geradas.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {transactions.map((transaction: any) => (
+                        <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                              transaction.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                            }`}>
+                              <Gift className={`h-5 w-5 ${
+                                transaction.type === 'sale' ? 'text-green-600' : 'text-blue-600'
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
+                              <p className="text-sm text-gray-500">
+                                Compra de {formatCurrency(transaction.purchaseAmount)} • {parseFloat(transaction.cashbackRate).toFixed(1)}% cashback
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(transaction.createdAt).toLocaleDateString('pt-BR')} às {new Date(transaction.createdAt).toLocaleTimeString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-green-600">
+                              +{formatCurrency(transaction.cashbackAmount)}
+                            </p>
+                            <Badge 
+                              variant={transaction.status === 'approved' ? 'default' : 'secondary'}
+                              className={transaction.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
+                            >
+                              {transaction.status === 'approved' ? 'Aprovado' : 'Pendente'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -296,21 +334,126 @@ export default function Cashback() {
             </TabsContent>
 
             <TabsContent value="reports" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Relatórios de Cashback</CardTitle>
-                  <CardDescription>Análises e métricas do programa de cashback</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Em Desenvolvimento</h3>
-                    <p className="text-gray-500">
-                      Esta funcionalidade está sendo desenvolvida e estará disponível em breve.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Distribuído</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(totalCashback)}</div>
+                    <p className="text-xs text-muted-foreground">Em cashback acumulado</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Resgatado</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {formatCurrency(allUsage.reduce((sum: number, usage: any) => sum + parseFloat(usage.usedAmount || 0), 0))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Em resgates realizados</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Saldo Pendente</CardTitle>
+                    <Gift className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {formatCurrency(balances.reduce((sum: number, balance: any) => sum + parseFloat(balance.currentBalance || 0), 0))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Disponível para resgate</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Transações</CardTitle>
+                    <Calculator className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{transactions.length}</div>
+                    <p className="text-xs text-muted-foreground">Total de transações</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Top 5 Clientes por Cashback</CardTitle>
+                    <CardDescription>Clientes com maior saldo acumulado</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {balances
+                        .sort((a: any, b: any) => parseFloat(b.totalEarned || 0) - parseFloat(a.totalEarned || 0))
+                        .slice(0, 5)
+                        .map((balance: any, index: number) => (
+                          <div key={balance.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-sm font-medium text-green-700">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium">{balance.client?.name || 'Cliente'}</p>
+                                <p className="text-sm text-gray-500">
+                                  Saldo: {formatCurrency(balance.currentBalance || 0)}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="font-medium text-green-600">
+                              {formatCurrency(balance.totalEarned || 0)}
+                            </p>
+                          </div>
+                        ))}
+                      {balances.length === 0 && (
+                        <p className="text-center text-gray-500 py-4">
+                          Nenhum cliente com cashback ainda
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Configurações Ativas</CardTitle>
+                    <CardDescription>Regras de cashback em vigência</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {settings
+                        .filter((setting: any) => setting.isActive === 'true')
+                        .map((setting: any) => (
+                          <div key={setting.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium">{setting.name}</p>
+                              <p className="text-sm text-gray-500">
+                                Mín: {formatCurrency(setting.minimumPurchase || 0)}
+                                {setting.maximumCashback && ` • Máx: ${formatCurrency(setting.maximumCashback)}`}
+                              </p>
+                            </div>
+                            <Badge className="bg-green-100 text-green-800">
+                              {parseFloat(setting.percentageRate).toFixed(1)}%
+                            </Badge>
+                          </div>
+                        ))}
+                      {settings.filter((setting: any) => setting.isActive === 'true').length === 0 && (
+                        <p className="text-center text-gray-500 py-4">
+                          Nenhuma regra ativa
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
