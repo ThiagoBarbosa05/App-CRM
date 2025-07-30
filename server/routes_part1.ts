@@ -1,0 +1,1000 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import {
+  insertClientSchema,
+  insertCompanySchema,
+  insertDealSchema,
+  insertUserSchema,
+  insertSalesFunnelSchema,
+  insertFunnelStageSchema,
+  insertBirthdayReminderSchema,
+  insertBirthdayReminderSettingsSchema,
+  insertTagSchema,
+  insertSectorSchema,
+  insertOriginSchema,
+  insertClientInteractionSchema,
+  insertUserGoalSchema,
+} from "@shared/schema";
+import { z } from "zod";
+import { fromZodError } from "zod-validation-error";
+import bcrypt from "bcrypt";
+import { Client } from "@replit/object-storage";
+import multer from "multer";
+import { nanoid } from "nanoid";
+import { generateAIResponse, generateAIMessage } from "./ai-helpers";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
+
+// Configure multer for image uploads
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit for images
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Apenas arquivos de imagem são permitidos!"));
+    }
+  },
+});
+
+// Initialize Replit Object Storage client
+let objectStorageClient: Client | null = null;
+try {
+  // Skip Object Storage in development to avoid bucket configuration issues
+  if (process.env.NODE_ENV === "production") {
+    objectStorageClient = new Client();
+    console.log("Object Storage initialized successfully");
+  } else {
+    console.log("Object Storage disabled in development mode");
+  }
+} catch (error) {
+  console.warn("Object Storage not available:", error);
+  objectStorageClient = null;
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      console.log("Tentativa de login:", {
+        email,
+        password: password ? "***" : "não fornecida",
+      });
+
+      if (!email || !password) {
+        return res
+          .status(400)
+          .json({ message: "Email e senha são obrigatórios" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      console.log(
+        "Usuário encontrado:",
+        user
+          ? { id: user.id, email: user.email, isActive: user.isActive }
+          : "não encontrado",
+      );
+
+      if (!user) {
+        return res.status(401).json({ message: "Email não encontrado" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Senha incorreta" });
+      }
+
+      if (user.isActive !== "true") {
+        return res.status(401).json({ message: "Usuário inativo" });
+      }
+
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      console.log("Login bem-sucedido para:", userWithoutPassword.email);
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error("Erro no login:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // User routes
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      const newUser = await storage.createUser(validatedData);
+      const { password: _, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertUserSchema.partial().parse(req.body);
+      const updatedUser = await storage.updateUser(id, validatedData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Usuário excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
+
+  app.patch("/api/users/:id/toggle-status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      const updatedUser = await storage.updateUser(id, { isActive });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { password: _pwd, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar status do usuário" });
+    }
+  });
+
+  app.put("/api/users/:id/profile", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, email, currentPassword, password } = req.body;
+
+      // Buscar usuário atual
+      const currentUser = await storage.getUser(id);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Se está tentando alterar a senha, verificar a senha atual
+      if (password && currentPassword) {
+        const isCurrentPasswordValid = await bcrypt.compare(
+          currentPassword,
+          currentUser.password,
+        );
+        if (!isCurrentPasswordValid) {
+          return res.status(400).json({ message: "Senha atual incorreta" });
+        }
+      }
+
+      // Verificar se o email já está em uso por outro usuário
+      if (email && email !== currentUser.email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).json({ message: "Este email já está em uso" });
+        }
+      }
+
+      const updateData: any = { name, email };
+      if (password) {
+        updateData.password = password;
+      }
+
+      const updatedUser = await storage.updateUser(id, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      res.status(500).json({ message: "Erro ao atualizar perfil" });
+    }
+  });
+
+  // Categories routes (using tags table with type="categoria")
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getTags();
+      // Filter for categories only
+      const categoriesOnly = categories.filter(
+        (tag) => tag.type === "categoria",
+      );
+      res.json(categoriesOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar categorias" });
+    }
+  });
+
+  app.post("/api/categories", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: "categoria",
+      });
+      const category = await storage.createTag(validatedData);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar categoria" });
+    }
+  });
+
+  app.put("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: "categoria",
+      });
+      const category = await storage.updateTag(id, validatedData);
+      if (!category) {
+        return res.status(404).json({ message: "Categoria não encontrada" });
+      }
+      res.json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar categoria" });
+    }
+  });
+
+  app.delete("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Categoria não encontrada" });
+      }
+      res.json({ message: "Categoria excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir categoria" });
+    }
+  });
+
+  // Markers routes (using tags table with type="marcador")
+  app.get("/api/markers", async (req, res) => {
+    try {
+      const markers = await storage.getTags();
+      // Filter for markers only
+      const markersOnly = markers.filter((tag) => tag.type === "marcador");
+      res.json(markersOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar marcadores" });
+    }
+  });
+
+  app.post("/api/markers", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: "marcador",
+      });
+      const marker = await storage.createTag(validatedData);
+      res.status(201).json(marker);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar marcador" });
+    }
+  });
+
+  app.put("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: "marcador",
+      });
+      const marker = await storage.updateTag(id, validatedData);
+      if (!marker) {
+        return res.status(404).json({ message: "Marcador não encontrado" });
+      }
+      res.json(marker);
+    } catch (error) {
+      console.error("Error updating marker:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({
+        message: "Erro ao atualizar marcador",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.delete("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Marcador não encontrado" });
+      }
+      res.json({ message: "Marcador excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir marcador" });
+    }
+  });
+
+  // Origin routes
+  app.get("/api/origins", async (req, res) => {
+    try {
+      const origins = await storage.getTags();
+      // Filter for origins only
+      const originsOnly = origins.filter((tag) => tag.type === "origem");
+      res.json(originsOnly);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar origens" });
+    }
+  });
+
+  app.post("/api/origins", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse({
+        ...req.body,
+        type: "origem",
+      });
+      const origin = await storage.createTag(validatedData);
+      res.status(201).json(origin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar origem" });
+    }
+  });
+
+  app.put("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTagSchema.partial().parse({
+        ...req.body,
+        type: "origem",
+      });
+      const origin = await storage.updateTag(id, validatedData);
+      if (!origin) {
+        return res.status(404).json({ message: "Origem não encontrada" });
+      }
+      res.json(origin);
+    } catch (error) {
+      console.error("Error updating origin:", error);
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({
+        message: "Erro ao atualizar origem",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.delete("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Origem não encontrada" });
+      }
+      res.json({ message: "Origem excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir origem" });
+    }
+  });
+
+  // Sales Funnel routes
+  app.get("/api/funnels", async (req, res) => {
+    try {
+      const funnels = await storage.getSalesFunnels();
+      res.json(funnels);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar funis de vendas" });
+    }
+  });
+
+  app.post("/api/funnels", async (req, res) => {
+    try {
+      const validatedData = insertSalesFunnelSchema.parse(req.body);
+      const funnel = await storage.createSalesFunnel(validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  app.put("/api/funnels/:id", async (req, res) => {
+    try {
+      const funnelId = req.params.id;
+      const validatedData = insertSalesFunnelSchema.partial().parse(req.body);
+      const funnel = await storage.updateSalesFunnel(funnelId, validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  // Funnel Stage routes
+  app.get("/api/funnels/:funnelId/stages", async (req, res) => {
+    try {
+      const stages = await storage.getFunnelStages(req.params.funnelId);
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar estágios do funil" });
+    }
+  });
+
+  app.post("/api/stages", async (req, res) => {
+    try {
+      const validatedData = insertFunnelStageSchema.parse(req.body);
+      const stage = await storage.createFunnelStage(validatedData);
+      res.status(201).json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar estágio" });
+    }
+  });
+
+  // Client routes
+  app.get("/api/clients", async (req, res) => {
+    try {
+      const { userId, userRole } = req.query;
+      const clients = await storage.getClients(
+        userId as string,
+        userRole as string,
+      );
+      res.json(clients);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar clientes" });
+    }
+  });
+
+  // Get unique markers - needs to be before /:id route
+  app.get("/api/clients/markers", async (req, res) => {
+    try {
+      const markers = await storage.getUniqueMarkers();
+      res.json(markers);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar marcadores" });
+    }
+  });
+
+  app.get("/api/clients/:id", async (req, res) => {
+    try {
+      const client = await storage.getClient(req.params.id);
+      if (!client) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      res.json(client);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar cliente" });
+    }
+  });
+
+  app.post("/api/clients", async (req, res) => {
+    try {
+      // Process responsavelId: convert "none" to null
+      // Convert number fields to string to match schema
+      const processedData = {
+        ...req.body,
+        responsavelId:
+          req.body.responsavelId === "none" ? null : req.body.responsavelId,
+        // Convert number fields to string
+        number: req.body.number ? String(req.body.number) : req.body.number,
+        cpf: req.body.cpf ? String(req.body.cpf) : req.body.cpf,
+        phone: req.body.phone ? String(req.body.phone) : req.body.phone,
+      };
+
+      const validatedData = insertClientSchema.parse(processedData);
+
+      // Check if phone already exists
+      const existingClientByPhone = await storage.getClientByPhone(
+        validatedData.phone,
+      );
+      if (existingClientByPhone) {
+        return res.status(400).json({ message: "Telefone já cadastrado" });
+      }
+
+      const client = await storage.createClient(validatedData);
+      res.status(201).json(client);
+    } catch (error) {
+      console.error("Error creating client:", error);
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res
+        .status(500)
+        .json({
+          message: "Erro ao criar cliente",
+          error: error instanceof Error ? error.message : String(error),
+        });
+    }
+  });
+
+  app.put("/api/clients/:id", async (req, res) => {
+    try {
+      // Convert number fields to string to match schema
+      const processedData = {
+        ...req.body,
+        number: req.body.number ? String(req.body.number) : req.body.number,
+        cpf: req.body.cpf ? String(req.body.cpf) : req.body.cpf,
+        phone: req.body.phone ? String(req.body.phone) : req.body.phone,
+      };
+
+      const validatedData = insertClientSchema.partial().parse(processedData);
+
+      // If phone is being updated, check if it's already in use by another client
+      if (validatedData.phone) {
+        const existingClientByPhone = await storage.getClientByPhone(
+          validatedData.phone,
+        );
+        if (
+          existingClientByPhone &&
+          existingClientByPhone.id !== req.params.id
+        ) {
+          return res.status(400).json({ message: "Telefone já cadastrado" });
+        }
+      }
+
+      const client = await storage.updateClient(req.params.id, validatedData);
+      if (!client) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      res.json(client);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar cliente" });
+    }
+  });
+
+  app.delete("/api/clients/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteClient(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      res.json({ message: "Cliente excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar cliente" });
+    }
+  });
+
+  app.delete("/api/clients", async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "IDs dos clientes são obrigatórios" });
+      }
+
+      console.log("Tentando excluir clientes com IDs:", ids);
+      const deletedCount = await storage.deleteClients(ids);
+      console.log("Clientes excluídos:", deletedCount);
+
+      res.json({
+        message: deletedCount + " cliente(s) excluído(s) com sucesso",
+        deletedCount,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar clientes" });
+    }
+  });
+
+  // Company routes
+  app.get("/api/companies", async (req, res) => {
+    try {
+      console.log("Tentando buscar empresas...");
+      const { userId, userRole } = req.query;
+      const companies = await storage.getCompanies(
+        userId as string,
+        userRole as string,
+      );
+      console.log("Empresas encontradas:", companies.length);
+      res.json(companies);
+    } catch (error) {
+      console.error("Erro ao buscar empresas:", error);
+      res.status(500).json({
+        message: "Erro ao buscar empresas",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get("/api/companies/:id", async (req, res) => {
+    try {
+      const company = await storage.getCompany(req.params.id);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json(company);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar empresa" });
+    }
+  });
+
+  app.post("/api/companies", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.parse(req.body);
+      const company = await storage.createCompany(validatedData);
+      res.status(201).json(company);
+    } catch (error) {
+      console.error("Error creating company:", error);
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar empresa" });
+    }
+  });
+
+  app.put("/api/companies/:id", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.partial().parse(req.body);
+      const company = await storage.updateCompany(req.params.id, validatedData);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json(company);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar empresa" });
+    }
+  });
+
+  app.delete("/api/companies/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteCompany(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json({ message: "Empresa excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar empresa" });
+    }
+  });
+
+  app.delete("/api/companies", async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "IDs das empresas são obrigatórios" });
+      }
+
+      console.log("Tentando excluir empresas com IDs:", ids);
+      const deletedCount = await storage.deleteCompanies(ids);
+      console.log("Empresas excluídas:", deletedCount);
+
+      res.json({
+        message: deletedCount + " empresa(s) excluída(s) com sucesso",
+        deletedCount,
+      });
+    } catch (error) {
+      console.error("Erro ao excluir empresas:", error);
+      res.status(500).json({ message: "Erro ao excluir empresas" });
+    }
+  });
+
+  // Sector routes
+  app.get("/api/sectors", async (req, res) => {
+    try {
+      const sectors = await storage.getSectors();
+      res.json(sectors);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar setores" });
+    }
+  });
+
+  app.get("/api/sectors/:id", async (req, res) => {
+    try {
+      const sector = await storage.getSector(req.params.id);
+      if (!sector) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json(sector);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar setor" });
+    }
+  });
+
+  app.post("/api/sectors", async (req, res) => {
+    try {
+      const validatedData = insertSectorSchema.parse(req.body);
+      const sector = await storage.createSector(validatedData);
+      res.status(201).json(sector);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar setor" });
+    }
+  });
+
+  app.put("/api/sectors/:id", async (req, res) => {
+    try {
+      const validatedData = insertSectorSchema.partial().parse(req.body);
+      const sector = await storage.updateSector(req.params.id, validatedData);
+      if (!sector) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json(sector);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar setor" });
+    }
+  });
+
+  app.delete("/api/sectors/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteSector(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Setor não encontrado" });
+      }
+      res.json({ message: "Setor excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar setor" });
+    }
+  });
+
+  // Deal routes
+  app.get("/api/deals", async (req, res) => {
+    try {
+      const { userId, userRole } = req.query;
+      const deals = await storage.getDealsWithClients(
+        userId as string,
+        userRole as string,
+      );
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar negócios" });
+    }
+  });
+
+  app.get("/api/deals/:id", async (req, res) => {
+    try {
+      const deal = await storage.getDeal(req.params.id);
+      if (!deal) {
+        return res.status(404).json({ message: "Negócio não encontrado" });
+      }
+      res.json(deal);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar negócio" });
+    }
+  });
+
+  app.post("/api/deals", async (req, res) => {
+    try {
+      const validatedData = insertDealSchema.parse(req.body);
+
+      // Check if client exists
+      const client = await storage.getClient(validatedData.clientId);
+      if (!client) {
+        return res.status(400).json({ message: "Cliente não encontrado" });
+      }
+
+      const deal = await storage.createDeal(validatedData);
+      res.status(201).json(deal);
+    ""`python
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar negócio" });
+    }
+  });
+
+  app.put("/api/deals/:id", async (req, res) => {
+    try {
+      const validatedData = insertDealSchema.partial().parse(req.body);
+
+      // If clientId is being updated, check if client exists
+      if (validatedData.clientId) {
+        const client = await storage.getClient(validatedData.clientId);
+        if (!client) {
+          return res.status(400).json({ message: "Cliente não encontrado" });
+        }
+      }
+
+      const deal = await storage.updateDeal(req.params.id, validatedData);
+      if (!deal) {
+        return res.status(404).json({ message: "Negócio não encontrado" });
+      }
+      res.json(deal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar negócio" });
+    }
+  });
+
+  app.delete("/api/deals/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteDeal(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Negócio não encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar negócio" });
+    }
+  });
+
+  // Birthday Reminder routes
+  app.get("/api/birthday-reminders", async (req, res) => {
+    try {
+      const reminders = await storage.getBirthdayReminders();
+      res.json(reminders);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar lembretes de aniversário" });
+    }
+  });
+
+  app.get("/api/birthday-reminders/today", async (req, res) => {
+    try {
+      const reminders = await storage.getBirthdayRemindersForToday();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar lembretes de hoje" });
+    }
+  });
+
+  app.post("/api/birthday-reminders", async (req, res) => {
+    try {
+      const validatedData = insertBirthdayReminderSchema.parse(req.body);
+      const reminder = await storage.createBirthdayReminder(validatedData);
+      res.status(201).json(reminder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar lembrete" });
+    }
+  });
+
+  app.put("/api/birthday-reminders/:id", async (req, res) => {
+    try {
+      const validatedData = insertBirthdayReminderSchema
+        .partial()
+        .parse(req.body);
+      const reminder = await storage.updateBirthdayReminder(
+        req.params.id,
+        validatedData,
+      );
+      if (!reminder) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.json(reminder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar lembrete" });
+    }
+  });
+
+  app.delete("/api/birthday-reminders/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteBirthdayReminder(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao deletar lembrete" });
+    }
+  });
+
+  app.put("/api/birthday-reminders/:id/mark-sent", async (req, res) => {
+    try {
+      const success = await storage.markReminderAsSent(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Lembrete não encontrado" });
+      }
+      res.json({ message: "Lembrete marcado como enviado" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao marcar lembrete como enviado" });
+    }
+  });
+
+  // Birthday Reminder Settings routes
+  app.get("/api/birthday-reminder-settings", async (req, res) => {
+    try {
+      const settings = await storage.getBirthdayReminderSettings();
+      res.json(settings);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar configurações dos lembretes" });
+    }
+  });
+
+  app.put("/api/birthday-reminder-settings", async (req, res) => {
+    try {

@@ -72,7 +72,17 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     enabled: !!client?.id,
   });
 
-  // Dados de cashback removidos temporariamente
+  // Query para buscar saldo de cashback
+  const { data: cashbackBalance } = useQuery({
+    queryKey: [`/api/cashback-balances/${client?.id}`],
+    enabled: !!client?.id,
+  });
+
+  // Query para buscar histórico de uso de cashback
+  const { data: cashbackUsage = [] } = useQuery({
+    queryKey: [`/api/cashback-usage/${client?.id}`],
+    enabled: !!client?.id,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,10 +119,14 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="info" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Informações
+            </TabsTrigger>
+            <TabsTrigger value="cashback" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Cashback
             </TabsTrigger>
             <TabsTrigger value="interactions" className="flex items-center gap-2">
               <History className="h-4 w-4" />
@@ -252,6 +266,90 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cashback" className="mt-6 overflow-y-auto max-h-[65vh]">
+            <div className="space-y-6">
+              {/* Saldo de Cashback */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-green-600" />
+                    Saldo de Cashback
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div>
+                      <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
+                      <p className="text-2xl font-bold text-green-700">
+                        {cashbackBalance ? formatCurrency(cashbackBalance.availableBalance || 0) : formatCurrency(0)}
+                      </p>
+                    </div>
+                    <Gift className="h-8 w-8 text-green-600" />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm font-medium text-blue-600">Total Acumulado</p>
+                      <p className="text-lg font-bold text-blue-700">
+                        {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned || 0) : formatCurrency(0)}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <p className="text-sm font-medium text-orange-600">Total Utilizado</p>
+                      <p className="text-lg font-bold text-orange-700">
+                        {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed || 0) : formatCurrency(0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {cashbackBalance && cashbackBalance.availableBalance > 0 && (
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        // TODO: Implementar modal de resgate de cashback
+                        alert('Funcionalidade de resgate de cashback em desenvolvimento');
+                      }}
+                    >
+                      <Gift className="h-4 w-4 mr-2" />
+                      RESGATAR CASHBACK
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Histórico de Cashback */}
+              {cashbackUsage && cashbackUsage.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <History className="h-5 w-5" />
+                      Histórico de Resgates
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {cashbackUsage.map((usage: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">{formatCurrency(usage.amount)}</p>
+                            <p className="text-sm text-gray-600">
+                              {usage.description || 'Resgate de cashback'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-500">
+                              {formatDate(usage.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
