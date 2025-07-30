@@ -540,10 +540,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/clients", async (req, res) => {
     try {
       // Process responsavelId: convert "none" to null
+      // Convert number fields to string to match schema
       const processedData = {
         ...req.body,
         responsavelId:
           req.body.responsavelId === "none" ? null : req.body.responsavelId,
+        // Convert number fields to string
+        number: req.body.number ? String(req.body.number) : req.body.number,
+        cpf: req.body.cpf ? String(req.body.cpf) : req.body.cpf,
+        phone: req.body.phone ? String(req.body.phone) : req.body.phone,
       };
 
       const validatedData = insertClientSchema.parse(processedData);
@@ -575,7 +580,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/clients/:id", async (req, res) => {
     try {
-      const validatedData = insertClientSchema.partial().parse(req.body);
+      // Convert number fields to string to match schema
+      const processedData = {
+        ...req.body,
+        number: req.body.number ? String(req.body.number) : req.body.number,
+        cpf: req.body.cpf ? String(req.body.cpf) : req.body.cpf,
+        phone: req.body.phone ? String(req.body.phone) : req.body.phone,
+      };
+
+      const validatedData = insertClientSchema.partial().parse(processedData);
 
       // If phone is being updated, check if it's already in use by another client
       if (validatedData.phone) {
@@ -1986,19 +1999,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const clientRow = clients[i];
           
-          // Normalize phone number to string
-          if (clientRow.phone && typeof clientRow.phone === 'number') {
-            clientRow.phone = clientRow.phone.toString();
+          // Normalize numeric fields to string
+          if (clientRow.phone !== undefined) {
+            clientRow.phone = String(clientRow.phone);
           }
-          
-          // Normalize address number to string
-          if (clientRow.number && typeof clientRow.number === 'number') {
-            clientRow.number = clientRow.number.toString();
+          if (clientRow.number !== undefined) {
+            clientRow.number = String(clientRow.number);
           }
-          
-          // Normalize CPF to string
-          if (clientRow.cpf && typeof clientRow.cpf === 'number') {
-            clientRow.cpf = clientRow.cpf.toString();
+          if (clientRow.cpf !== undefined) {
+            clientRow.cpf = String(clientRow.cpf);
           }
 
           // Validate required fields and normalize data based on actual database schema
