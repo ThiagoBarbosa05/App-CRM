@@ -125,6 +125,9 @@ export default function ClientImportModal({
         setProgress(((i + 1) / clients.length) * 100);
 
         try {
+          // Log de todos os campos da linha para debug
+          console.log(`Linha ${i + 1}: Dados da planilha:`, client);
+          
           // Mapear responsável por nome para ID
           let responsavelId = null;
           const responsavelName = client.Responsavel || client["Responsável"] || client.responsible;
