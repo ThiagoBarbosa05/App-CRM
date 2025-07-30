@@ -72,7 +72,7 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
           status: "approved",
           settingId: cashbackData.setting?.id || null,
           notes: saleData.notes || `Venda registrada - Valor: R$ ${saleData.purchaseAmount.toFixed(2)}`,
-          processedBy: "system", // Idealmente seria o ID do usuário logado
+          processedBy: "b314722c-8fd6-4592-a9de-9ee551ec35be", // ID do usuário admin
         }),
       });
 

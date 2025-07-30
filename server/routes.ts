@@ -1835,6 +1835,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cashback-settings", async (req, res) => {
     try {
       const settingData = req.body;
+      // Converter validUntil para Date se for string
+      if (settingData.validUntil && typeof settingData.validUntil === 'string') {
+        settingData.validUntil = new Date(settingData.validUntil);
+      }
       const setting = await storage.createCashbackSetting(settingData);
       res.status(201).json(setting);
     } catch (error) {
@@ -1847,6 +1851,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = req.body;
+      // Converter validUntil para Date se for string
+      if (updateData.validUntil && typeof updateData.validUntil === 'string') {
+        updateData.validUntil = new Date(updateData.validUntil);
+      }
       const setting = await storage.updateCashbackSetting(id, updateData);
       
       if (!setting) {

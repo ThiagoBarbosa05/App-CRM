@@ -37,7 +37,7 @@ export default function CashbackSettingsManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          createdBy: "system", // Idealmente seria o ID do usuário logado
+          createdBy: "b314722c-8fd6-4592-a9de-9ee551ec35be", // ID do usuário admin
         }),
       });
       if (!response.ok) throw new Error("Erro ao criar configuração");
@@ -138,7 +138,7 @@ export default function CashbackSettingsManagement() {
       percentageRate: parseFloat(formData.percentageRate),
       minimumPurchase: formData.minimumPurchase ? parseFloat(formData.minimumPurchase) : 0,
       maximumCashback: formData.maximumCashback ? parseFloat(formData.maximumCashback) : null,
-      validUntil: formData.validUntil ? new Date(formData.validUntil).toISOString() : null,
+      validUntil: formData.validUntil ? formData.validUntil : null,
     };
 
     if (editingSetting) {
