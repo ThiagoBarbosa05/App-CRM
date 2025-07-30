@@ -1,12 +1,20 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  insertClientSchema, insertCompanySchema, insertDealSchema, insertUserSchema, 
-  insertSalesFunnelSchema, insertFunnelStageSchema,
-  insertBirthdayReminderSchema, insertBirthdayReminderSettingsSchema,
-  insertTagSchema, insertSectorSchema,
-  insertOriginSchema, insertClientInteractionSchema, insertUserGoalSchema
+import {
+  insertClientSchema,
+  insertCompanySchema,
+  insertDealSchema,
+  insertUserSchema,
+  insertSalesFunnelSchema,
+  insertFunnelStageSchema,
+  insertBirthdayReminderSchema,
+  insertBirthdayReminderSettingsSchema,
+  insertTagSchema,
+  insertSectorSchema,
+  insertOriginSchema,
+  insertClientInteractionSchema,
+  insertUserGoalSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -17,9 +25,9 @@ import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 
 // Configure multer for file uploads
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 // Configure multer for image uploads
@@ -27,19 +35,19 @@ const imageUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit for images
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error('Apenas arquivos de imagem são permitidos!'));
+      cb(new Error("Apenas arquivos de imagem são permitidos!"));
     }
-  }
+  },
 });
 
 // Initialize Replit Object Storage client
 let objectStorageClient: Client | null = null;
 try {
   // Skip Object Storage in development to avoid bucket configuration issues
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     objectStorageClient = new Client();
     console.log("Object Storage initialized successfully");
   } else {
@@ -56,14 +64,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
 
-      console.log("Tentativa de login:", { email, password: password ? "***" : "não fornecida" });
+      console.log("Tentativa de login:", {
+        email,
+        password: password ? "***" : "não fornecida",
+      });
 
       if (!email || !password) {
-        return res.status(400).json({ message: "Email e senha são obrigatórios" });
+        return res
+          .status(400)
+          .json({ message: "Email e senha são obrigatórios" });
       }
 
       const user = await storage.getUserByEmail(email);
-      console.log("Usuário encontrado:", user ? { id: user.id, email: user.email, isActive: user.isActive } : "não encontrado");
+      console.log(
+        "Usuário encontrado:",
+        user
+          ? { id: user.id, email: user.email, isActive: user.isActive }
+          : "não encontrado",
+      );
 
       if (!user) {
         return res.status(401).json({ message: "Email não encontrado" });
@@ -74,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Senha incorreta" });
       }
 
-      if (user.isActive !== 'true') {
+      if (user.isActive !== "true") {
         return res.status(401).json({ message: "Usuário inativo" });
       }
 
@@ -108,7 +126,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar usuário" });
     }
@@ -126,7 +146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao atualizar usuário" });
     }
@@ -173,7 +195,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Se está tentando alterar a senha, verificar a senha atual
       if (password && currentPassword) {
-        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentUser.password);
+        const isCurrentPasswordValid = await bcrypt.compare(
+          currentPassword,
+          currentUser.password,
+        );
         if (!isCurrentPasswordValid) {
           return res.status(400).json({ message: "Senha atual incorreta" });
         }
@@ -210,7 +235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const categories = await storage.getTags();
       // Filter for categories only
-      const categoriesOnly = categories.filter(tag => tag.type === 'categoria');
+      const categoriesOnly = categories.filter(
+        (tag) => tag.type === "categoria",
+      );
       res.json(categoriesOnly);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar categorias" });
@@ -221,13 +248,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertTagSchema.parse({
         ...req.body,
-        type: 'categoria'
+        type: "categoria",
       });
       const category = await storage.createTag(validatedData);
       res.status(201).json(category);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar categoria" });
     }
@@ -238,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = insertTagSchema.partial().parse({
         ...req.body,
-        type: 'categoria'
+        type: "categoria",
       });
       const category = await storage.updateTag(id, validatedData);
       if (!category) {
@@ -247,7 +276,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(category);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao atualizar categoria" });
     }
@@ -271,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const markers = await storage.getTags();
       // Filter for markers only
-      const markersOnly = markers.filter(tag => tag.type === 'marcador');
+      const markersOnly = markers.filter((tag) => tag.type === "marcador");
       res.json(markersOnly);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar marcadores" });
@@ -282,13 +313,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertTagSchema.parse({
         ...req.body,
-        type: 'marcador'
+        type: "marcador",
       });
       const marker = await storage.createTag(validatedData);
       res.status(201).json(marker);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar marcador" });
     }
@@ -299,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = insertTagSchema.partial().parse({
         ...req.body,
-        type: 'marcador'
+        type: "marcador",
       });
       const marker = await storage.updateTag(id, validatedData);
       if (!marker) {
@@ -309,11 +342,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating marker:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erro ao atualizar marcador",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   });
@@ -336,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const origins = await storage.getTags();
       // Filter for origins only
-      const originsOnly = origins.filter(tag => tag.type === 'origem');
+      const originsOnly = origins.filter((tag) => tag.type === "origem");
       res.json(originsOnly);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar origens" });
@@ -347,13 +382,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertTagSchema.parse({
         ...req.body,
-        type: 'origem'
+        type: "origem",
       });
       const origin = await storage.createTag(validatedData);
       res.status(201).json(origin);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar origem" });
     }
@@ -364,7 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = insertTagSchema.partial().parse({
         ...req.body,
-        type: 'origem'
+        type: "origem",
       });
       const origin = await storage.updateTag(id, validatedData);
       if (!origin) {
@@ -374,11 +411,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating origin:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erro ao atualizar origem",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   });
@@ -413,7 +452,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(funnel);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  app.put("/api/funnels/:id", async (req, res) => {
+    try {
+      const funnelId = req.params.id;
+      const validatedData = insertSalesFunnelSchema.partial().parse(req.body);
+      const funnel = await storage.updateSalesFunnel(funnelId, validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar funil de vendas" });
     }
@@ -436,7 +493,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(stage);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar estágio" });
     }
@@ -446,7 +505,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/clients", async (req, res) => {
     try {
       const { userId, userRole } = req.query;
-      const clients = await storage.getClients(userId as string, userRole as string);
+      const clients = await storage.getClients(
+        userId as string,
+        userRole as string,
+      );
       res.json(clients);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar clientes" });
@@ -480,15 +542,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process responsavelId: convert "none" to null
       const processedData = {
         ...req.body,
-        responsavelId: req.body.responsavelId === "none" ? null : req.body.responsavelId
+        responsavelId:
+          req.body.responsavelId === "none" ? null : req.body.responsavelId,
       };
 
       const validatedData = insertClientSchema.parse(processedData);
 
-
-
       // Check if phone already exists
-      const existingClientByPhone = await storage.getClientByPhone(validatedData.phone);
+      const existingClientByPhone = await storage.getClientByPhone(
+        validatedData.phone,
+      );
       if (existingClientByPhone) {
         return res.status(400).json({ message: "Telefone já cadastrado" });
       }
@@ -501,7 +564,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
-      res.status(500).json({ message: "Erro ao criar cliente", error: error instanceof Error ? error.message : String(error) });
+      res
+        .status(500)
+        .json({
+          message: "Erro ao criar cliente",
+          error: error instanceof Error ? error.message : String(error),
+        });
     }
   });
 
@@ -509,12 +577,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertClientSchema.partial().parse(req.body);
 
-
-
       // If phone is being updated, check if it's already in use by another client
       if (validatedData.phone) {
-        const existingClientByPhone = await storage.getClientByPhone(validatedData.phone);
-        if (existingClientByPhone && existingClientByPhone.id !== req.params.id) {
+        const existingClientByPhone = await storage.getClientByPhone(
+          validatedData.phone,
+        );
+        if (
+          existingClientByPhone &&
+          existingClientByPhone.id !== req.params.id
+        ) {
           return res.status(400).json({ message: "Telefone já cadastrado" });
         }
       }
@@ -550,16 +621,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ids } = req.body;
 
       if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "IDs dos clientes são obrigatórios" });
+        return res
+          .status(400)
+          .json({ message: "IDs dos clientes são obrigatórios" });
       }
 
       console.log("Tentando excluir clientes com IDs:", ids);
       const deletedCount = await storage.deleteClients(ids);
       console.log("Clientes excluídos:", deletedCount);
 
-      res.json({ 
+      res.json({
         message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
-        deletedCount 
+        deletedCount,
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao deletar clientes" });
@@ -571,14 +644,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Tentando buscar empresas...");
       const { userId, userRole } = req.query;
-      const companies = await storage.getCompanies(userId as string, userRole as string);
+      const companies = await storage.getCompanies(
+        userId as string,
+        userRole as string,
+      );
       console.log("Empresas encontradas:", companies.length);
       res.json(companies);
     } catch (error) {
       console.error("Erro ao buscar empresas:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erro ao buscar empresas",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   });
@@ -644,16 +720,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ids } = req.body;
 
       if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "IDs das empresas são obrigatórios" });
+        return res
+          .status(400)
+          .json({ message: "IDs das empresas são obrigatórios" });
       }
 
       console.log("Tentando excluir empresas com IDs:", ids);
       const deletedCount = await storage.deleteCompanies(ids);
       console.log("Empresas excluídas:", deletedCount);
 
-      res.json({ 
+      res.json({
         message: `${deletedCount} empresa(s) excluída(s) com sucesso`,
-        deletedCount 
+        deletedCount,
       });
     } catch (error) {
       console.error("Erro ao excluir empresas:", error);
@@ -730,7 +808,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/deals", async (req, res) => {
     try {
       const { userId, userRole } = req.query;
-      const deals = await storage.getDealsWithClients(userId as string, userRole as string);
+      const deals = await storage.getDealsWithClients(
+        userId as string,
+        userRole as string,
+      );
       res.json(deals);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar negócios" });
@@ -814,7 +895,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reminders = await storage.getBirthdayReminders();
       res.json(reminders);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar lembretes de aniversário" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar lembretes de aniversário" });
     }
   });
 
@@ -843,8 +926,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/birthday-reminders/:id", async (req, res) => {
     try {
-      const validatedData = insertBirthdayReminderSchema.partial().parse(req.body);
-      const reminder = await storage.updateBirthdayReminder(req.params.id, validatedData);      if (!reminder) {
+      const validatedData = insertBirthdayReminderSchema
+        .partial()
+        .parse(req.body);
+      const reminder = await storage.updateBirthdayReminder(
+        req.params.id,
+        validatedData,
+      );
+      if (!reminder) {
         return res.status(404).json({ message: "Lembrete não encontrado" });
       }
       res.json(reminder);
@@ -887,14 +976,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.getBirthdayReminderSettings();
       res.json(settings);
     } catch (error) {
-      res.status(500).json({ message: "Erro ao buscar configurações dos lembretes" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar configurações dos lembretes" });
     }
   });
 
   app.put("/api/birthday-reminder-settings", async (req, res) => {
     try {
-      const validatedData = insertBirthdayReminderSettingsSchema.partial().parse(req.body);
-      const settings = await storage.updateBirthdayReminderSettings(validatedData);
+      const validatedData = insertBirthdayReminderSettingsSchema
+        .partial()
+        .parse(req.body);
+      const settings =
+        await storage.updateBirthdayReminderSettings(validatedData);
       res.json(settings);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -920,9 +1014,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/birthday-reminders/create-automatic", async (req, res) => {
     try {
       const remindersCreated = await storage.createAutomaticReminders();
-      res.json({ 
+      res.json({
         message: `${remindersCreated} lembretes criados automaticamente`,
-        remindersCreated 
+        remindersCreated,
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao criar lembretes automáticos" });
@@ -1031,8 +1125,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/interactions/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertClientInteractionSchema.partial().parse(req.body);
-      const interaction = await storage.updateClientInteraction(id, validatedData);
+      const validatedData = insertClientInteractionSchema
+        .partial()
+        .parse(req.body);
+      const interaction = await storage.updateClientInteraction(
+        id,
+        validatedData,
+      );
 
       if (!interaction) {
         return res.status(404).json({ message: "Interação não encontrada" });
@@ -1094,7 +1193,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/funnel-stages/:id", async (req, res) => {
     try {
       const validatedData = insertFunnelStageSchema.partial().parse(req.body);
-      const stage = await storage.updateFunnelStage(req.params.id, validatedData);
+      const stage = await storage.updateFunnelStage(
+        req.params.id,
+        validatedData,
+      );
       if (!stage) {
         return res.status(404).json({ message: "Etapa não encontrada" });
       }
@@ -1147,7 +1249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Adicionar createdBy baseado no usuário logado (assumindo que existe uma sessão)
       const campaignData = {
         ...req.body,
-        createdBy: "a141d784-f53a-4dfd-a35c-7bb016852677" // ID do admin padrão - idealmente viria da sessão
+        createdBy: "a141d784-f53a-4dfd-a35c-7bb016852677", // ID do admin padrão - idealmente viria da sessão
       };
 
       const campaign = await storage.createEmailCampaign(campaignData);
@@ -1160,7 +1262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/email-campaigns/:id", async (req, res) => {
     try {
-      const campaign = await storage.updateEmailCampaign(req.params.id, req.body);
+      const campaign = await storage.updateEmailCampaign(
+        req.params.id,
+        req.body,
+      );
       if (!campaign) {
         return res.status(404).json({ message: "Campanha não encontrada" });
       }
@@ -1186,11 +1291,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const result = await storage.sendEmailCampaign(req.params.id);
       if (!result.success) {
-        return res.status(400).json({ message: "Erro ao enviar campanha", errors: result.errors });
+        return res
+          .status(400)
+          .json({ message: "Erro ao enviar campanha", errors: result.errors });
       }
-      res.json({ 
+      res.json({
         message: `Campanha enviada com sucesso para ${result.sentCount} destinatários`,
-        sentCount: result.sentCount 
+        sentCount: result.sentCount,
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao enviar campanha" });
@@ -1216,14 +1323,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = objects.map((obj: any) => ({
         name: obj.key.replace(prefix, "").split("/")[0],
         size: obj.size,
-        type: obj.key.endsWith("/") ? "folder" : obj.contentType || "application/octet-stream",
+        type: obj.key.endsWith("/")
+          ? "folder"
+          : obj.contentType || "application/octet-stream",
         lastModified: obj.timeCreated,
-        url: obj.publicUrl
+        url: obj.publicUrl,
       }));
 
       // Remove duplicates and empty entries
-      const uniqueFiles = files.filter((file: any, index: number, self: any[]) => 
-        file.name && self.findIndex((f: any) => f.name === file.name) === index
+      const uniqueFiles = files.filter(
+        (file: any, index: number, self: any[]) =>
+          file.name &&
+          self.findIndex((f: any) => f.name === file.name) === index,
       );
 
       res.json(uniqueFiles);
@@ -1236,7 +1347,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files/upload", upload.array("files"), async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
+        return res
+          .status(503)
+          .json({
+            message:
+              "Object Storage não está configurado no ambiente de desenvolvimento",
+          });
       }
 
       const files = req.files as Express.Multer.File[];
@@ -1247,7 +1363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const uploadPromises = files.map(async (file) => {
-        const key = folder 
+        const key = folder
           ? `company-files/${folder}/${file.originalname}`
           : `company-files/${file.originalname}`;
 
@@ -1256,15 +1372,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           name: file.originalname,
           size: file.size,
-          type: file.mimetype
+          type: file.mimetype,
         };
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
 
-      res.json({ 
+      res.json({
         message: "Arquivos enviados com sucesso",
-        files: uploadedFiles 
+        files: uploadedFiles,
       });
     } catch (error) {
       console.error("Error uploading files:", error);
@@ -1275,17 +1391,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/download", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
+        return res
+          .status(503)
+          .json({
+            message:
+              "Object Storage não está configurado no ambiente de desenvolvimento",
+          });
       }
 
       const filename = req.query.file as string;
       const folder = req.query.folder as string;
 
       if (!filename) {
-        return res.status(400).json({ message: "Nome do arquivo é obrigatório" });
+        return res
+          .status(400)
+          .json({ message: "Nome do arquivo é obrigatório" });
       }
 
-      const key = folder 
+      const key = folder
         ? `company-files/${folder}/${filename}`
         : `company-files/${filename}`;
 
@@ -1293,7 +1416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle the result which might be wrapped in a Result type
       let fileBuffer;
-      if (fileData && typeof fileData === 'object' && 'data' in fileData) {
+      if (fileData && typeof fileData === "object" && "data" in fileData) {
         fileBuffer = fileData.data;
       } else if (Array.isArray(fileData)) {
         fileBuffer = fileData[0];
@@ -1301,8 +1424,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileBuffer = fileData;
       }
 
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Type", "application/octet-stream");
       res.send(Buffer.from(fileBuffer));
     } catch (error) {
       console.error("Error downloading file:", error);
@@ -1313,17 +1439,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/files", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
+        return res
+          .status(503)
+          .json({
+            message:
+              "Object Storage não está configurado no ambiente de desenvolvimento",
+          });
       }
 
       const { files, folder } = req.body;
 
       if (!files || !Array.isArray(files)) {
-        return res.status(400).json({ message: "Lista de arquivos é obrigatória" });
+        return res
+          .status(400)
+          .json({ message: "Lista de arquivos é obrigatória" });
       }
 
       const deletePromises = files.map(async (filename: string) => {
-        const key = folder 
+        const key = folder
           ? `company-files/${folder}/${filename}`
           : `company-files/${filename}`;
 
@@ -1342,7 +1475,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files/folder", async (req, res) => {
     try {
       if (!objectStorageClient) {
-        return res.status(503).json({ message: "Object Storage não está configurado no ambiente de desenvolvimento" });
+        return res
+          .status(503)
+          .json({
+            message:
+              "Object Storage não está configurado no ambiente de desenvolvimento",
+          });
       }
 
       const { name, parent } = req.body;
@@ -1351,7 +1489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome da pasta é obrigatório" });
       }
 
-      const key = parent 
+      const key = parent
         ? `company-files/${parent}/${name}/`
         : `company-files/${name}/`;
 
@@ -1405,13 +1543,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verificar se já existe uma meta para este usuário no mês/ano especificado
       const existingGoal = await storage.getUserGoalByUserIdMonthYear(
-        goalData.userId, 
-        goalData.month, 
-        goalData.year
+        goalData.userId,
+        goalData.month,
+        goalData.year,
       );
       if (existingGoal) {
-        return res.status(400).json({ 
-          message: `Usuário já possui meta cadastrada para ${goalData.month}/${goalData.year}` 
+        return res.status(400).json({
+          message: `Usuário já possui meta cadastrada para ${goalData.month}/${goalData.year}`,
         });
       }
 
@@ -1463,13 +1601,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Weekly Results endpoints
   app.post("/api/weekly-results", async (req, res) => {
     try {
-      const { goalId, week, salesAchieved, ticketAchieved, itemsAchieved } = req.body;
+      const { goalId, week, salesAchieved, ticketAchieved, itemsAchieved } =
+        req.body;
 
       // Verificar se já existe resultado para esta semana
       const existingResult = await storage.getWeeklyResult(goalId, week);
 
       if (existingResult) {
-        return res.status(400).json({ error: "Resultado já existe para esta semana" });
+        return res
+          .status(400)
+          .json({ error: "Resultado já existe para esta semana" });
       }
 
       const result = await storage.createWeeklyResult({
@@ -1503,14 +1644,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
 
-      const goalsWithResults = await storage.getUserGoalsWithResults(month, year);
+      const goalsWithResults = await storage.getUserGoalsWithResults(
+        month,
+        year,
+      );
 
       // Buscar resultados semanais para cada meta
       const goalsWithWeeklyResults = await Promise.all(
         goalsWithResults.map(async (goal) => {
           const weeklyResults = await storage.getWeeklyResultsByGoalId(goal.id);
           return { ...goal, weeklyResults };
-        })
+        }),
       );
 
       res.json(goalsWithWeeklyResults);
@@ -1529,7 +1673,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Mensagem é obrigatória" });
       }
 
-      const response = await generateAIResponse(message, context || 'wine_expert', aiConfig);
+      const response = await generateAIResponse(
+        message,
+        context || "wine_expert",
+        aiConfig,
+      );
       res.json({ response });
     } catch (error) {
       console.error("Erro no chat da IA:", error);
@@ -1542,10 +1690,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clientName, messageType, context, industry, aiConfig } = req.body;
 
       if (!clientName || !messageType) {
-        return res.status(400).json({ message: "Nome do cliente e tipo de mensagem são obrigatórios" });
+        return res
+          .status(400)
+          .json({
+            message: "Nome do cliente e tipo de mensagem são obrigatórios",
+          });
       }
 
-      const prompt = `Cliente: ${clientName}\nTipo: ${messageType}\nContexto adicional: ${context || ''}`;
+      const prompt = `Cliente: ${clientName}\nTipo: ${messageType}\nContexto adicional: ${context || ""}`;
       const message = await generateAIMessage(prompt, aiConfig);
 
       res.json({ message });
@@ -1561,58 +1713,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const images = await storage.getLearningImages();
       res.json(images);
     } catch (error) {
-      console.error('Erro ao buscar imagens:', error);
+      console.error("Erro ao buscar imagens:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
 
-  app.post("/api/learning-images", imageUpload.single('file'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "Nenhum arquivo foi enviado" });
-      }
-
-      const { title, description, category } = req.body;
-
-      if (!title?.trim()) {
-        return res.status(400).json({ error: "Título é obrigatório" });
-      }
-
-      // Upload para Object Storage se estiver em produção
-      let imageUrl: string;
-      let fileName: string;
-
-      if (process.env.NODE_ENV === 'production' && objectStorageClient) {
-        fileName = `learning-images/${nanoid()}-${req.file.originalname}`;
-
-        const uploadResult = await objectStorageClient.uploadFromBytes(fileName, req.file.buffer);
-        if (!uploadResult.ok) {
-          throw new Error('Erro no upload para Object Storage');
+  app.post(
+    "/api/learning-images",
+    imageUpload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Nenhum arquivo foi enviado" });
         }
 
-        // Construir URL da imagem
-        imageUrl = `/api/files/${fileName}`;
-      } else {
-        // Em desenvolvimento, usar uma URL de exemplo
-        imageUrl = `https://images.unsplash.com/photo-${nanoid()}?w=500&h=300&fit=crop`;
-        fileName = req.file.originalname;
+        const { title, description, category } = req.body;
+
+        if (!title?.trim()) {
+          return res.status(400).json({ error: "Título é obrigatório" });
+        }
+
+        // Upload para Object Storage se estiver em produção
+        let imageUrl: string;
+        let fileName: string;
+
+        if (process.env.NODE_ENV === "production" && objectStorageClient) {
+          fileName = `learning-images/${nanoid()}-${req.file.originalname}`;
+
+          const uploadResult = await objectStorageClient.uploadFromBytes(
+            fileName,
+            req.file.buffer,
+          );
+          if (!uploadResult.ok) {
+            throw new Error("Erro no upload para Object Storage");
+          }
+
+          // Construir URL da imagem
+          imageUrl = `/api/files/${fileName}`;
+        } else {
+          // Em desenvolvimento, usar uma URL de exemplo
+          imageUrl = `https://images.unsplash.com/photo-${nanoid()}?w=500&h=300&fit=crop`;
+          fileName = req.file.originalname;
+        }
+
+        const newImage = await storage.createLearningImage({
+          title: title.trim(),
+          description: description?.trim() || "",
+          category: category || "Geral",
+          imageUrl,
+          fileName,
+          createdBy: "system",
+        });
+
+        res.json(newImage);
+      } catch (error) {
+        console.error("Erro ao criar imagem:", error);
+        res.status(500).json({ error: "Erro interno do servidor" });
       }
-
-      const newImage = await storage.createLearningImage({
-        title: title.trim(),
-        description: description?.trim() || "",
-        category: category || "Geral",
-        imageUrl,
-        fileName,
-        createdBy: "system"
-      });
-
-      res.json(newImage);
-    } catch (error) {
-      console.error('Erro ao criar imagem:', error);
-      res.status(500).json({ error: "Erro interno do servidor" });
-    }
-  });
+    },
+  );
 
   app.delete("/api/learning-images/:id", async (req, res) => {
     try {
@@ -1625,11 +1784,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deletar do Object Storage se estiver em produção
-      if (process.env.NODE_ENV === 'production' && objectStorageClient && image.fileName) {
+      if (
+        process.env.NODE_ENV === "production" &&
+        objectStorageClient &&
+        image.fileName
+      ) {
         try {
           await objectStorageClient.delete(image.fileName);
         } catch (error) {
-          console.warn('Erro ao deletar arquivo do Object Storage:', error);
+          console.warn("Erro ao deletar arquivo do Object Storage:", error);
         }
       }
 
@@ -1640,7 +1803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true });
     } catch (error) {
-      console.error('Erro ao deletar imagem:', error);
+      console.error("Erro ao deletar imagem:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {  useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,8 +33,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import FunnelKanbanBoard from "@/components/funnel-kanban-board";
 import FunnelStagesManager from "@/components/funnel-stages-manager";
+import { UpdateFunnelForm } from "./update-funnel-form";
 
-interface SalesFunnel {
+export interface SalesFunnel {
   id: string;
   name: string;
   description?: string;
@@ -73,10 +74,13 @@ export default function FunnelsManagement() {
     "list",
   );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
+  const [updateFunnelModal, setUpdateFunnelModal] = useState<boolean>(false);
 
   const { data: funnels, isLoading } = useQuery({
     queryKey: ["/api/funnels"],
   });
+
+  
 
   const createFunnelMutation = useMutation({
     mutationFn: async (funnelData: {
@@ -339,14 +343,33 @@ export default function FunnelsManagement() {
                         <Settings className="h-4 w-4 mr-1" />
                         Etapas
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingFunnel(funnel)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingFunnel(funnel)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Editar
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Editar Funil</DialogTitle>
+                            <DialogDescription>
+                              Atualize as informações do funil
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          <UpdateFunnelForm
+                            openUpdateModal={setUpdateFunnelModal}
+                            funnel={funnel}
+                          />
+                        </DialogContent>
+                      </Dialog>
+
                       <Button
                         variant="outline"
                         size="sm"
