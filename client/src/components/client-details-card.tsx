@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Client } from "@shared/schema";
-import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History } from "lucide-react";
+import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from "@/lib/currency";
 
 interface ClientDetailsCardProps {
   client: Client | null;
@@ -54,6 +56,16 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     const colors = ['bg-blue-100 text-blue-800', 'bg-green-100 text-green-800', 'bg-purple-100 text-purple-800', 'bg-orange-100 text-orange-800'];
     return markers.map((_, index) => colors[index % colors.length]);
   };
+
+  const { data: interactions = [] } = useQuery({
+    queryKey: [`/api/clients/${client?.id}/interactions`],
+    enabled: !!client?.id,
+  });
+
+  const { data: cashbackBalance } = useQuery({
+    queryKey: [`/api/cashback-balances/${client?.id}`],
+    enabled: !!client?.id,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -228,6 +240,38 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
           <TabsContent value="interactions" className="mt-6 h-[65vh] overflow-hidden">
             <ClientInteractionsTab client={client} />
           </TabsContent>
+           {cashbackBalance && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gift className="h-5 w-5" />
+                    Saldo de Cashback
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Ganho</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        {formatCurrency(cashbackBalance.totalEarned)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Usado</p>
+                      <p className="text-lg font-semibold text-red-600">
+                        {formatCurrency(cashbackBalance.totalUsed)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Saldo Atual</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {formatCurrency(cashbackBalance.currentBalance)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </Tabs>
       </DialogContent>
     </Dialog>

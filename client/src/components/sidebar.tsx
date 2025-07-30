@@ -14,6 +14,7 @@ import {
   Video,
   User,
   LogOut,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -115,7 +116,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               </div>
             )}
           </div>
-          
+
           <Separator className="mb-4 sm:mb-6" />
         </div>
 
@@ -258,6 +259,21 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   </button>
                 </Link>
               )}
+              
+              <Link href="/cashback">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/cashback"
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:bg-gray-100",
+                  )}
+                >
+                  <Gift className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Cashback</span>
+                </button>
+              </Link>
 
               <Link href="/configuracoes">
                 <button

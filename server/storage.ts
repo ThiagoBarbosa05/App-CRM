@@ -45,6 +45,19 @@ import {
   userGoals,
   weeklyResults,
   learningImages,
+  cashbackSettings,
+  type CashbackSetting,
+  type InsertCashbackSetting,
+  cashbackTransactions,
+  type CashbackTransaction,
+  type InsertCashbackTransaction,
+  type CashbackTransactionWithClient,
+  clientCashbackBalance,
+  type ClientCashbackBalance,
+  type ClientCashbackBalanceWithClient,
+  cashbackUsage,
+  type CashbackUsage,
+  type InsertCashbackUsage
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -57,6 +70,7 @@ import {
   inArray,
   or,
   desc,
+  isNull,
 } from "drizzle-orm";
 
 export interface IStorage {
@@ -221,6 +235,48 @@ export interface IStorage {
     image: Partial<InsertLearningImage>,
   ): Promise<LearningImage | undefined>;
   deleteLearningImage(id: string): Promise<boolean>;
+
+  // Cashback Settings methods
+  getCashbackSettings(): Promise<CashbackSetting[]>;
+  getCashbackSetting(id: string): Promise<CashbackSetting | undefined>;
+  createCashbackSetting(
+    insertSetting: InsertCashbackSetting,
+  ): Promise<CashbackSetting>;
+  updateCashbackSetting(
+    id: string,
+    updateData: Partial<InsertCashbackSetting>,
+  ): Promise<CashbackSetting | undefined>;
+  deleteCashbackSetting(id: string): Promise<boolean>;
+
+  // Cashback Transactions methods
+  getCashbackTransactions(): Promise<CashbackTransactionWithClient[]>;
+  createCashbackTransaction(
+    insertTransaction: InsertCashbackTransaction,
+  ): Promise<CashbackTransaction>;
+  updateCashbackTransaction(
+    id: string,
+    updateData: Partial<InsertCashbackTransaction>,
+  ): Promise<CashbackTransaction | undefined>;
+
+  // Client Cashback Balance methods
+  getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined>;
+  getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
+  updateClientCashbackBalance(clientId: string): Promise<void>;
+
+  // Cashback Usage methods
+  createCashbackUsage(
+    insertUsage: InsertCashbackUsage,
+  ): Promise<CashbackUsage>;
+  getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]>;
+
+  // Método para calcular cashback baseado nas regras ativas
+  calculateCashback(purchaseAmount: number): Promise<{
+    setting: CashbackSetting | null;
+    cashbackAmount: number;
+    rate: number;
+  }>;
+
+  getUserRegistrationStats(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -422,11 +478,11 @@ export class DatabaseStorage implements IStorage {
       ...updateData,
       updatedAt: new Date()
     };
-    
+
     if ('sectorId' in updateData) {
       processedData.sectorId = updateData.sectorId && updateData.sectorId.trim() !== '' ? updateData.sectorId : null;
     }
-    
+
     if ('responsavelId' in updateData) {
       processedData.responsavelId = updateData.responsavelId && updateData.responsavelId.trim() !== '' ? updateData.responsavelId : null;
     }
@@ -1408,10 +1464,304 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLearningImage(id: string): Promise<boolean> {
-    const result = await db
+    const [deletedImage] = await db
       .delete(learningImages)
-      .where(eq(learningImages.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+      .where(eq(learningImages.id, id))
+      .returning();
+    return !!deletedImage;
+  }
+
+  // Cashback Settings methods
+  async getCashbackSettings(): Promise<CashbackSetting[]> {
+    const result = await db
+      .select()
+      .from(cashbackSettings)
+      .orderBy(cashbackSettings.createdAt);
+    return result;
+  }
+
+  async getCashbackSetting(id: string): Promise<CashbackSetting | undefined> {
+    const [setting] = await db
+      .select()
+      .from(cashbackSettings)
+      .where(eq(cashbackSettings.id, id));
+    return setting || undefined;
+  }
+
+  async createCashbackSetting(
+    insertSetting: InsertCashbackSetting,
+  ): Promise<CashbackSetting> {
+    const [setting] = await db
+      .insert(cashbackSettings)
+      .values(insertSetting)
+      .returning();
+    return setting;
+  }
+
+  async updateCashbackSetting(
+    id: string,
+    updateData: Partial<InsertCashbackSetting>,
+  ): Promise<CashbackSetting | undefined> {
+    const [setting] = await db
+      .update(cashbackSettings)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(cashbackSettings.id, id))
+      .returning();
+    return setting || undefined;
+  }
+
+  async deleteCashbackSetting(id: string): Promise<boolean> {
+    const [deletedSetting] = await db
+      .delete(cashbackSettings)
+      .where(eq(cashbackSettings.id, id))
+      .returning();
+    return !!deletedSetting;
+  }
+
+  // Cashback Transactions methods
+  async getCashbackTransactions(): Promise<CashbackTransactionWithClient[]> {
+    const transactions = await db
+      .select()
+      .from(cashbackTransactions)
+      .orderBy(cashbackTransactions.createdAt);
+
+    const transactionsWithDetails: CashbackTransactionWithClient[] = [];
+
+    for (const transaction of transactions) {
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, transaction.clientId));
+
+      let deal = undefined;
+      if (transaction.dealId) {
+        const [dealResult] = await db
+          .select()
+          .from(deals)
+          .where(eq(deals.id, transaction.dealId));
+        deal = dealResult;
+      }
+
+      let setting = undefined;
+      if (transaction.settingId) {
+        const [settingResult] = await db
+          .select()
+          .from(cashbackSettings)
+          .where(eq(cashbackSettings.id, transaction.settingId));
+        setting = settingResult;
+      }
+
+      let processedByUser = undefined;
+      if (transaction.processedBy) {
+        const [userResult] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, transaction.processedBy));
+        processedByUser = userResult;
+      }
+
+      transactionsWithDetails.push({
+        ...transaction,
+        client,
+        deal,
+        setting,
+        processedByUser,
+      });
+    }
+
+    return transactionsWithDetails;
+  }
+
+  async createCashbackTransaction(
+    insertTransaction: InsertCashbackTransaction,
+  ): Promise<CashbackTransaction> {
+    const [transaction] = await db
+      .insert(cashbackTransactions)
+      .values(insertTransaction)
+      .returning();
+
+    // Atualizar saldo do cliente
+    await this.updateClientCashbackBalance(insertTransaction.clientId);
+
+    return transaction;
+  }
+
+  async updateCashbackTransaction(
+    id: string,
+    updateData: Partial<InsertCashbackTransaction>,
+  ): Promise<CashbackTransaction | undefined> {
+    const [transaction] = await db
+      .update(cashbackTransactions)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(cashbackTransactions.id, id))
+      .returning();
+
+    if (transaction) {
+      // Atualizar saldo do cliente
+      await this.updateClientCashbackBalance(transaction.clientId);
+    }
+
+    return transaction || undefined;
+  }
+
+  // Client Cashback Balance methods
+  async getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined> {
+    const [balance] = await db
+      .select()
+      .from(clientCashbackBalance)
+      .where(eq(clientCashbackBalance.clientId, clientId));
+    return balance || undefined;
+  }
+
+  async getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
+    const balances = await db
+      .select()
+      .from(clientCashbackBalance)
+      .orderBy(clientCashbackBalance.currentBalance);
+
+    const balancesWithClients: ClientCashbackBalanceWithClient[] = [];
+
+    for (const balance of balances) {
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, balance.clientId));
+
+      balancesWithClients.push({
+        ...balance,
+        client,
+      });
+    }
+
+    return balancesWithClients;
+  }
+
+  async updateClientCashbackBalance(clientId: string): Promise<void> {
+    // Calcular total ganho
+    const earnedTransactions = await db
+      .select()
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.clientId, clientId),
+          eq(cashbackTransactions.status, "approved")
+        )
+      );
+
+    const totalEarned = earnedTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.cashbackAmount),
+      0
+    );
+
+    // Calcular total usado
+    const usageTransactions = await db
+      .select()
+      .from(cashbackUsage)
+      .where(eq(cashbackUsage.clientId, clientId));
+
+    const totalUsed = usageTransactions.reduce(
+      (sum, usage) => sum + Number(usage.usedAmount),
+      0
+    );
+
+    const currentBalance = totalEarned - totalUsed;
+
+    // Verificar se já existe um registro de saldo
+    const existingBalance = await this.getClientCashbackBalance(clientId);
+
+    if (existingBalance) {
+      await db
+        .update(clientCashbackBalance)
+        .set({
+          totalEarned: totalEarned.toString(),
+          totalUsed: totalUsed.toString(),
+          currentBalance: currentBalance.toString(),
+          lastUpdated: new Date(),
+        })
+        .where(eq(clientCashbackBalance.clientId, clientId));
+    } else {
+      await db
+        .insert(clientCashbackBalance)
+        .values({
+          clientId,
+          totalEarned: totalEarned.toString(),
+          totalUsed: totalUsed.toString(),
+          currentBalance: currentBalance.toString(),
+        });
+    }
+  }
+
+  // Cashback Usage methods
+  async createCashbackUsage(
+    insertUsage: InsertCashbackUsage,
+  ): Promise<CashbackUsage> {
+    const [usage] = await db
+      .insert(cashbackUsage)
+      .values(insertUsage)
+      .returning();
+
+    // Atualizar saldo do cliente
+    await this.updateClientCashbackBalance(insertUsage.clientId);
+
+    return usage;
+  }
+
+  async getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]> {
+    const usage = await db
+      .select()
+      .from(cashbackUsage)
+      .where(eq(cashbackUsage.clientId, clientId))
+      .orderBy(cashbackUsage.createdAt);
+    return usage;
+  }
+
+  // Método para calcular cashback baseado nas regras ativas
+  async calculateCashback(purchaseAmount: number): Promise<{
+    setting: CashbackSetting | null;
+    cashbackAmount: number;
+    rate: number;
+  }> {
+    // Buscar regras ativas ordenadas por maior percentual
+    const activeSettings = await db
+      .select()
+      .from(cashbackSettings)
+      .where(
+        and(
+          eq(cashbackSettings.isActive, "true"),
+          or(
+            isNull(cashbackSettings.validUntil),
+            gte(cashbackSettings.validUntil, new Date())
+          )
+        )
+      )
+      .orderBy(sql`${cashbackSettings.percentageRate} DESC`);
+
+    for (const setting of activeSettings) {
+      const minimumPurchase = Number(setting.minimumPurchase || 0);
+
+      if (purchaseAmount >= minimumPurchase) {
+        const rate = Number(setting.percentageRate) / 100;
+        let cashbackAmount = purchaseAmount * rate;
+
+        // Aplicar limite máximo se definido
+        if (setting.maximumCashback) {
+          const maxCashback = Number(setting.maximumCashback);
+          cashbackAmount = Math.min(cashbackAmount, maxCashback);
+        }
+
+        return {
+          setting,
+          cashbackAmount,
+          rate: Number(setting.percentageRate),
+        };
+      }
+    }
+
+    return {
+      setting: null,
+      cashbackAmount: 0,
+      rate: 0,
+    };
   }
 
   async getUserRegistrationStats(): Promise<any[]> {

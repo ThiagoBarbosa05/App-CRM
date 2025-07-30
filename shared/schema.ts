@@ -486,7 +486,97 @@ export const learningImages = pgTable("learning_images", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Tabela de configurações de cashback
+export const cashbackSettings = pgTable("cashback_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Nome da regra de cashback
+  description: text("description"),
+  percentageRate: decimal("percentage_rate", { precision: 5, scale: 2 }).notNull(), // % de cashback
+  minimumPurchase: decimal("minimum_purchase", { precision: 12, scale: 2 }).default("0.00"), // Valor mínimo para receber cashback
+  maximumCashback: decimal("maximum_cashback", { precision: 12, scale: 2 }), // Valor máximo de cashback por transação
+  validUntil: timestamp("valid_until"), // Data de validade da promoção
+  isActive: text("is_active").notNull().default("true"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de transações de cashback
+export const cashbackTransactions = pgTable("cashback_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id).notNull(),
+  dealId: varchar("deal_id").references(() => deals.id), // Relacionado a um negócio
+  purchaseAmount: decimal("purchase_amount", { precision: 12, scale: 2 }).notNull(), // Valor da compra
+  cashbackAmount: decimal("cashback_amount", { precision: 12, scale: 2 }).notNull(), // Valor do cashback
+  cashbackRate: decimal("cashback_rate", { precision: 5, scale: 2 }).notNull(), // % aplicada
+  status: text("status", { enum: ["pending", "approved", "paid", "cancelled"] }).notNull().default("pending"),
+  settingId: varchar("setting_id").references(() => cashbackSettings.id), // Regra aplicada
+  notes: text("notes"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de saldo de cashback dos clientes
+export const clientCashbackBalance = pgTable("client_cashback_balance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id).notNull().unique(),
+  totalEarned: decimal("total_earned", { precision: 12, scale: 2 }).notNull().default("0.00"), // Total ganho
+  totalUsed: decimal("total_used", { precision: 12, scale: 2 }).notNull().default("0.00"), // Total utilizado
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull().default("0.00"), // Saldo atual
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
+// Tabela de uso de cashback (quando cliente usa o saldo)
+export const cashbackUsage = pgTable("cashback_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id).notNull(),
+  dealId: varchar("deal_id").references(() => deals.id), // Negócio onde foi usado
+  usedAmount: decimal("used_amount", { precision: 12, scale: 2 }).notNull(), // Valor usado
+  description: text("description").notNull(), // Descrição do uso
+  authorizedBy: varchar("authorized_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertLearningImageSchema = createInsertSchema(learningImages);
+export const insertCashbackSettingSchema = createInsertSchema(cashbackSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertCashbackTransactionSchema = createInsertSchema(cashbackTransactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertClientCashbackBalanceSchema = createInsertSchema(clientCashbackBalance).omit({
+  id: true,
+});
+export const insertCashbackUsageSchema = createInsertSchema(cashbackUsage).omit({
+  id: true,
+  createdAt: true,
+});
 
 export type LearningImage = typeof learningImages.$inferSelect;
 export type InsertLearningImage = z.infer<typeof insertLearningImageSchema>;
+export type CashbackSetting = typeof cashbackSettings.$inferSelect;
+export type InsertCashbackSetting = z.infer<typeof insertCashbackSettingSchema>;
+export type CashbackTransaction = typeof cashbackTransactions.$inferSelect;
+export type InsertCashbackTransaction = z.infer<typeof insertCashbackTransactionSchema>;
+export type ClientCashbackBalance = typeof clientCashbackBalance.$inferSelect;
+export type InsertClientCashbackBalance = z.infer<typeof insertClientCashbackBalanceSchema>;
+export type CashbackUsage = typeof cashbackUsage.$inferSelect;
+export type InsertCashbackUsage = z.infer<typeof insertCashbackUsageSchema>;
+
+// Interfaces com relacionamentos para cashback
+export interface CashbackTransactionWithClient extends CashbackTransaction {
+  client: Client;
+  deal?: Deal;
+  setting?: CashbackSetting;
+  processedByUser?: User;
+}
+
+export interface ClientCashbackBalanceWithClient extends ClientCashbackBalance {
+  client: Client;
+}

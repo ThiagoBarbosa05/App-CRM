@@ -1808,6 +1808,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cashback Settings routes
+  app.get("/api/cashback-settings", async (req, res) => {
+    try {
+      const settings = await storage.getCashbackSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Erro ao buscar configurações de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/cashback-settings", async (req, res) => {
+    try {
+      const settingData = req.body;
+      const setting = await storage.createCashbackSetting(settingData);
+      res.status(201).json(setting);
+    } catch (error) {
+      console.error("Erro ao criar configuração de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.put("/api/cashback-settings/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const setting = await storage.updateCashbackSetting(id, updateData);
+      
+      if (!setting) {
+        return res.status(404).json({ error: "Configuração não encontrada" });
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      console.error("Erro ao atualizar configuração de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.delete("/api/cashback-settings/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteCashbackSetting(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Configuração não encontrada" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao deletar configuração de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  // Cashback Transactions routes
+  app.get("/api/cashback-transactions", async (req, res) => {
+    try {
+      const transactions = await storage.getCashbackTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error("Erro ao buscar transações de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/cashback-transactions", async (req, res) => {
+    try {
+      const transactionData = req.body;
+      const transaction = await storage.createCashbackTransaction(transactionData);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Erro ao criar transação de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.put("/api/cashback-transactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const transaction = await storage.updateCashbackTransaction(id, updateData);
+      
+      if (!transaction) {
+        return res.status(404).json({ error: "Transação não encontrada" });
+      }
+      
+      res.json(transaction);
+    } catch (error) {
+      console.error("Erro ao atualizar transação de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  // Client Cashback Balance routes
+  app.get("/api/cashback-balances", async (req, res) => {
+    try {
+      const balances = await storage.getAllClientCashbackBalances();
+      res.json(balances);
+    } catch (error) {
+      console.error("Erro ao buscar saldos de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.get("/api/cashback-balances/:clientId", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const balance = await storage.getClientCashbackBalance(clientId);
+      res.json(balance);
+    } catch (error) {
+      console.error("Erro ao buscar saldo de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  // Cashback Usage routes
+  app.post("/api/cashback-usage", async (req, res) => {
+    try {
+      const usageData = req.body;
+      const usage = await storage.createCashbackUsage(usageData);
+      res.status(201).json(usage);
+    } catch (error) {
+      console.error("Erro ao criar uso de cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.get("/api/cashback-usage/:clientId", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const usage = await storage.getClientCashbackUsage(clientId);
+      res.json(usage);
+    } catch (error) {
+      console.error("Erro ao buscar histórico de uso:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  // Calculate Cashback route
+  app.post("/api/calculate-cashback", async (req, res) => {
+    try {
+      const { purchaseAmount } = req.body;
+      
+      if (!purchaseAmount || purchaseAmount <= 0) {
+        return res.status(400).json({ error: "Valor de compra inválido" });
+      }
+      
+      const result = await storage.calculateCashback(purchaseAmount);
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao calcular cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
