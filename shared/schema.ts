@@ -547,10 +547,27 @@ export const insertCashbackSettingSchema = createInsertSchema(cashbackSettings).
   createdAt: true,
   updatedAt: true,
 });
-export const insertCashbackTransactionSchema = createInsertSchema(cashbackTransactions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertCashbackTransactionSchema = z.object({
+  clientId: z.string(),
+  dealId: z.string().optional(),
+  purchaseAmount: z.union([z.string(), z.number()]).transform(val => typeof val === 'string' ? val : val.toString()),
+  cashbackAmount: z.union([z.string(), z.number()]).transform(val => typeof val === 'string' ? val : val.toString()),
+  cashbackRate: z.union([z.string(), z.number()]).transform(val => typeof val === 'string' ? val : val.toString()),
+  status: z.enum(["pending", "approved", "paid", "cancelled"]).default("pending"),
+  settingId: z.string().optional(),
+  notes: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  saleDate: z.union([
+    z.date(),
+    z.string().transform(str => new Date(str)),
+    z.null()
+  ]).optional(),
+  processedBy: z.string().optional(),
+  processedAt: z.union([
+    z.date(),
+    z.string().transform(str => new Date(str)),
+    z.null()
+  ]).optional(),
 });
 export const insertClientCashbackBalanceSchema = createInsertSchema(clientCashbackBalance).omit({
   id: true,

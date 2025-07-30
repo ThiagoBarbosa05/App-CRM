@@ -106,6 +106,9 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Fixed client import functionality with proper field mapping and validation (July 30, 2025)
 - Corrected responsavelId mapping to convert user names to IDs during import process
 - Added normalization for number/string field types to prevent validation errors
+- Fixed cashback transaction date validation error (July 30, 2025)
+- Updated insertCashbackTransactionSchema to accept string dates and convert to Date objects
+- Resolved "Expected date, received string" validation error when saving sales transactions
 
 ### Client Flow
 1. User creates/edits client through modal forms
