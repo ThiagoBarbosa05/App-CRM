@@ -10,7 +10,14 @@ import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History,
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/currency";
+// Função para formatar moeda
+const formatCurrency = (value: string | number) => {
+  const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(numericValue);
+};
 
 interface ClientDetailsCardProps {
   client: Client | null;
@@ -62,10 +69,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     enabled: !!client?.id,
   });
 
-  const { data: cashbackBalance } = useQuery({
-    queryKey: [`/api/cashback-balances/${client?.id}`],
-    enabled: !!client?.id,
-  });
+  // Dados de cashback removidos temporariamente
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -240,38 +244,6 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
           <TabsContent value="interactions" className="mt-6 h-[65vh] overflow-hidden">
             <ClientInteractionsTab client={client} />
           </TabsContent>
-           {cashbackBalance && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5" />
-                    Saldo de Cashback
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Ganho</p>
-                      <p className="text-lg font-semibold text-green-600">
-                        {formatCurrency(cashbackBalance.totalEarned)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Usado</p>
-                      <p className="text-lg font-semibold text-red-600">
-                        {formatCurrency(cashbackBalance.totalUsed)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Saldo Atual</p>
-                      <p className="text-xl font-bold text-blue-600">
-                        {formatCurrency(cashbackBalance.currentBalance)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
         </Tabs>
       </DialogContent>
     </Dialog>
