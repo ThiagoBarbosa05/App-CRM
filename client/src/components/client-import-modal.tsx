@@ -147,7 +147,7 @@ export default function ClientImportModal({
             // Se não encontrou, tentar buscar por similaridade
             if (!foundUserId) {
               console.log(`Linha ${i + 1}: Tentando buscar responsavel por similaridade...`);
-              for (const [userName, userId] of userMap.entries()) {
+              for (const [userName, userId] of Array.from(userMap.entries())) {
                 if (userName.includes(cleanName) || cleanName.includes(userName)) {
                   responsavelId = userId;
                   console.log(`Linha ${i + 1}: Encontrado por similaridade: '${userName}' -> ${userId}`);
@@ -166,12 +166,12 @@ export default function ClientImportModal({
           
           if (categoriaName && typeof categoriaName === 'string') {
             const cleanCategoriaName = categoriaName.toLowerCase().trim();
-            const foundCategory = categories.find(cat => 
+            const foundCategory = categories.find((cat: any) => 
               cat.name.toLowerCase().trim() === cleanCategoriaName
             );
             categoria = foundCategory ? foundCategory.name : "OUTROS";
             console.log(`Linha ${i + 1}: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${foundCategory ? foundCategory.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
-            console.log(`Available categories:`, categories.map(c => c.name));
+            console.log(`Available categories:`, categories.map((c: any) => c.name));
           }
 
           // Mapear origem por nome (usando o nome da origem diretamente)
@@ -181,12 +181,12 @@ export default function ClientImportModal({
           
           if (origemName && typeof origemName === 'string') {
             const cleanOrigemName = origemName.toLowerCase().trim();
-            const foundOrigin = origins.find(orig => 
+            const foundOrigin = origins.find((orig: any) => 
               orig.name.toLowerCase().trim() === cleanOrigemName
             );
             origem = foundOrigin ? foundOrigin.name : "OUTROS";
             console.log(`Linha ${i + 1}: Origem '${origemName}' -> '${cleanOrigemName}' -> ${foundOrigin ? foundOrigin.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
-            console.log(`Available origins:`, origins.map(o => o.name));
+            console.log(`Available origins:`, origins.map((o: any) => o.name));
           }
 
           // Formatar data de aniversário
