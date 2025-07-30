@@ -57,7 +57,7 @@ interface FunnelStage {
   name: string;
   order: number;
   color: string;
-  createdAt: string;
+  createdAt: Date;
 }
 
 export default function FunnelsManagement() {
@@ -97,7 +97,9 @@ export default function FunnelsManagement() {
         throw new Error(error.message || "Erro ao criar funil");
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log("response: ", result);
+      return result;
     },
     onSuccess: () => {
       toast({
