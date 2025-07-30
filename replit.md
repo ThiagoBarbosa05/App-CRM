@@ -112,6 +112,9 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Fixed cashback settings update API error returning HTML instead of JSON (July 30, 2025)
 - Added missing PUT and DELETE routes for /api/cashback-settings/:id
 - Resolved "Unexpected token '<', '<!DOCTYPE'" error when updating cashback configurations
+- Fixed cashback settings validation error with empty date fields (July 30, 2025)
+- Updated frontend to properly handle empty strings by converting to null for optional fields
+- Resolved "Expected date, received string" error when validUntil field is empty
 
 ### Client Flow
 1. User creates/edits client through modal forms

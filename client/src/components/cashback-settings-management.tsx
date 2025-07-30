@@ -136,9 +136,9 @@ export default function CashbackSettingsManagement() {
     const submitData = {
       ...formData,
       percentageRate: formData.percentageRate,
-      minimumPurchase: formData.minimumPurchase || "0.00",
-      maximumCashback: formData.maximumCashback || null,
-      validUntil: formData.validUntil || null,
+      minimumPurchase: formData.minimumPurchase && formData.minimumPurchase.trim() !== "" ? formData.minimumPurchase : "0.00",
+      maximumCashback: formData.maximumCashback && formData.maximumCashback.trim() !== "" ? formData.maximumCashback : null,
+      validUntil: formData.validUntil && formData.validUntil.trim() !== "" ? formData.validUntil : null,
     };
 
     if (editingSetting) {
