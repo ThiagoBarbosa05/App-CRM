@@ -97,34 +97,6 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               {client.name}
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSaleModalOpen(true)}
-                className="flex items-center gap-2 text-green-600 hover:text-green-700"
-              >
-                <DollarSign className="h-4 w-4" />
-                Lançar Venda
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBalanceModalOpen(true)}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-              >
-                <Gift className="h-4 w-4" />
-                Saldo
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCashbackUsageModalOpen(true)}
-                disabled={!cashbackBalance?.currentBalance || parseFloat(cashbackBalance.currentBalance) <= 0}
-                className="flex items-center gap-2 text-purple-600 hover:text-purple-700 disabled:text-gray-400"
-              >
-                <Wallet className="h-4 w-4" />
-                Resgatar
-              </Button>
               {onEdit && (
                 <Button
                   variant="outline"
@@ -293,6 +265,55 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
 
           <TabsContent value="cashback" className="mt-6 overflow-y-auto max-h-[65vh]">
             <div className="space-y-6">
+              {/* Ações de Cashback */}
+              <Card className="border-2 border-wine-200 bg-wine-50">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2 text-wine-700">
+                    <DollarSign className="h-5 w-5" />
+                    Ações de Cashback
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button
+                      onClick={() => setSaleModalOpen(true)}
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-12"
+                    >
+                      <DollarSign className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-semibold">Lançar Venda</div>
+                        <div className="text-xs opacity-90">Registrar compra</div>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => setBalanceModalOpen(true)}
+                      className="flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 h-12"
+                    >
+                      <Gift className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-semibold">Ver Saldo</div>
+                        <div className="text-xs">Consultar detalhes</div>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => setCashbackUsageModalOpen(true)}
+                      disabled={!cashbackBalance?.currentBalance || parseFloat(cashbackBalance.currentBalance) <= 0}
+                      className="flex items-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:text-gray-400 disabled:border-gray-200 h-12"
+                    >
+                      <Wallet className="h-5 w-5" />
+                      <div className="text-left">
+                        <div className="font-semibold">Resgatar</div>
+                        <div className="text-xs">Usar cashback</div>
+                      </div>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Saldo de Cashback */}
               <Card>
                 <CardHeader>
@@ -327,15 +348,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     </div>
                   </div>
 
-                  {cashbackBalance && cashbackBalance.currentBalance > 0 && (
-                    <Button
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => setCashbackUsageModalOpen(true)}
-                    >
-                      <Gift className="h-4 w-4 mr-2" />
-                      RESGATAR CASHBACK
-                    </Button>
-                  )}
+
                 </CardContent>
               </Card>
 

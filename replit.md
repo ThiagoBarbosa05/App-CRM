@@ -121,10 +121,11 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Fixed cashback redemption UI components now fully visible and functional
 - Enhanced "Transações" tab to show unified view of both cashback earnings and redemptions (July 30, 2025)
 - Combined transactions now display chronologically with clear type indicators and color coding
-- Implemented three action buttons in Client Details header (July 30, 2025):
-  - "Lançar Venda": Opens sale form modal to register new purchases
-  - "Saldo": Shows detailed cashback balance modal with total earned, used, and current balance
+- Created "Ações de Cashback" section in Client Details cashback tab (July 30, 2025):
+  - "Lançar Venda": Opens sale form modal to register new purchases and generate cashback
+  - "Ver Saldo": Shows detailed cashback balance modal with total earned, used, and current balance
   - "Resgatar": Opens cashback redemption modal (disabled when no balance available)
+  - Section organized with visual styling and clear action descriptions
 
 ### Client Flow
 1. User creates/edits client through modal forms
