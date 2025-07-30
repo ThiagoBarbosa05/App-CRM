@@ -19,7 +19,7 @@ import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
-
+import { MainLayout } from "./components/main-layout";
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -41,7 +41,14 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/clientes" component={Clients} />
       <Route path="/empresas" component={Companies} />
-      <Route path="/funil" component={Funnel} />
+      <Route
+        path="/funil"
+        component={() => (
+          <MainLayout>
+            <Funnel />
+          </MainLayout>
+        )}
+      />
 
       <Route path="/relatorios" component={Reports} />
       <Route path="/calendario" component={Calendar} />
