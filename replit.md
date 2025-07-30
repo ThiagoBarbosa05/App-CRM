@@ -109,6 +109,9 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Fixed cashback transaction date validation error (July 30, 2025)
 - Updated insertCashbackTransactionSchema to accept string dates and convert to Date objects
 - Resolved "Expected date, received string" validation error when saving sales transactions
+- Fixed cashback settings update API error returning HTML instead of JSON (July 30, 2025)
+- Added missing PUT and DELETE routes for /api/cashback-settings/:id
+- Resolved "Unexpected token '<', '<!DOCTYPE'" error when updating cashback configurations
 
 ### Client Flow
 1. User creates/edits client through modal forms

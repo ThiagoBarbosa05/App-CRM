@@ -263,6 +263,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/cashback-settings/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertCashbackSettingSchema.partial().parse(req.body);
+      const setting = await storage.updateCashbackSetting(id, validatedData);
+      if (!setting) {
+        return res.status(404).json({ message: "Configuração não encontrada" });
+      }
+      res.json(setting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar configuração:", error);
+      res.status(500).json({ message: "Erro ao atualizar configuração" });
+    }
+  });
+
+  app.delete("/api/cashback-settings/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteCashbackSetting(id);
+      if (!success) {
+        return res.status(404).json({ message: "Configuração não encontrada" });
+      }
+      res.json({ message: "Configuração excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir configuração:", error);
+      res.status(500).json({ message: "Erro ao excluir configuração" });
+    }
+  });
+
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
       const transactions = await storage.getCashbackTransactions();
