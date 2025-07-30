@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +20,18 @@ import {
   FileText, 
   UserCheck,
   Building,
-  CreditCard
+  CreditCard,
+  DollarSign,
+  Gift,
+  Wallet
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { type Client } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import SaleFormModal from "./sale-form-modal";
+import CashbackUsageModal from "./cashback-usage-modal";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -33,7 +40,26 @@ interface ClientDetailsModalProps {
 }
 
 export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDetailsModalProps) {
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
+  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
+
   if (!client) return null;
+
+  // Função para formatar moeda
+  const formatCurrency = (value: string | number) => {
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(numericValue);
+  };
+
+  // Query para buscar saldo de cashback
+  const { data: cashbackBalance } = useQuery({
+    queryKey: [`/api/cashback-balances/${client?.id}`],
+    enabled: !!client?.id,
+  });
 
   const formatDate = (dateString: string) => {
     try {
@@ -90,6 +116,55 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Ações de Cashback */}
+          <Card className="border-2 border-wine-200 bg-wine-50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-wine-700">
+                <DollarSign className="h-5 w-5" />
+                Ações de Cashback
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button
+                  onClick={() => setSaleModalOpen(true)}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-12"
+                >
+                  <DollarSign className="h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold">Lançar Venda</div>
+                    <div className="text-xs opacity-90">Registrar compra</div>
+                  </div>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setBalanceModalOpen(true)}
+                  className="flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 h-12"
+                >
+                  <Gift className="h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold">Ver Saldo</div>
+                    <div className="text-xs">Consultar detalhes</div>
+                  </div>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setCashbackUsageModalOpen(true)}
+                  disabled={!cashbackBalance?.currentBalance || parseFloat(cashbackBalance.currentBalance) <= 0}
+                  className="flex items-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:text-gray-400 disabled:border-gray-200 h-12"
+                >
+                  <Wallet className="h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold">Resgatar</div>
+                    <div className="text-xs">Usar cashback</div>
+                  </div>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Informações Básicas */}
           <Card>
             <CardHeader>
@@ -303,6 +378,84 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
           </Card>
         </div>
       </DialogContent>
+
+      <SaleFormModal
+        client={client}
+        open={saleModalOpen}
+        onOpenChange={setSaleModalOpen}
+      />
+      
+      <CashbackUsageModal
+        client={client}
+        open={cashbackUsageModalOpen}
+        onOpenChange={setCashbackUsageModalOpen}
+      />
+
+      {/* Modal de Saldo de Cashback */}
+      <Dialog open={balanceModalOpen} onOpenChange={setBalanceModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-blue-600" />
+              Saldo de Cashback
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-lg font-medium text-gray-900">{client.name}</p>
+              <p className="text-sm text-gray-500">CPF: {formatCPF(client.cpf || "")}</p>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Total Ganho</p>
+                  <p className="font-medium text-blue-600">
+                    {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned || 0) : formatCurrency(0)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Total Usado</p>
+                  <p className="font-medium text-red-600">
+                    {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed || 0) : formatCurrency(0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              {cashbackBalance && parseFloat(cashbackBalance.currentBalance || '0') > 0 && (
+                <Button
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => {
+                    setBalanceModalOpen(false);
+                    setCashbackUsageModalOpen(true);
+                  }}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Resgatar
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setBalanceModalOpen(false)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
