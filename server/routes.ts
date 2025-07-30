@@ -1964,6 +1964,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client Import routes
+  app.post("/api/clients/import", async (req, res) => {
+    try {
+      const clients = req.body;
+      if (!Array.isArray(clients)) {
+        return res.status(400).json({ message: "Dados devem ser um array" });
+      }
+
+      const results: {
+        success: number;
+        errors: Array<{ row: number; error: string; data?: any }>;
+        total: number;
+      } = {
+        success: 0,
+        errors: [],
+        total: clients.length,
+      };
+
+      for (let i = 0; i < clients.length; i++) {
+        try {
+          const clientRow = clients[i];
+          
+          // Normalize phone number to string
+          if (clientRow.phone && typeof clientRow.phone === 'number') {
+            clientRow.phone = clientRow.phone.toString();
+          }
+          
+          // Normalize address number to string
+          if (clientRow.number && typeof clientRow.number === 'number') {
+            clientRow.number = clientRow.number.toString();
+          }
+          
+          // Normalize CPF to string
+          if (clientRow.cpf && typeof clientRow.cpf === 'number') {
+            clientRow.cpf = clientRow.cpf.toString();
+          }
+
+          // Validate required fields and normalize data based on actual database schema
+          const clientData = {
+            name: clientRow.name || "",
+            phone: clientRow.phone ? String(clientRow.phone) : "00000000000", // Campo obrigatório
+            cpf: clientRow.cpf ? String(clientRow.cpf) : "",
+            email: clientRow.email || "",
+            birthday: clientRow.birthday || "",
+            cep: clientRow.cep || "",
+            address: clientRow.address || "",
+            number: clientRow.number ? String(clientRow.number) : "", // Número do endereço
+            neighborhood: clientRow.neighborhood || "",
+            city: clientRow.city || "",
+            state: clientRow.state || "",
+            markers: clientRow.markers || [],
+            responsavelId: clientRow.responsavelId || null,
+            categoria: clientRow.categoria || "Geral", // Campo obrigatório
+            origem: clientRow.origem || "Importação", // Campo obrigatório
+          };
+
+          // Validate using schema
+          const validatedData = insertClientSchema.parse(clientData);
+          await storage.createClient(validatedData);
+          results.success++;
+        } catch (error) {
+          console.error(`Erro na linha ${i + 1}:`, error);
+          let errorMessage = "Erro desconhecido";
+          
+          if (error instanceof z.ZodError) {
+            errorMessage = fromZodError(error).toString();
+          } else if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+
+          results.errors.push({
+            row: i + 2, // +2 porque começa em 1 e pula header
+            error: errorMessage,
+            data: clientRow,
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Erro na importação:", error);
+      res.status(500).json({ message: "Erro ao importar clientes" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
