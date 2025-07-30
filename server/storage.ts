@@ -180,6 +180,7 @@ export interface IStorage {
   // Tags methods
   getTags(): Promise<Tag[]>;
   getTag(id: string): Promise<Tag | undefined>;
+  getTagsByType(type: string): Promise<Tag[]>;
   createTag(tag: InsertTag): Promise<Tag>;
   updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined>;
   deleteTag(id: string): Promise<boolean>;
@@ -213,7 +214,7 @@ export interface IStorage {
   getUserGoalsWithResults(month: number, year: number): Promise<any[]>;
   createUserGoal(goal: any): Promise<any>;
   updateUserGoal(id: string, goal: any): Promise<any>;
-  deleteUserGoal(id: string): Promise<void>;
+  deleteUserGoal(id: string): Promise<boolean>;
 
   // Weekly Results methods
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
@@ -261,6 +262,7 @@ export interface IStorage {
   // Client Cashback Balance methods
   getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined>;
   getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
+  getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
   updateClientCashbackBalance(clientId: string): Promise<void>;
 
   // Cashback Usage methods
@@ -268,6 +270,7 @@ export interface IStorage {
     insertUsage: InsertCashbackUsage,
   ): Promise<CashbackUsage>;
   getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]>;
+  getAllCashbackUsage(): Promise<CashbackUsage[]>;
 
   // Método para calcular cashback baseado nas regras ativas
   calculateCashback(purchaseAmount: number): Promise<{
@@ -1028,6 +1031,11 @@ export class DatabaseStorage implements IStorage {
     return tag || undefined;
   }
 
+  async getTagsByType(type: string): Promise<Tag[]> {
+    const result = await db.select().from(tags).where(eq(tags.type, type as "marcador" | "origem" | "categoria")).orderBy(tags.createdAt);
+    return result.reverse();
+  }
+
   async createTag(insertTag: InsertTag): Promise<Tag> {
     const [tag] = await db.insert(tags).values(insertTag).returning();
     return tag;
@@ -1337,8 +1345,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteUserGoal(id: string): Promise<void> {
-    await db.delete(userGoals).where(eq(userGoals.id, id));
+  async deleteUserGoal(id: string): Promise<boolean> {
+    const result = await db.delete(userGoals).where(eq(userGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async getUserGoalsWithResults(month: number, year: number): Promise<any[]> {
@@ -1711,6 +1720,18 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(cashbackUsage)
       .where(eq(cashbackUsage.clientId, clientId))
+      .orderBy(cashbackUsage.createdAt);
+    return usage;
+  }
+
+  async getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
+    return this.getAllClientCashbackBalances();
+  }
+
+  async getAllCashbackUsage(): Promise<CashbackUsage[]> {
+    const usage = await db
+      .select()
+      .from(cashbackUsage)
       .orderBy(cashbackUsage.createdAt);
     return usage;
   }
