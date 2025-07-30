@@ -1,4 +1,4 @@
-import {  useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -79,8 +79,6 @@ export default function FunnelsManagement() {
   const { data: funnels, isLoading } = useQuery({
     queryKey: ["/api/funnels"],
   });
-
-  
 
   const createFunnelMutation = useMutation({
     mutationFn: async (funnelData: {
@@ -273,7 +271,7 @@ export default function FunnelsManagement() {
         {(funnels as SalesFunnel[])?.map((funnel: SalesFunnel) => (
           <Card
             key={funnel.id}
-            className="hover:shadow-lg flex flex-col transition-shadow"
+            className="hover:shadow-lg min-w-[248px] flex flex-col transition-shadow"
           >
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -317,16 +315,17 @@ export default function FunnelsManagement() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button
                     variant="outline"
+                    className="flex  items-center gap-2"
                     size="sm"
                     onClick={() => {
                       setSelectedFunnel(funnel);
                       setViewMode("kanban");
                     }}
                   >
-                    <Eye className="h-4 w-4 mr-1" />
+                    <Eye className="h-4 w-4" />
                     Ver Board
                   </Button>
                   {(user?.role === "admin" ||
@@ -334,24 +333,26 @@ export default function FunnelsManagement() {
                     <>
                       <Button
                         variant="outline"
+                        className="flex items-center gap-2"
                         size="sm"
                         onClick={() => {
                           setEditingFunnel(funnel);
                           setViewMode("stages");
                         }}
                       >
-                        <Settings className="h-4 w-4 mr-1" />
+                        <Settings className="h-4 w-4" />
                         Etapas
                       </Button>
 
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
+                            className="flex items-center gap-2"
                             variant="outline"
                             size="sm"
                             onClick={() => setEditingFunnel(funnel)}
                           >
-                            <Edit className="h-4 w-4 mr-1" />
+                            <Edit className="h-4 w-4" />
                             Editar
                           </Button>
                         </DialogTrigger>
@@ -373,9 +374,9 @@ export default function FunnelsManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 flex items-center gap-2"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
+                        <Trash2 className="h-4 w-4 " />
                         Excluir
                       </Button>
                     </>

@@ -40,7 +40,12 @@ interface DealFormModalProps {
   funnelId?: string;
 }
 
-export default function DealFormModal({ open, onOpenChange, deal, funnelId }: DealFormModalProps) {
+export default function DealFormModal({
+  open,
+  onOpenChange,
+  deal,
+  funnelId,
+}: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,9 +55,10 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
 
   // Buscar etapas do funil
   const { data: funnelStages = [] } = useQuery<FunnelStage[]>({
-    queryKey: ["/api/funnel-stages", funnelId],
+    queryKey: [`/api/funnels/${funnelId}/stages`, funnelId],
     enabled: !!funnelId,
   });
+
 
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
@@ -63,7 +69,7 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
       title: deal?.title || "",
       clientId: deal?.clientId || "",
       value: deal?.value || "",
-      stageId: deal?.stageId || (funnelStages[0]?.id || ""),
+      stageId: deal?.stageId || funnelStages[0]?.id || "",
       notes: deal?.notes || "",
       funnelId: deal?.funnelId || funnelId || "",
     },
@@ -118,7 +124,10 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
       // Convert value to number format for API
       const formattedData = {
         ...data,
-        value: data.value.toString().replace(/[^\d,]/g, '').replace(',', '.'),
+        value: data.value
+          .toString()
+          .replace(/[^\d,]/g, "")
+          .replace(",", "."),
       };
 
       if (deal) {
@@ -139,14 +148,6 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
             <DialogTitle className="text-lg font-semibold text-gray-900">
               {deal ? "Editar Negócio" : "Novo Negócio"}
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -172,7 +173,10 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cliente *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um cliente..." />
@@ -186,7 +190,7 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="Nenhum cliente encontrado" disabled>
                           Nenhum cliente encontrado
                         </SelectItem>
                       )}
@@ -208,11 +212,14 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                       placeholder="0,00"
                       {...field}
                       onChange={(e) => {
-                        let value = e.target.value.replace(/\D/g, '');
-                        value = (parseInt(value) / 100).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        });
+                        let value = e.target.value.replace(/\D/g, "");
+                        value = (parseInt(value) / 100).toLocaleString(
+                          "pt-BR",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
+                        );
                         field.onChange(value);
                       }}
                     />
@@ -228,7 +235,10 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estágio *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />
@@ -239,8 +249,8 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                         funnelStages.map((stage) => (
                           <SelectItem key={stage.id} value={stage.id}>
                             <div className="flex items-center gap-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
+                              <div
+                                className="w-3 h-3 rounded-full"
                                 style={{ backgroundColor: stage.color }}
                               />
                               {stage.name}
@@ -248,7 +258,7 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="Nenhuma etapa selecionada" disabled>
                           Nenhuma etapa configurada para este funil
                         </SelectItem>
                       )}
@@ -290,7 +300,11 @@ export default function DealFormModal({ open, onOpenChange, deal, funnelId }: De
                 disabled={isSubmitting}
                 className="bg-primary hover:bg-primary-dark text-white"
               >
-                {isSubmitting ? "Salvando..." : deal ? "Atualizar Negócio" : "Criar Negócio"}
+                {isSubmitting
+                  ? "Salvando..."
+                  : deal
+                    ? "Atualizar Negócio"
+                    : "Criar Negócio"}
               </Button>
             </div>
           </form>

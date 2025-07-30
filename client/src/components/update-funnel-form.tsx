@@ -24,6 +24,7 @@ export function UpdateFunnelForm({
   const {
     register,
     handleSubmit,
+
     formState: { errors },
   } = useForm<InsertSalesFunnel>({
     resolver: zodResolver(insertSalesFunnelSchema),
@@ -83,7 +84,6 @@ export function UpdateFunnelForm({
     });
   }
 
-
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <div className="grid gap-4 py-4">
@@ -115,7 +115,9 @@ export function UpdateFunnelForm({
             Cancelar
           </Button>
         </DialogClose>
-        <Button type="submit">Criar Funil</Button>
+        <Button disabled={updateFunnelMutation.isPending} type="submit">
+          {updateFunnelMutation.isPending ? "Atualizando..." : "Editar Funil"}
+        </Button>
       </div>
     </form>
   );

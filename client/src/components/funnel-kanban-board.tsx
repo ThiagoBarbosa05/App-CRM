@@ -45,14 +45,21 @@ interface FunnelKanbanBoardProps {
   funnel: SalesFunnel;
 }
 
-export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoardProps) {
+export default function FunnelKanbanBoard({
+  funnelId,
+  funnel,
+}: FunnelKanbanBoardProps) {
   const { toast } = useToast();
   const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
-  const [editingClient, setEditingClient] = useState<DealWithClient['client'] | null>(null);
+  const [selectedClient, setSelectedClient] = useState<
+    DealWithClient["client"] | null
+  >(null);
+  const [editingClient, setEditingClient] = useState<
+    DealWithClient["client"] | null
+  >(null);
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -61,7 +68,10 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
       const userData = localStorage.getItem("user");
       if (userData) {
         const user = JSON.parse(userData);
-        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`, "GET");
+        return apiRequest(
+          `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
+          "GET",
+        );
       }
       return apiRequest(`/api/deals?funnelId=${funnelId}`, "GET");
     },
@@ -140,14 +150,19 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
     <>
       <div className="flex-1 overflow-auto bg-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Deals no funil</h3>
+          <h3 className="text-lg font-semibold">Negócios no funil</h3>
           <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Deal
+            Novo Negócio
           </Button>
         </div>
 
-        <div className="grid gap-6 h-full" style={{ gridTemplateColumns: `repeat(${funnel.stages?.length || 1}, 1fr)` }}>
+        <div
+          className="grid gap-6 h-full"
+          style={{
+            gridTemplateColumns: `repeat(${funnel.stages?.length || 1}, 1fr)`,
+          }}
+        >
           {funnel.stages?.map((stage) => {
             const stageDeals = getDealsForStage(stage.id);
 
@@ -160,8 +175,8 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-gray-900 flex items-center">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-2" 
+                    <div
+                      className="w-3 h-3 rounded-full mr-2"
                       style={{ backgroundColor: stage.color }}
                     />
                     {stage.name}
@@ -211,7 +226,8 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
 
                       <div className="space-y-2">
                         <p className="text-xs text-gray-600">
-                          Cliente: <button 
+                          Cliente:{" "}
+                          <button
                             onClick={() => setSelectedClient(deal.client)}
                             className="text-wine-600 hover:text-wine-800 underline font-medium"
                           >
@@ -280,12 +296,16 @@ export default function FunnelKanbanBoard({ funnelId, funnel }: FunnelKanbanBoar
         />
       )}
 
-      <AlertDialog open={!!deletingDeal} onOpenChange={() => setDeletingDeal(null)}>
+      <AlertDialog
+        open={!!deletingDeal}
+        onOpenChange={() => setDeletingDeal(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o deal "{deletingDeal?.title}"? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o deal "{deletingDeal?.title}"?
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
