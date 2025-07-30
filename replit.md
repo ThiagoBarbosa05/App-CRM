@@ -127,6 +127,10 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
   - "Ver Saldo": Shows detailed cashback balance modal with total earned, used, and current balance
   - "Resgatar": Opens cashback redemption modal (disabled when no balance available)
   - Section prominently displayed at top of client details with wine-themed styling
+- Enhanced cashback redemption modal with invoice number field (July 30, 2025):
+  - Added "Número da Nota Fiscal" field as optional input in CashbackUsageModal
+  - Invoice number automatically appended to transaction description when provided
+  - Field positioned between amount and description for logical flow
 
 ### Client Flow
 1. User creates/edits client through modal forms

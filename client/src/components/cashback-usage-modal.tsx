@@ -20,6 +20,7 @@ interface CashbackUsageModalProps {
 export default function CashbackUsageModal({ client, open, onOpenChange }: CashbackUsageModalProps) {
   const [usedAmount, setUsedAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
 
   // Buscar saldo atual do cliente
   const { data: balance } = useQuery({
@@ -60,6 +61,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
       queryClient.invalidateQueries({ queryKey: [`/api/cashback-balances/${client?.id}`] });
       setUsedAmount("");
       setDescription("");
+      setInvoiceNumber("");
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -95,10 +97,14 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
       return;
     }
 
+    const finalDescription = invoiceNumber 
+      ? `${description || 'Resgate de cashback'} - NF: ${invoiceNumber}` 
+      : description || `Resgate de cashback - R$ ${requestedAmount.toFixed(2)}`;
+
     useCashbackMutation.mutate({
       clientId: client.id,
       usedAmount: requestedAmount,
-      description: description || `Resgate de cashback - R$ ${requestedAmount.toFixed(2)}`,
+      description: finalDescription,
     });
   };
 
@@ -155,6 +161,20 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
               />
               <p className="text-xs text-gray-500">
                 Máximo disponível: {formatCurrency(currentBalance)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="invoiceNumber">Número da Nota Fiscal</Label>
+              <Input
+                id="invoiceNumber"
+                type="text"
+                placeholder="Ex: 123456"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                Opcional - Número da nota fiscal relacionada ao resgate
               </p>
             </div>
 
