@@ -212,7 +212,7 @@ export default function CategoriesManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditCategory(category)}
+                      onClick={() => handleEdit(category)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -245,7 +245,7 @@ export default function CategoriesManagement() {
               }
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdateSubmit} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Nome da Categoria</Label>
@@ -288,7 +288,7 @@ export default function CategoriesManagement() {
                 }
               </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
