@@ -108,9 +108,13 @@ export default function ClientImportModal({
       const categoryMap = new Map();
       const originMap = new Map();
       
+      console.log("🔍 DEBUG - Usuários disponíveis para mapeamento:", users);
       users.forEach((user: any) => {
-        userMap.set(user.name.toLowerCase().trim(), user.id);
+        const cleanName = user.name.toLowerCase().trim();
+        userMap.set(cleanName, user.id);
+        console.log(`Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`);
       });
+      console.log("🗺️ Mapa final de usuários:", Array.from(userMap.entries()));
       
       categories.forEach((category: any) => {
         categoryMap.set(category.name.toLowerCase().trim(), category.id);
@@ -130,15 +134,29 @@ export default function ClientImportModal({
           
           // Mapear responsável por nome para ID
           let responsavelId = null;
-          const responsavelName = client.Responsavel || client["Responsável"] || client.responsible;
-          console.log(`Linha ${i + 1}: Responsavel original:`, responsavelName);
+          const responsavelName = client.Responsavel || client["Responsável"] || client.responsible || client.Responsavel;
+          console.log(`Linha ${i + 1}: Responsavel original:`, responsavelName, typeof responsavelName);
           
-          if (responsavelName && typeof responsavelName === 'string') {
+          if (responsavelName && typeof responsavelName === 'string' && responsavelName.trim()) {
             const cleanName = responsavelName.toLowerCase().trim();
             const foundUserId = userMap.get(cleanName);
             responsavelId = foundUserId || null;
             console.log(`Linha ${i + 1}: Responsavel '${responsavelName}' -> '${cleanName}' -> ${foundUserId ? 'ENCONTRADO' : 'NÃO ENCONTRADO'}`);
             console.log(`Available users:`, Array.from(userMap.keys()));
+            
+            // Se não encontrou, tentar buscar por similaridade
+            if (!foundUserId) {
+              console.log(`Linha ${i + 1}: Tentando buscar responsavel por similaridade...`);
+              for (const [userName, userId] of userMap.entries()) {
+                if (userName.includes(cleanName) || cleanName.includes(userName)) {
+                  responsavelId = userId;
+                  console.log(`Linha ${i + 1}: Encontrado por similaridade: '${userName}' -> ${userId}`);
+                  break;
+                }
+              }
+            }
+          } else {
+            console.log(`Linha ${i + 1}: Responsavel vazio ou inválido`);
           }
 
           // Mapear categoria por nome (usando o nome da categoria diretamente)
