@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Client } from "@shared/schema";
+import { Client, ClientCashbackBalance } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -23,7 +23,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
   const [invoiceNumber, setInvoiceNumber] = useState("");
 
   // Buscar saldo atual do cliente
-  const { data: balance } = useQuery({
+  const { data: balance } = useQuery<ClientCashbackBalance>({
     queryKey: [`/api/cashback-balances/${client?.id}`],
     enabled: !!client?.id && open,
   });
@@ -85,7 +85,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
       return;
     }
 
-    const currentBalance = balance ? parseFloat(balance.currentBalance) : 0;
+    const currentBalance = balance ? parseFloat(balance.currentBalance.toString()) : 0;
     const requestedAmount = parseFloat(usedAmount);
 
     if (requestedAmount > currentBalance) {
@@ -117,7 +117,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
 
   if (!client) return null;
 
-  const currentBalance = balance ? parseFloat(balance.currentBalance) : 0;
+  const currentBalance = balance ? parseFloat(balance.currentBalance.toString()) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
