@@ -92,14 +92,32 @@ export default function ClientImportModal({
         total: clients.length,
       };
 
-      // Buscar lista de usuários para mapear nomes para IDs
-      const usersResponse = await fetch("/api/users");
-      const users = usersResponse.ok ? await usersResponse.json() : [];
+      // Buscar lista de usuários, categorias e origens para mapear nomes para IDs
+      const [usersResponse, categoriesResponse, originsResponse] = await Promise.all([
+        fetch("/api/users"),
+        fetch("/api/categories"),
+        fetch("/api/origins")
+      ]);
       
-      // Criar mapa de nomes para IDs (case insensitive)
+      const users = usersResponse.ok ? await usersResponse.json() : [];
+      const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+      const origins = originsResponse.ok ? await originsResponse.json() : [];
+      
+      // Criar mapas de nomes para IDs (case insensitive)
       const userMap = new Map();
+      const categoryMap = new Map();
+      const originMap = new Map();
+      
       users.forEach((user: any) => {
         userMap.set(user.name.toLowerCase().trim(), user.id);
+      });
+      
+      categories.forEach((category: any) => {
+        categoryMap.set(category.name.toLowerCase().trim(), category.id);
+      });
+      
+      origins.forEach((origin: any) => {
+        originMap.set(origin.name.toLowerCase().trim(), origin.id);
       });
 
       for (let i = 0; i < clients.length; i++) {
@@ -109,31 +127,60 @@ export default function ClientImportModal({
         try {
           // Mapear responsável por nome para ID
           let responsavelId = null;
-          const responsavelName = client.Responsavel || client.responsible;
+          const responsavelName = client.Responsavel || client["Responsável"] || client.responsible;
           if (responsavelName && typeof responsavelName === 'string') {
             const foundUserId = userMap.get(responsavelName.toLowerCase().trim());
             responsavelId = foundUserId || null;
           }
 
+          // Mapear categoria por nome (usando o nome da categoria diretamente)
+          let categoria = "Regular";
+          const categoriaName = client.Categoria || client.categoria;
+          if (categoriaName && typeof categoriaName === 'string') {
+            const foundCategory = categories.find(cat => 
+              cat.name.toLowerCase().trim() === categoriaName.toLowerCase().trim()
+            );
+            categoria = foundCategory ? foundCategory.name : categoriaName;
+          }
+
+          // Mapear origem por nome (usando o nome da origem diretamente)
+          let origem = "Importação";
+          const origemName = client.Origem || client.origem;
+          if (origemName && typeof origemName === 'string') {
+            const foundOrigin = origins.find(orig => 
+              orig.name.toLowerCase().trim() === origemName.toLowerCase().trim()
+            );
+            origem = foundOrigin ? foundOrigin.name : origemName;
+          }
+
+          // Formatar data de aniversário
+          let formattedBirthday = "01/01/1990";
+          const birthdayValue = client.Aniversario || client["Aniversário"] || client.birthday;
+          if (birthdayValue) {
+            // Se for um número (data do Excel), converter
+            if (typeof birthdayValue === 'number') {
+              const excelDate = new Date((birthdayValue - 25569) * 86400 * 1000);
+              formattedBirthday = excelDate.toLocaleDateString('pt-BR');
+            } else if (typeof birthdayValue === 'string') {
+              formattedBirthday = birthdayValue;
+            }
+          }
+
           // Mapear campos do Excel para formato esperado
           const clientData = {
             name: client.Nome || client.name || "",
-            phone: client.Telefone || client.phone || "",
-            cpf: client.CPF || client.cpf || "",
+            phone: (client.Telefone || client.phone || "").toString(),
+            cpf: (client.CPF || client.cpf || "").toString(),
             email: client.Email || client.email || null,
-            birthday: 
-              client.Aniversario?.toString() ||
-              client.birthday?.toString() ||
-              "01/01/1990",
+            birthday: formattedBirthday,
             cep: client.CEP || client.cep || "00000-000",
             address: client.Endereco || client.address || "Não informado",
-            number: client.Numero || client.number || "S/N",
-            neighborhood:
-              client.Bairro || client.neighborhood || "Não informado",
+            number: (client.Numero || client.number || "S/N").toString(),
+            neighborhood: client.Bairro || client.neighborhood || "Não informado",
             city: client.Cidade || client.city || "Não informado",
             state: client.Estado || client.state || "SP",
-            categoria: client.Categoria || client.categoria || "Regular",
-            origem: client.Origem || client.origem || "Importação",
+            categoria: categoria,
+            origem: origem,
             markers: client.Marcadores
               ? Array.isArray(client.Marcadores)
                 ? client.Marcadores
