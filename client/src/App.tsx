@@ -17,6 +17,7 @@ import Settings from "@/pages/settings";
 import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
+import Cashback from "@/pages/cashback";
 
 
 function Router() {
@@ -48,7 +49,7 @@ function Router() {
       <Route path="/assistente-ia" component={AIAssistant} />
       <Route path="/treinamentos" component={Trainings} />
       <Route path="/configuracoes" component={Settings} />
-
+      <Route path="/cashback" component={Cashback} />
       <Route component={NotFound} />
     </Switch>
   );
