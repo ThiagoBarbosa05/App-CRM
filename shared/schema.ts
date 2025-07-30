@@ -512,6 +512,8 @@ export const cashbackTransactions = pgTable("cashback_transactions", {
   status: text("status", { enum: ["pending", "approved", "paid", "cancelled"] }).notNull().default("pending"),
   settingId: varchar("setting_id").references(() => cashbackSettings.id), // Regra aplicada
   notes: text("notes"),
+  invoiceNumber: text("invoice_number"), // Número da nota fiscal
+  saleDate: timestamp("sale_date"), // Data da venda
   processedBy: varchar("processed_by").references(() => users.id),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

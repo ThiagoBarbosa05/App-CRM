@@ -9,7 +9,7 @@ import { Client } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { DollarSign, Calculator } from "lucide-react";
+import { DollarSign, Calculator, FileText, Calendar } from "lucide-react";
 
 interface SaleFormModalProps {
   client: Client | null;
@@ -20,6 +20,8 @@ interface SaleFormModalProps {
 export default function SaleFormModal({ client, open, onOpenChange }: SaleFormModalProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]); // Data atual como padrão
   const [cashbackPreview, setCashbackPreview] = useState<{
     cashbackAmount: number;
     rate: number;
@@ -46,6 +48,8 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
       clientId: string;
       purchaseAmount: number;
       notes?: string;
+      invoiceNumber?: string;
+      saleDate?: string;
     }) => {
       // Primeiro, calcular o cashback
       const cashbackResponse = await fetch("/api/calculate-cashback", {
@@ -71,7 +75,9 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
           cashbackRate: cashbackData.rate.toString(),
           status: "approved",
           settingId: cashbackData.setting?.id || null,
-          notes: saleData.notes || `Venda registrada - Valor: R$ ${saleData.purchaseAmount.toFixed(2)}`,
+          notes: saleData.notes || `Venda registrada - Valor: R$ ${saleData.purchaseAmount.toFixed(2)}${saleData.invoiceNumber ? ` - NF: ${saleData.invoiceNumber}` : ''}`,
+          invoiceNumber: saleData.invoiceNumber,
+          saleDate: saleData.saleDate,
           processedBy: "b314722c-8fd6-4592-a9de-9ee551ec35be", // ID do usuário admin
         }),
       });
@@ -92,6 +98,8 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
       setPurchaseAmount("");
       setNotes("");
+      setInvoiceNumber("");
+      setSaleDate(new Date().toISOString().split('T')[0]);
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -119,6 +127,8 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
       clientId: client.id,
       purchaseAmount: parseFloat(purchaseAmount),
       notes,
+      invoiceNumber,
+      saleDate,
     });
   };
 
@@ -142,17 +152,47 @@ export default function SaleFormModal({ client, open, onOpenChange }: SaleFormMo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="purchaseAmount">Valor da Compra</Label>
+              <Input
+                id="purchaseAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0,00"
+                value={purchaseAmount}
+                onChange={(e) => setPurchaseAmount(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="saleDate" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Data da Venda
+              </Label>
+              <Input
+                id="saleDate"
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="purchaseAmount">Valor da Compra</Label>
+            <Label htmlFor="invoiceNumber" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Número da Nota Fiscal (opcional)
+            </Label>
             <Input
-              id="purchaseAmount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0,00"
-              value={purchaseAmount}
-              onChange={(e) => setPurchaseAmount(e.target.value)}
-              required
+              id="invoiceNumber"
+              type="text"
+              placeholder="Ex: 000123456"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
             />
           </div>
 
