@@ -514,6 +514,7 @@ export const cashbackTransactions = pgTable("cashback_transactions", {
   notes: text("notes"),
   invoiceNumber: text("invoice_number"), // Número da nota fiscal
   saleDate: timestamp("sale_date"), // Data da venda
+  expiresAt: timestamp("expires_at").notNull(), // Data de validade do cashback (28 dias após criação)
   processedBy: varchar("processed_by").references(() => users.id),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -562,6 +563,10 @@ export const insertCashbackTransactionSchema = z.object({
     z.string().transform(str => new Date(str)),
     z.null()
   ]).optional(),
+  expiresAt: z.union([
+    z.date(),
+    z.string().transform(str => new Date(str))
+  ]),
   processedBy: z.string().optional(),
   processedAt: z.union([
     z.date(),

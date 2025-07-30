@@ -65,6 +65,7 @@ import {
   desc,
   eq,
   gte,
+  gt,
   lt,
   isNotNull,
   sql,
@@ -1584,6 +1585,13 @@ export class DatabaseStorage implements IStorage {
   async createCashbackTransaction(
     insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction> {
+    // Se não foi fornecida data de validade, definir 28 dias a partir de agora
+    if (!insertTransaction.expiresAt) {
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + 28);
+      insertTransaction.expiresAt = expirationDate;
+    }
+
     const [transaction] = await db
       .insert(cashbackTransactions)
       .values(insertTransaction)
@@ -1646,8 +1654,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateClientCashbackBalance(clientId: string): Promise<void> {
-    // Calcular total ganho
-    const earnedTransactions = await db
+    const now = new Date();
+    
+    // Calcular total ganho (todos os cashbacks aprovados, independente de validade)
+    const allEarnedTransactions = await db
       .select()
       .from(cashbackTransactions)
       .where(
@@ -1657,7 +1667,24 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    const totalEarned = earnedTransactions.reduce(
+    const totalEarned = allEarnedTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.cashbackAmount),
+      0
+    );
+
+    // Calcular total ganho válido (apenas cashbacks não expirados)
+    const validEarnedTransactions = await db
+      .select()
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.clientId, clientId),
+          eq(cashbackTransactions.status, "approved"),
+          gt(cashbackTransactions.expiresAt, now) // Apenas não expirados
+        )
+      );
+
+    const totalValidEarned = validEarnedTransactions.reduce(
       (sum, transaction) => sum + Number(transaction.cashbackAmount),
       0
     );
@@ -1673,7 +1700,8 @@ export class DatabaseStorage implements IStorage {
       0
     );
 
-    const currentBalance = totalEarned - totalUsed;
+    // Saldo atual = cashback válido - total usado
+    const currentBalance = totalValidEarned - totalUsed;
 
     // Verificar se já existe um registro de saldo
     const existingBalance = await this.getClientCashbackBalance(clientId);

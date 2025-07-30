@@ -131,6 +131,12 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
   - Added "Número da Nota Fiscal" field as optional input in CashbackUsageModal
   - Invoice number automatically appended to transaction description when provided
   - Field positioned between amount and description for logical flow
+- Implemented 28-day expiration system for cashback balances (July 30, 2025):
+  - Added `expires_at` column to cashback_transactions table with automatic 28-day validity
+  - Updated balance calculation to consider only non-expired cashbacks for current balance
+  - Modified client details modal to show "Saldo Atual (Válido)" with explanation
+  - All new cashback transactions automatically expire 28 days after creation
+  - Updated existing transactions to have proper expiration dates
 
 ### Client Flow
 1. User creates/edits client through modal forms

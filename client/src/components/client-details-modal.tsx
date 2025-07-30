@@ -410,9 +410,12 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
             
             <div className="space-y-4">
               <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
+                <p className="text-sm text-gray-600 mb-1">Saldo Atual (Válido)</p>
                 <p className="text-2xl font-bold text-green-600">
                   {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Apenas cashbacks válidos (não expirados)
                 </p>
               </div>
               

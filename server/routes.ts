@@ -308,7 +308,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cashback-transactions", async (req, res) => {
     try {
-      const validatedData = insertCashbackTransactionSchema.parse(req.body);
+      const data = req.body;
+      
+      // Adicionar data de validade automaticamente (28 dias)
+      if (!data.expiresAt) {
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 28);
+        data.expiresAt = expirationDate;
+      }
+      
+      const validatedData = insertCashbackTransactionSchema.parse(data);
       const transaction = await storage.createCashbackTransaction(validatedData);
       res.status(201).json(transaction);
     } catch (error) {
