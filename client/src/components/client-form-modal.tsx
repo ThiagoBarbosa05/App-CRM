@@ -93,6 +93,39 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
     queryKey: ["/api/origins"],
   }) as { data: any[] };
 
+  // Função para converter data brasileira para ISO
+  const convertBrazilianDateToISO = (dateStr: string) => {
+    if (!dateStr) return "";
+    
+    // Se já está no formato ISO (YYYY-MM-DD), retorna como está
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+    
+    // Se está no formato brasileiro (DD/MM/YYYY), converte para ISO
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Se é um número (formato Excel), converte para data
+    if (/^\d+\.?\d*$/.test(dateStr)) {
+      try {
+        const excelDate = parseFloat(dateStr);
+        const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      } catch (error) {
+        console.error("Erro ao converter data do Excel:", error);
+        return "";
+      }
+    }
+    
+    return dateStr;
+  };
+
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
     defaultValues: {
@@ -100,7 +133,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       phone: client?.phone || "",
       cpf: client?.cpf || "",
       email: client?.email || "",
-      birthday: client?.birthday || "",
+      birthday: convertBrazilianDateToISO(client?.birthday || ""),
       cep: client?.cep || "",
       address: client?.address || "",
       number: client?.number || "",
