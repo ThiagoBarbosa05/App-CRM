@@ -103,6 +103,9 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Reports page now displays both client and company metrics with permission-based data filtering
 - Updated permission system to allow GERENTE role access to Admin Metas page alongside administrators
 - Sidebar already configured to show Admin Metas link for both admin and gerente roles
+- Fixed client import functionality with proper field mapping and validation (July 30, 2025)
+- Corrected responsavelId mapping to convert user names to IDs during import process
+- Added normalization for number/string field types to prevent validation errors
 
 ### Client Flow
 1. User creates/edits client through modal forms

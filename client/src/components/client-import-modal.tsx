@@ -92,11 +92,29 @@ export default function ClientImportModal({
         total: clients.length,
       };
 
+      // Buscar lista de usuários para mapear nomes para IDs
+      const usersResponse = await fetch("/api/users");
+      const users = usersResponse.ok ? await usersResponse.json() : [];
+      
+      // Criar mapa de nomes para IDs (case insensitive)
+      const userMap = new Map();
+      users.forEach((user: any) => {
+        userMap.set(user.name.toLowerCase().trim(), user.id);
+      });
+
       for (let i = 0; i < clients.length; i++) {
         const client = clients[i];
         setProgress(((i + 1) / clients.length) * 100);
 
         try {
+          // Mapear responsável por nome para ID
+          let responsavelId = null;
+          const responsavelName = client.Responsavel || client.responsible;
+          if (responsavelName && typeof responsavelName === 'string') {
+            const foundUserId = userMap.get(responsavelName.toLowerCase().trim());
+            responsavelId = foundUserId || null;
+          }
+
           // Mapear campos do Excel para formato esperado
           const clientData = {
             name: client.Nome || client.name || "",
@@ -104,8 +122,8 @@ export default function ClientImportModal({
             cpf: client.CPF || client.cpf || "",
             email: client.Email || client.email || null,
             birthday: 
-              client.Aniversario.toString() ||
-              client.birthday.toString() ||
+              client.Aniversario?.toString() ||
+              client.birthday?.toString() ||
               "01/01/1990",
             cep: client.CEP || client.cep || "00000-000",
             address: client.Endereco || client.address || "Não informado",
@@ -121,7 +139,7 @@ export default function ClientImportModal({
                 ? client.Marcadores
                 : [client.Marcadores.toString()]
               : [],
-            responsible: client.Responsavel || client.responsible || "Sistema",
+            responsavelId: responsavelId,
           };
 
           // Validações básicas
