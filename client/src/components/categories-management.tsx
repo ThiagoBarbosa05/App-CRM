@@ -38,8 +38,6 @@ interface Category {
 
 export default function CategoriesManagement() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [editingName, setEditingName] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ name: "", color: "#8B5CF6" });
@@ -165,48 +163,7 @@ export default function CategoriesManagement() {
     );
   }
 
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setEditingName(category.name);
-  };
 
-  const handleCancelEdit = () => {
-    setEditingCategory(null);
-    setEditingName("");
-  };
-
-  const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string }) => {
-      const response = await fetch(`/api/categories/${data.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: data.name }),
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar categoria");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      handleCancelEdit();
-      toast({ title: "Categoria atualizada com sucesso!" });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao atualizar categoria",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleUpdateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingCategory && editingName.trim()) {
-      updateMutation.mutate({
-        id: editingCategory.id,
-        name: editingName.trim(),
-      });
-    }
-  };
 
   return (
     <>

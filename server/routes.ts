@@ -2046,7 +2046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.errors.push({
             row: i + 2, // +2 porque começa em 1 e pula header
             error: errorMessage,
-            data: clientRow,
+            data: clientData,
           });
         }
       }
