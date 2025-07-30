@@ -44,7 +44,11 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
   const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
 
-  if (!client) return null;
+  // Query para buscar saldo de cashback - deve estar sempre no topo, antes de qualquer return
+  const { data: cashbackBalance } = useQuery({
+    queryKey: [`/api/cashback-balances/${client?.id}`],
+    enabled: !!client?.id && isOpen,
+  });
 
   // Função para formatar moeda
   const formatCurrency = (value: string | number) => {
@@ -55,11 +59,7 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
     }).format(numericValue);
   };
 
-  // Query para buscar saldo de cashback
-  const { data: cashbackBalance } = useQuery({
-    queryKey: [`/api/cashback-balances/${client?.id}`],
-    enabled: !!client?.id,
-  });
+  if (!client) return null;
 
   const formatDate = (dateString: string) => {
     try {
