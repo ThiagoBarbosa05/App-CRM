@@ -128,9 +128,14 @@ export default function ClientImportModal({
           // Mapear responsável por nome para ID
           let responsavelId = null;
           const responsavelName = client.Responsavel || client["Responsável"] || client.responsible;
+          console.log(`Linha ${i + 1}: Responsavel original:`, responsavelName);
+          
           if (responsavelName && typeof responsavelName === 'string') {
-            const foundUserId = userMap.get(responsavelName.toLowerCase().trim());
+            const cleanName = responsavelName.toLowerCase().trim();
+            const foundUserId = userMap.get(cleanName);
             responsavelId = foundUserId || null;
+            console.log(`Linha ${i + 1}: Responsavel '${responsavelName}' -> '${cleanName}' -> ${foundUserId ? 'ENCONTRADO' : 'NÃO ENCONTRADO'}`);
+            console.log(`Available users:`, Array.from(userMap.keys()));
           }
 
           // Mapear categoria por nome (usando o nome da categoria diretamente)
@@ -156,14 +161,20 @@ export default function ClientImportModal({
           // Formatar data de aniversário
           let formattedBirthday = "01/01/1990";
           const birthdayValue = client.Aniversario || client["Aniversário"] || client.birthday;
+          console.log(`Linha ${i + 1}: Aniversario original:`, birthdayValue, typeof birthdayValue);
+          
           if (birthdayValue) {
             // Se for um número (data do Excel), converter
             if (typeof birthdayValue === 'number') {
               const excelDate = new Date((birthdayValue - 25569) * 86400 * 1000);
               formattedBirthday = excelDate.toLocaleDateString('pt-BR');
+              console.log(`Linha ${i + 1}: Data convertida do Excel: ${birthdayValue} -> ${formattedBirthday}`);
             } else if (typeof birthdayValue === 'string') {
-              formattedBirthday = birthdayValue;
+              formattedBirthday = birthdayValue.trim();
+              console.log(`Linha ${i + 1}: Data como string: ${birthdayValue} -> ${formattedBirthday}`);
             }
+          } else {
+            console.log(`Linha ${i + 1}: Aniversario não encontrado, usando padrão: ${formattedBirthday}`);
           }
 
           // Mapear campos do Excel para formato esperado
