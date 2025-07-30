@@ -31,6 +31,7 @@ interface ClientDetailsCardProps {
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
+  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
 
   if (!client) return null;
 
@@ -104,6 +105,25 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               >
                 <DollarSign className="h-4 w-4" />
                 Lançar Venda
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBalanceModalOpen(true)}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+              >
+                <Gift className="h-4 w-4" />
+                Saldo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCashbackUsageModalOpen(true)}
+                disabled={!cashbackBalance?.currentBalance || parseFloat(cashbackBalance.currentBalance) <= 0}
+                className="flex items-center gap-2 text-purple-600 hover:text-purple-700 disabled:text-gray-400"
+              >
+                <Wallet className="h-4 w-4" />
+                Resgatar
               </Button>
               {onEdit && (
                 <Button
@@ -369,6 +389,72 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         open={cashbackUsageModalOpen}
         onOpenChange={setCashbackUsageModalOpen}
       />
+
+      {/* Modal de Saldo de Cashback */}
+      <Dialog open={balanceModalOpen} onOpenChange={setBalanceModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-blue-600" />
+              Saldo de Cashback
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-lg font-medium text-gray-900">{client.name}</p>
+              <p className="text-sm text-gray-500">CPF: {formatCPF(client.cpf)}</p>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Total Ganho</p>
+                  <p className="font-medium text-blue-600">
+                    {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned || 0) : formatCurrency(0)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Total Usado</p>
+                  <p className="font-medium text-red-600">
+                    {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed || 0) : formatCurrency(0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              {cashbackBalance && parseFloat(cashbackBalance.currentBalance || '0') > 0 && (
+                <Button
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={() => {
+                    setBalanceModalOpen(false);
+                    setCashbackUsageModalOpen(true);
+                  }}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Resgatar
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setBalanceModalOpen(false)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
