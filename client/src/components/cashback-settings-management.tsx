@@ -138,7 +138,7 @@ export default function CashbackSettingsManagement() {
       percentageRate: parseFloat(formData.percentageRate),
       minimumPurchase: formData.minimumPurchase ? parseFloat(formData.minimumPurchase) : 0,
       maximumCashback: formData.maximumCashback ? parseFloat(formData.maximumCashback) : null,
-      validUntil: formData.validUntil ? new Date(formData.validUntil) : null,
+      validUntil: formData.validUntil ? new Date(formData.validUntil).toISOString() : null,
     };
 
     if (editingSetting) {

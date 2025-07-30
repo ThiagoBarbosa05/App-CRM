@@ -1937,6 +1937,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Calculate Cashback API
+  app.post("/api/calculate-cashback", async (req, res) => {
+    try {
+      const { purchaseAmount } = req.body;
+      
+      if (!purchaseAmount || purchaseAmount <= 0) {
+        return res.status(400).json({ error: "Valor da compra deve ser maior que zero" });
+      }
+      
+      const result = await storage.calculateCashback(purchaseAmount);
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao calcular cashback:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   // Cashback Usage routes
   app.post("/api/cashback-usage", async (req, res) => {
     try {
@@ -1960,22 +1977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Calculate Cashback route
-  app.post("/api/calculate-cashback", async (req, res) => {
-    try {
-      const { purchaseAmount } = req.body;
-      
-      if (!purchaseAmount || purchaseAmount <= 0) {
-        return res.status(400).json({ error: "Valor de compra inválido" });
-      }
-      
-      const result = await storage.calculateCashback(purchaseAmount);
-      res.json(result);
-    } catch (error) {
-      console.error("Erro ao calcular cashback:", error);
-      res.status(500).json({ error: "Erro interno do servidor" });
-    }
-  });
+
 
   // Client Import routes
   app.post("/api/clients/import", async (req, res) => {
