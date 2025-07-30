@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Trash2, Edit, User, Phone, Mail, Calendar, MapPin, Tag } from "lucide-react";
+import { Trash2, Edit, User, Phone, Mail, Calendar, MapPin, Tag, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsModal from "./client-details-modal";
+import SaleFormModal from "./sale-form-modal";
 import { type Client } from "@shared/schema";
 import {
   AlertDialog,
@@ -39,6 +40,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
 
@@ -269,6 +271,15 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setSaleClient(client)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Lançar Venda"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setEditingClient(client)}
                       >
                         <Edit className="h-4 w-4" />
@@ -303,6 +314,13 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
         client={viewingClient}
         isOpen={!!viewingClient}
         onClose={() => setViewingClient(null)}
+      />
+
+      {/* Sale Form Modal */}
+      <SaleFormModal
+        client={saleClient}
+        open={!!saleClient}
+        onOpenChange={(open) => !open && setSaleClient(null)}
       />
 
       {/* Delete Confirmation Dialog */}

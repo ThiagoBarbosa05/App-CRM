@@ -4,11 +4,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { Client } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { User, Edit, Trash2, Eye } from "lucide-react";
+import { User, Edit, Trash2, Eye, DollarSign } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsCard from "./client-details-card";
+import SaleFormModal from "./sale-form-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +35,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [saleClient, setSaleClient] = useState<Client | null>(null);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["/api/clients"],
@@ -248,6 +250,15 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setSaleClient(client)}
+                        className="text-green-600 hover:text-green-900 mr-2"
+                        title="Lançar Venda"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setSelectedClient(client)}
                         className="text-blue-600 hover:text-blue-900 mr-2"
                         title="Ver detalhes"
@@ -297,6 +308,12 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
           setSelectedClient(null);
           setEditingClient(client);
         }}
+      />
+
+      <SaleFormModal
+        client={saleClient}
+        open={!!saleClient}
+        onOpenChange={(open) => !open && setSaleClient(null)}
       />
 
       <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
