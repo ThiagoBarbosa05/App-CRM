@@ -237,54 +237,95 @@ export default function Cashback() {
               <Card>
                 <CardHeader>
                   <CardTitle>Histórico de Transações</CardTitle>
-                  <CardDescription>Todas as transações de cashback do sistema</CardDescription>
+                  <CardDescription>Todas as movimentações de cashback: compras que geraram pontos e resgates realizados</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {transactions.length === 0 ? (
-                    <div className="text-center py-8">
-                      <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação</h3>
-                      <p className="text-gray-500">
-                        As transações de cashback aparecerão aqui conforme forem geradas.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {transactions.map((transaction: any) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                              transaction.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
-                            }`}>
-                              <Gift className={`h-5 w-5 ${
-                                transaction.type === 'sale' ? 'text-green-600' : 'text-blue-600'
-                              }`} />
+                  {(() => {
+                    // Combinar transações de cashback (ganhos) e resgates (uso)
+                    const allTransactions = [
+                      // Transações de cashback (ganhos)
+                      ...transactions.map((t: any) => ({
+                        ...t,
+                        type: 'earn',
+                        date: new Date(t.createdAt),
+                        amount: parseFloat(t.cashbackAmount),
+                        description: `Compra de ${formatCurrency(t.purchaseAmount)} • ${parseFloat(t.cashbackRate).toFixed(1)}% cashback`
+                      })),
+                      // Resgates (uso)
+                      ...allUsage.map((u: any) => ({
+                        ...u,
+                        type: 'redeem',
+                        date: new Date(u.createdAt),
+                        amount: -parseFloat(u.usedAmount),
+                        description: u.description || 'Resgate de cashback'
+                      }))
+                    ].sort((a, b) => b.date.getTime() - a.date.getTime()); // Ordenar por data (mais recente primeiro)
+
+                    return allTransactions.length === 0 ? (
+                      <div className="text-center py-8">
+                        <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação</h3>
+                        <p className="text-gray-500">
+                          As transações de cashback e resgates aparecerão aqui conforme forem realizados.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {allTransactions.map((transaction: any, index: number) => (
+                          <div key={`${transaction.type}-${transaction.id}-${index}`} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-4">
+                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                transaction.type === 'earn' ? 'bg-green-100' : 'bg-red-100'
+                              }`}>
+                                {transaction.type === 'earn' ? (
+                                  <Gift className="h-5 w-5 text-green-600" />
+                                ) : (
+                                  <Wallet className="h-5 w-5 text-red-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
+                                  <Badge 
+                                    variant="outline"
+                                    className={transaction.type === 'earn' ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700'}
+                                  >
+                                    {transaction.type === 'earn' ? 'Ganho' : 'Resgate'}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                  {transaction.description}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {transaction.date.toLocaleDateString('pt-BR')} às {transaction.date.toLocaleTimeString('pt-BR')}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
-                              <p className="text-sm text-gray-500">
-                                Compra de {formatCurrency(transaction.purchaseAmount)} • {parseFloat(transaction.cashbackRate).toFixed(1)}% cashback
+                            <div className="text-right">
+                              <p className={`font-medium ${
+                                transaction.type === 'earn' ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {transaction.type === 'earn' ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                               </p>
-                              <p className="text-xs text-gray-400">
-                                {new Date(transaction.createdAt).toLocaleDateString('pt-BR')} às {new Date(transaction.createdAt).toLocaleTimeString('pt-BR')}
-                              </p>
+                              {transaction.type === 'earn' && (
+                                <Badge 
+                                  variant={transaction.status === 'approved' ? 'default' : 'secondary'}
+                                  className={transaction.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
+                                >
+                                  {transaction.status === 'approved' ? 'Aprovado' : 'Pendente'}
+                                </Badge>
+                              )}
+                              {transaction.type === 'redeem' && (
+                                <Badge className="bg-red-100 text-red-800">
+                                  Resgatado
+                                </Badge>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium text-green-600">
-                              +{formatCurrency(transaction.cashbackAmount)}
-                            </p>
-                            <Badge 
-                              variant={transaction.status === 'approved' ? 'default' : 'secondary'}
-                              className={transaction.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
-                            >
-                              {transaction.status === 'approved' ? 'Aprovado' : 'Pendente'}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>

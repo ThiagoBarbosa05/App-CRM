@@ -119,6 +119,8 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Added "Saldos" tab to cashback page with full redemption capabilities
 - Completed "Transações" and "Relatórios" tabs showing real system data and analytics
 - Fixed cashback redemption UI components now fully visible and functional
+- Enhanced "Transações" tab to show unified view of both cashback earnings and redemptions (July 30, 2025)
+- Combined transactions now display chronologically with clear type indicators and color coding
 
 ### Client Flow
 1. User creates/edits client through modal forms
