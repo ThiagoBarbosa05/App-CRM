@@ -11,8 +11,8 @@ Sua planilha deve ter exatamente estas colunas (nesta ordem):
 
 | Nome | Telefone | CPF | Email | Aniversario | CEP | Endereco | Numero | Bairro | Cidade | Estado | Categoria | Origem | Marcadores | Responsavel |
 |------|----------|-----|-------|-------------|-----|----------|---------|--------|--------|--------|-----------|--------|------------|-------------|
-| João Silva | 11999887766 | 123.456.789-00 | joao@email.com | 15/03/1985 | 01234-567 | Rua das Flores | 123 | Centro | São Paulo | SP | Premium | Indicação | VIP | Camilla |
-| Maria Santos | 11888776655 | 987.654.321-00 | maria@email.com | 22/07/1990 | 54321-098 | Av. Principal | 456 | Jardins | São Paulo | SP | Regular | Site | Novo | Igor |
+| João Silva | 11999887766 | 123.456.789-00 | joao@email.com | 15/03/1985 | 01234-567 | Rua das Flores | 123 | Centro | São Paulo | SP | VIP | INDICAÇÃO | VIP | Camilla |
+| Maria Santos | 11888776655 | 987.654.321-00 | maria@email.com | 22/07/1990 | 54321-098 | Av. Principal | 456 | Jardins | São Paulo | SP | Leads | LOJA | Novo | Igor |
 
 ## Campos Obrigatórios
 - **Nome**: Nome completo do cliente

@@ -139,23 +139,33 @@ export default function ClientImportModal({
           }
 
           // Mapear categoria por nome (usando o nome da categoria diretamente)
-          let categoria = "Regular";
+          let categoria = "OUTROS";
           const categoriaName = client.Categoria || client.categoria;
+          console.log(`Linha ${i + 1}: Categoria original:`, categoriaName);
+          
           if (categoriaName && typeof categoriaName === 'string') {
+            const cleanCategoriaName = categoriaName.toLowerCase().trim();
             const foundCategory = categories.find(cat => 
-              cat.name.toLowerCase().trim() === categoriaName.toLowerCase().trim()
+              cat.name.toLowerCase().trim() === cleanCategoriaName
             );
-            categoria = foundCategory ? foundCategory.name : categoriaName;
+            categoria = foundCategory ? foundCategory.name : "OUTROS";
+            console.log(`Linha ${i + 1}: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${foundCategory ? foundCategory.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
+            console.log(`Available categories:`, categories.map(c => c.name));
           }
 
           // Mapear origem por nome (usando o nome da origem diretamente)
-          let origem = "Importação";
+          let origem = "OUTROS";
           const origemName = client.Origem || client.origem;
+          console.log(`Linha ${i + 1}: Origem original:`, origemName);
+          
           if (origemName && typeof origemName === 'string') {
+            const cleanOrigemName = origemName.toLowerCase().trim();
             const foundOrigin = origins.find(orig => 
-              orig.name.toLowerCase().trim() === origemName.toLowerCase().trim()
+              orig.name.toLowerCase().trim() === cleanOrigemName
             );
-            origem = foundOrigin ? foundOrigin.name : origemName;
+            origem = foundOrigin ? foundOrigin.name : "OUTROS";
+            console.log(`Linha ${i + 1}: Origem '${origemName}' -> '${cleanOrigemName}' -> ${foundOrigin ? foundOrigin.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
+            console.log(`Available origins:`, origins.map(o => o.name));
           }
 
           // Formatar data de aniversário
