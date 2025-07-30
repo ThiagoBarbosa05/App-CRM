@@ -855,6 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const deal = await storage.createDeal(validatedData);
       res.status(201).json(deal);
+    ```python
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
@@ -1751,7 +1752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let fileName: string;
 
         if (process.env.NODE_ENV === "production" && objectStorageClient) {
-          fileName = `learning-images/${nanoid()}-${req.file.originalname}`;
+          fileName = `learningimages/${nanoid()}-${req.file.originalname}`;
 
           const uploadResult = await objectStorageClient.uploadFromBytes(
             fileName,
@@ -1856,11 +1857,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.validUntil = new Date(updateData.validUntil);
       }
       const setting = await storage.updateCashbackSetting(id, updateData);
-      
+
       if (!setting) {
         return res.status(404).json({ error: "Configuração não encontrada" });
       }
-      
+
       res.json(setting);
     } catch (error) {
       console.error("Erro ao atualizar configuração de cashback:", error);
@@ -1872,11 +1873,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteCashbackSetting(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ error: "Configuração não encontrada" });
       }
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Erro ao deletar configuração de cashback:", error);
@@ -1911,11 +1912,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const updateData = req.body;
       const transaction = await storage.updateCashbackTransaction(id, updateData);
-      
+
       if (!transaction) {
         return res.status(404).json({ error: "Transação não encontrada" });
       }
-      
+
       res.json(transaction);
     } catch (error) {
       console.error("Erro ao atualizar transação de cashback:", error);
@@ -1949,11 +1950,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calculate-cashback", async (req, res) => {
     try {
       const { purchaseAmount } = req.body;
-      
+
       if (!purchaseAmount || purchaseAmount <= 0) {
         return res.status(400).json({ error: "Valor da compra deve ser maior que zero" });
       }
-      
+
       const result = await storage.calculateCashback(purchaseAmount);
       res.json(result);
     } catch (error) {
@@ -1963,6 +1964,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cashback Usage routes
+  app.get("/api/cashback-usage", async (req, res) => {
+    try {
+      const usage = await storage.getAllCashbackUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Erro ao buscar todos os resgates:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   app.post("/api/cashback-usage", async (req, res) => {
     try {
       const usageData = req.body;
@@ -1980,7 +1991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usage = await storage.getClientCashbackUsage(clientId);
       res.json(usage);
     } catch (error) {
-      console.error("Erro ao buscar histórico de uso:", error);
+      console.error("Erro ao buscar uso de cashback:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
@@ -2008,7 +2019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let i = 0; i < clients.length; i++) {
         try {
           const clientRow = clients[i];
-          
+
           // Normalize numeric fields to string
           if (clientRow.phone !== undefined) {
             clientRow.phone = String(clientRow.phone);
@@ -2046,7 +2057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           console.error(`Erro na linha ${i + 1}:`, error);
           let errorMessage = "Erro desconhecido";
-          
+
           if (error instanceof z.ZodError) {
             errorMessage = fromZodError(error).toString();
           } else if (error instanceof Error) {

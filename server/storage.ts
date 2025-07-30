@@ -61,15 +61,15 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import {
-  eq,
   and,
+  desc,
+  eq,
   gte,
   lt,
   isNotNull,
   sql,
   inArray,
   or,
-  desc,
   isNull,
 } from "drizzle-orm";
 

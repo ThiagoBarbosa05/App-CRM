@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, DollarSign, Users, History, Calculator, TrendingUp } from "lucide-react";
+import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
 
@@ -25,6 +25,11 @@ export default function Cashback() {
   // Buscar configurações de cashback
   const { data: settings = [] } = useQuery({
     queryKey: ["/api/cashback-settings"],
+  });
+
+  // Buscar histórico de resgates
+  const { data: allUsage = [] } = useQuery({
+    queryKey: ["/api/cashback-usage"],
   });
 
   const formatCurrency = (value: string | number) => {
@@ -60,10 +65,11 @@ export default function Cashback() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="settings">Configurações</TabsTrigger>
               <TabsTrigger value="transactions">Transações</TabsTrigger>
+              <TabsTrigger value="usage">Resgates</TabsTrigger>
               <TabsTrigger value="reports">Relatórios</TabsTrigger>
             </TabsList>
 
@@ -177,6 +183,50 @@ export default function Cashback() {
                       Esta funcionalidade está sendo desenvolvida e estará disponível em breve.
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="usage" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Histórico de Resgates</CardTitle>
+                  <CardDescription>Registro de todos os resgates de cashback realizados pelos clientes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {allUsage.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum resgate</h3>
+                      <p className="text-gray-500">
+                        Os resgates de cashback aparecerão aqui quando realizados.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {allUsage.map((usage: any) => (
+                        <div key={usage.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                              <Wallet className="h-4 w-4 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{usage.client?.name || 'Cliente'}</p>
+                              <p className="text-sm text-gray-500">{usage.description}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-red-600">
+                              -{formatCurrency(usage.usedAmount)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(usage.createdAt).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

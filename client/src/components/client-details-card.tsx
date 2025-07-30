@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Client } from "@shared/schema";
-import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign } from "lucide-react";
+import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign, Wallet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
 import SaleFormModal from "./sale-form-modal";
@@ -29,7 +29,7 @@ interface ClientDetailsCardProps {
 
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
   const [saleModalOpen, setSaleModalOpen] = useState(false);
-  
+
   if (!client) return null;
 
   const formatPhone = (phone: string) => {
@@ -260,7 +260,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
           </TabsContent>
         </Tabs>
       </DialogContent>
-      
+
       <SaleFormModal
         client={client}
         open={saleModalOpen}
