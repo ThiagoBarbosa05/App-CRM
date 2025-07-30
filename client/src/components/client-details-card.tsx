@@ -10,6 +10,7 @@ import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History,
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
 import SaleFormModal from "./sale-form-modal";
+import CashbackUsageModal from "./cashback-usage-modal";
 import { useQuery } from "@tanstack/react-query";
 // Função para formatar moeda
 const formatCurrency = (value: string | number) => {
@@ -29,6 +30,7 @@ interface ClientDetailsCardProps {
 
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
   const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
 
   if (!client) return null;
 
@@ -284,7 +286,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <div>
                       <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
                       <p className="text-2xl font-bold text-green-700">
-                        {cashbackBalance ? formatCurrency(cashbackBalance.availableBalance || 0) : formatCurrency(0)}
+                        {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
                       </p>
                     </div>
                     <Gift className="h-8 w-8 text-green-600" />
@@ -305,13 +307,10 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     </div>
                   </div>
 
-                  {cashbackBalance && cashbackBalance.availableBalance > 0 && (
+                  {cashbackBalance && cashbackBalance.currentBalance > 0 && (
                     <Button
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => {
-                        // TODO: Implementar modal de resgate de cashback
-                        alert('Funcionalidade de resgate de cashback em desenvolvimento');
-                      }}
+                      onClick={() => setCashbackUsageModalOpen(true)}
                     >
                       <Gift className="h-4 w-4 mr-2" />
                       RESGATAR CASHBACK
@@ -363,6 +362,12 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         client={client}
         open={saleModalOpen}
         onOpenChange={setSaleModalOpen}
+      />
+      
+      <CashbackUsageModal
+        client={client}
+        open={cashbackUsageModalOpen}
+        onOpenChange={setCashbackUsageModalOpen}
       />
     </Dialog>
   );

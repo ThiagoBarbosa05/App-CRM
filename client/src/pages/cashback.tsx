@@ -8,9 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
+import CashbackUsageModal from "@/components/cashback-usage-modal";
 
 export default function Cashback() {
   const [activeTab, setActiveTab] = useState("cashback");
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -65,8 +68,9 @@ export default function Cashback() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="balances">Saldos</TabsTrigger>
               <TabsTrigger value="settings">Configurações</TabsTrigger>
               <TabsTrigger value="transactions">Transações</TabsTrigger>
               <TabsTrigger value="usage">Resgates</TabsTrigger>
@@ -165,6 +169,66 @@ export default function Cashback() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="balances" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Saldos de Cashback</CardTitle>
+                  <CardDescription>Visualize e gerencie os saldos de cashback de todos os clientes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {balances.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum saldo</h3>
+                      <p className="text-gray-500">
+                        Os saldos de cashback aparecerão aqui conforme os clientes acumularem pontos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {balances.map((balance: any) => (
+                        <div key={balance.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                              <Wallet className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{balance.client?.name || 'Cliente'}</p>
+                              <p className="text-sm text-gray-500">
+                                Total acumulado: {formatCurrency(balance.totalEarned || 0)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="font-medium text-green-600">
+                                {formatCurrency(balance.currentBalance || 0)}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Saldo disponível
+                              </p>
+                            </div>
+                            {parseFloat(balance.currentBalance || 0) > 0 && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  setSelectedClient(balance.client);
+                                  setUsageModalOpen(true);
+                                }}
+                              >
+                                Resgatar
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="settings" className="space-y-6">
               <CashbackSettingsManagement />
             </TabsContent>
@@ -251,6 +315,12 @@ export default function Cashback() {
           </Tabs>
         </div>
       </div>
+      
+      <CashbackUsageModal
+        client={selectedClient}
+        open={usageModalOpen}
+        onOpenChange={setUsageModalOpen}
+      />
     </div>
   );
 }
