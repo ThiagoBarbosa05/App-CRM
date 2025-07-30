@@ -22,6 +22,7 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
+import { ThemeToggle } from "./theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
@@ -50,7 +51,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           variant="outline"
           size="sm"
           onClick={toggleMobileMenu}
-          className="bg-white shadow-md"
+          className="bg-background border border-border shadow-md"
         >
           {isMobileMenuOpen ? (
             <X className="h-4 w-4" />
@@ -71,7 +72,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       {/* Sidebar */}
       <div
         className={cn(
-          "bg-white shadow-lg border-r border-gray-200 transition-transform duration-300 ease-in-out z-40 flex flex-col",
+          "bg-background dark:bg-background shadow-lg border-r border-border transition-transform duration-300 ease-in-out z-40 flex flex-col",
           "sm:relative sm:translate-x-0 sm:w-64",
           "fixed left-0 top-0 bottom-0 h-full w-80 max-w-[80vw]",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
@@ -86,22 +87,22 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             }}
           >
             <Wine className="h-6 w-6 sm:h-8 sm:w-8 text-purple-700" />
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground">
               GRAND CRU
             </h1>
           </div>
 
           {/* User Info Section */}
-          <div className="mb-4 sm:mb-6 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-4 sm:mb-6 p-3 bg-accent rounded-lg">
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {user?.name || "Usuário"}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {user?.email || ""}
                 </p>
               </div>
@@ -120,7 +121,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <Separator className="mb-4 sm:mb-6" />
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent dark:scrollbar-thumb-muted">
           <div className="mobile-responsive px-4 sm:px-6">
             <nav className="space-y-2">
               <Link href="/clientes">
@@ -129,8 +130,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/clientes"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Users className="mr-3 h-4 w-4" />
@@ -144,8 +145,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/empresas"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Building2 className="mr-3 h-4 w-4" />
@@ -159,8 +160,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/funil"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <GitBranch className="mr-3 h-4 w-4" />
@@ -174,8 +175,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/calendario"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <CalendarDays className="mr-3 h-4 w-4" />
@@ -189,8 +190,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/metas"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Target className="mr-3 h-4 w-4" />
@@ -204,8 +205,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/relatorios"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <BarChart3 className="mr-3 h-4 w-4" />
@@ -219,8 +220,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/assistente-ia"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Sparkles className="mr-3 h-4 w-4" />
@@ -234,8 +235,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/treinamentos"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Video className="mr-3 h-4 w-4" />
@@ -250,8 +251,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                     className={cn(
                       "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                       location === "/admin-metas"
-                        ? "bg-primary text-white"
-                        : "text-gray-700 hover:bg-gray-100",
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
                   >
                     <Shield className="mr-3 h-4 w-4" />
@@ -266,8 +267,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/cashback"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Gift className="mr-3 h-4 w-4" />
@@ -281,8 +282,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
                     location === "/configuracoes"
-                      ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <Settings className="mr-3 h-4 w-4" />
@@ -297,9 +298,13 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex-shrink-0 mobile-responsive px-4 sm:px-6 pb-4 sm:pb-6">
           <Separator className="mb-4" />
           <div className="space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-foreground">Tema</span>
+              <ThemeToggle />
+            </div>
             <Button
               variant="ghost"
-              className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
               onClick={() => {
                 logout();
                 window.location.reload();
