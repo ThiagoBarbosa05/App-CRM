@@ -1,13 +1,50 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gift, DollarSign, Users, History, Calculator, TrendingUp } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import CashbackSettingsManagement from "@/components/cashback-settings-management";
 
 export default function Cashback() {
   const [activeTab, setActiveTab] = useState("cashback");
+
+  // Buscar transações de cashback
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["/api/cashback-transactions"],
+  });
+
+  // Buscar saldos de cashback
+  const { data: balances = [] } = useQuery({
+    queryKey: ["/api/cashback-balances"],
+  });
+
+  // Buscar configurações de cashback
+  const { data: settings = [] } = useQuery({
+    queryKey: ["/api/cashback-settings"],
+  });
+
+  const formatCurrency = (value: string | number) => {
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(numericValue);
+  };
+
+  // Calcular estatísticas
+  const totalCashback = transactions
+    .filter((t: any) => t.status === 'approved')
+    .reduce((sum: number, t: any) => sum + parseFloat(t.cashbackAmount), 0);
+
+  const activeClients = balances.filter((b: any) => parseFloat(b.currentBalance) > 0).length;
+
+  const averageRate = settings.length > 0
+    ? settings.reduce((sum: number, s: any) => sum + parseFloat(s.percentageRate), 0) / settings.length
+    : 0;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -38,8 +75,8 @@ export default function Cashback() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">R$ 12.450,00</div>
-                    <p className="text-xs text-muted-foreground">+20.1% em relação ao mês anterior</p>
+                    <div className="text-2xl font-bold">{formatCurrency(totalCashback)}</div>
+                    <p className="text-xs text-muted-foreground">Total distribuído em cashback</p>
                   </CardContent>
                 </Card>
 
@@ -49,8 +86,8 @@ export default function Cashback() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">2.350</div>
-                    <p className="text-xs text-muted-foreground">+180 novos este mês</p>
+                    <div className="text-2xl font-bold">{activeClients}</div>
+                    <p className="text-xs text-muted-foreground">Com saldo de cashback</p>
                   </CardContent>
                 </Card>
 
@@ -60,7 +97,7 @@ export default function Cashback() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">2.5%</div>
+                    <div className="text-2xl font-bold">{averageRate.toFixed(1)}%</div>
                     <p className="text-xs text-muted-foreground">Taxa de cashback média</p>
                   </CardContent>
                 </Card>
@@ -72,75 +109,58 @@ export default function Cashback() {
                   <CardDescription>Últimas atividades de cashback do sistema</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <Gift className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Maria Silva</p>
-                          <p className="text-sm text-gray-500">Compra de R$ 500,00</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-green-600">+R$ 12,50</p>
-                        <p className="text-sm text-gray-500">2.5% cashback</p>
-                      </div>
+                  {transactions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação</h3>
+                      <p className="text-gray-500">
+                        As transações de cashback aparecerão aqui.
+                      </p>
                     </div>
-
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <Calculator className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <div className="space-y-4">
+                      {transactions.slice(0, 5).map((transaction: any) => (
+                        <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                              transaction.status === 'approved' ? 'bg-green-100' : 'bg-yellow-100'
+                            }`}>
+                              <Gift className={`h-4 w-4 ${
+                                transaction.status === 'approved' ? 'text-green-600' : 'text-yellow-600'
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
+                              <p className="text-sm text-gray-500">
+                                Compra de {formatCurrency(transaction.purchaseAmount)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-green-600">
+                              +{formatCurrency(transaction.cashbackAmount)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {parseFloat(transaction.cashbackRate).toFixed(1)}% cashback
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">João Santos</p>
-                          <p className="text-sm text-gray-500">Resgate de cashback</p>
+                      ))}
+                      {transactions.length > 5 && (
+                        <div className="text-center pt-4">
+                          <p className="text-sm text-gray-500">
+                            E mais {transactions.length - 5} transações...
+                          </p>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-red-600">-R$ 25,00</p>
-                        <p className="text-sm text-gray-500">Resgate</p>
-                      </div>
+                      )}
                     </div>
-
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                          <Gift className="h-4 w-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Ana Costa</p>
-                          <p className="text-sm text-gray-500">Compra de R$ 1.200,00</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-green-600">+R$ 30,00</p>
-                        <p className="text-sm text-gray-500">2.5% cashback</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações do Programa</CardTitle>
-                  <CardDescription>Configure as regras e parâmetros do cashback</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Em Desenvolvimento</h3>
-                    <p className="text-gray-500">
-                      Esta funcionalidade está sendo desenvolvida e estará disponível em breve.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CashbackSettingsManagement />
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6">
