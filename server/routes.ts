@@ -111,7 +111,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/clients", async (req, res) => {
     try {
       console.log("Dados recebidos para criação de cliente:", JSON.stringify(req.body, null, 2));
-      const validatedData = insertClientSchema.parse(req.body);
+      
+      // Converter strings vazias em null para campos opcionais
+      const processedData = {
+        ...req.body,
+        responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
+        cpf: req.body.cpf === "" ? null : req.body.cpf,
+        email: req.body.email === "" ? null : req.body.email
+      };
+      
+      const validatedData = insertClientSchema.parse(processedData);
       console.log("Dados validados:", JSON.stringify(validatedData, null, 2));
       const client = await storage.createClient(validatedData);
       console.log("Cliente criado com sucesso:", client.id);
@@ -129,7 +138,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/clients/:id", async (req, res) => {
     try {
-      const validatedData = insertClientSchema.partial().parse(req.body);
+      // Converter strings vazias em null para campos opcionais
+      const processedData = {
+        ...req.body,
+        responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
+        cpf: req.body.cpf === "" ? null : req.body.cpf,
+        email: req.body.email === "" ? null : req.body.email
+      };
+      
+      const validatedData = insertClientSchema.partial().parse(processedData);
       const client = await storage.updateClient(req.params.id, validatedData);
       res.json(client);
     } catch (error) {
