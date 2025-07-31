@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { formatDate } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsModal from "./client-details-modal";
 import SaleFormModal from "./sale-form-modal";
@@ -183,6 +184,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                 <th className="p-4 text-left font-medium text-gray-900">Contato</th>
                 <th className="p-4 text-left font-medium text-gray-900">Categoria</th>
                 <th className="p-4 text-left font-medium text-gray-900">Marcadores</th>
+                <th className="p-4 text-left font-medium text-gray-900">Aniversário</th>
                 <th className="p-4 text-left font-medium text-gray-900">Ações</th>
               </tr>
             </thead>
@@ -261,6 +263,12 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                       )}
                     </div>
                   </td>
+                  <td className="p-4">
+                    <div className="flex items-center text-sm">
+                      <Calendar className="h-3 w-3 mr-2 text-gray-400" />
+                      {client.birthday ? formatDate(client.birthday) : "Não informado"}
+                    </div>
+                  </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center space-x-2">
                       <Button
@@ -285,7 +293,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
               ))}
               {filteredClients.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">
+                  <td colSpan={7} className="p-8 text-center text-gray-500">
                     Nenhum cliente encontrado
                   </td>
                 </tr>

@@ -150,6 +150,9 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Marcadores
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aniversário
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ações
                   </th>
@@ -239,6 +242,9 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                           <span className="text-gray-400 text-xs">Sem marcadores</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {client.birthday ? formatDate(client.birthday) : "Não informado"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button
