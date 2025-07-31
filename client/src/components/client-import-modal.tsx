@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import * as XLSX from "xlsx";
+import { parseExcelDateToISO } from "@/lib/parse-excel-date";
 
 interface ClientImportModalProps {
   open: boolean;
@@ -93,33 +94,38 @@ export default function ClientImportModal({
       };
 
       // Buscar lista de usuários, categorias e origens para mapear nomes para IDs
-      const [usersResponse, categoriesResponse, originsResponse] = await Promise.all([
-        fetch("/api/users"),
-        fetch("/api/categories"),
-        fetch("/api/origins")
-      ]);
-      
+      const [usersResponse, categoriesResponse, originsResponse] =
+        await Promise.all([
+          fetch("/api/users"),
+          fetch("/api/categories"),
+          fetch("/api/origins"),
+        ]);
+
       const users = usersResponse.ok ? await usersResponse.json() : [];
-      const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+      const categories = categoriesResponse.ok
+        ? await categoriesResponse.json()
+        : [];
       const origins = originsResponse.ok ? await originsResponse.json() : [];
-      
+
       // Criar mapas de nomes para IDs (case insensitive)
       const userMap = new Map();
       const categoryMap = new Map();
       const originMap = new Map();
-      
+
       console.log("🔍 DEBUG - Usuários disponíveis para mapeamento:", users);
       users.forEach((user: any) => {
         const cleanName = user.name.toLowerCase().trim();
         userMap.set(cleanName, user.id);
-        console.log(`Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`);
+        console.log(
+          `Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`,
+        );
       });
       console.log("🗺️ Mapa final de usuários:", Array.from(userMap.entries()));
-      
+
       categories.forEach((category: any) => {
         categoryMap.set(category.name.toLowerCase().trim(), category.id);
       });
-      
+
       origins.forEach((origin: any) => {
         originMap.set(origin.name.toLowerCase().trim(), origin.id);
       });
@@ -131,26 +137,47 @@ export default function ClientImportModal({
         try {
           // Log de todos os campos da linha para debug
           console.log(`Linha ${i + 1}: Dados da planilha:`, client);
-          
+
           // Mapear responsável por nome para ID
           let responsavelId = null;
-          const responsavelName = client.Responsavel || client["Responsável"] || client.responsible || client.Responsavel;
-          console.log(`Linha ${i + 1}: Responsavel original:`, responsavelName, typeof responsavelName);
-          
-          if (responsavelName && typeof responsavelName === 'string' && responsavelName.trim()) {
+          const responsavelName =
+            client.Responsavel ||
+            client["Responsável"] ||
+            client.responsible ||
+            client.Responsavel;
+          console.log(
+            `Linha ${i + 1}: Responsavel original:`,
+            responsavelName,
+            typeof responsavelName,
+          );
+
+          if (
+            responsavelName &&
+            typeof responsavelName === "string" &&
+            responsavelName.trim()
+          ) {
             const cleanName = responsavelName.toLowerCase().trim();
             const foundUserId = userMap.get(cleanName);
             responsavelId = foundUserId || null;
-            console.log(`Linha ${i + 1}: Responsavel '${responsavelName}' -> '${cleanName}' -> ${foundUserId ? 'ENCONTRADO' : 'NÃO ENCONTRADO'}`);
+            console.log(
+              `Linha ${i + 1}: Responsavel '${responsavelName}' -> '${cleanName}' -> ${foundUserId ? "ENCONTRADO" : "NÃO ENCONTRADO"}`,
+            );
             console.log(`Available users:`, Array.from(userMap.keys()));
-            
+
             // Se não encontrou, tentar buscar por similaridade
             if (!foundUserId) {
-              console.log(`Linha ${i + 1}: Tentando buscar responsavel por similaridade...`);
+              console.log(
+                `Linha ${i + 1}: Tentando buscar responsavel por similaridade...`,
+              );
               for (const [userName, userId] of Array.from(userMap.entries())) {
-                if (userName.includes(cleanName) || cleanName.includes(userName)) {
+                if (
+                  userName.includes(cleanName) ||
+                  cleanName.includes(userName)
+                ) {
                   responsavelId = userId;
-                  console.log(`Linha ${i + 1}: Encontrado por similaridade: '${userName}' -> ${userId}`);
+                  console.log(
+                    `Linha ${i + 1}: Encontrado por similaridade: '${userName}' -> ${userId}`,
+                  );
                   break;
                 }
               }
@@ -163,50 +190,89 @@ export default function ClientImportModal({
           let categoria = "OUTROS";
           const categoriaName = client.Categoria || client.categoria;
           console.log(`Linha ${i + 1}: Categoria original:`, categoriaName);
-          
-          if (categoriaName && typeof categoriaName === 'string') {
+
+          if (categoriaName && typeof categoriaName === "string") {
             const cleanCategoriaName = categoriaName.toLowerCase().trim();
-            const foundCategory = categories.find((cat: any) => 
-              cat.name.toLowerCase().trim() === cleanCategoriaName
+            const foundCategory = categories.find(
+              (cat: any) =>
+                cat.name.toLowerCase().trim() === cleanCategoriaName,
             );
             categoria = foundCategory ? foundCategory.name : "OUTROS";
-            console.log(`Linha ${i + 1}: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${foundCategory ? foundCategory.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
-            console.log(`Available categories:`, categories.map((c: any) => c.name));
+            console.log(
+              `Linha ${i + 1}: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${foundCategory ? foundCategory.name : "NÃO ENCONTRADO, usando OUTROS"}`,
+            );
+            console.log(
+              `Available categories:`,
+              categories.map((c: any) => c.name),
+            );
           }
 
           // Mapear origem por nome (usando o nome da origem diretamente)
           let origem = "OUTROS";
           const origemName = client.Origem || client.origem;
           console.log(`Linha ${i + 1}: Origem original:`, origemName);
-          
-          if (origemName && typeof origemName === 'string') {
+
+          if (origemName && typeof origemName === "string") {
             const cleanOrigemName = origemName.toLowerCase().trim();
-            const foundOrigin = origins.find((orig: any) => 
-              orig.name.toLowerCase().trim() === cleanOrigemName
+            const foundOrigin = origins.find(
+              (orig: any) => orig.name.toLowerCase().trim() === cleanOrigemName,
             );
             origem = foundOrigin ? foundOrigin.name : "OUTROS";
-            console.log(`Linha ${i + 1}: Origem '${origemName}' -> '${cleanOrigemName}' -> ${foundOrigin ? foundOrigin.name : 'NÃO ENCONTRADO, usando OUTROS'}`);
-            console.log(`Available origins:`, origins.map((o: any) => o.name));
+            console.log(
+              `Linha ${i + 1}: Origem '${origemName}' -> '${cleanOrigemName}' -> ${foundOrigin ? foundOrigin.name : "NÃO ENCONTRADO, usando OUTROS"}`,
+            );
+            console.log(
+              `Available origins:`,
+              origins.map((o: any) => o.name),
+            );
           }
 
           // Formatar data de aniversário
-          let formattedBirthday = "01/01/1990";
-          const birthdayValue = client.Aniversario || client["Aniversário"] || client.birthday;
-          console.log(`Linha ${i + 1}: Aniversario original:`, birthdayValue, typeof birthdayValue);
-          
-          if (birthdayValue) {
-            // Se for um número (data do Excel), converter
-            if (typeof birthdayValue === 'number') {
-              const excelDate = new Date((birthdayValue - 25569) * 86400 * 1000);
-              formattedBirthday = excelDate.toLocaleDateString('pt-BR');
-              console.log(`Linha ${i + 1}: Data convertida do Excel: ${birthdayValue} -> ${formattedBirthday}`);
-            } else if (typeof birthdayValue === 'string') {
-              formattedBirthday = birthdayValue.trim();
-              console.log(`Linha ${i + 1}: Data como string: ${birthdayValue} -> ${formattedBirthday}`);
-            }
-          } else {
-            console.log(`Linha ${i + 1}: Aniversario não encontrado, usando padrão: ${formattedBirthday}`);
-          }
+          // Formatar data de aniversário
+          // let formattedBirthday = "01/01/1990";
+          // const birthdayValue =
+          //   client.Aniversario || client["Aniversário"] || client.birthday;
+          // console.log(
+          //   `Linha ${i + 1}: Aniversário original:`,
+          //   birthdayValue,
+          //   typeof birthdayValue,
+          // );
+
+          // if (birthdayValue) {
+          //   if (typeof birthdayValue === "number") {
+          //     // Corrigir problema de timezone usando UTC
+          //     const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Data base do Excel (30/12/1899)
+          //     const excelDateUTC = new Date(
+          //       excelEpoch.getTime() + birthdayValue * 86400 * 1000,
+          //     );
+
+          //     // Extrair partes da data manualmente para garantir precisão
+          //     const day = String(excelDateUTC.getUTCDate()).padStart(2, "0");
+          //     const month = String(excelDateUTC.getUTCMonth() + 1).padStart(
+          //       2,
+          //       "0",
+          //     );
+          //     const year = excelDateUTC.getUTCFullYear();
+
+          //     formattedBirthday = `${day}/${month}/${year}`;
+          //     console.log(
+          //       `Linha ${i + 1}: Data convertida do Excel (corrigida): ${birthdayValue} -> ${formattedBirthday}`,
+          //     );
+          //   } else if (typeof birthdayValue === "string") {
+          //     formattedBirthday = birthdayValue.trim();
+          //     console.log(
+          //       `Linha ${i + 1}: Data como string: ${birthdayValue} -> ${formattedBirthday}`,
+          //     );
+          //   }
+          // } else {
+          //   console.log(
+          //     `Linha ${i + 1}: Aniversário não encontrado, usando padrão: ${formattedBirthday}`,
+          //   );
+          // }
+
+          const birthdayValue =
+            client.Aniversario || client["Aniversário"] || client.birthday;
+          const formattedBirthday = parseExcelDateToISO(birthdayValue);
 
           // Mapear campos do Excel para formato esperado
           const clientData = {
@@ -218,7 +284,8 @@ export default function ClientImportModal({
             cep: client.CEP || client.cep || "00000-000",
             address: client.Endereco || client.address || "Não informado",
             number: (client.Numero || client.number || "S/N").toString(),
-            neighborhood: client.Bairro || client.neighborhood || "Não informado",
+            neighborhood:
+              client.Bairro || client.neighborhood || "Não informado",
             city: client.Cidade || client.city || "Não informado",
             state: client.Estado || client.state || "SP",
             categoria: categoria,
@@ -251,7 +318,10 @@ export default function ClientImportModal({
           clientData.cpf = clientData.cpf.trim();
           clientData.email = clientData.email?.trim() || null;
 
-          await apiRequest("/api/clients", "POST", clientData);
+          await apiRequest("/api/clients", "POST", {
+            ...clientData,
+            birthday: clientData.birthday,
+          });
           results.success++;
         } catch (error: any) {
           let errorMessage = "Erro desconhecido";
