@@ -768,6 +768,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/user-registration-stats", async (req, res) => {
+    try {
+      const stats = await storage.getUserRegistrationStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de cadastro:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de cadastro" });
+    }
+  });
+
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);
