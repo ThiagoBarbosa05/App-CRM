@@ -22,6 +22,8 @@ export default function Clients() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [selectedClients, setSelectedClients] = useState<any[]>([]);
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
     name: "",
     phone: "",
@@ -49,11 +51,22 @@ export default function Clients() {
 
   const clientsArray = Array.isArray(allClients) ? allClients : [];
 
+  const handleSelectionChange = (selectedIds: string[], selectedClientsData: any[]) => {
+    setSelectedClientIds(selectedIds);
+    setSelectedClients(selectedClientsData);
+  };
+
   const handleExportClients = async () => {
-    if (!clientsArray || clientsArray.length === 0) {
+    // Usar clientes selecionados se houver, senão usar todos
+    const clientsToExport = selectedClients.length > 0 ? selectedClients : clientsArray;
+    const exportType = selectedClients.length > 0 ? "selecionados" : "todos os";
+    
+    if (!clientsToExport || clientsToExport.length === 0) {
       toast({
         title: "Nenhum dado para exportar",
-        description: "Não há clientes cadastrados para exportar",
+        description: selectedClients.length > 0 
+          ? "Nenhum cliente selecionado para exportar" 
+          : "Não há clientes cadastrados para exportar",
         variant: "destructive",
       });
       return;
@@ -61,12 +74,12 @@ export default function Clients() {
 
     setIsExporting(true);
     try {
-      const formattedData = formatClientDataForExport(clientsArray);
+      const formattedData = formatClientDataForExport(clientsToExport);
       await exportToExcel(formattedData, "clientes");
 
       toast({
         title: "Exportação concluída",
-        description: `${clientsArray.length} clientes foram exportados com sucesso`,
+        description: `${clientsToExport.length} ${exportType} clientes foram exportados com sucesso`,
       });
     } catch (error) {
       console.error("Erro na exportação:", error);
@@ -139,7 +152,7 @@ export default function Clients() {
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? "Exportando..." : "Exportar"}
+                    {isExporting ? "Exportando..." : selectedClients.length > 0 ? `Exportar ${selectedClients.length} Selecionados` : "Exportar Todos"}
                   </Button>
                 </div>
               </div>
@@ -151,6 +164,7 @@ export default function Clients() {
                 clients={clientsArray}
                 searchQuery={searchQuery}
                 filters={clientFilters}
+                onSelectionChange={handleSelectionChange}
               />
             </div>
           </div>

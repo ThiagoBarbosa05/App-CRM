@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2, Edit, User, Phone, Mail, Calendar, MapPin, Tag, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,9 +34,10 @@ interface ClientsTableWithSelectionProps {
     origem: string;
     markers: string;
   };
+  onSelectionChange?: (selectedIds: string[], selectedClients: Client[]) => void;
 }
 
-export default function ClientsTableWithSelection({ clients, searchQuery = "", filters }: ClientsTableWithSelectionProps) {
+export default function ClientsTableWithSelection({ clients, searchQuery = "", filters, onSelectionChange }: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
@@ -144,6 +145,14 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
 
   const allSelected = selectedClientIds.length === filteredClients.length && filteredClients.length > 0;
   const someSelected = selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length;
+
+  // Notificar componente pai sobre mudanças na seleção
+  useEffect(() => {
+    if (onSelectionChange) {
+      const selectedClients = clients.filter(client => selectedClientIds.includes(client.id));
+      onSelectionChange(selectedClientIds, selectedClients);
+    }
+  }, [selectedClientIds, clients, onSelectionChange]);
 
   return (
     <div className="space-y-4">
