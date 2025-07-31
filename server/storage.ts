@@ -900,9 +900,30 @@ export class DatabaseStorage implements IStorage {
       .from(clients)
       .where(isNotNull(clients.birthday));
 
+    console.log(`Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`);
+
     for (const client of allClients) {
       if (client.birthday) {
-        const birthday = new Date(client.birthday);
+        let birthday: Date;
+        
+        // Parse different date formats
+        if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Format: YYYY-MM-DD
+          birthday = new Date(client.birthday);
+        } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          // Format: DD/MM/YYYY
+          const [day, month, year] = client.birthday.split('/');
+          birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          console.log(`Formato de data inválido para cliente ${client.name}: ${client.birthday}`);
+          continue;
+        }
+
+        if (isNaN(birthday.getTime())) {
+          console.log(`Data inválida para cliente ${client.name}: ${client.birthday}`);
+          continue;
+        }
+
         const thisYearBirthday = new Date(
           today.getFullYear(),
           birthday.getMonth(),
@@ -916,6 +937,8 @@ export class DatabaseStorage implements IStorage {
 
         const diffTime = thisYearBirthday.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        console.log(`Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`);
 
         if (diffDays <= days && diffDays >= 0) {
           upcomingClients.push(client);
