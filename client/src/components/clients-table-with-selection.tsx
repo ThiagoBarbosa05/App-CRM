@@ -49,13 +49,17 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
   const { user } = useAuth();
 
   // Verificar se o usuário é administrador
-  const isAdmin = user?.role === 'administrador';
+  const isAdmin = user?.role === 'administrador' || user?.role === 'admin';
 
   const deleteClientsMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
       const response = await fetch("/api/clients", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-email": user?.email || "",
+          "x-user-role": user?.role || ""
+        },
         body: JSON.stringify({ ids: clientIds }),
       });
       

@@ -36,7 +36,7 @@ export default function Cashback() {
   const { user } = useAuth();
 
   // Verificar se o usuário é administrador
-  const isAdmin = user?.role === 'administrador';
+  const isAdmin = user?.role === 'administrador' || user?.role === 'admin';
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -66,7 +66,21 @@ export default function Cashback() {
   // Mutation para excluir saldo de cashback
   const deleteBalanceMutation = useMutation({
     mutationFn: async (balanceId: string) => {
-      await apiRequest("DELETE", `/api/cashback-balances/${balanceId}`);
+      const response = await fetch(`/api/cashback-balances/${balanceId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": user?.email || "",
+          "x-user-role": user?.role || ""
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao excluir saldo");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
