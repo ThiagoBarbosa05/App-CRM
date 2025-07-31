@@ -1669,16 +1669,52 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(users.id, clients.responsavelId))
       .orderBy(clientCashbackBalance.currentBalance);
 
-    return balances.map(balance => ({
-      id: balance.id,
-      clientId: balance.clientId,
-      totalEarned: balance.totalEarned,
-      totalUsed: balance.totalUsed,
-      currentBalance: balance.currentBalance,
-      lastUpdated: balance.lastUpdated,
-      client: balance.client,
-      responsibleUser: balance.responsibleUser,
-    }));
+    // Para cada saldo, buscar informações das transações de cashback
+    const balancesWithDates = await Promise.all(
+      balances.map(async (balance) => {
+        // Buscar primeira transação de cashback (data de criação)
+        const [firstTransaction] = await db
+          .select()
+          .from(cashbackTransactions)
+          .where(
+            and(
+              eq(cashbackTransactions.clientId, balance.clientId),
+              eq(cashbackTransactions.status, "approved")
+            )
+          )
+          .orderBy(cashbackTransactions.createdAt)
+          .limit(1);
+
+        // Buscar próxima data de vencimento (menor data de expiração futura)
+        const [nextExpiring] = await db
+          .select()
+          .from(cashbackTransactions)
+          .where(
+            and(
+              eq(cashbackTransactions.clientId, balance.clientId),
+              eq(cashbackTransactions.status, "approved"),
+              gt(cashbackTransactions.expiresAt, new Date())
+            )
+          )
+          .orderBy(cashbackTransactions.expiresAt)
+          .limit(1);
+
+        return {
+          id: balance.id,
+          clientId: balance.clientId,
+          totalEarned: balance.totalEarned,
+          totalUsed: balance.totalUsed,
+          currentBalance: balance.currentBalance,
+          lastUpdated: balance.lastUpdated,
+          client: balance.client!,
+          responsibleUser: balance.responsibleUser,
+          firstCashbackDate: firstTransaction?.createdAt || null,
+          nextExpiryDate: nextExpiring?.expiresAt || null,
+        };
+      })
+    );
+
+    return balancesWithDates;
   }
 
   async updateClientCashbackBalance(clientId: string): Promise<void> {

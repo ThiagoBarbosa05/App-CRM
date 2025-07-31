@@ -257,9 +257,33 @@ export default function Cashback() {
                                 Total acumulado: {formatCurrency(balance.totalEarned || 0)}
                               </p>
                             </div>
-                            <div className="text-sm text-gray-600 min-w-[150px] text-center">
+                            <div className="text-sm text-gray-600 min-w-[120px] text-center">
                               <p className="font-medium text-gray-700">Responsável</p>
                               <p className="text-gray-500">{balance.responsibleUser?.name || 'Não definido'}</p>
+                            </div>
+                            <div className="text-sm text-gray-600 min-w-[110px] text-center">
+                              <p className="font-medium text-gray-700">Primeiro Cashback</p>
+                              <p className="text-gray-500">
+                                {balance.firstCashbackDate 
+                                  ? new Date(balance.firstCashbackDate).toLocaleDateString('pt-BR')
+                                  : 'N/A'
+                                }
+                              </p>
+                            </div>
+                            <div className="text-sm text-gray-600 min-w-[110px] text-center">
+                              <p className="font-medium text-gray-700">Próximo Vencimento</p>
+                              <p className={`text-sm ${
+                                balance.nextExpiryDate 
+                                  ? (new Date(balance.nextExpiryDate).getTime() - Date.now()) < 7 * 24 * 60 * 60 * 1000 
+                                    ? 'text-orange-600 font-medium' 
+                                    : 'text-gray-500'
+                                  : 'text-gray-500'
+                              }`}>
+                                {balance.nextExpiryDate 
+                                  ? new Date(balance.nextExpiryDate).toLocaleDateString('pt-BR')
+                                  : 'N/A'
+                                }
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">

@@ -608,4 +608,6 @@ export interface ClientCashbackBalanceWithClient extends ClientCashbackBalance {
     name: string;
     email: string;
   } | null;
+  firstCashbackDate?: Date | null;
+  nextExpiryDate?: Date | null;
 }
