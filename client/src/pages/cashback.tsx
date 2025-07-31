@@ -210,15 +210,19 @@ export default function Cashback() {
                     <div className="space-y-4">
                       {balances.map((balance: any) => (
                         <div key={balance.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4 flex-1">
                             <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                               <Wallet className="h-5 w-5 text-green-600" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                               <p className="font-medium">{balance.client?.name || 'Cliente'}</p>
                               <p className="text-sm text-gray-500">
                                 Total acumulado: {formatCurrency(balance.totalEarned || 0)}
                               </p>
+                            </div>
+                            <div className="text-sm text-gray-600 min-w-[150px] text-center">
+                              <p className="font-medium text-gray-700">Responsável</p>
+                              <p className="text-gray-500">{balance.responsibleUser?.name || 'Não definido'}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">

@@ -1632,25 +1632,53 @@ export class DatabaseStorage implements IStorage {
 
   async getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
     const balances = await db
-      .select()
+      .select({
+        id: clientCashbackBalance.id,
+        clientId: clientCashbackBalance.clientId,
+        totalEarned: clientCashbackBalance.totalEarned,
+        totalUsed: clientCashbackBalance.totalUsed,
+        currentBalance: clientCashbackBalance.currentBalance,
+        lastUpdated: clientCashbackBalance.lastUpdated,
+        client: {
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          cpf: clients.cpf,
+          email: clients.email,
+          birthday: clients.birthday,
+          cep: clients.cep,
+          address: clients.address,
+          number: clients.number,
+          neighborhood: clients.neighborhood,
+          city: clients.city,
+          state: clients.state,
+          markers: clients.markers,
+          responsavelId: clients.responsavelId,
+          categoria: clients.categoria,
+          origem: clients.origem,
+          createdAt: clients.createdAt,
+        },
+        responsibleUser: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        }
+      })
       .from(clientCashbackBalance)
+      .leftJoin(clients, eq(clients.id, clientCashbackBalance.clientId))
+      .leftJoin(users, eq(users.id, clients.responsavelId))
       .orderBy(clientCashbackBalance.currentBalance);
 
-    const balancesWithClients: ClientCashbackBalanceWithClient[] = [];
-
-    for (const balance of balances) {
-      const [client] = await db
-        .select()
-        .from(clients)
-        .where(eq(clients.id, balance.clientId));
-
-      balancesWithClients.push({
-        ...balance,
-        client,
-      });
-    }
-
-    return balancesWithClients;
+    return balances.map(balance => ({
+      id: balance.id,
+      clientId: balance.clientId,
+      totalEarned: balance.totalEarned,
+      totalUsed: balance.totalUsed,
+      currentBalance: balance.currentBalance,
+      lastUpdated: balance.lastUpdated,
+      client: balance.client,
+      responsibleUser: balance.responsibleUser,
+    }));
   }
 
   async updateClientCashbackBalance(clientId: string): Promise<void> {

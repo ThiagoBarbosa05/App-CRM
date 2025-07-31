@@ -603,4 +603,9 @@ export interface CashbackTransactionWithClient extends CashbackTransaction {
 
 export interface ClientCashbackBalanceWithClient extends ClientCashbackBalance {
   client: Client;
+  responsibleUser?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
 }
