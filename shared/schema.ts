@@ -271,7 +271,7 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
 // Tabela de metas dos usuários
 export const userGoals = pgTable("user_goals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   salesGoal: decimal("sales_goal", { precision: 12, scale: 2 }).notNull().default("0.00"), // Meta de vendas em reais
   averageTicket: decimal("average_ticket", { precision: 12, scale: 2 }).notNull().default("0.00"), // Ticket médio em reais
   itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
@@ -279,7 +279,10 @@ export const userGoals = pgTable("user_goals", {
   year: integer("year").notNull(), // Ano da meta
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Constraint composta: um usuário só pode ter uma meta por mês/ano
+  uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
+}));
 
 // Tabela de resultados semanais das metas
 export const weeklyResults = pgTable("weekly_results", {
