@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import BirthdayCakeAnimation from "@/components/birthday-cake-animation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showBirthdayAnimation, setShowBirthdayAnimation] = useState(false);
+  const [birthdayClient, setBirthdayClient] = useState<string>("");
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [reminderDays, setReminderDays] = useState("1");
@@ -94,6 +97,40 @@ export default function CalendarPage() {
 
   // Filtrar clientes que têm aniversário
   const clientsWithBirthdays = clients.filter((client: Client) => client.birthday);
+
+  // Verificar se há aniversários hoje
+  const todaysBirthdays = clientsWithBirthdays.filter((client: Client) => {
+    if (!client.birthday) return false;
+    
+    const today = new Date();
+    let birthday: Date;
+    
+    // Parse different date formats
+    if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      birthday = new Date(client.birthday);
+    } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      const [day, month, year] = client.birthday.split('/');
+      birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      return false;
+    }
+    
+    return today.getDate() === birthday.getDate() && 
+           today.getMonth() === birthday.getMonth();
+  });
+
+  // Mostrar animação para aniversários de hoje
+  useEffect(() => {
+    if (todaysBirthdays.length > 0 && !showBirthdayAnimation) {
+      // Mostrar animação após 3 segundos do carregamento da página
+      const timer = setTimeout(() => {
+        setBirthdayClient(todaysBirthdays[0].name);
+        setShowBirthdayAnimation(true);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [todaysBirthdays, showBirthdayAnimation]);
 
   // Função para obter a data do aniversário deste ano
   const getBirthdayThisYear = (birthday: string) => {
@@ -554,6 +591,13 @@ export default function CalendarPage() {
       </div>
         </div>
       </div>
+      
+      {/* Birthday Cake Animation */}
+      <BirthdayCakeAnimation
+        clientName={birthdayClient}
+        show={showBirthdayAnimation}
+        onClose={() => setShowBirthdayAnimation(false)}
+      />
     </div>
   );
 }

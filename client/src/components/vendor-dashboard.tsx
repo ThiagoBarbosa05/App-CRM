@@ -5,9 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { User, Target, TrendingUp, Calendar, Phone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatPhone, formatDate } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import BirthdayCakeAnimation from "@/components/birthday-cake-animation";
 
 export default function VendorDashboard() {
   const { user } = useAuth();
+  const [showBirthdayAnimation, setShowBirthdayAnimation] = useState(false);
+  const [birthdayClient, setBirthdayClient] = useState<string>("");
 
   const { data: clients = [] } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
@@ -37,6 +41,40 @@ export default function VendorDashboard() {
   const myClientsBirthdays = (upcomingBirthdays as any[]).filter((client: any) => 
     client.responsavelId === user?.id
   );
+
+  // Verificar se há aniversários hoje
+  const todaysBirthdays = myClientsBirthdays.filter((client: any) => {
+    if (!client.birthday) return false;
+    
+    const today = new Date();
+    let birthday: Date;
+    
+    // Parse different date formats
+    if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      birthday = new Date(client.birthday);
+    } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      const [day, month, year] = client.birthday.split('/');
+      birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      return false;
+    }
+    
+    return today.getDate() === birthday.getDate() && 
+           today.getMonth() === birthday.getMonth();
+  });
+
+  // Mostrar animação para aniversários de hoje
+  useEffect(() => {
+    if (todaysBirthdays.length > 0 && !showBirthdayAnimation) {
+      // Mostrar animação após 2 segundos do carregamento da página
+      const timer = setTimeout(() => {
+        setBirthdayClient(todaysBirthdays[0].name);
+        setShowBirthdayAnimation(true);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [todaysBirthdays, showBirthdayAnimation]);
 
   // Calcular estatísticas
   const totalClients = (clients as any[]).length;
@@ -109,34 +147,59 @@ export default function VendorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {myClientsBirthdays.slice(0, 5).map((client: any) => (
-                <div key={client.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <User className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="font-medium">{client.name}</p>
-                      <p className="text-sm text-gray-600">
-                        {client.birthday && formatDate(client.birthday)}
-                      </p>
+              {myClientsBirthdays.slice(0, 5).map((client: any) => {
+                const isToday = todaysBirthdays.some(b => b.id === client.id);
+                return (
+                  <div key={client.id} className={`flex items-center justify-between p-3 rounded-lg ${isToday ? 'bg-wine-50 border-2 border-wine-200 animate-pulse' : 'bg-gray-50'}`}>
+                    <div className="flex items-center gap-3">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {client.name}
+                          {isToday && <span className="text-xl">🎂</span>}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {client.birthday && formatDate(client.birthday)}
+                          {isToday && <span className="ml-2 text-wine-600 font-semibold">Hoje é o grande dia!</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`https://wa.me/${client.phone.replace(/\D/g, '')}?text=Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm"
+                      >
+                        <Phone className="h-4 w-4" />
+                        WhatsApp
+                      </a>
+                      {isToday && (
+                        <button
+                          onClick={() => {
+                            setBirthdayClient(client.name);
+                            setShowBirthdayAnimation(true);
+                          }}
+                          className="text-wine-600 hover:text-wine-800 text-sm font-medium"
+                        >
+                          🎉 Ver Animação
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`https://wa.me/${client.phone.replace(/\D/g, '')}?text=Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm"
-                    >
-                      <Phone className="h-4 w-4" />
-                      WhatsApp
-                    </a>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Birthday Cake Animation */}
+      <BirthdayCakeAnimation
+        clientName={birthdayClient}
+        show={showBirthdayAnimation}
+        onClose={() => setShowBirthdayAnimation(false)}
+      />
     </div>
   );
 }
