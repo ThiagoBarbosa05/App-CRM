@@ -1386,6 +1386,21 @@ export class DatabaseStorage implements IStorage {
     return result || null;
   }
 
+  async getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null> {
+    const [result] = await db
+      .select()
+      .from(userGoals)
+      .where(
+        and(
+          eq(userGoals.userId, userId),
+          eq(userGoals.month, month),
+          eq(userGoals.year, year)
+        )
+      );
+
+    return result || null;
+  }
+
   async createUserGoal(goal: any): Promise<any> {
     const [result] = await db.insert(userGoals).values(goal).returning();
 
@@ -1460,24 +1475,7 @@ export class DatabaseStorage implements IStorage {
     return updatedResult;
   }
 
-  async getUserGoalByUserIdMonthYear(
-    userId: string,
-    month: number,
-    year: number,
-  ): Promise<any | null> {
-    const [result] = await db
-      .select()
-      .from(userGoals)
-      .where(
-        and(
-          eq(userGoals.userId, userId),
-          eq(userGoals.month, month),
-          eq(userGoals.year, year),
-        ),
-      );
 
-    return result || null;
-  }
 
   async getWeeklyResult(goalId: string, week: number): Promise<any | null> {
     const [result] = await db

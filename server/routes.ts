@@ -760,6 +760,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);
+      
+      // Verificar se já existe uma meta para este usuário no mês/ano especificado
+      const existingGoal = await storage.getUserGoalByUserIdMonthYear(
+        validatedData.userId,
+        validatedData.month,
+        validatedData.year
+      );
+      
+      if (existingGoal) {
+        // Se já existe, atualizar a meta existente
+        const updatedGoal = await storage.updateUserGoal(existingGoal.id, validatedData);
+        return res.json(updatedGoal);
+      }
+      
+      // Se não existe, criar uma nova meta
       const goal = await storage.createUserGoal(validatedData);
       res.status(201).json(goal);
     } catch (error) {
