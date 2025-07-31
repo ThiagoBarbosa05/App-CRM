@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Sidebar from "@/components/sidebar";
 import ClientsTableWithSelection from "@/components/clients-table-with-selection";
 import ClientFormModal from "@/components/client-form-modal";
@@ -51,22 +51,27 @@ export default function Clients() {
 
   const clientsArray = Array.isArray(allClients) ? allClients : [];
 
-  const handleSelectionChange = (selectedIds: string[], selectedClientsData: any[]) => {
-    setSelectedClientIds(selectedIds);
-    setSelectedClients(selectedClientsData);
-  };
+  const handleSelectionChange = useCallback(
+    (selectedIds: string[], selectedClientsData: any[]) => {
+      setSelectedClientIds(selectedIds);
+      setSelectedClients(selectedClientsData);
+    },
+    [],
+  );
 
   const handleExportClients = async () => {
     // Usar clientes selecionados se houver, senão usar todos
-    const clientsToExport = selectedClients.length > 0 ? selectedClients : clientsArray;
+    const clientsToExport =
+      selectedClients.length > 0 ? selectedClients : clientsArray;
     const exportType = selectedClients.length > 0 ? "selecionados" : "todos os";
-    
+
     if (!clientsToExport || clientsToExport.length === 0) {
       toast({
         title: "Nenhum dado para exportar",
-        description: selectedClients.length > 0 
-          ? "Nenhum cliente selecionado para exportar" 
-          : "Não há clientes cadastrados para exportar",
+        description:
+          selectedClients.length > 0
+            ? "Nenhum cliente selecionado para exportar"
+            : "Não há clientes cadastrados para exportar",
         variant: "destructive",
       });
       return;
@@ -152,7 +157,11 @@ export default function Clients() {
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? "Exportando..." : selectedClients.length > 0 ? `Exportar ${selectedClients.length} Selecionados` : "Exportar Todos"}
+                    {isExporting
+                      ? "Exportando..."
+                      : selectedClients.length > 0
+                        ? `Exportar ${selectedClients.length} Selecionados`
+                        : "Exportar Todos"}
                   </Button>
                 </div>
               </div>

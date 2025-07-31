@@ -66,7 +66,7 @@ export default function ClientsTableWithSelection({
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   console.log(clients);
@@ -139,76 +139,78 @@ export default function ClientsTableWithSelection({
   // Função para alternar ordenação
   const toggleSort = () => {
     if (sortOrder === null) {
-      setSortOrder('asc');
-    } else if (sortOrder === 'asc') {
-      setSortOrder('desc');
+      setSortOrder("asc");
+    } else if (sortOrder === "asc") {
+      setSortOrder("desc");
     } else {
       setSortOrder(null);
     }
   };
 
   // Filter and sort clients based on search, filters, and sort order
-  const filteredAndSortedClients = clients.filter((client) => {
-    // Search query filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const searchMatch =
-        client.name.toLowerCase().includes(query) ||
-        client.phone.toLowerCase().includes(query) ||
-        (client.email?.toLowerCase() || "").includes(query) ||
-        (client.cpf?.toLowerCase() || "").includes(query);
+  const filteredAndSortedClients = clients
+    .filter((client) => {
+      // Search query filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const searchMatch =
+          client.name.toLowerCase().includes(query) ||
+          client.phone.toLowerCase().includes(query) ||
+          (client.email?.toLowerCase() || "").includes(query) ||
+          (client.cpf?.toLowerCase() || "").includes(query);
 
-      if (!searchMatch) return false;
-    }
+        if (!searchMatch) return false;
+      }
 
-    // Advanced filters
-    if (filters) {
-      if (
-        filters.name &&
-        !client.name.toLowerCase().includes(filters.name.toLowerCase())
-      )
-        return false;
-      if (
-        filters.phone &&
-        !client.phone.toLowerCase().includes(filters.phone.toLowerCase())
-      )
-        return false;
-      if (
-        filters.cpf &&
-        client.cpf &&
-        !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())
-      )
-        return false;
-      if (
-        filters.responsavelId &&
-        filters.responsavelId !== "all" &&
-        client.responsavelId !== filters.responsavelId
-      )
-        return false;
-      if (filters.categoria && client.categoria !== filters.categoria)
-        return false;
-      if (filters.origem && client.origem !== filters.origem) return false;
-      if (
-        filters.markers &&
-        client.markers &&
-        !client.markers.some((marker) =>
-          marker.toLowerCase().includes(filters.markers.toLowerCase()),
+      // Advanced filters
+      if (filters) {
+        if (
+          filters.name &&
+          !client.name.toLowerCase().includes(filters.name.toLowerCase())
         )
-      )
-        return false;
-    }
+          return false;
+        if (
+          filters.phone &&
+          !client.phone.toLowerCase().includes(filters.phone.toLowerCase())
+        )
+          return false;
+        if (
+          filters.cpf &&
+          client.cpf &&
+          !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())
+        )
+          return false;
+        if (
+          filters.responsavelId &&
+          filters.responsavelId !== "all" &&
+          client.responsavelId !== filters.responsavelId
+        )
+          return false;
+        if (filters.categoria && client.categoria !== filters.categoria)
+          return false;
+        if (filters.origem && client.origem !== filters.origem) return false;
+        if (
+          filters.markers &&
+          client.markers &&
+          !client.markers.some((marker) =>
+            marker.toLowerCase().includes(filters.markers.toLowerCase()),
+          )
+        )
+          return false;
+      }
 
-    return true;
-  }).sort((a, b) => {
-    if (sortOrder === null) return 0;
-    
-    const comparison = a.name.localeCompare(b.name, 'pt-BR', { 
-      numeric: true, 
-      sensitivity: 'base' 
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === null) return 0;
+
+      const comparison = a.name.localeCompare(b.name, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return sortOrder === "asc" ? comparison : -comparison;
     });
-    
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
 
   const allSelected =
     selectedClientIds.length === filteredAndSortedClients.length &&
@@ -275,8 +277,10 @@ export default function ClientsTableWithSelection({
                   >
                     <span>Cliente</span>
                     {sortOrder === null && <ArrowUpDown className="h-4 w-4" />}
-                    {sortOrder === 'asc' && <ChevronUp className="h-4 w-4" />}
-                    {sortOrder === 'desc' && <ChevronDown className="h-4 w-4" />}
+                    {sortOrder === "asc" && <ChevronUp className="h-4 w-4" />}
+                    {sortOrder === "desc" && (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
                   </button>
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
@@ -385,7 +389,9 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <div className="flex items-center text-sm">
                       <Calendar className="h-3 w-3 mr-2 text-gray-400" />
-                      {client.birthday}
+                      {client.birthday
+                        ? formatDate(client.birthday)
+                        : "Não informado"}
                     </div>
                   </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
