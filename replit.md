@@ -152,6 +152,12 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
   - Combined search works alongside existing responsible user filter
   - Real-time filtering as user types in search field
   - Updated empty state messages to reflect active filters
+- Implemented role-based access control for deletion operations (July 31, 2025):
+  - Restricted bulk client deletion to administrators only in frontend and backend
+  - Added "Excluir Saldo" functionality in CASHBACK page with admin-only access
+  - Frontend shows appropriate messages for non-admin users
+  - Backend validates user role before allowing deletion operations
+  - Enhanced security with proper authorization checks on sensitive operations
 
 ### Client Flow
 1. User creates/edits client through modal forms

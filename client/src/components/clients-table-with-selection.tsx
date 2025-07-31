@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { formatDate } from "@/lib/utils";
@@ -45,6 +46,10 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Verificar se o usuário é administrador
+  const isAdmin = user?.role === 'administrador';
 
   const deleteClientsMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
@@ -156,15 +161,23 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
           <span className="text-sm font-medium">
             {selectedClientIds.length} cliente(s) selecionado(s)
           </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDeleteSelected}
-            disabled={deleteClientsMutation.isPending}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir Selecionados
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteSelected}
+              disabled={deleteClientsMutation.isPending}
+              title="Excluir clientes selecionados (apenas administradores)"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir Selecionados
+            </Button>
+          )}
+          {!isAdmin && (
+            <span className="text-sm text-gray-500 italic">
+              Apenas administradores podem excluir clientes
+            </span>
+          )}
         </div>
       )}
 

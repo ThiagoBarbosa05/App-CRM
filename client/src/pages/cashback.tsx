@@ -11,6 +11,7 @@ import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,10 @@ export default function Cashback() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deletingBalance, setDeletingBalance] = useState<any>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Verificar se o usuário é administrador
+  const isAdmin = user?.role === 'administrador';
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -381,15 +386,17 @@ export default function Cashback() {
                                   Resgatar
                                 </Button>
                               )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-600 hover:bg-red-50"
-                                onClick={() => setDeletingBalance(balance)}
-                                title="Excluir saldo de cashback"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 border-red-600 hover:bg-red-50"
+                                  onClick={() => setDeletingBalance(balance)}
+                                  title="Excluir saldo de cashback (apenas administradores)"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>

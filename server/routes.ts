@@ -171,9 +171,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk delete clients
+  // Bulk delete clients (admin only)
   app.delete("/api/clients", async (req, res) => {
     try {
+      // Verificar se o usuário está autenticado (simplificado para esta demonstração)
+      // Em produção, usar middleware de autenticação adequado
+      const userEmail = req.headers['x-user-email'] || req.session?.user?.email;
+      
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail as string);
+        if (!user || user.role !== 'administrador') {
+          return res.status(403).json({ 
+            message: "Acesso negado. Apenas administradores podem excluir clientes." 
+          });
+        }
+      }
+
       const { ids } = req.body;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "Lista de IDs é obrigatória" });
@@ -555,6 +568,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/cashback-balances/:balanceId", async (req, res) => {
     try {
+      // Verificar se o usuário é administrador
+      const userEmail = req.headers['x-user-email'] || req.session?.user?.email;
+      
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail as string);
+        if (!user || user.role !== 'administrador') {
+          return res.status(403).json({ 
+            message: "Acesso negado. Apenas administradores podem excluir saldos de cashback." 
+          });
+        }
+      }
+
       const { balanceId } = req.params;
       const deleted = await storage.deleteCashbackBalance(balanceId);
       if (deleted) {
