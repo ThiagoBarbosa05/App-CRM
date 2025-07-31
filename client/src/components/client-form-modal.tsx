@@ -72,6 +72,16 @@ const brazilianStates = [
   { value: "TO", label: "Tocantins" },
 ];
 
+// Função para formatar data para input (YYYY-MM-DD -> DD/MM/AAAA)
+const formatDateInput = (dateString: string) => {
+  if (!dateString) return "";
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+  }
+  return dateString;
+};
+
 export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -319,7 +329,21 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                   <FormItem>
                     <FormLabel>Data de Aniversário</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <InputMask
+                        mask="99/99/9999"
+                        placeholder="DD/MM/AAAA"
+                        value={field.value ? formatDateInput(field.value) : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Converter DD/MM/AAAA para YYYY-MM-DD para o backend
+                          if (value && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                            const [day, month, year] = value.split('/');
+                            field.onChange(`${year}-${month}-${day}`);
+                          } else {
+                            field.onChange("");
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

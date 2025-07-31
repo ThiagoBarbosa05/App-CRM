@@ -4,19 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { User, Target, TrendingUp, Calendar, Phone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { formatCurrency, formatPhone } from "@/lib/utils";
+import { formatCurrency, formatPhone, formatDate } from "@/lib/utils";
 
 export default function VendorDashboard() {
   const { user } = useAuth();
 
   const { data: clients = [] } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
-    queryParams: { userId: user?.id, userRole: user?.role },
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const { data: deals = [] } = useQuery({
     queryKey: ["/api/deals", user?.id, user?.role],
-    queryParams: { userId: user?.id, userRole: user?.role },
+    queryFn: async () => {
+      const response = await fetch(`/api/deals?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch deals');
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const { data: upcomingBirthdays = [] } = useQuery({
@@ -24,14 +34,14 @@ export default function VendorDashboard() {
   });
 
   // Filtrar aniversários apenas dos clientes do vendedor
-  const myClientsBirthdays = upcomingBirthdays.filter(client => 
+  const myClientsBirthdays = (upcomingBirthdays as any[]).filter((client: any) => 
     client.responsavelId === user?.id
   );
 
   // Calcular estatísticas
-  const totalClients = clients.length;
-  const totalDealsValue = deals.reduce((sum, deal) => sum + parseFloat(deal.value || 0), 0);
-  const activeDeals = deals.filter(deal => deal.stage !== "fechamento").length;
+  const totalClients = (clients as any[]).length;
+  const totalDealsValue = (deals as any[]).reduce((sum: number, deal: any) => sum + parseFloat(deal.value || 0), 0);
+  const activeDeals = (deals as any[]).filter((deal: any) => deal.stage !== "fechamento").length;
 
   return (
     <div className="space-y-6">
@@ -99,17 +109,14 @@ export default function VendorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {myClientsBirthdays.slice(0, 5).map((client) => (
+              {myClientsBirthdays.slice(0, 5).map((client: any) => (
                 <div key={client.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <User className="h-4 w-4 text-gray-500" />
                     <div>
                       <p className="font-medium">{client.name}</p>
                       <p className="text-sm text-gray-600">
-                        {client.birthday && new Date(client.birthday).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'long'
-                        })}
+                        {client.birthday && formatDate(client.birthday)}
                       </p>
                     </div>
                   </div>

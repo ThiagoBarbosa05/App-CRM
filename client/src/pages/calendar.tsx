@@ -15,6 +15,7 @@ import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
 import Sidebar from "@/components/sidebar";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function CalendarPage() {
@@ -146,7 +147,7 @@ export default function CalendarPage() {
         const age = new Date().getFullYear() - birthdayDate.getFullYear();
         return [
           client.name,
-          format(birthdayDate, "dd/MM/yyyy", { locale: ptBR }),
+          formatDate(client.birthday!),
           age.toString(),
           client.phone || "",
           client.email || ""
@@ -315,7 +316,7 @@ export default function CalendarPage() {
                             <Gift className="h-6 w-6 text-amber-600" />
                           </div>
                           <Badge variant="secondary" className="text-xs">
-                            {format(birthdayDate, "dd/MM", { locale: ptBR })}
+                            {formatDate(client.birthday!)}
                           </Badge>
                         </div>
                       </div>
@@ -518,7 +519,7 @@ export default function CalendarPage() {
                     <div className="flex-1">
                       <div className="font-medium text-gray-900">{client.name}</div>
                       <div className="text-sm text-gray-600">
-                        {format(birthdayDate, "dd/MM", { locale: ptBR })} - {age} anos
+                        {formatDate(client.birthday!)} - {age} anos
                       </div>
                     </div>
                     <div className="text-right">
