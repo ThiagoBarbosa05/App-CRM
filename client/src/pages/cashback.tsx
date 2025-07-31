@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet } from "lucide-react";
+import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
@@ -164,6 +164,84 @@ export default function Cashback() {
                       )}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Seção de Cashback Vencendo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    Cashback Vencendo 🧨
+                  </CardTitle>
+                  <CardDescription>Cashbacks que vencem nos próximos 7 dias</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    // Filtrar transações que vencem nos próximos 7 dias e ainda estão válidas
+                    const today = new Date();
+                    const sevenDaysFromNow = new Date();
+                    sevenDaysFromNow.setDate(today.getDate() + 7);
+
+                    const expiringTransactions = transactions.filter((transaction: any) => {
+                      if (!transaction.expiresAt || transaction.status !== 'approved') return false;
+                      
+                      const expiryDate = new Date(transaction.expiresAt);
+                      return expiryDate > today && expiryDate <= sevenDaysFromNow;
+                    });
+
+                    if (expiringTransactions.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cashback vencendo</h3>
+                          <p className="text-gray-500">
+                            Não há cashbacks próximos do vencimento nos próximos 7 dias.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        {expiringTransactions.slice(0, 5).map((transaction: any) => {
+                          const expiryDate = new Date(transaction.expiresAt);
+                          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          
+                          return (
+                            <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg bg-orange-50 border-orange-200">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
+                                  <p className="text-sm text-gray-600">
+                                    Compra de {formatCurrency(transaction.purchaseAmount)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium text-orange-700">
+                                  {formatCurrency(transaction.cashbackAmount)}
+                                </p>
+                                <p className="text-sm text-orange-600 font-medium">
+                                  {daysUntilExpiry === 1 ? 'Vence amanhã!' : `Vence em ${daysUntilExpiry} dias`}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {expiringTransactions.length > 5 && (
+                          <div className="text-center pt-4">
+                            <p className="text-sm text-orange-600">
+                              E mais {expiringTransactions.length - 5} cashbacks vencendo...
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
