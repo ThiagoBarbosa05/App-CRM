@@ -56,13 +56,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
 
   const formatBirthday = (birthday: string | null | undefined) => {
     if (!birthday) return "Não informado";
-    try {
-      // Assumindo formato YYYY-MM-DD
-      const [year, month, day] = birthday.split('-');
-      return `${day}/${month}/${year}`;
-    } catch {
-      return birthday;
-    }
+    return formatDate(birthday);
   };
 
   const getMarkerColors = (markers: string[]) => {

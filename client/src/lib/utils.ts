@@ -19,6 +19,13 @@ export function formatPhone(phone: string): string {
 }
 
 export function formatDate(dateString: string): string {
+  // Para aniversários no formato YYYY-MM-DD, fazer split manual para evitar problemas de timezone
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+  }
+  
+  // Para outras datas, usar Date normal
   const date = new Date(dateString);
   return date.toLocaleDateString('pt-BR');
 }
