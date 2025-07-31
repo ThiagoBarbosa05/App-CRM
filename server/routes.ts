@@ -164,8 +164,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
-      res.json({ message: "Cliente excluído com sucesso" });
+      res.json({ message: "Cliente e dados relacionados excluídos com sucesso" });
     } catch (error) {
+      console.error("Erro ao excluir cliente:", error);
       res.status(500).json({ message: "Erro ao excluir cliente" });
     }
   });
@@ -173,23 +174,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk delete clients
   app.delete("/api/clients", async (req, res) => {
     try {
-      console.log("Bulk delete request body:", req.body);
       const { ids } = req.body;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "Lista de IDs é obrigatória" });
       }
       
-      console.log("Tentando excluir clientes:", ids);
       const deletedCount = await storage.deleteClients(ids);
-      console.log("Clientes excluídos:", deletedCount);
       
       res.json({ 
-        message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
+        message: `${deletedCount} cliente(s) e dados relacionados excluídos com sucesso`,
         deletedCount 
       });
     } catch (error) {
       console.error("Erro na exclusão em lote:", error);
-      res.status(500).json({ message: "Erro ao excluir clientes" });
+      res.status(500).json({ message: "Erro ao excluir clientes. Alguns podem ter dados relacionados." });
     }
   });
 

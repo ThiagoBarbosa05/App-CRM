@@ -392,11 +392,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: string): Promise<boolean> {
+    // Primeiro, excluir os deals associados ao cliente
+    await db.delete(deals).where(eq(deals.clientId, id));
+    
+    // Depois excluir as interações do cliente
+    await db.delete(clientInteractions).where(eq(clientInteractions.clientId, id));
+    
+    // Por fim, excluir o cliente
     const result = await db.delete(clients).where(eq(clients.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   async deleteClients(ids: string[]): Promise<number> {
+    // Primeiro, excluir os deals associados aos clientes
+    await db.delete(deals).where(inArray(deals.clientId, ids));
+    
+    // Depois excluir as interações dos clientes
+    await db.delete(clientInteractions).where(inArray(clientInteractions.clientId, ids));
+    
+    // Por fim, excluir os clientes
     const result = await db.delete(clients).where(inArray(clients.id, ids));
     return result.rowCount || 0;
   }
