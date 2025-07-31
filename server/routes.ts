@@ -757,6 +757,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/user-goals-with-results/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const goals = await storage.getUserGoalsWithResults(Number(month), Number(year));
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas com resultados:", error);
+      res.status(500).json({ message: "Erro ao buscar metas com resultados" });
+    }
+  });
+
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);
