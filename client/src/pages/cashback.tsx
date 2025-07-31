@@ -112,61 +112,6 @@ export default function Cashback() {
                 </Card>
               </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Transações Recentes</CardTitle>
-                  <CardDescription>Últimas atividades de cashback do sistema</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {transactions.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma transação</h3>
-                      <p className="text-gray-500">
-                        As transações de cashback aparecerão aqui.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {transactions.slice(0, 5).map((transaction: any) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                              transaction.status === 'approved' ? 'bg-green-100' : 'bg-yellow-100'
-                            }`}>
-                              <Gift className={`h-4 w-4 ${
-                                transaction.status === 'approved' ? 'text-green-600' : 'text-yellow-600'
-                              }`} />
-                            </div>
-                            <div>
-                              <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
-                              <p className="text-sm text-gray-500">
-                                Compra de {formatCurrency(transaction.purchaseAmount)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-green-600">
-                              +{formatCurrency(transaction.cashbackAmount)}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {parseFloat(transaction.cashbackRate).toFixed(1)}% cashback
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      {transactions.length > 5 && (
-                        <div className="text-center pt-4">
-                          <p className="text-sm text-gray-500">
-                            E mais {transactions.length - 5} transações...
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Seção de Cashback Vencendo */}
               <Card>
                 <CardHeader>
