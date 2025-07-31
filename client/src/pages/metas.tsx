@@ -89,7 +89,7 @@ export default function Metas() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab="metas" onTabChange={() => {}} />
+      <Sidebar />
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6 space-y-6">
           <div className="flex items-center justify-between mb-6">
@@ -198,7 +198,10 @@ export default function Metas() {
                             style={{ width: `${Math.min(salesPercentage, 100)}%` }}
                           ></div>
                         </div>
-
+                        <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <span>Alcançado: {formatCurrency(totalSalesAchieved)}</span>
+                          <span>Meta: {formatCurrency(goal.salesGoal)}</span>
+                        </div>
                       </div>
 
                       {/* Meta de Ticket Médio */}
@@ -213,7 +216,10 @@ export default function Metas() {
                             style={{ width: `${Math.min(ticketPercentage, 100)}%` }}
                           ></div>
                         </div>
-
+                        <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <span>Alcançado: {formatCurrency(avgTicketAchieved)}</span>
+                          <span>Meta: {formatCurrency(goal.averageTicket)}</span>
+                        </div>
                       </div>
 
                       {/* Meta de Itens por Venda */}
@@ -228,7 +234,10 @@ export default function Metas() {
                             style={{ width: `${Math.min(itemsPercentage, 100)}%` }}
                           ></div>
                         </div>
-
+                        <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <span>Alcançado: {totalItemsAchieved} itens</span>
+                          <span>Meta: {goal.itemsPerSale} itens</span>
+                        </div>
                       </div>
 
                       {/* Resumo das Semanas */}
