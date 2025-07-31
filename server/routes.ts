@@ -778,6 +778,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas de interações com clientes
+  app.get("/api/clients/:clientId/interactions", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const interactions = await storage.getClientInteractions(clientId);
+      res.json(interactions);
+    } catch (error) {
+      console.error("Erro ao buscar interações:", error);
+      res.status(500).json({ message: "Erro ao buscar interações" });
+    }
+  });
+
+  app.post("/api/interactions", async (req, res) => {
+    try {
+      const interaction = await storage.createClientInteraction(req.body);
+      res.status(201).json(interaction);
+    } catch (error) {
+      console.error("Erro ao criar interação:", error);
+      res.status(500).json({ message: "Erro ao criar interação" });
+    }
+  });
+
+  app.put("/api/interactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const interaction = await storage.updateClientInteraction(id, req.body);
+      res.json(interaction);
+    } catch (error) {
+      console.error("Erro ao atualizar interação:", error);
+      res.status(500).json({ message: "Erro ao atualizar interação" });
+    }
+  });
+
+  app.delete("/api/interactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteClientInteraction(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao excluir interação:", error);
+      res.status(500).json({ message: "Erro ao excluir interação" });
+    }
+  });
+
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   User, 
   Phone, 
@@ -23,7 +24,8 @@ import {
   CreditCard,
   DollarSign,
   Gift,
-  Wallet
+  Wallet,
+  MessageSquare
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
@@ -32,6 +34,7 @@ import { type Client, ClientCashbackBalance } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import SaleFormModal from "./sale-form-modal";
 import CashbackUsageModal from "./cashback-usage-modal";
+import ClientInteractionsTab from "./client-interactions-tab";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -104,7 +107,7 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <User className="h-5 w-5 text-wine-600" />
@@ -115,7 +118,19 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <Tabs defaultValue="info" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="info" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Informações
+            </TabsTrigger>
+            <TabsTrigger value="interactions" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Interações
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="info" className="space-y-6 mt-6">
           {/* Ações de Cashback */}
           <Card className="border-2 border-wine-200 bg-wine-50">
             <CardHeader>
@@ -376,7 +391,12 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
               </div>
             </CardContent>
           </Card>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="interactions" className="mt-6">
+            <ClientInteractionsTab client={client} />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
 
       <SaleFormModal
