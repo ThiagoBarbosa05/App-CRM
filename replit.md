@@ -124,7 +124,7 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
 - Implemented "Ações de Cashback" section in ClientDetailsModal (July 30, 2025):
   - Located in modal that opens when clicking client name in clients table
   - "Lançar Venda": Opens sale form modal to register new purchases and generate cashback
-  - "Ver Saldo": Shows detailed cashback balance modal with total earned, used, and current balance
+  - "Ver Saldo": Shows detailed cashbook balance modal with total earned, used, and current balance
   - "Resgatar": Opens cashback redemption modal (disabled when no balance available)
   - Section prominently displayed at top of client details with wine-themed styling
 - Enhanced cashback redemption modal with invoice number field (July 30, 2025):
@@ -137,6 +137,21 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
   - Modified client details modal to show "Saldo Atual (Válido)" with explanation
   - All new cashback transactions automatically expire 28 days after creation
   - Updated existing transactions to have proper expiration dates
+- Enhanced cashback balances display with comprehensive date information (July 31, 2025):
+  - Added "Primeiro Cashback" column showing when client first earned cashback points
+  - Added "Próximo Vencimento" column displaying when next cashback expires
+  - Visual highlighting (orange) for cashbacks expiring within 7 days
+  - Updated backend to include firstCashbackDate and nextExpiryDate in balance queries
+- Implemented selective client export functionality (July 31, 2025):
+  - Modified ClientsTableWithSelection component to communicate selected clients to parent
+  - Updated clients page export function to export only selected clients when available
+  - Export button dynamically shows "Exportar X Selecionados" or "Exportar Todos"
+  - Maintains backward compatibility - exports all clients if none selected
+- Enhanced cashback page search functionality (July 31, 2025):
+  - Added search field in "Saldos" tab for filtering by client name, phone, or CPF
+  - Combined search works alongside existing responsible user filter
+  - Real-time filtering as user types in search field
+  - Updated empty state messages to reflect active filters
 
 ### Client Flow
 1. User creates/edits client through modal forms
