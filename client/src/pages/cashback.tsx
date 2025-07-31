@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle, Filter, Search } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
@@ -16,6 +17,7 @@ export default function Cashback() {
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [usageModalOpen, setUsageModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -61,10 +63,29 @@ export default function Cashback() {
     ? settings.reduce((sum: number, s: any) => sum + parseFloat(s.percentageRate), 0) / settings.length
     : 0;
 
-  // Filtrar saldos por usuário responsável
-  const filteredBalances = selectedUserId === "all" 
-    ? balances 
-    : balances.filter((balance: any) => balance.responsibleUser?.id === selectedUserId);
+  // Filtrar saldos por usuário responsável e pesquisa
+  const filteredBalances = balances.filter((balance: any) => {
+    // Filtro por usuário
+    if (selectedUserId !== "all" && balance.responsibleUser?.id !== selectedUserId) {
+      return false;
+    }
+    
+    // Filtro por pesquisa (nome, telefone ou CPF)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const client = balance.client;
+      
+      if (!client) return false;
+      
+      const matchesName = client.name?.toLowerCase().includes(query);
+      const matchesPhone = client.phone?.toLowerCase().includes(query);
+      const matchesCpf = client.cpf?.toLowerCase().includes(query);
+      
+      return matchesName || matchesPhone || matchesCpf;
+    }
+    
+    return true;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -211,21 +232,33 @@ export default function Cashback() {
                       <CardTitle>Saldos de Cashback</CardTitle>
                       <CardDescription>Visualize e gerencie os saldos de cashback de todos os clientes</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4 text-gray-500" />
-                      <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Filtrar por usuário" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os usuários</SelectItem>
-                          {users.map((user: any) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                          type="text"
+                          placeholder="Buscar por nome, telefone ou CPF..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10 w-[250px]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-gray-500" />
+                        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Filtrar por usuário" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os usuários</SelectItem>
+                            {users.map((user: any) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -234,11 +267,13 @@ export default function Cashback() {
                     <div className="text-center py-8">
                       <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        {selectedUserId === "all" ? "Nenhum saldo" : "Nenhum saldo encontrado"}
+                        {selectedUserId === "all" && !searchQuery.trim() ? "Nenhum saldo" : "Nenhum saldo encontrado"}
                       </h3>
                       <p className="text-gray-500">
-                        {selectedUserId === "all" 
+                        {selectedUserId === "all" && !searchQuery.trim()
                           ? "Os saldos de cashback aparecerão aqui conforme os clientes acumularem pontos."
+                          : searchQuery.trim()
+                          ? "Nenhum cliente encontrado com os filtros aplicados. Tente uma busca diferente."
                           : "Nenhum cliente com saldo de cashback encontrado para o usuário selecionado."
                         }
                       </p>
