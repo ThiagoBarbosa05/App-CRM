@@ -216,7 +216,7 @@ export const clientInteractions = pgTable("client_interactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id),
-  type: text("type", { enum: ["call", "email", "meeting", "whatsapp", "note", "visit", "other"] }).notNull(),
+  type: text("type", { enum: ["call", "telemarketing", "email", "meeting", "whatsapp", "visit", "note", "other"] }).notNull(),
   subject: text("subject").notNull(),
   description: text("description").notNull(),
   date: timestamp("date").notNull(),

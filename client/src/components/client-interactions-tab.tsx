@@ -30,6 +30,7 @@ interface ClientInteractionsTabProps {
 
 const interactionTypeConfig = {
   call: { label: "Ligação", icon: Phone, color: "bg-blue-100 text-blue-800" },
+  telemarketing: { label: "Telemarketing", icon: Phone, color: "bg-cyan-100 text-cyan-800" },
   email: { label: "E-mail", icon: Mail, color: "bg-green-100 text-green-800" },
   meeting: { label: "Reunião", icon: Users, color: "bg-purple-100 text-purple-800" },
   whatsapp: { label: "WhatsApp", icon: MessageSquare, color: "bg-emerald-100 text-emerald-800" },
