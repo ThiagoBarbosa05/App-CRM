@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Trash2, Edit, User, Phone, Mail, Calendar, MapPin, Tag, DollarSign } from "lucide-react";
+import {
+  Trash2,
+  Edit,
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  MapPin,
+  Tag,
+  DollarSign,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -36,38 +49,47 @@ interface ClientsTableWithSelectionProps {
     origem: string;
     markers: string;
   };
-  onSelectionChange?: (selectedIds: string[], selectedClients: Client[]) => void;
+  onSelectionChange?: (
+    selectedIds: string[],
+    selectedClients: Client[],
+  ) => void;
 }
 
-export default function ClientsTableWithSelection({ clients, searchQuery = "", filters, onSelectionChange }: ClientsTableWithSelectionProps) {
+export default function ClientsTableWithSelection({
+  clients,
+  searchQuery = "",
+  filters,
+  onSelectionChange,
+}: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-
+  console.log(clients);
   // Verificar se o usuário é administrador
-  const isAdmin = user?.role === 'administrador' || user?.role === 'admin';
+  const isAdmin = user?.role === "administrador" || user?.role === "admin";
 
   const deleteClientsMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
       const response = await fetch("/api/clients", {
         method: "DELETE",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "x-user-email": user?.email || "",
-          "x-user-role": user?.role || ""
+          "x-user-role": user?.role || "",
         },
         body: JSON.stringify({ ids: clientIds }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Erro ao excluir clientes");
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -90,7 +112,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedClientIds(filteredClients.map(client => client.id));
+      setSelectedClientIds(filteredAndSortedClients.map((client) => client.id));
     } else {
       setSelectedClientIds([]);
     }
@@ -98,9 +120,9 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
 
   const handleSelectClient = (clientId: string, checked: boolean) => {
     if (checked) {
-      setSelectedClientIds(prev => [...prev, clientId]);
+      setSelectedClientIds((prev) => [...prev, clientId]);
     } else {
-      setSelectedClientIds(prev => prev.filter(id => id !== clientId));
+      setSelectedClientIds((prev) => prev.filter((id) => id !== clientId));
     }
   };
 
@@ -114,45 +136,93 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
     setShowDeleteDialog(false);
   };
 
+  // Função para alternar ordenação
+  const toggleSort = () => {
+    if (sortOrder === null) {
+      setSortOrder('asc');
+    } else if (sortOrder === 'asc') {
+      setSortOrder('desc');
+    } else {
+      setSortOrder(null);
+    }
+  };
 
-
-  // Filter clients based on search and filters
-  const filteredClients = clients.filter((client) => {
+  // Filter and sort clients based on search, filters, and sort order
+  const filteredAndSortedClients = clients.filter((client) => {
     // Search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const searchMatch = 
+      const searchMatch =
         client.name.toLowerCase().includes(query) ||
         client.phone.toLowerCase().includes(query) ||
         (client.email?.toLowerCase() || "").includes(query) ||
         (client.cpf?.toLowerCase() || "").includes(query);
-      
+
       if (!searchMatch) return false;
     }
 
     // Advanced filters
     if (filters) {
-      if (filters.name && !client.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
-      if (filters.phone && !client.phone.toLowerCase().includes(filters.phone.toLowerCase())) return false;
-      if (filters.cpf && client.cpf && !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())) return false;
-      if (filters.responsavelId && filters.responsavelId !== "all" && client.responsavelId !== filters.responsavelId) return false;
-      if (filters.categoria && client.categoria !== filters.categoria) return false;
+      if (
+        filters.name &&
+        !client.name.toLowerCase().includes(filters.name.toLowerCase())
+      )
+        return false;
+      if (
+        filters.phone &&
+        !client.phone.toLowerCase().includes(filters.phone.toLowerCase())
+      )
+        return false;
+      if (
+        filters.cpf &&
+        client.cpf &&
+        !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())
+      )
+        return false;
+      if (
+        filters.responsavelId &&
+        filters.responsavelId !== "all" &&
+        client.responsavelId !== filters.responsavelId
+      )
+        return false;
+      if (filters.categoria && client.categoria !== filters.categoria)
+        return false;
       if (filters.origem && client.origem !== filters.origem) return false;
-      if (filters.markers && client.markers && !client.markers.some(marker => 
-        marker.toLowerCase().includes(filters.markers.toLowerCase())
-      )) return false;
+      if (
+        filters.markers &&
+        client.markers &&
+        !client.markers.some((marker) =>
+          marker.toLowerCase().includes(filters.markers.toLowerCase()),
+        )
+      )
+        return false;
     }
 
     return true;
+  }).sort((a, b) => {
+    if (sortOrder === null) return 0;
+    
+    const comparison = a.name.localeCompare(b.name, 'pt-BR', { 
+      numeric: true, 
+      sensitivity: 'base' 
+    });
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
-  const allSelected = selectedClientIds.length === filteredClients.length && filteredClients.length > 0;
-  const someSelected = selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length;
+  const allSelected =
+    selectedClientIds.length === filteredAndSortedClients.length &&
+    filteredAndSortedClients.length > 0;
+  const someSelected =
+    selectedClientIds.length > 0 &&
+    selectedClientIds.length < filteredAndSortedClients.length;
 
   // Notificar componente pai sobre mudanças na seleção
   useEffect(() => {
     if (onSelectionChange) {
-      const selectedClients = clients.filter(client => selectedClientIds.includes(client.id));
+      const selectedClients = clients.filter((client) =>
+        selectedClientIds.includes(client.id),
+      );
       onSelectionChange(selectedClientIds, selectedClients);
     }
   }, [selectedClientIds, clients, onSelectionChange]);
@@ -197,22 +267,46 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                     onCheckedChange={handleSelectAll}
                   />
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">Cliente</th>
-                <th className="p-4 text-left font-medium text-gray-900">Contato</th>
-                <th className="p-4 text-left font-medium text-gray-900">Categoria</th>
-                <th className="p-4 text-left font-medium text-gray-900">Marcadores</th>
-                <th className="p-4 text-left font-medium text-gray-900">Aniversário</th>
-                <th className="p-4 text-left font-medium text-gray-900">Ações</th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  <button
+                    onClick={toggleSort}
+                    className="flex items-center space-x-1 hover:text-wine-600 transition-colors"
+                    title="Clique para ordenar alfabeticamente"
+                  >
+                    <span>Cliente</span>
+                    {sortOrder === null && <ArrowUpDown className="h-4 w-4" />}
+                    {sortOrder === 'asc' && <ChevronUp className="h-4 w-4" />}
+                    {sortOrder === 'desc' && <ChevronDown className="h-4 w-4" />}
+                  </button>
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  Contato
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  Categoria
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  Marcadores
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  Aniversário
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filteredClients.map((client) => (
-                <tr 
-                  key={client.id} 
+              {filteredAndSortedClients.map((client) => (
+                <tr
+                  key={client.id}
                   className="border-b hover:bg-gray-50 cursor-pointer"
                   onClick={(e) => {
                     // Não abrir modal se clicou no checkbox ou botão de editar
-                    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="checkbox"]')) {
+                    if (
+                      (e.target as HTMLElement).closest("button") ||
+                      (e.target as HTMLElement).closest('[role="checkbox"]')
+                    ) {
                       return;
                     }
                     setViewingClient(client);
@@ -221,7 +315,9 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedClientIds.includes(client.id)}
-                      onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
+                      onCheckedChange={(checked) =>
+                        handleSelectClient(client.id, checked as boolean)
+                      }
                     />
                   </td>
                   <td className="p-4">
@@ -232,7 +328,9 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                         </div>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{client.name}</div>
+                        <div className="font-medium text-gray-900">
+                          {client.name}
+                        </div>
                         <div className="text-sm text-gray-500">
                           <MapPin className="inline h-3 w-3 mr-1" />
                           {client.city}, {client.state}
@@ -244,7 +342,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                     <div className="space-y-1">
                       <div className="flex items-center text-sm">
                         <Phone className="h-3 w-3 mr-2 text-gray-400" />
-                        <a 
+                        <a
                           href={`tel:${client.phone}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                           title="Clique para ligar"
@@ -270,7 +368,11 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                     <div className="flex flex-wrap gap-1">
                       {client.markers && client.markers.length > 0 ? (
                         client.markers.map((marker, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs"
+                          >
                             <Tag className="h-3 w-3 mr-1" />
                             {marker}
                           </Badge>
@@ -283,7 +385,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                   <td className="p-4">
                     <div className="flex items-center text-sm">
                       <Calendar className="h-3 w-3 mr-2 text-gray-400" />
-                      {client.birthday ? formatDate(client.birthday) : "Não informado"}
+                      {client.birthday}
                     </div>
                   </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
@@ -308,7 +410,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                   </td>
                 </tr>
               ))}
-              {filteredClients.length === 0 && (
+              {filteredAndSortedClients.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-gray-500">
                     Nenhum cliente encontrado
@@ -349,8 +451,8 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir {selectedClientIds.length} cliente(s) selecionado(s)? 
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir {selectedClientIds.length}{" "}
+              cliente(s) selecionado(s)? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
