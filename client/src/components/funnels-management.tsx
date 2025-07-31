@@ -148,7 +148,7 @@ export default function FunnelsManagement() {
   // Show kanban board for selected funnel
   if (viewMode === "kanban" && selectedFunnel) {
     return (
-      <div className="p-6">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button
@@ -182,7 +182,7 @@ export default function FunnelsManagement() {
   // Show stages manager for selected funnel
   if (viewMode === "stages" && editingFunnel) {
     return (
-      <div className="p-6">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button
@@ -209,7 +209,7 @@ export default function FunnelsManagement() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Funis de Vendas</h2>

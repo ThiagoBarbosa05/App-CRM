@@ -172,6 +172,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Funnel route
+  app.get("/api/funnels", async (req, res) => {
+    try {
+      const funnels = await storage.getSalesFunnels();
+      res.json(funnels);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar funis de vendas" });
+    }
+  });
+
+  app.post("/api/funnels", async (req, res) => {
+    try {
+      const validatedData = insertSalesFunnelSchema.parse(req.body);
+      const funnel = await storage.createSalesFunnel(validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  app.put("/api/funnels/:id", async (req, res) => {
+    try {
+      const funnelId = req.params.id;
+      const validatedData = insertSalesFunnelSchema.partial().parse(req.body);
+      const funnel = await storage.updateSalesFunnel(funnelId, validatedData);
+      res.status(201).json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  // Funnel Stage routes
+  app.get("/api/funnels/:funnelId/stages", async (req, res) => {
+    try {
+      const stages = await storage.getFunnelStages(req.params.funnelId);
+      res.json(stages);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar estágios do funil" });
+    }
+  });
+
+  app.post("/api/funnel-stages/:funnelId", async (req, res) => {
+    try {
+      const validatedData = insertFunnelStageSchema.parse(req.body);
+      const stage = await storage.createFunnelStage({
+        ...validatedData,
+        funnelId: req.params.funnelId,
+      });
+      res.status(201).json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar estágio" });
+    }
+  });
+
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
@@ -179,6 +248,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(deals);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar deals" });
+    }
+  });
+
+  app.put("/api/deals/:dealId", async (req, res) => {
+    try {
+      const dealId = req.params.dealId;
+      const data = insertDealSchema.partial().parse(req.body);
+      let rawValue: string;
+
+      if (data.value) {
+        rawValue = data.value!.replace(/\./g, "").replace(",", ".");
+        const numeric = parseFloat(rawValue);
+        const deals = await storage.updateDeal(dealId, {
+          ...data,
+          value: numeric.toString(),
+        });
+        res.json(deals);
+      } else {
+        const deals = await storage.updateDeal(dealId, data);
+        res.json(deals);
+      }
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: "Erro ao atualizar deals" });
     }
   });
 
@@ -266,7 +359,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/cashback-settings/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertCashbackSettingSchema.partial().parse(req.body);
+      const validatedData = insertCashbackSettingSchema
+        .partial()
+        .parse(req.body);
       const setting = await storage.updateCashbackSetting(id, validatedData);
       if (!setting) {
         return res.status(404).json({ message: "Configuração não encontrada" });
@@ -309,16 +404,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cashback-transactions", async (req, res) => {
     try {
       const data = req.body;
-      
+
       // Adicionar data de validade automaticamente (28 dias)
       if (!data.expiresAt) {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 28);
         data.expiresAt = expirationDate;
       }
-      
+
       const validatedData = insertCashbackTransactionSchema.parse(data);
-      const transaction = await storage.createCashbackTransaction(validatedData);
+      const transaction =
+        await storage.createCashbackTransaction(validatedData);
       res.status(201).json(transaction);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -333,32 +429,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calculate-cashback", async (req, res) => {
     try {
       const { purchaseAmount } = req.body;
-      
+
       if (!purchaseAmount || purchaseAmount <= 0) {
         return res.status(400).json({ message: "Valor de compra inválido" });
       }
 
       // Buscar configurações ativas de cashback
       const settings = await storage.getCashbackSettings();
-      const activeSetting = settings.find(s => s.isActive === "true");
+      const activeSetting = settings.find((s) => s.isActive === "true");
 
       if (!activeSetting) {
         return res.json({
           cashbackAmount: 0,
           rate: 0,
-          setting: null
+          setting: null,
         });
       }
 
       const rate = parseFloat(activeSetting.percentageRate);
       const minPurchase = parseFloat(activeSetting.minimumPurchase || "0");
-      const maxCashback = activeSetting.maximumCashback ? parseFloat(activeSetting.maximumCashback) : null;
+      const maxCashback = activeSetting.maximumCashback
+        ? parseFloat(activeSetting.maximumCashback)
+        : null;
 
       if (purchaseAmount < minPurchase) {
         return res.json({
           cashbackAmount: 0,
           rate: 0,
-          setting: activeSetting
+          setting: activeSetting,
         });
       }
 
@@ -371,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         cashbackAmount,
         rate,
-        setting: activeSetting
+        setting: activeSetting,
       });
     } catch (error) {
       console.error("Erro ao calcular cashback:", error);
@@ -436,7 +534,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sales", async (req, res) => {
     try {
       // Redirect sale creation to cashback transaction
-      res.status(200).json({ message: "Use /api/cashback-transactions para criar vendas" });
+      res
+        .status(200)
+        .json({ message: "Use /api/cashback-transactions para criar vendas" });
     } catch (error) {
       console.error("Erro:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
@@ -495,7 +595,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/categories", async (req, res) => {
     try {
       const validatedData = insertTagSchema.parse(req.body);
-      const category = await storage.createTag({ ...validatedData, type: "categoria" });
+      const category = await storage.createTag({
+        ...validatedData,
+        type: "categoria",
+      });
       res.status(201).json(category);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -510,7 +613,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/origins", async (req, res) => {
     try {
       const validatedData = insertOriginSchema.parse(req.body);
-      const origin = await storage.createTag({ ...validatedData, type: "origem" });
+      const origin = await storage.createTag({
+        ...validatedData,
+        type: "origem",
+      });
       res.status(201).json(origin);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -521,11 +627,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Markers routes  
+  // Markers routes
   app.post("/api/markers", async (req, res) => {
     try {
       const validatedData = insertTagSchema.parse(req.body);
-      const marker = await storage.createTag({ ...validatedData, type: "marcador" });
+      const marker = await storage.createTag({
+        ...validatedData,
+        type: "marcador",
+      });
       res.status(201).json(marker);
     } catch (error) {
       if (error instanceof z.ZodError) {

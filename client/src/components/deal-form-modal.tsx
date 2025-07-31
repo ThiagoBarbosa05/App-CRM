@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
+import { Label } from "./ui/label";
+import z from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { formatCurrency } from "@/lib/utils";
 
 interface DealFormModalProps {
   open: boolean;
@@ -39,6 +43,17 @@ interface DealFormModalProps {
   deal?: DealWithClient;
   funnelId?: string;
 }
+
+const createDealSchema = z.object({
+  title: z.string().min(1, "Título é obrigatório"),
+  clientId: z.string().min(1, "Cliente é obrigatório"),
+  funnelId: z.string().min(1, "Funil é obrigatório"),
+  stageId: z.string().min(1, "Estágio é obrigatório"),
+  value: z.string().min(1, "Valor é obrigatório"),
+  notes: z.string().optional().nullable(),
+});
+
+type CreateDealSchema = z.infer<typeof createDealSchema>;
 
 export default function DealFormModal({
   open,
@@ -48,6 +63,7 @@ export default function DealFormModal({
 }: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const { data: clients } = useQuery({
     queryKey: ["/api/clients"],
@@ -56,15 +72,21 @@ export default function DealFormModal({
   // Buscar etapas do funil
   const { data: funnelStages = [] } = useQuery<FunnelStage[]>({
     queryKey: [`/api/funnels/${funnelId}/stages`, funnelId],
+    queryFn: async () => {
+      const response = await apiRequest(
+        `/api/funnels/${funnelId}/stages`,
+        "GET",
+      );
+      return response.json();
+    },
     enabled: !!funnelId,
   });
-
 
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
 
-  const form = useForm({
-    resolver: zodResolver(dealValidationSchema),
+  const form = useForm<CreateDealSchema>({
+    resolver: zodResolver(createDealSchema),
     defaultValues: {
       title: deal?.title || "",
       clientId: deal?.clientId || "",
@@ -77,7 +99,11 @@ export default function DealFormModal({
 
   const createDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/deals", "POST", data);
+      return await apiRequest("/api/deals", "POST", {
+        ...data,
+        assignedTo: user?.id,
+        createdBy: user?.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
@@ -99,7 +125,13 @@ export default function DealFormModal({
 
   const updateDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest(`/api/deals/${deal!.id}`, "PUT", data);
+      const response = await apiRequest(`/api/deals/${deal!.id}`, "PUT", {
+        ...data,
+        assignedTo: user?.id,
+        createdBy: user?.id,
+      });
+
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
@@ -131,7 +163,7 @@ export default function DealFormModal({
       };
 
       if (deal) {
-        await updateDealMutation.mutateAsync(formattedData);
+        await updateDealMutation.mutateAsync(data);
       } else {
         await createDealMutation.mutateAsync(formattedData);
       }
@@ -151,164 +183,160 @@ export default function DealFormModal({
           </div>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Título do Negócio *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Digite o título" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-4"
+          action=""
+        >
+          <div>
+            <Label>Título do negócio *</Label>
+            <Input placeholder="Digite o título" {...form.register("title")} />
+            {form.formState.errors.title && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.title.message}
+              </span>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <Label>Cliente *</Label>
+            <Controller
               name="clientId"
+              control={form.control}
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cliente *</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Array.isArray(clientsList) && clientsList.length > 0 ? (
-                        clientsList.map((client: Client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="Nenhum cliente encontrado" disabled>
-                          Nenhum cliente encontrado
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(clientsList) && clientsList.length > 0 ? (
+                      clientsList.map((client: Client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
                         </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+                      ))
+                    ) : (
+                      <SelectItem value="Nenhum cliente encontrado" disabled>
+                        Nenhum cliente encontrado
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {form.formState.errors.clientId && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.clientId.message}
+              </span>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <Label>Valor (R$) *</Label>
+            <Controller
               name="value"
+              control={form.control}
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (R$) *</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="0,00"
-                      {...field}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(/\D/g, "");
-                        value = (parseInt(value) / 100).toLocaleString(
-                          "pt-BR",
-                          {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          },
-                        );
-                        field.onChange(value);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <Input
+                  placeholder="0,00"
+                  value={field.value}
+                  onChange={(e) => {
+                    let rawValue = e.target.value.replace(/\D/g, ""); // remove tudo que não é número
+                    if (rawValue === "") rawValue = "0";
+
+                    const numericValue = parseInt(rawValue, 10);
+                    const formattedValue = (numericValue / 100).toLocaleString(
+                      "pt-BR",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      },
+                    );
+
+                    field.onChange(formattedValue);
+                  }}
+                />
               )}
             />
+            {form.formState.errors.value && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.value.message}
+              </span>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <Label>Estágio *</Label>
+            <Controller
               name="stageId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estágio *</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {funnelStages.length > 0 ? (
-                        funnelStages.map((stage) => (
-                          <SelectItem key={stage.id} value={stage.id}>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: stage.color }}
-                              />
-                              {stage.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="Nenhuma etapa selecionada" disabled>
-                          Nenhuma etapa configurada para este funil
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
               control={form.control}
-              name="notes"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Adicione observações sobre o negócio..."
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {funnelStages.length > 0 ? (
+                      funnelStages.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: stage.color }}
+                            />
+                            {stage.name}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="Nenhuma etapa selecionada" disabled>
+                        Nenhuma etapa configurada para este funil
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {form.formState.errors.stageId && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.stageId.message}
+              </span>
+            )}
+          </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-primary hover:bg-primary-dark text-white"
-              >
-                {isSubmitting
-                  ? "Salvando..."
-                  : deal
-                    ? "Atualizar Negócio"
-                    : "Criar Negócio"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+          <div>
+            <Label>Observações</Label>
+            <Textarea
+              placeholder="Adicione observações sobre o negócio..."
+              rows={3}
+              {...form.register("notes")}
+            />
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-primary hover:bg-primary-dark text-white"
+            >
+              {isSubmitting
+                ? "Salvando..."
+                : deal
+                  ? "Atualizar Negócio"
+                  : "Criar Negócio"}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

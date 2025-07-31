@@ -1,10 +1,22 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, GripVertical, Palette } from "lucide-react";
@@ -50,13 +62,31 @@ interface FunnelStagesManagerProps {
 }
 
 const defaultColors = [
-  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", 
-  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
-  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-  "#ec4899", "#f43f5e", "#6b7280", "#374151", "#1f2937"
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
+  "#6b7280",
+  "#374151",
+  "#1f2937",
 ];
 
-export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps) {
+export default function FunnelStagesManager({
+  funnel,
+}: FunnelStagesManagerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -65,21 +95,45 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
   const [stageName, setStageName] = useState("");
   const [stageColor, setStageColor] = useState(defaultColors[0]);
 
-  const { data: stages = [], isLoading } = useQuery<FunnelStage[]>({
-    queryKey: ["/api/funnel-stages", funnel.id],
+  const { data: funnelStages = [], isLoading } = useQuery<FunnelStage[]>({
+    queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+    queryFn: async () => {
+      const response = await apiRequest(
+        `/api/funnels/${funnel.id}/stages`,
+        "GET",
+      );
+      return response.json();
+    },
+    enabled: !!funnel.id,
   });
 
+  console.log(funnelStages);
+
   const createStageMutation = useMutation({
-    mutationFn: async (stageData: { name: string; color: string; funnelId: string; order: number }) => {
-      return await apiRequest("/api/funnel-stages", "POST", stageData);
+    mutationFn: async (stageData: {
+      name: string;
+      color: string;
+      funnelId: string;
+      order: number;
+    }) => {
+      return await apiRequest(
+        `/api/funnel-stages/${funnel.id}`,
+        "POST",
+        stageData,
+      );
     },
     onSuccess: () => {
       toast({
         title: "Etapa criada",
         description: "A nova etapa foi criada com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/funnel-stages", funnel.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/funnel-stages", funnel.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+      });
       setIsCreateModalOpen(false);
       setStageName("");
       setStageColor(defaultColors[0]);
@@ -94,7 +148,13 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
   });
 
   const updateStageMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name: string; color: string };
+    }) => {
       return await apiRequest(`/api/funnel-stages/${id}`, "PUT", data);
     },
     onSuccess: () => {
@@ -102,7 +162,9 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
         title: "Etapa atualizada",
         description: "A etapa foi atualizada com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/funnel-stages", funnel.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/funnel-stages", funnel.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setEditingStage(null);
       setStageName("");
@@ -126,7 +188,9 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
         title: "Etapa excluída",
         description: "A etapa foi excluída com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/funnel-stages", funnel.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/funnel-stages", funnel.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setDeletingStage(null);
     },
@@ -149,7 +213,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
       return;
     }
 
-    const nextOrder = (stages.length || 0) + 1;
+    const nextOrder = (funnelStages.length || 0) + 1;
     createStageMutation.mutate({
       name: stageName,
       color: stageColor,
@@ -203,7 +267,9 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold">Etapas do Funil</h3>
-            <p className="text-gray-600">Configure as etapas do seu funil de vendas</p>
+            <p className="text-gray-600">
+              Configure as etapas do seu funil de vendas
+            </p>
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
@@ -237,7 +303,9 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
                         key={color}
                         type="button"
                         className={`w-8 h-8 rounded-full border-2 ${
-                          stageColor === color ? "border-gray-900" : "border-gray-300"
+                          stageColor === color
+                            ? "border-gray-900"
+                            : "border-gray-300"
                         }`}
                         style={{ backgroundColor: color }}
                         onClick={() => setStageColor(color)}
@@ -247,10 +315,16 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateModalOpen(false)}
+                >
                   Cancelar
                 </Button>
-                <Button onClick={handleCreateStage} disabled={createStageMutation.isPending}>
+                <Button
+                  onClick={handleCreateStage}
+                  disabled={createStageMutation.isPending}
+                >
                   {createStageMutation.isPending ? "Criando..." : "Criar Etapa"}
                 </Button>
               </div>
@@ -259,7 +333,7 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
         </div>
 
         <div className="grid gap-4">
-          {stages.map((stage: FunnelStage, index: number) => (
+          {funnelStages.map((stage: FunnelStage, index: number) => (
             <Card key={stage.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -296,12 +370,16 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
             </Card>
           ))}
 
-          {stages.length === 0 && (
+          {funnelStages.length === 0 && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Palette className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma etapa encontrada</h3>
-                <p className="text-gray-500 mb-4">Crie a primeira etapa do seu funil</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhuma etapa encontrada
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Crie a primeira etapa do seu funil
+                </p>
                 <Button onClick={() => setIsCreateModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Criar Primeira Etapa
@@ -313,7 +391,10 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={!!editingStage} onOpenChange={(open) => !open && closeEditModal()}>
+      <Dialog
+        open={!!editingStage}
+        onOpenChange={(open) => !open && closeEditModal()}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Etapa</DialogTitle>
@@ -339,7 +420,9 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
                     key={color}
                     type="button"
                     className={`w-8 h-8 rounded-full border-2 ${
-                      stageColor === color ? "border-gray-900" : "border-gray-300"
+                      stageColor === color
+                        ? "border-gray-900"
+                        : "border-gray-300"
                     }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setStageColor(color)}
@@ -352,7 +435,10 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
             <Button variant="outline" onClick={closeEditModal}>
               Cancelar
             </Button>
-            <Button onClick={handleEditStage} disabled={updateStageMutation.isPending}>
+            <Button
+              onClick={handleEditStage}
+              disabled={updateStageMutation.isPending}
+            >
               {updateStageMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </div>
@@ -360,12 +446,16 @@ export default function FunnelStagesManager({ funnel }: FunnelStagesManagerProps
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingStage} onOpenChange={() => setDeletingStage(null)}>
+      <AlertDialog
+        open={!!deletingStage}
+        onOpenChange={() => setDeletingStage(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a etapa "{deletingStage?.name}"? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir a etapa "{deletingStage?.name}"?
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

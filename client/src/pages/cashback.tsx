@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import CashbackSettingsManagement from "@/components/cashback-settings-management";
+
 import CashbackUsageModal from "@/components/cashback-usage-modal";
 
 export default function Cashback() {
@@ -56,7 +56,7 @@ export default function Cashback() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar />
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6 space-y-6">
           <div className="flex items-center gap-3 mb-6">
@@ -68,10 +68,9 @@ export default function Cashback() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="balances">Saldos</TabsTrigger>
-              <TabsTrigger value="settings">Configurações</TabsTrigger>
               <TabsTrigger value="transactions">Transações</TabsTrigger>
               <TabsTrigger value="usage">Resgates</TabsTrigger>
               <TabsTrigger value="reports">Relatórios</TabsTrigger>
@@ -227,10 +226,6 @@ export default function Cashback() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="settings" className="space-y-6">
-              <CashbackSettingsManagement />
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6">

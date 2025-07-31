@@ -19,6 +19,7 @@ import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
+import Configurations from "@/pages/configurations";
 import { MainLayout } from "./components/main-layout";
 
 function Router() {
@@ -56,7 +57,7 @@ function Router() {
       <Route path="/admin-metas" component={AdminGoals} />
       <Route path="/assistente-ia" component={AIAssistant} />
       <Route path="/treinamentos" component={Trainings} />
-      <Route path="/configuracoes" component={Settings} />
+      <Route path="/configuracoes" component={Configurations} />
       <Route path="/cashback" component={Cashback} />
       <Route component={NotFound} />
     </Switch>

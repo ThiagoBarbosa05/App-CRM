@@ -63,17 +63,23 @@ export default function FunnelKanbanBoard({
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
-    queryFn: () => {
+    queryFn: async () => {
       // Get user data from localStorage for the query
       const userData = localStorage.getItem("user");
       if (userData) {
         const user = JSON.parse(userData);
-        return apiRequest(
+        const response = await apiRequest(
           `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
           "GET",
         );
+
+        return await response.json();
       }
-      return apiRequest(`/api/deals?funnelId=${funnelId}`, "GET");
+      const response = await apiRequest(
+        `/api/deals?funnelId=${funnelId}`,
+        "GET",
+      );
+      return await response.json();
     },
   });
 
