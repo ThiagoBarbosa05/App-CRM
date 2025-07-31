@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle, Filter } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
@@ -14,6 +15,7 @@ export default function Cashback() {
   const [activeTab, setActiveTab] = useState("cashback");
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -35,6 +37,11 @@ export default function Cashback() {
     queryKey: ["/api/cashback-usage"],
   });
 
+  // Buscar usuários para o filtro
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+  });
+
   const formatCurrency = (value: string | number) => {
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
     return new Intl.NumberFormat('pt-BR', {
@@ -53,6 +60,11 @@ export default function Cashback() {
   const averageRate = settings.length > 0
     ? settings.reduce((sum: number, s: any) => sum + parseFloat(s.percentageRate), 0) / settings.length
     : 0;
+
+  // Filtrar saldos por usuário responsável
+  const filteredBalances = selectedUserId === "all" 
+    ? balances 
+    : balances.filter((balance: any) => balance.responsibleUser?.id === selectedUserId);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -194,21 +206,46 @@ export default function Cashback() {
             <TabsContent value="balances" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Saldos de Cashback</CardTitle>
-                  <CardDescription>Visualize e gerencie os saldos de cashback de todos os clientes</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Saldos de Cashback</CardTitle>
+                      <CardDescription>Visualize e gerencie os saldos de cashback de todos os clientes</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Filtrar por usuário" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos os usuários</SelectItem>
+                          {users.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {balances.length === 0 ? (
+                  {filteredBalances.length === 0 ? (
                     <div className="text-center py-8">
                       <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum saldo</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {selectedUserId === "all" ? "Nenhum saldo" : "Nenhum saldo encontrado"}
+                      </h3>
                       <p className="text-gray-500">
-                        Os saldos de cashback aparecerão aqui conforme os clientes acumularem pontos.
+                        {selectedUserId === "all" 
+                          ? "Os saldos de cashback aparecerão aqui conforme os clientes acumularem pontos."
+                          : "Nenhum cliente com saldo de cashback encontrado para o usuário selecionado."
+                        }
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {balances.map((balance: any) => (
+                      {filteredBalances.map((balance: any) => (
                         <div key={balance.id} className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex items-center gap-4 flex-1">
                             <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
