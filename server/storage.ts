@@ -265,6 +265,7 @@ export interface IStorage {
   getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
   getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
   updateClientCashbackBalance(clientId: string): Promise<void>;
+  deleteCashbackBalance(balanceId: string): Promise<boolean>;
 
   // Cashback Usage methods
   createCashbackUsage(
@@ -392,7 +393,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: string): Promise<boolean> {
-    // Primeiro, excluir as transações de cashback do cliente
+    // Primeiro, excluir usos de cashback do cliente
+    await db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, id));
+    
+    // Depois, excluir saldo de cashback do cliente
+    await db.delete(clientCashbackBalance).where(eq(clientCashbackBalance.clientId, id));
+    
+    // Depois, excluir as transações de cashback do cliente
     await db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, id));
     
     // Depois, excluir os deals associados ao cliente
@@ -407,7 +414,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClients(ids: string[]): Promise<number> {
-    // Primeiro, excluir as transações de cashback dos clientes
+    // Primeiro, excluir usos de cashback dos clientes
+    await db.delete(cashbackUsage).where(inArray(cashbackUsage.clientId, ids));
+    
+    // Depois, excluir saldos de cashback dos clientes
+    await db.delete(clientCashbackBalance).where(inArray(clientCashbackBalance.clientId, ids));
+    
+    // Depois, excluir as transações de cashback dos clientes
     await db.delete(cashbackTransactions).where(inArray(cashbackTransactions.clientId, ids));
     
     // Depois, excluir os deals associados aos clientes
@@ -1861,6 +1874,38 @@ export class DatabaseStorage implements IStorage {
 
   async getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
     return this.getAllClientCashbackBalances();
+  }
+
+  async deleteCashbackBalance(balanceId: string): Promise<boolean> {
+    try {
+      // Buscar o saldo para obter o clientId
+      const [balance] = await db
+        .select()
+        .from(clientCashbackBalance)
+        .where(eq(clientCashbackBalance.id, balanceId));
+      
+      if (!balance) {
+        return false;
+      }
+
+      const clientId = balance.clientId;
+
+      // Excluir usos de cashback do cliente
+      await db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, clientId));
+      
+      // Excluir transações de cashback do cliente
+      await db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, clientId));
+      
+      // Excluir o saldo de cashback
+      const result = await db
+        .delete(clientCashbackBalance)
+        .where(eq(clientCashbackBalance.id, balanceId));
+      
+      return result.rowCount !== null && result.rowCount > 0;
+    } catch (error) {
+      console.error("Erro ao excluir saldo de cashback:", error);
+      return false;
+    }
   }
 
   async getAllCashbackUsage(): Promise<CashbackUsage[]> {

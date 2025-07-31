@@ -553,6 +553,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/cashback-balances/:balanceId", async (req, res) => {
+    try {
+      const { balanceId } = req.params;
+      const deleted = await storage.deleteCashbackBalance(balanceId);
+      if (deleted) {
+        res.json({ message: "Saldo de cashback excluído com sucesso" });
+      } else {
+        res.status(404).json({ message: "Saldo de cashback não encontrado" });
+      }
+    } catch (error) {
+      console.error("Erro ao excluir saldo de cashback:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   app.get("/api/cashback-usage", async (req, res) => {
     try {
       const usage = await storage.getAllCashbackUsage();

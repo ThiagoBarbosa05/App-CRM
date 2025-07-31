@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import Sidebar from "@/components/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle, Filter, Search } from "lucide-react";
+import { Gift, DollarSign, Users, History, Calculator, TrendingUp, Wallet, Clock, AlertTriangle, Filter, Search, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
 
@@ -18,6 +30,8 @@ export default function Cashback() {
   const [usageModalOpen, setUsageModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [deletingBalance, setDeletingBalance] = useState<any>(null);
+  const { toast } = useToast();
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery({
@@ -42,6 +56,30 @@ export default function Cashback() {
   // Buscar usuários para o filtro
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
+  });
+
+  // Mutation para excluir saldo de cashback
+  const deleteBalanceMutation = useMutation({
+    mutationFn: async (balanceId: string) => {
+      await apiRequest("DELETE", `/api/cashback-balances/${balanceId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Saldo excluído",
+        description: "O saldo de cashback foi removido com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
+      setDeletingBalance(null);
+    },
+    onError: (error: any) => {
+      console.error("Erro ao excluir saldo:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o saldo de cashback.",
+        variant: "destructive",
+      });
+    },
   });
 
   const formatCurrency = (value: string | number) => {
@@ -330,18 +368,29 @@ export default function Cashback() {
                                 Saldo disponível
                               </p>
                             </div>
-                            {parseFloat(balance.currentBalance || 0) > 0 && (
+                            <div className="flex items-center gap-2">
+                              {parseFloat(balance.currentBalance || 0) > 0 && (
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => {
+                                    setSelectedClient(balance.client);
+                                    setUsageModalOpen(true);
+                                  }}
+                                >
+                                  Resgatar
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => {
-                                  setSelectedClient(balance.client);
-                                  setUsageModalOpen(true);
-                                }}
+                                variant="outline"
+                                className="text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => setDeletingBalance(balance)}
+                                title="Excluir saldo de cashback"
                               >
-                                Resgatar
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -623,6 +672,36 @@ export default function Cashback() {
         open={usageModalOpen}
         onOpenChange={setUsageModalOpen}
       />
+
+      <AlertDialog open={!!deletingBalance} onOpenChange={() => setDeletingBalance(null)}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Saldo de Cashback</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o saldo de cashback de{" "}
+              <strong>{deletingBalance?.client?.name}</strong>?
+              <br />
+              <br />
+              <strong>Saldo atual:</strong> {deletingBalance && formatCurrency(deletingBalance.currentBalance || 0)}
+              <br />
+              <strong>Total acumulado:</strong> {deletingBalance && formatCurrency(deletingBalance.totalEarned || 0)}
+              <br />
+              <br />
+              Esta ação irá remover permanentemente todo o histórico de cashback deste cliente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingBalance && deleteBalanceMutation.mutate(deletingBalance.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteBalanceMutation.isPending}
+            >
+              {deleteBalanceMutation.isPending ? "Excluindo..." : "Excluir Saldo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
