@@ -392,7 +392,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: string): Promise<boolean> {
-    // Primeiro, excluir os deals associados ao cliente
+    // Primeiro, excluir as transações de cashback do cliente
+    await db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, id));
+    
+    // Depois, excluir os deals associados ao cliente
     await db.delete(deals).where(eq(deals.clientId, id));
     
     // Depois excluir as interações do cliente
@@ -404,7 +407,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClients(ids: string[]): Promise<number> {
-    // Primeiro, excluir os deals associados aos clientes
+    // Primeiro, excluir as transações de cashback dos clientes
+    await db.delete(cashbackTransactions).where(inArray(cashbackTransactions.clientId, ids));
+    
+    // Depois, excluir os deals associados aos clientes
     await db.delete(deals).where(inArray(deals.clientId, ids));
     
     // Depois excluir as interações dos clientes
