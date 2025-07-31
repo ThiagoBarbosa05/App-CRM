@@ -23,7 +23,6 @@ import {
 import { formatCpf, formatPhone, formatDate } from "@/lib/utils";
 
 import { ClientFilters } from "./client-filters";
-import { useAuth } from "@/hooks/useAuth";
 
 interface ClientsTableProps {
   searchQuery: string;
@@ -37,8 +36,16 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
 
+  const { user } = useAuth();
+  
   const { data: clients, isLoading } = useQuery({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
