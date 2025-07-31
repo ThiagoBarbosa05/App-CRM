@@ -855,7 +855,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const deal = await storage.createDeal(validatedData);
       res.status(201).json(deal);
-    ""`python
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
@@ -998,3 +997,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/birthday-reminder-settings", async (req, res) => {
     try {
+      const validatedData = insertBirthdayReminderSettingsSchema.parse(req.body);
+      const settings = await storage.updateBirthdayReminderSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar configurações dos lembretes:", error);
+      res.status(500).json({ message: "Erro ao atualizar configurações dos lembretes" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
