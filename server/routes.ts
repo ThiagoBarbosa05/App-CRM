@@ -170,6 +170,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete clients
+  app.delete("/api/clients", async (req, res) => {
+    try {
+      console.log("Bulk delete request body:", req.body);
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "Lista de IDs é obrigatória" });
+      }
+      
+      console.log("Tentando excluir clientes:", ids);
+      const deletedCount = await storage.deleteClients(ids);
+      console.log("Clientes excluídos:", deletedCount);
+      
+      res.json({ 
+        message: `${deletedCount} cliente(s) excluído(s) com sucesso`,
+        deletedCount 
+      });
+    } catch (error) {
+      console.error("Erro na exclusão em lote:", error);
+      res.status(500).json({ message: "Erro ao excluir clientes" });
+    }
+  });
+
   // Company routes
   app.get("/api/companies", async (req, res) => {
     try {
