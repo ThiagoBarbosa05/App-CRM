@@ -104,14 +104,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
     setShowDeleteDialog(false);
   };
 
-  const formatBirthday = (birthday: string | null) => {
-    if (!birthday) return "-";
-    try {
-      return format(new Date(birthday), "dd/MM/yyyy");
-    } catch {
-      return "-";
-    }
-  };
+
 
   // Filter clients based on search and filters
   const filteredClients = clients.filter((client) => {
@@ -190,7 +183,6 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                 <th className="p-4 text-left font-medium text-gray-900">Contato</th>
                 <th className="p-4 text-left font-medium text-gray-900">Categoria</th>
                 <th className="p-4 text-left font-medium text-gray-900">Marcadores</th>
-                <th className="p-4 text-left font-medium text-gray-900">Aniversário</th>
                 <th className="p-4 text-left font-medium text-gray-900">Ações</th>
               </tr>
             </thead>
@@ -269,12 +261,6 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
                       )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center text-sm">
-                      <Calendar className="h-3 w-3 mr-2 text-gray-400" />
-                      {formatBirthday(client.birthday)}
-                    </div>
-                  </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center space-x-2">
                       <Button
@@ -299,7 +285,7 @@ export default function ClientsTableWithSelection({ clients, searchQuery = "", f
               ))}
               {filteredClients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-500">
+                  <td colSpan={6} className="p-8 text-center text-gray-500">
                     Nenhum cliente encontrado
                   </td>
                 </tr>
