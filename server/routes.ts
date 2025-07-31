@@ -299,6 +299,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Birthday routes
+  app.get("/api/upcoming-birthdays", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const upcomingBirthdays = await storage.getUpcomingBirthdays(days);
+      res.json(upcomingBirthdays);
+    } catch (error) {
+      console.error("Erro ao buscar aniversários próximos:", error);
+      res.status(500).json({ message: "Erro ao buscar aniversários próximos" });
+    }
+  });
+
   // Tags routes (categories, origins, markers)
   app.get("/api/categories", async (req, res) => {
     try {
