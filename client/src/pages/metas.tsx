@@ -67,6 +67,9 @@ export default function Metas() {
 
   // Função para somar resultados semanais
   const getTotalAchieved = (weeklyResults: WeeklyResult[], field: 'salesAchieved' | 'ticketAchieved' | 'itemsAchieved') => {
+    if (!weeklyResults || !Array.isArray(weeklyResults)) {
+      return 0;
+    }
     return weeklyResults.reduce((sum, result) => {
       if (field === 'itemsAchieved') {
         return sum + result[field];
@@ -86,6 +89,11 @@ export default function Metas() {
   const filteredGoals = user?.role === "admin" || user?.role === "gerente" 
     ? userGoals 
     : userGoals.filter(goal => goal.userId === user?.id);
+
+  // Função auxiliar para garantir weeklyResults sempre é um array
+  const getWeeklyResults = (goal: UserGoal) => {
+    return goal.weeklyResults && Array.isArray(goal.weeklyResults) ? goal.weeklyResults : [];
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -164,10 +172,11 @@ export default function Metas() {
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGoals.map((goal) => {
-                const totalSalesAchieved = getTotalAchieved(goal.weeklyResults, 'salesAchieved');
-                const totalItemsAchieved = getTotalAchieved(goal.weeklyResults, 'itemsAchieved');
-                const avgTicketAchieved = goal.weeklyResults.length > 0 
-                  ? getTotalAchieved(goal.weeklyResults, 'ticketAchieved') / goal.weeklyResults.length 
+                const weeklyResults = getWeeklyResults(goal);
+                const totalSalesAchieved = getTotalAchieved(weeklyResults, 'salesAchieved');
+                const totalItemsAchieved = getTotalAchieved(weeklyResults, 'itemsAchieved');
+                const avgTicketAchieved = weeklyResults.length > 0 
+                  ? getTotalAchieved(weeklyResults, 'ticketAchieved') / weeklyResults.length 
                   : 0;
 
                 const salesPercentage = calculatePercentage(totalSalesAchieved, Number(goal.salesGoal));
@@ -180,7 +189,7 @@ export default function Metas() {
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">{goal.userName}</CardTitle>
                         <Badge variant="secondary" className="text-xs">
-                          {goal.weeklyResults.length}/4 semanas
+                          {weeklyResults.length}/4 semanas
                         </Badge>
                       </div>
                       <CardDescription>{goal.userEmail}</CardDescription>
@@ -245,7 +254,7 @@ export default function Metas() {
                         <p className="text-xs text-gray-500 mb-2">Resultados por semana:</p>
                         <div className="grid grid-cols-4 gap-1">
                           {[1, 2, 3, 4].map(week => {
-                            const weekResult = goal.weeklyResults.find(r => r.week === week);
+                            const weekResult = weeklyResults.find(r => r.week === week);
                             return (
                               <div 
                                 key={week} 

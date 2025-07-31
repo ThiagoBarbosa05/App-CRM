@@ -1423,7 +1423,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserGoalsWithResults(month: number, year: number): Promise<any[]> {
-    const result = await db
+    const goals = await db
       .select({
         id: userGoals.id,
         userId: userGoals.userId,
@@ -1442,7 +1442,18 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userGoals.month, month), eq(userGoals.year, year)))
       .orderBy(users.name);
 
-    return result;
+    // Para cada meta, buscar os resultados semanais
+    const goalsWithResults = await Promise.all(
+      goals.map(async (goal) => {
+        const weeklyResultsData = await this.getWeeklyResultsByGoalId(goal.id);
+        return {
+          ...goal,
+          weeklyResults: weeklyResultsData,
+        };
+      })
+    );
+
+    return goalsWithResults;
   }
 
   // Weekly Results methods
