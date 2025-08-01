@@ -158,6 +158,13 @@ Preferred communication style: Simple, everyday language in Portuguese (Brazilia
   - Frontend shows appropriate messages for non-admin users
   - Backend validates user role before allowing deletion operations
   - Enhanced security with proper authorization checks on sensitive operations
+- Implemented configurable cashback expiration system (August 1, 2025):
+  - Added `expiration_days` column to cashback_settings table for configurable expiration periods
+  - Modified backend storage to use configurable expiration days instead of hardcoded 28-day period
+  - Updated frontend cashback settings management to include "Dias para Vencimento do Cashback" field
+  - Each cashback rule can now define its own expiration period (default: 28 days, range: 1-365 days)
+  - Fixed validation schema to properly handle string-to-number conversion for expiration days
+  - System now creates cashback transactions with expiration dates based on the specific rule configuration
 
 ### Client Flow
 1. User creates/edits client through modal forms
