@@ -32,6 +32,10 @@ import {
   type InsertTelemarketingGoal,
   type TelemarketingWeeklyResult,
   type InsertTelemarketingWeeklyResult,
+  type ClientRegistrationGoal,
+  type InsertClientRegistrationGoal,
+  type ClientRegistrationWeeklyResult,
+  type InsertClientRegistrationWeeklyResult,
   type LearningImage,
   type InsertLearningImage,
   clients,
@@ -50,6 +54,8 @@ import {
   weeklyResults,
   telemarketingGoals,
   telemarketingWeeklyResults,
+  clientRegistrationGoals,
+  clientRegistrationWeeklyResults,
   learningImages,
   cashbackSettings,
   type CashbackSetting,
@@ -2173,6 +2179,119 @@ export class DatabaseStorage implements IStorage {
       if (interaction.callResult) {
         statsByUser[userId][interaction.callResult] = interaction.count;
         statsByUser[userId].total += interaction.count;
+      }
+    });
+
+    return Object.values(statsByUser);
+  }
+
+  // Client Registration Goals methods
+  async getClientRegistrationGoals(): Promise<any[]> {
+    const goals = await db
+      .select({
+        id: clientRegistrationGoals.id,
+        userId: clientRegistrationGoals.userId,
+        targetQuantity: clientRegistrationGoals.targetQuantity,
+        month: clientRegistrationGoals.month,
+        year: clientRegistrationGoals.year,
+        createdAt: clientRegistrationGoals.createdAt,
+        updatedAt: clientRegistrationGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(clientRegistrationGoals)
+      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id))
+      .orderBy(desc(clientRegistrationGoals.createdAt));
+
+    return goals;
+  }
+
+  async getClientRegistrationGoalsByMonthYear(month: number, year: number): Promise<any[]> {
+    const goals = await db
+      .select({
+        id: clientRegistrationGoals.id,
+        userId: clientRegistrationGoals.userId,
+        targetQuantity: clientRegistrationGoals.targetQuantity,
+        month: clientRegistrationGoals.month,
+        year: clientRegistrationGoals.year,
+        createdAt: clientRegistrationGoals.createdAt,
+        updatedAt: clientRegistrationGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(clientRegistrationGoals)
+      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id))
+      .where(and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year)))
+      .orderBy(desc(clientRegistrationGoals.createdAt));
+
+    return goals;
+  }
+
+  async createClientRegistrationGoal(insertGoal: InsertClientRegistrationGoal): Promise<ClientRegistrationGoal> {
+    const [goal] = await db
+      .insert(clientRegistrationGoals)
+      .values(insertGoal)
+      .returning();
+    return goal;
+  }
+
+  async updateClientRegistrationGoal(
+    id: string,
+    updateData: Partial<InsertClientRegistrationGoal>,
+  ): Promise<ClientRegistrationGoal | undefined> {
+    const [goal] = await db
+      .update(clientRegistrationGoals)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(clientRegistrationGoals.id, id))
+      .returning();
+    return goal || undefined;
+  }
+
+  async deleteClientRegistrationGoal(id: string): Promise<boolean> {
+    const result = await db.delete(clientRegistrationGoals).where(eq(clientRegistrationGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Client Registration Statistics methods
+  async getClientRegistrationStatsByPeriod(month: number, year: number): Promise<any[]> {
+    // Buscar todos os clientes cadastrados no período especificado
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const registrations = await db
+      .select({
+        userId: clients.responsavelId,
+        userName: users.name,
+        userEmail: users.email,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(clients)
+      .leftJoin(users, eq(clients.responsavelId, users.id))
+      .where(
+        and(
+          gte(clients.createdAt, startDate),
+          lt(clients.createdAt, endDate),
+          isNotNull(clients.responsavelId)
+        )
+      )
+      .groupBy(
+        clients.responsavelId,
+        users.name,
+        users.email
+      );
+
+    // Agrupar por usuário
+    const statsByUser: { [key: string]: any } = {};
+
+    registrations.forEach((registration) => {
+      const userId = registration.userId;
+      if (userId && !statsByUser[userId]) {
+        statsByUser[userId] = {
+          userId,
+          userName: registration.userName,
+          userEmail: registration.userEmail,
+          totalRegistrations: registration.count,
+        };
       }
     });
 

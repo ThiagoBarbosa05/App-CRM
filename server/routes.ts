@@ -16,6 +16,7 @@ import {
   insertClientInteractionSchema,
   insertUserGoalSchema,
   insertTelemarketingGoalSchema,
+  insertClientRegistrationGoalSchema,
   insertCashbackSettingSchema,
   insertCashbackTransactionSchema,
 } from "@shared/schema";
@@ -959,6 +960,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar estatísticas de telemarketing:", error);
       res.status(500).json({ message: "Erro ao buscar estatísticas de telemarketing" });
+    }
+  });
+
+  // Client Registration Goals routes
+  app.get("/api/client-registration-goals", async (req, res) => {
+    try {
+      const goals = await storage.getClientRegistrationGoals();
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de cadastros:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de cadastros" });
+    }
+  });
+
+  app.get("/api/client-registration-goals/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const goals = await storage.getClientRegistrationGoalsByMonthYear(parseInt(month), parseInt(year));
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de cadastros:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de cadastros" });
+    }
+  });
+
+  app.post("/api/client-registration-goals", async (req, res) => {
+    try {
+      const validatedData = insertClientRegistrationGoalSchema.parse(req.body);
+      const goal = await storage.createClientRegistrationGoal(validatedData);
+      res.status(201).json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar meta de cadastros:", error);
+      res.status(500).json({ message: "Erro ao criar meta de cadastros" });
+    }
+  });
+
+  app.put("/api/client-registration-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertClientRegistrationGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateClientRegistrationGoal(id, validatedData);
+      res.json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar meta de cadastros:", error);
+      res.status(500).json({ message: "Erro ao atualizar meta de cadastros" });
+    }
+  });
+
+  app.delete("/api/client-registration-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteClientRegistrationGoal(id);
+      if (success === false) {
+        return res.status(404).json({ message: "Meta de cadastros não encontrada" });
+      }
+      res.json({ message: "Meta de cadastros excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir meta de cadastros:", error);
+      res.status(500).json({ message: "Erro ao excluir meta de cadastros" });
+    }
+  });
+
+  // Client Registration statistics route
+  app.get("/api/client-registration-stats/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const stats = await storage.getClientRegistrationStatsByPeriod(parseInt(month), parseInt(year));
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de cadastros:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de cadastros" });
     }
   });
 
