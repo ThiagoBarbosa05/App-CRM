@@ -57,9 +57,9 @@ interface TelemarketingGoal {
 export default function Metas() {
   const { user } = useAuth();
 
-  // Estado para controlar mês/ano - iniciando com julho 2025 onde existem metas
+  // Estado para controlar mês/ano - iniciando com agosto 2025 onde existem metas
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(7);
+  const [selectedMonth, setSelectedMonth] = useState(8);
   const [selectedYear, setSelectedYear] = useState(2025);
 
   // Buscar metas do mês/ano selecionado
