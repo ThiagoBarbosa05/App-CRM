@@ -61,7 +61,7 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
 
   const deleteInteractionMutation = useMutation({
     mutationFn: async (interactionId: string) => {
-      await apiRequest("DELETE", `/api/interactions/${interactionId}`);
+      await apiRequest(`/api/interactions/${interactionId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "interactions"] });

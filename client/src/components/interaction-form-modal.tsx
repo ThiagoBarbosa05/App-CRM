@@ -93,7 +93,7 @@ export default function InteractionFormModal({
         date: new Date(data.date).toISOString(),
         duration: data.duration ? parseInt(data.duration) : null,
       };
-      const response = await apiRequest("POST", "/api/interactions", payload);
+      const response = await apiRequest("/api/interactions", "POST", payload);
       return response.json();
     },
     onSuccess: () => {
@@ -121,7 +121,7 @@ export default function InteractionFormModal({
         date: new Date(data.date).toISOString(),
         duration: data.duration ? parseInt(data.duration) : null,
       };
-      const response = await apiRequest("PUT", `/api/interactions/${interaction!.id}`, payload);
+      const response = await apiRequest(`/api/interactions/${interaction!.id}`, "PUT", payload);
       return response.json();
     },
     onSuccess: () => {
