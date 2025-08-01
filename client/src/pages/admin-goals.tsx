@@ -89,13 +89,39 @@ const telemarketingGoalSchema = z.object({
   year: z.string().min(1, "Ano é obrigatório"),
 });
 
+const clientRegistrationGoalSchema = z.object({
+  userId: z.string().min(1, "Usuário é obrigatório"),
+  targetQuantity: z
+    .string()
+    .min(1, "Quantidade é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
+  month: z.string().min(1, "Mês é obrigatório"),
+  year: z.string().min(1, "Ano é obrigatório"),
+});
+
 type GoalFormData = z.infer<typeof goalSchema>;
 type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
+type ClientRegistrationGoalFormData = z.infer<typeof clientRegistrationGoalSchema>;
 
 interface TelemarketingGoal {
   id: string;
   userId: string;
   targetResult: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ClientRegistrationGoal {
+  id: string;
+  userId: string;
   targetQuantity: number;
   month: number;
   year: number;
