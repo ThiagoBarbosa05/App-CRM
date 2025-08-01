@@ -263,7 +263,7 @@ export interface IStorage {
   deleteCashbackSetting(id: string): Promise<boolean>;
 
   // Cashback Transactions methods
-  getCashbackTransactions(): Promise<CashbackTransactionWithClient[]>;
+  getCashbackTransactions(userId?: string, userRole?: string): Promise<CashbackTransactionWithClient[]>;
   createCashbackTransaction(
     insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction>;
@@ -274,8 +274,8 @@ export interface IStorage {
 
   // Client Cashback Balance methods
   getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined>;
-  getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
-  getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]>;
+  getAllClientCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]>;
+  getAllCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]>;
   updateClientCashbackBalance(clientId: string): Promise<void>;
   deleteCashbackBalance(balanceId: string): Promise<boolean>;
 
@@ -284,7 +284,7 @@ export interface IStorage {
     insertUsage: InsertCashbackUsage,
   ): Promise<CashbackUsage>;
   getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]>;
-  getAllCashbackUsage(): Promise<CashbackUsage[]>;
+  getAllCashbackUsage(userId?: string, userRole?: string): Promise<CashbackUsage[]>;
 
   // Método para calcular cashback baseado nas regras ativas
   calculateCashback(purchaseAmount: number): Promise<{
@@ -294,6 +294,44 @@ export interface IStorage {
   }>;
 
   getUserRegistrationStats(): Promise<any[]>;
+
+  // Telemarketing Goals methods
+  getTelemarketingGoals(userId?: string, userRole?: string): Promise<any[]>;
+  getTelemarketingGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]>;
+  createTelemarketingGoal(insertGoal: InsertTelemarketingGoal): Promise<TelemarketingGoal>;
+  updateTelemarketingGoal(
+    id: string,
+    updateData: Partial<InsertTelemarketingGoal>,
+  ): Promise<TelemarketingGoal | undefined>;
+  deleteTelemarketingGoal(id: string): Promise<boolean>;
+  getTelemarketingStats(month: number, year: number): Promise<any[]>;
+
+  // Telemarketing Weekly Results methods
+  getTelemarketingWeeklyResults(goalId: string): Promise<TelemarketingWeeklyResult[]>;
+  createTelemarketingWeeklyResult(result: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult>;
+  updateTelemarketingWeeklyResult(
+    id: string,
+    result: Partial<InsertTelemarketingWeeklyResult>
+  ): Promise<TelemarketingWeeklyResult | undefined>;
+
+  // Client Registration Goals methods
+  getClientRegistrationGoals(userId?: string, userRole?: string): Promise<any[]>;
+  getClientRegistrationGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]>;
+  createClientRegistrationGoal(insertGoal: InsertClientRegistrationGoal): Promise<ClientRegistrationGoal>;
+  updateClientRegistrationGoal(
+    id: string,
+    updateData: Partial<InsertClientRegistrationGoal>,
+  ): Promise<ClientRegistrationGoal | undefined>;
+  deleteClientRegistrationGoal(id: string): Promise<boolean>;
+  getClientRegistrationStats(month: number, year: number): Promise<any[]>;
+
+  // Client Registration Weekly Results methods
+  getClientRegistrationWeeklyResults(goalId: string): Promise<ClientRegistrationWeeklyResult[]>;
+  createClientRegistrationWeeklyResult(result: InsertClientRegistrationWeeklyResult): Promise<ClientRegistrationWeeklyResult>;
+  updateClientRegistrationWeeklyResult(
+    id: string,
+    result: Partial<InsertClientRegistrationWeeklyResult>
+  ): Promise<ClientRegistrationWeeklyResult | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1623,11 +1661,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Cashback Transactions methods
-  async getCashbackTransactions(): Promise<CashbackTransactionWithClient[]> {
-    const transactions = await db
+  async getCashbackTransactions(userId?: string, userRole?: string): Promise<CashbackTransactionWithClient[]> {
+    let transactionsQuery = db
       .select()
-      .from(cashbackTransactions)
-      .orderBy(cashbackTransactions.createdAt);
+      .from(cashbackTransactions);
+
+    // Se for vendedor, filtrar apenas transações de clientes sob sua responsabilidade
+    if (userRole === "vendedor" && userId) {
+      transactionsQuery = transactionsQuery
+        .leftJoin(clients, eq(clients.id, cashbackTransactions.clientId))
+        .where(eq(clients.responsavelId, userId)) as typeof transactionsQuery;
+    }
+
+    const transactions = await transactionsQuery.orderBy(cashbackTransactions.createdAt);
 
     const transactionsWithDetails: CashbackTransactionWithClient[] = [];
 
@@ -1738,8 +1784,8 @@ export class DatabaseStorage implements IStorage {
     return balance || undefined;
   }
 
-  async getAllClientCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
-    const balances = await db
+  async getAllClientCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]> {
+    let balancesQuery = db
       .select({
         id: clientCashbackBalance.id,
         clientId: clientCashbackBalance.clientId,
@@ -1774,8 +1820,14 @@ export class DatabaseStorage implements IStorage {
       })
       .from(clientCashbackBalance)
       .leftJoin(clients, eq(clients.id, clientCashbackBalance.clientId))
-      .leftJoin(users, eq(users.id, clients.responsavelId))
-      .orderBy(clientCashbackBalance.currentBalance);
+      .leftJoin(users, eq(users.id, clients.responsavelId));
+
+    // Se for vendedor, filtrar apenas saldos de clientes sob sua responsabilidade
+    if (userRole === "vendedor" && userId) {
+      balancesQuery = balancesQuery.where(eq(clients.responsavelId, userId)) as typeof balancesQuery;
+    }
+
+    const balances = await balancesQuery.orderBy(clientCashbackBalance.currentBalance);
 
     // Para cada saldo, buscar informações das transações de cashback
     const balancesWithDates = await Promise.all(
@@ -1924,8 +1976,8 @@ export class DatabaseStorage implements IStorage {
     return usage;
   }
 
-  async getAllCashbackBalances(): Promise<ClientCashbackBalanceWithClient[]> {
-    return this.getAllClientCashbackBalances();
+  async getAllCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]> {
+    return this.getAllClientCashbackBalances(userId, userRole);
   }
 
   async deleteCashbackBalance(balanceId: string): Promise<boolean> {
@@ -1960,11 +2012,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getAllCashbackUsage(): Promise<CashbackUsage[]> {
-    const usage = await db
+  async getAllCashbackUsage(userId?: string, userRole?: string): Promise<CashbackUsage[]> {
+    let usageQuery = db
       .select()
-      .from(cashbackUsage)
-      .orderBy(cashbackUsage.createdAt);
+      .from(cashbackUsage);
+
+    // Se for vendedor, filtrar apenas uso de cashback de clientes sob sua responsabilidade
+    if (userRole === "vendedor" && userId) {
+      usageQuery = usageQuery
+        .leftJoin(clients, eq(clients.id, cashbackUsage.clientId))
+        .where(eq(clients.responsavelId, userId)) as typeof usageQuery;
+    }
+
+    const usage = await usageQuery.orderBy(cashbackUsage.createdAt);
     return usage;
   }
 
@@ -2037,8 +2097,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Telemarketing Goals methods
-  async getTelemarketingGoals(): Promise<any[]> {
-    const goals = await db
+  async getTelemarketingGoals(userId?: string, userRole?: string): Promise<any[]> {
+    let query = db
       .select({
         id: telemarketingGoals.id,
         userId: telemarketingGoals.userId,
@@ -2052,14 +2112,19 @@ export class DatabaseStorage implements IStorage {
         userEmail: users.email,
       })
       .from(telemarketingGoals)
-      .leftJoin(users, eq(telemarketingGoals.userId, users.id))
-      .orderBy(desc(telemarketingGoals.createdAt));
+      .leftJoin(users, eq(telemarketingGoals.userId, users.id));
 
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      query = query.where(eq(telemarketingGoals.userId, userId)) as typeof query;
+    }
+
+    const goals = await query.orderBy(desc(telemarketingGoals.createdAt));
     return goals;
   }
 
-  async getTelemarketingGoalsByMonthYear(month: number, year: number): Promise<any[]> {
-    const goals = await db
+  async getTelemarketingGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]> {
+    let query = db
       .select({
         id: telemarketingGoals.id,
         userId: telemarketingGoals.userId,
@@ -2073,10 +2138,17 @@ export class DatabaseStorage implements IStorage {
         userEmail: users.email,
       })
       .from(telemarketingGoals)
-      .leftJoin(users, eq(telemarketingGoals.userId, users.id))
-      .where(and(eq(telemarketingGoals.month, month), eq(telemarketingGoals.year, year)))
-      .orderBy(desc(telemarketingGoals.createdAt));
+      .leftJoin(users, eq(telemarketingGoals.userId, users.id));
 
+    // Aplicar filtros
+    let whereConditions = and(eq(telemarketingGoals.month, month), eq(telemarketingGoals.year, year));
+    
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      whereConditions = and(whereConditions, eq(telemarketingGoals.userId, userId));
+    }
+
+    const goals = await query.where(whereConditions).orderBy(desc(telemarketingGoals.createdAt));
     return goals;
   }
 
@@ -2200,8 +2272,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Registration Goals methods
-  async getClientRegistrationGoals(): Promise<any[]> {
-    const goals = await db
+  async getClientRegistrationGoals(userId?: string, userRole?: string): Promise<any[]> {
+    let query = db
       .select({
         id: clientRegistrationGoals.id,
         userId: clientRegistrationGoals.userId,
@@ -2214,14 +2286,19 @@ export class DatabaseStorage implements IStorage {
         userEmail: users.email,
       })
       .from(clientRegistrationGoals)
-      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id))
-      .orderBy(desc(clientRegistrationGoals.createdAt));
+      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id));
 
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      query = query.where(eq(clientRegistrationGoals.userId, userId)) as typeof query;
+    }
+
+    const goals = await query.orderBy(desc(clientRegistrationGoals.createdAt));
     return goals;
   }
 
-  async getClientRegistrationGoalsByMonthYear(month: number, year: number): Promise<any[]> {
-    const goals = await db
+  async getClientRegistrationGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]> {
+    let query = db
       .select({
         id: clientRegistrationGoals.id,
         userId: clientRegistrationGoals.userId,
@@ -2234,10 +2311,17 @@ export class DatabaseStorage implements IStorage {
         userEmail: users.email,
       })
       .from(clientRegistrationGoals)
-      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id))
-      .where(and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year)))
-      .orderBy(desc(clientRegistrationGoals.createdAt));
+      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id));
 
+    // Aplicar filtros
+    let whereConditions = and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year));
+    
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      whereConditions = and(whereConditions, eq(clientRegistrationGoals.userId, userId));
+    }
+
+    const goals = await query.where(whereConditions).orderBy(desc(clientRegistrationGoals.createdAt));
     return goals;
   }
 
@@ -2310,6 +2394,66 @@ export class DatabaseStorage implements IStorage {
     });
 
     return Object.values(statsByUser);
+  }
+
+  // Alias methods to maintain consistency with interface
+  async getTelemarketingStats(month: number, year: number): Promise<any[]> {
+    return this.getTelemarketingStatsByPeriod(month, year);
+  }
+
+  async getClientRegistrationStats(month: number, year: number): Promise<any[]> {
+    return this.getClientRegistrationStatsByPeriod(month, year);
+  }
+
+  // Client Registration Weekly Results methods
+  async getClientRegistrationWeeklyResults(goalId: string): Promise<ClientRegistrationWeeklyResult[]> {
+    const results = await db
+      .select()
+      .from(clientRegistrationWeeklyResults)
+      .where(eq(clientRegistrationWeeklyResults.registrationGoalId, goalId))
+      .orderBy(clientRegistrationWeeklyResults.week);
+    return results;
+  }
+
+  async createClientRegistrationWeeklyResult(result: InsertClientRegistrationWeeklyResult): Promise<ClientRegistrationWeeklyResult> {
+    const [newResult] = await db
+      .insert(clientRegistrationWeeklyResults)
+      .values(result)
+      .returning();
+    return newResult;
+  }
+
+  async updateClientRegistrationWeeklyResult(
+    id: string,
+    result: Partial<InsertClientRegistrationWeeklyResult>
+  ): Promise<ClientRegistrationWeeklyResult | undefined> {
+    const [updatedResult] = await db
+      .update(clientRegistrationWeeklyResults)
+      .set({ ...result, updatedAt: new Date() })
+      .where(eq(clientRegistrationWeeklyResults.id, id))
+      .returning();
+    return updatedResult || undefined;
+  }
+
+  // Telemarketing Weekly Results methods
+  async createTelemarketingWeeklyResult(result: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult> {
+    const [newResult] = await db
+      .insert(telemarketingWeeklyResults)
+      .values(result)
+      .returning();
+    return newResult;
+  }
+
+  async updateTelemarketingWeeklyResult(
+    id: string,
+    result: Partial<InsertTelemarketingWeeklyResult>
+  ): Promise<TelemarketingWeeklyResult | undefined> {
+    const [updatedResult] = await db
+      .update(telemarketingWeeklyResults)
+      .set({ ...result, updatedAt: new Date() })
+      .where(eq(telemarketingWeeklyResults.id, id))
+      .returning();
+    return updatedResult || undefined;
   }
 }
 

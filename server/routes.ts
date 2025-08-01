@@ -464,7 +464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
-      const transactions = await storage.getCashbackTransactions();
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const transactions = await storage.getCashbackTransactions(userId, userRole);
       res.json(transactions);
     } catch (error) {
       console.error("Erro ao buscar transações:", error);
@@ -550,7 +553,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-balances", async (req, res) => {
     try {
-      const balances = await storage.getAllCashbackBalances();
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const balances = await storage.getAllCashbackBalances(userId, userRole);
       res.json(balances);
     } catch (error) {
       console.error("Erro ao buscar saldos:", error);
@@ -596,7 +602,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-usage", async (req, res) => {
     try {
-      const usage = await storage.getAllCashbackUsage();
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const usage = await storage.getAllCashbackUsage(userId, userRole);
       res.json(usage);
     } catch (error) {
       console.error("Erro ao buscar histórico de uso:", error);
@@ -891,7 +900,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Telemarketing Goals routes
   app.get("/api/telemarketing-goals", async (req, res) => {
     try {
-      const goals = await storage.getTelemarketingGoals();
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const goals = await storage.getTelemarketingGoals(userId, userRole);
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de telemarketing:", error);
@@ -902,7 +914,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const goals = await storage.getTelemarketingGoalsByMonthYear(Number(month), Number(year));
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const goals = await storage.getTelemarketingGoalsByMonthYear(Number(month), Number(year), userId, userRole);
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de telemarketing:", error);
@@ -970,7 +985,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client Registration Goals routes
   app.get("/api/client-registration-goals", async (req, res) => {
     try {
-      const goals = await storage.getClientRegistrationGoals();
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const goals = await storage.getClientRegistrationGoals(userId, userRole);
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de cadastros:", error);
@@ -981,7 +999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/client-registration-goals/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const goals = await storage.getClientRegistrationGoalsByMonthYear(parseInt(month), parseInt(year));
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const goals = await storage.getClientRegistrationGoalsByMonthYear(parseInt(month), parseInt(year), userId, userRole);
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de cadastros:", error);
