@@ -103,7 +103,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client routes
   app.get("/api/clients", async (req, res) => {
     try {
-      const clients = await storage.getClients();
+      // Pegar informações do usuário logado da query string ou headers
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
+      const clients = await storage.getClients(userId, userRole);
       res.json(clients);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar clientes" });

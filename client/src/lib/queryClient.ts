@@ -24,12 +24,26 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+function getUserFromStorage() {
+  const storedUser = localStorage.getItem("user");
+  return storedUser ? JSON.parse(storedUser) : null;
+}
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const user = getUserFromStorage();
+    const url = new URL(queryKey.join("/") as string, window.location.origin);
+    
+    // Adicionar parâmetros do usuário para controle de acesso
+    if (user) {
+      url.searchParams.set('userId', user.id);
+      url.searchParams.set('userRole', user.role);
+    }
+    
+    const res = await fetch(url.toString(), {
       credentials: "include",
     });
 
