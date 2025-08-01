@@ -206,6 +206,10 @@ export default function AdminGoals() {
   const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] = useState(false);
   const [editingTelemarketingGoal, setEditingTelemarketingGoal] = useState<TelemarketingGoal | null>(null);
 
+  // Estado para metas de cadastros de clientes
+  const [isClientRegistrationModalOpen, setIsClientRegistrationModalOpen] = useState(false);
+  const [editingClientRegistrationGoal, setEditingClientRegistrationGoal] = useState<ClientRegistrationGoal | null>(null);
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -267,6 +271,11 @@ export default function AdminGoals() {
     queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
   });
 
+  // Buscar metas de cadastros de clientes
+  const { data: clientRegistrationGoals = [] } = useQuery<ClientRegistrationGoal[]>({
+    queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+  });
+
   // Form para telemarketing
   const {
     register: registerTelemarketing,
@@ -276,6 +285,17 @@ export default function AdminGoals() {
     formState: { errors: telemarketingErrors },
   } = useForm<TelemarketingGoalFormData>({
     resolver: zodResolver(telemarketingGoalSchema),
+  });
+
+  // Form para metas de cadastros de clientes
+  const {
+    register: registerClientRegistration,
+    handleSubmit: handleSubmitClientRegistration,
+    reset: resetClientRegistration,
+    setValue: setValueClientRegistration,
+    formState: { errors: clientRegistrationErrors },
+  } = useForm<ClientRegistrationGoalFormData>({
+    resolver: zodResolver(clientRegistrationGoalSchema),
   });
 
   // Mutation para criar/atualizar meta
@@ -438,6 +458,64 @@ export default function AdminGoals() {
     },
   });
 
+  // Mutation para metas de cadastros de clientes
+  const clientRegistrationGoalMutation = useMutation({
+    mutationFn: async (data: ClientRegistrationGoalFormData) => {
+      const goalData = {
+        userId: data.userId,
+        targetQuantity: parseInt(data.targetQuantity),
+        month: parseInt(data.month),
+        year: parseInt(data.year),
+      };
+
+      if (editingClientRegistrationGoal) {
+        return apiRequest(`/api/client-registration-goals/${editingClientRegistrationGoal.id}`, "PUT", goalData);
+      } else {
+        return apiRequest("/api/client-registration-goals", "POST", goalData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: editingClientRegistrationGoal ? "Meta de cadastros atualizada" : "Meta de cadastros criada",
+        description: `Meta de cadastros foi ${editingClientRegistrationGoal ? "atualizada" : "criada"} com sucesso.`,
+      });
+      handleCloseClientRegistrationModal();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || `Erro ao ${editingClientRegistrationGoal ? "atualizar" : "criar"} meta de cadastros.`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para deletar meta de cadastros
+  const deleteClientRegistrationMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest(`/api/client-registration-goals/${goalId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: "Meta de cadastros excluída",
+        description: "Meta de cadastros foi excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir meta de cadastros.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteGoal = (goal: UserGoal) => {
     if (confirm(`Tem certeza que deseja excluir a meta de ${goal.userName}?`)) {
       deleteMutation.mutate(goal.id);
@@ -532,6 +610,32 @@ export default function AdminGoals() {
 
   const onSubmitTelemarketing = (data: TelemarketingGoalFormData) => {
     telemarketingGoalMutation.mutate(data);
+  };
+
+  // Handlers para metas de cadastros de clientes
+  const handleEditClientRegistrationGoal = (goal: ClientRegistrationGoal) => {
+    setEditingClientRegistrationGoal(goal);
+    setValueClientRegistration("userId", goal.userId);
+    setValueClientRegistration("targetQuantity", goal.targetQuantity.toString());
+    setValueClientRegistration("month", goal.month.toString());
+    setValueClientRegistration("year", goal.year.toString());
+    setIsClientRegistrationModalOpen(true);
+  };
+
+  const handleCloseClientRegistrationModal = () => {
+    setIsClientRegistrationModalOpen(false);
+    setEditingClientRegistrationGoal(null);
+    resetClientRegistration();
+  };
+
+  const handleDeleteClientRegistrationGoal = (goal: ClientRegistrationGoal) => {
+    if (confirm(`Deseja realmente excluir a meta de cadastros para ${goal.userName}?`)) {
+      deleteClientRegistrationMutation.mutate(goal.id);
+    }
+  };
+
+  const onSubmitClientRegistration = (data: ClientRegistrationGoalFormData) => {
+    clientRegistrationGoalMutation.mutate(data);
   };
 
   return (
@@ -689,9 +793,9 @@ export default function AdminGoals() {
             </Card>
           </div>
 
-          {/* Tabs para Metas de Vendas e Telemarketing */}
+          {/* Tabs para Metas de Vendas, Telemarketing e Cadastros */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
                 Metas de Vendas
@@ -699,6 +803,10 @@ export default function AdminGoals() {
               <TabsTrigger value="metas-telemarketing">
                 <Phone className="h-4 w-4 mr-2" />
                 Metas de Telemarketing
+              </TabsTrigger>
+              <TabsTrigger value="metas-cadastros">
+                <Users className="h-4 w-4 mr-2" />
+                Metas de Cadastros
               </TabsTrigger>
             </TabsList>
 
@@ -925,6 +1033,128 @@ export default function AdminGoals() {
                               </TableCell>
                             </TableRow>
                           ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab de Metas de Cadastros */}
+            <TabsContent value="metas-cadastros">
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xl font-bold text-emerald-700">
+                      Metas de Cadastros de Clientes
+                    </CardTitle>
+                    <Button
+                      onClick={() => {
+                        setValueClientRegistration("month", selectedMonth.toString());
+                        setValueClientRegistration("year", selectedYear.toString());
+                        setIsClientRegistrationModalOpen(true);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Nova Meta
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {clientRegistrationGoalsLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="text-gray-500">Carregando metas de cadastros...</div>
+                    </div>
+                  ) : clientRegistrationGoals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Nenhuma meta de cadastros definida para este período.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Meta</TableHead>
+                            <TableHead>Alcançado</TableHead>
+                            <TableHead>Progress</TableHead>
+                            <TableHead>Porcentagem</TableHead>
+                            <TableHead>Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {clientRegistrationGoals.map((goal) => {
+                            const percentage = goal.targetQuantity > 0 
+                              ? (goal.achieved / goal.targetQuantity) * 100 
+                              : 0;
+                            
+                            return (
+                              <TableRow key={goal.id}>
+                                <TableCell className="font-medium">
+                                  {goal.userName}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-semibold text-emerald-600">
+                                    {goal.targetQuantity} clientes
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-semibold">
+                                    {goal.achieved} clientes
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="w-32">
+                                    <div className="bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                                        style={{
+                                          width: `${Math.min(percentage, 100)}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span
+                                    className={`font-semibold ${
+                                      percentage >= 100
+                                        ? "text-emerald-600"
+                                        : percentage >= 50
+                                          ? "text-yellow-600"
+                                          : "text-red-600"
+                                    }`}
+                                  >
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditClientRegistrationGoal(goal)}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteClientRegistrationGoal(goal)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      disabled={deleteClientRegistrationMutation.isPending}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Excluir
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -1316,6 +1546,119 @@ export default function AdminGoals() {
                 {telemarketingGoalMutation.isPending
                   ? "Salvando..."
                   : editingTelemarketingGoal
+                    ? "Atualizar Meta"
+                    : "Criar Meta"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de metas de cadastros de clientes */}
+      <Dialog open={isClientRegistrationModalOpen} onOpenChange={handleCloseClientRegistrationModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingClientRegistrationGoal ? "Editar Meta de Cadastros" : "Nova Meta de Cadastros"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitClientRegistration(onSubmitClientRegistration)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="clientRegistrationUserId">Usuário</Label>
+              <select
+                id="clientRegistrationUserId"
+                {...registerClientRegistration("userId")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                disabled={!!editingClientRegistrationGoal}
+              >
+                <option value="">Selecione um usuário</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              {clientRegistrationErrors.userId && (
+                <p className="text-sm text-red-600">{clientRegistrationErrors.userId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clientRegistrationTargetQuantity">Quantidade de Clientes</Label>
+              <Input
+                id="clientRegistrationTargetQuantity"
+                type="number"
+                min="1"
+                placeholder="50"
+                {...registerClientRegistration("targetQuantity")}
+              />
+              {clientRegistrationErrors.targetQuantity && (
+                <p className="text-sm text-red-600">{clientRegistrationErrors.targetQuantity.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientRegistrationMonth">Mês</Label>
+                <select
+                  id="clientRegistrationMonth"
+                  {...registerClientRegistration("month")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  disabled={!!editingClientRegistrationGoal}
+                >
+                  <option value="">Selecione o mês</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                    </option>
+                  ))}
+                </select>
+                {clientRegistrationErrors.month && (
+                  <p className="text-sm text-red-600">{clientRegistrationErrors.month.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clientRegistrationYear">Ano</Label>
+                <select
+                  id="clientRegistrationYear"
+                  {...registerClientRegistration("year")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  disabled={!!editingClientRegistrationGoal}
+                >
+                  <option value="">Selecione o ano</option>
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                {clientRegistrationErrors.year && (
+                  <p className="text-sm text-red-600">{clientRegistrationErrors.year.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseClientRegistrationModal}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={clientRegistrationGoalMutation.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {clientRegistrationGoalMutation.isPending
+                  ? "Salvando..."
+                  : editingClientRegistrationGoal
                     ? "Atualizar Meta"
                     : "Criar Meta"}
               </Button>
