@@ -1679,10 +1679,24 @@ export class DatabaseStorage implements IStorage {
   async createCashbackTransaction(
     insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction> {
-    // Se não foi fornecida data de validade, definir 28 dias a partir de agora
+    // Se não foi fornecida data de validade, calcular baseado na configuração da regra
     if (!insertTransaction.expiresAt) {
+      let expirationDays = 28; // Padrão de 28 dias
+      
+      // Se há uma regra de cashback definida, usar os dias de vencimento dela
+      if (insertTransaction.settingId) {
+        const [setting] = await db
+          .select()
+          .from(cashbackSettings)
+          .where(eq(cashbackSettings.id, insertTransaction.settingId));
+        
+        if (setting && setting.expirationDays) {
+          expirationDays = setting.expirationDays;
+        }
+      }
+      
       const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + 28);
+      expirationDate.setDate(expirationDate.getDate() + expirationDays);
       insertTransaction.expiresAt = expirationDate;
     }
 

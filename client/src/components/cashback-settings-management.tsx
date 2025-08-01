@@ -23,6 +23,7 @@ export default function CashbackSettingsManagement() {
     minimumPurchase: "",
     maximumCashback: "",
     validUntil: "",
+    expirationDays: "28",
     isActive: "true",
   });
 
@@ -110,6 +111,7 @@ export default function CashbackSettingsManagement() {
       minimumPurchase: "",
       maximumCashback: "",
       validUntil: "",
+      expirationDays: "28",
       isActive: "true",
     });
     setEditingSetting(null);
@@ -124,7 +126,8 @@ export default function CashbackSettingsManagement() {
       percentageRate: setting.percentageRate,
       minimumPurchase: setting.minimumPurchase || "",
       maximumCashback: setting.maximumCashback || "",
-      validUntil: setting.validUntil ? setting.validUntil.split('T')[0] : "",
+      validUntil: setting.validUntil ? new Date(setting.validUntil).toISOString().split('T')[0] : "",
+      expirationDays: setting.expirationDays?.toString() || "28",
       isActive: setting.isActive,
     });
     setDialogOpen(true);
@@ -139,6 +142,7 @@ export default function CashbackSettingsManagement() {
       minimumPurchase: formData.minimumPurchase && formData.minimumPurchase.trim() !== "" ? formData.minimumPurchase : "0.00",
       maximumCashback: formData.maximumCashback && formData.maximumCashback.trim() !== "" ? formData.maximumCashback : null,
       validUntil: formData.validUntil && formData.validUntil.trim() !== "" ? formData.validUntil : null,
+      expirationDays: parseInt(formData.expirationDays) || 28,
     };
 
     if (editingSetting) {
@@ -237,6 +241,23 @@ export default function CashbackSettingsManagement() {
                   onChange={(e) => setFormData({ ...formData, maximumCashback: e.target.value })}
                   placeholder="Deixe vazio para ilimitado"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expirationDays">Dias para Vencimento do Cashback</Label>
+                <Input
+                  id="expirationDays"
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={formData.expirationDays}
+                  onChange={(e) => setFormData({ ...formData, expirationDays: e.target.value })}
+                  placeholder="28"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Quantos dias o cashback será válido após ser gerado (padrão: 28 dias)
+                </p>
               </div>
 
               <div className="space-y-2">
