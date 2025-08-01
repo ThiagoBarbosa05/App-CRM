@@ -1169,9 +1169,17 @@ export class DatabaseStorage implements IStorage {
   async createClientInteraction(
     insertInteraction: InsertClientInteraction,
   ): Promise<ClientInteraction> {
+    // Convert date string to Date object if needed
+    const processedData = {
+      ...insertInteraction,
+      date: typeof insertInteraction.date === 'string' 
+        ? new Date(insertInteraction.date) 
+        : insertInteraction.date,
+    };
+    
     const [interaction] = await db
       .insert(clientInteractions)
-      .values(insertInteraction)
+      .values(processedData)
       .returning();
     return interaction;
   }
@@ -1180,9 +1188,18 @@ export class DatabaseStorage implements IStorage {
     id: string,
     updateData: Partial<InsertClientInteraction>,
   ): Promise<ClientInteraction | undefined> {
+    // Convert date string to Date object if needed
+    const processedData = {
+      ...updateData,
+      date: updateData.date && typeof updateData.date === 'string' 
+        ? new Date(updateData.date) 
+        : updateData.date,
+      updatedAt: new Date(),
+    };
+    
     const [interaction] = await db
       .update(clientInteractions)
-      .set({ ...updateData, updatedAt: new Date() })
+      .set(processedData)
       .where(eq(clientInteractions.id, id))
       .returning();
     return interaction || undefined;
