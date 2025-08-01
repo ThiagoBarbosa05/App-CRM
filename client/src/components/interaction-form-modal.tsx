@@ -61,6 +61,15 @@ const statusOptions = [
   { value: "cancelled", label: "Cancelado" },
 ];
 
+const callResultOptions = [
+  { value: "COM SUCESSO", label: "COM SUCESSO" },
+  { value: "NÃO ATENDIDA", label: "NÃO ATENDIDA" },
+  { value: "SEM INTERESSE", label: "SEM INTERESSE" },
+  { value: "NÃO LIGAR MAIS", label: "NÃO LIGAR MAIS" },
+  { value: "EM OCUPADO", label: "EM OCUPADO" },
+  { value: "OUTROS", label: "OUTROS" },
+];
+
 export default function InteractionFormModal({ 
   open, 
   onOpenChange, 
@@ -79,7 +88,7 @@ export default function InteractionFormModal({
       subject: interaction?.subject || "",
       description: interaction?.description || "",
       date: interaction?.date ? new Date(interaction.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-      duration: interaction?.duration || null,
+      callResult: interaction?.callResult || "",
       status: interaction?.status || "completed",
       attachments: interaction?.attachments || [],
     },
@@ -91,7 +100,6 @@ export default function InteractionFormModal({
       const payload = {
         ...data,
         date: new Date(data.date).toISOString(),
-        duration: data.duration ? parseInt(data.duration) : null,
       };
       const response = await apiRequest("/api/interactions", "POST", payload);
       return response.json();
@@ -119,7 +127,6 @@ export default function InteractionFormModal({
       const payload = {
         ...data,
         date: new Date(data.date).toISOString(),
-        duration: data.duration ? parseInt(data.duration) : null,
       };
       const response = await apiRequest(`/api/interactions/${interaction!.id}`, "PUT", payload);
       return response.json();
@@ -260,21 +267,27 @@ export default function InteractionFormModal({
                 )}
               />
 
-              {(form.watch("type") === "call" || form.watch("type") === "telemarketing" || form.watch("type") === "meeting") && (
+              {(form.watch("type") === "call" || form.watch("type") === "telemarketing") && (
                 <FormField
                   control={form.control}
-                  name="duration"
+                  name="callResult"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Duração (minutos)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="30" 
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
+                      <FormLabel>Resultado da Chamada *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o resultado..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {callResultOptions.map((result) => (
+                            <SelectItem key={result.value} value={result.value}>
+                              {result.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

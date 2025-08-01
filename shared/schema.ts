@@ -220,7 +220,7 @@ export const clientInteractions = pgTable("client_interactions", {
   subject: text("subject").notNull(),
   description: text("description").notNull(),
   date: timestamp("date").notNull(),
-  duration: integer("duration"), // em minutos, opcional para calls/meetings
+  callResult: text("call_result", { enum: ["COM SUCESSO", "NÃO ATENDIDA", "SEM INTERESSE", "NÃO LIGAR MAIS", "EM OCUPADO", "OUTROS"] }), // resultado da chamada para telemarketing/ligação
   status: text("status", { enum: ["completed", "scheduled", "cancelled"] }).notNull().default("completed"),
   attachments: text("attachments").array().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),

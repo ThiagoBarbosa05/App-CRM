@@ -84,16 +84,8 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
     return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
 
-  const formatDuration = (minutes: number | null) => {
-    if (!minutes) return "";
-    
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}min` : `${hours}h`;
+  const formatCallResult = (result: string | null) => {
+    return result || "";
   };
 
   if (isLoading) {
@@ -171,10 +163,10 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                             <Calendar className="h-3 w-3" />
                             {formatDateTime(interaction.date)}
                           </div>
-                          {interaction.duration && (
+                          {interaction.callResult && (interaction.type === "call" || interaction.type === "telemarketing") && (
                             <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatDuration(interaction.duration)}
+                              <Phone className="h-3 w-3" />
+                              {formatCallResult(interaction.callResult)}
                             </div>
                           )}
                         </div>
