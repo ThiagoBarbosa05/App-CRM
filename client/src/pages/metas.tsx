@@ -45,6 +45,7 @@ export default function Metas() {
   const { user } = useAuth();
 
   // Estado para controlar mês/ano - iniciando com julho 2025 onde existem metas
+  const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(7);
   const [selectedYear, setSelectedYear] = useState(2025);
 
