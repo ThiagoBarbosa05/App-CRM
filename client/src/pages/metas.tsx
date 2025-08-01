@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Target, Users, TrendingUp, Calendar, BarChart3, Trophy, Medal, Award } from "lucide-react";
+import { Target, Users, TrendingUp, Calendar, BarChart3, Trophy, Medal, Award, Phone } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
@@ -41,6 +41,19 @@ interface UserRegistrationStats {
   registrationCount: number;
 }
 
+interface TelemarketingGoal {
+  id: string;
+  userId: string;
+  targetResult: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Metas() {
   const { user } = useAuth();
 
@@ -57,6 +70,11 @@ export default function Metas() {
   // Buscar estatísticas de cadastros dos usuários
   const { data: registrationStats = [] } = useQuery<UserRegistrationStats[]>({
     queryKey: ["/api/user-registration-stats"],
+  });
+
+  // Buscar metas de telemarketing
+  const { data: telemarketingGoals = [] } = useQuery<TelemarketingGoal[]>({
+    queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
   });
 
   // Função para calcular percentual atingido
@@ -89,6 +107,11 @@ export default function Metas() {
   const filteredGoals = user?.role === "admin" || user?.role === "gerente" 
     ? userGoals 
     : userGoals.filter(goal => goal.userId === user?.id);
+
+  // Filtrar metas de telemarketing do usuário logado ou mostrar todas se for admin/gerente
+  const filteredTelemarketingGoals = user?.role === "admin" || user?.role === "gerente" 
+    ? telemarketingGoals 
+    : telemarketingGoals.filter(goal => goal.userId === user?.id);
 
   // Função auxiliar para garantir weeklyResults sempre é um array
   const getWeeklyResults = (goal: UserGoal) => {
@@ -273,6 +296,79 @@ export default function Metas() {
                 );
               })}
             </div>
+
+            {/* Seção de Metas de Telemarketing */}
+            {filteredTelemarketingGoals.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <Phone className="h-8 w-8 text-purple-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Metas de Telemarketing</h2>
+                    <p className="text-gray-600">
+                      Acompanhe as metas de telemarketing em {format(new Date(selectedYear, selectedMonth - 1), "MMMM 'de' yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredTelemarketingGoals.map((goal) => (
+                    <Card key={goal.id} className="relative border-purple-200 hover:shadow-lg transition-shadow">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg text-purple-900">{goal.userName}</CardTitle>
+                          <Badge variant="outline" className="bg-white border-purple-300 text-purple-700">
+                            <Phone className="h-3 w-3 mr-1" />
+                            Telemarketing
+                          </Badge>
+                        </div>
+                        <CardDescription className="text-purple-700">{goal.userEmail}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        {/* Meta de Resultado */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+                            <div>
+                              <p className="text-sm font-medium text-purple-900">Resultado Esperado</p>
+                              <p className="text-lg font-bold text-purple-700">{goal.targetResult}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-purple-600">Meta de Quantidade</p>
+                              <p className="text-2xl font-bold text-purple-800">{goal.targetQuantity}</p>
+                              <p className="text-xs text-purple-600">chamadas</p>
+                            </div>
+                          </div>
+                          
+                          {/* Informações da Meta */}
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Período:</span>
+                              <span className="font-medium">
+                                {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Tipo de Resultado:</span>
+                              <span className="font-medium">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  goal.targetResult === 'COM SUCESSO' ? 'bg-green-100 text-green-800' :
+                                  goal.targetResult === 'NÃO ATENDIDA' ? 'bg-yellow-100 text-yellow-800' :
+                                  goal.targetResult === 'SEM INTERESSE' ? 'bg-red-100 text-red-800' :
+                                  goal.targetResult === 'NÃO LIGAR MAIS' ? 'bg-red-100 text-red-800' :
+                                  goal.targetResult === 'EM OCUPADO' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {goal.targetResult}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {registrationStats.length > 0 && (
               <div className="mt-12">
