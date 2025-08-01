@@ -632,6 +632,16 @@ export const insertCashbackSettingSchema = createInsertSchema(cashbackSettings).
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  validUntil: z.union([
+    z.string().transform(str => str === "" ? null : new Date(str)),
+    z.date(),
+    z.null()
+  ]).optional().nullable(),
+  expirationDays: z.union([
+    z.number(),
+    z.string().transform(str => parseInt(str))
+  ]).default(28),
 });
 export const insertCashbackTransactionSchema = z.object({
   clientId: z.string(),
