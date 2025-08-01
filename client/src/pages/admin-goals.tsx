@@ -272,8 +272,14 @@ export default function AdminGoals() {
   });
 
   // Buscar metas de cadastros de clientes
-  const { data: clientRegistrationGoals = [] } = useQuery<ClientRegistrationGoal[]>({
+  const clientRegistrationGoalsQuery = useQuery<ClientRegistrationGoal[]>({
     queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+  });
+  const clientRegistrationGoals = clientRegistrationGoalsQuery.data || [];
+
+  // Buscar estatísticas de cadastros de clientes
+  const { data: clientRegistrationStats = [] } = useQuery<{ userId: string; totalRegistrations: number }[]>({
+    queryKey: [`/api/client-registration-stats/${selectedMonth}/${selectedYear}`],
   });
 
   // Form para telemarketing
@@ -1063,7 +1069,7 @@ export default function AdminGoals() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {clientRegistrationGoalsLoading ? (
+                  {clientRegistrationGoalsQuery.isLoading ? (
                     <div className="flex justify-center items-center py-8">
                       <div className="text-gray-500">Carregando metas de cadastros...</div>
                     </div>
@@ -1086,8 +1092,11 @@ export default function AdminGoals() {
                         </TableHeader>
                         <TableBody>
                           {clientRegistrationGoals.map((goal) => {
+                            // Buscar estatísticas do usuário
+                            const userStats = clientRegistrationStats.find(stat => stat.userId === goal.userId);
+                            const achieved = userStats ? userStats.totalRegistrations : 0;
                             const percentage = goal.targetQuantity > 0 
-                              ? (goal.achieved / goal.targetQuantity) * 100 
+                              ? (achieved / goal.targetQuantity) * 100 
                               : 0;
                             
                             return (
@@ -1102,7 +1111,7 @@ export default function AdminGoals() {
                                 </TableCell>
                                 <TableCell>
                                   <span className="font-semibold">
-                                    {goal.achieved} clientes
+                                    {achieved} clientes
                                   </span>
                                 </TableCell>
                                 <TableCell>
