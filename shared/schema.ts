@@ -296,6 +296,31 @@ export const weeklyResults = pgTable("weekly_results", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Tabela de metas de telemarketing
+export const telemarketingGoals = pgTable("telemarketing_goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  targetResult: text("target_result", { enum: ["COM SUCESSO", "NÃO ATENDIDA", "SEM INTERESSE", "NÃO LIGAR MAIS", "EM OCUPADO", "OUTROS"] }).notNull(),
+  targetQuantity: integer("target_quantity").notNull(), // Quantidade de chamadas com o resultado esperado
+  month: integer("month").notNull(), // Mês da meta (1-12)
+  year: integer("year").notNull(), // Ano da meta
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  // Constraint composta: um usuário só pode ter uma meta por resultado/mês/ano
+  uniqueUserResultMonthYear: sql`UNIQUE (${table.userId}, ${table.targetResult}, ${table.month}, ${table.year})`,
+}));
+
+// Tabela de resultados semanais das metas de telemarketing
+export const telemarketingWeeklyResults = pgTable("telemarketing_weekly_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  telemarketingGoalId: varchar("telemarketing_goal_id").references(() => telemarketingGoals.id, { onDelete: "cascade" }).notNull(),
+  week: integer("week").notNull(), // Semana do mês (1-4)
+  quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de chamadas alcançadas com o resultado
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(birthdayReminders, ({ one }) => ({
   client: one(clients, {
@@ -404,6 +429,18 @@ export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
   updatedAt: true,
 });
 
+export const insertTelemarketingGoalSchema = createInsertSchema(telemarketingGoals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTelemarketingWeeklyResultSchema = createInsertSchema(telemarketingWeeklyResults).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -435,6 +472,10 @@ export type InsertUserGoal = z.infer<typeof insertUserGoalSchema>;
 export type UserGoal = typeof userGoals.$inferSelect;
 export type InsertWeeklyResult = z.infer<typeof insertWeeklyResultSchema>;
 export type WeeklyResult = typeof weeklyResults.$inferSelect;
+export type InsertTelemarketingGoal = z.infer<typeof insertTelemarketingGoalSchema>;
+export type TelemarketingGoal = typeof telemarketingGoals.$inferSelect;
+export type InsertTelemarketingWeeklyResult = z.infer<typeof insertTelemarketingWeeklyResultSchema>;
+export type TelemarketingWeeklyResult = typeof telemarketingWeeklyResults.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {

@@ -28,6 +28,10 @@ import {
   type WeeklyResult,
   type EmailCampaign,
   type UserGoal,
+  type TelemarketingGoal,
+  type InsertTelemarketingGoal,
+  type TelemarketingWeeklyResult,
+  type InsertTelemarketingWeeklyResult,
   type LearningImage,
   type InsertLearningImage,
   clients,
@@ -44,6 +48,8 @@ import {
   sectors,
   userGoals,
   weeklyResults,
+  telemarketingGoals,
+  telemarketingWeeklyResults,
   learningImages,
   cashbackSettings,
   type CashbackSetting,
@@ -2008,6 +2014,109 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sql`count(${clients.id})`));
 
     return clientStats;
+  }
+
+  // Telemarketing Goals methods
+  async getTelemarketingGoals(): Promise<any[]> {
+    const goals = await db
+      .select({
+        id: telemarketingGoals.id,
+        userId: telemarketingGoals.userId,
+        targetResult: telemarketingGoals.targetResult,
+        targetQuantity: telemarketingGoals.targetQuantity,
+        month: telemarketingGoals.month,
+        year: telemarketingGoals.year,
+        createdAt: telemarketingGoals.createdAt,
+        updatedAt: telemarketingGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(telemarketingGoals)
+      .leftJoin(users, eq(telemarketingGoals.userId, users.id))
+      .orderBy(desc(telemarketingGoals.createdAt));
+
+    return goals;
+  }
+
+  async getTelemarketingGoalsByMonthYear(month: number, year: number): Promise<any[]> {
+    const goals = await db
+      .select({
+        id: telemarketingGoals.id,
+        userId: telemarketingGoals.userId,
+        targetResult: telemarketingGoals.targetResult,
+        targetQuantity: telemarketingGoals.targetQuantity,
+        month: telemarketingGoals.month,
+        year: telemarketingGoals.year,
+        createdAt: telemarketingGoals.createdAt,
+        updatedAt: telemarketingGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(telemarketingGoals)
+      .leftJoin(users, eq(telemarketingGoals.userId, users.id))
+      .where(and(eq(telemarketingGoals.month, month), eq(telemarketingGoals.year, year)))
+      .orderBy(desc(telemarketingGoals.createdAt));
+
+    return goals;
+  }
+
+  async createTelemarketingGoal(insertGoal: InsertTelemarketingGoal): Promise<TelemarketingGoal> {
+    const [goal] = await db
+      .insert(telemarketingGoals)
+      .values(insertGoal)
+      .returning();
+    return goal;
+  }
+
+  async updateTelemarketingGoal(
+    id: string,
+    updateData: Partial<InsertTelemarketingGoal>,
+  ): Promise<TelemarketingGoal | undefined> {
+    const [goal] = await db
+      .update(telemarketingGoals)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(telemarketingGoals.id, id))
+      .returning();
+    return goal || undefined;
+  }
+
+  async deleteTelemarketingGoal(id: string): Promise<boolean> {
+    const result = await db.delete(telemarketingGoals).where(eq(telemarketingGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Telemarketing Weekly Results methods
+  async getTelemarketingWeeklyResults(goalId: string): Promise<TelemarketingWeeklyResult[]> {
+    return await db
+      .select()
+      .from(telemarketingWeeklyResults)
+      .where(eq(telemarketingWeeklyResults.telemarketingGoalId, goalId))
+      .orderBy(telemarketingWeeklyResults.week);
+  }
+
+  async createTelemarketingWeeklyResult(insertResult: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult> {
+    const [result] = await db
+      .insert(telemarketingWeeklyResults)
+      .values(insertResult)
+      .returning();
+    return result;
+  }
+
+  async updateTelemarketingWeeklyResult(
+    id: string,
+    updateData: Partial<InsertTelemarketingWeeklyResult>,
+  ): Promise<TelemarketingWeeklyResult | undefined> {
+    const [result] = await db
+      .update(telemarketingWeeklyResults)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(telemarketingWeeklyResults.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteTelemarketingWeeklyResult(id: string): Promise<boolean> {
+    const result = await db.delete(telemarketingWeeklyResults).where(eq(telemarketingWeeklyResults.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 

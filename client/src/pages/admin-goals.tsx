@@ -18,6 +18,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -36,6 +42,7 @@ import {
   ShoppingCart,
   Package,
   Trash2,
+  Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,7 +75,35 @@ const goalSchema = z.object({
   year: z.string().min(1, "Ano é obrigatório"),
 });
 
+const telemarketingGoalSchema = z.object({
+  userId: z.string().min(1, "Usuário é obrigatório"),
+  targetResult: z.string().min(1, "Resultado esperado é obrigatório"),
+  targetQuantity: z
+    .string()
+    .min(1, "Quantidade é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
+  month: z.string().min(1, "Mês é obrigatório"),
+  year: z.string().min(1, "Ano é obrigatório"),
+});
+
 type GoalFormData = z.infer<typeof goalSchema>;
+type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
+
+interface TelemarketingGoal {
+  id: string;
+  userId: string;
+  targetResult: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface WeeklyResult {
   id: string;
@@ -141,6 +176,10 @@ export default function AdminGoals() {
   const [selectedGoalForResults, setSelectedGoalForResults] =
     useState<UserGoal | null>(null);
 
+  // Estado para metas de telemarketing
+  const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] = useState(false);
+  const [editingTelemarketingGoal, setEditingTelemarketingGoal] = useState<TelemarketingGoal | null>(null);
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -195,6 +234,22 @@ export default function AdminGoals() {
     { id: string; name: string; email: string; role: string }[]
   >({
     queryKey: ["/api/users"],
+  });
+
+  // Buscar metas de telemarketing
+  const { data: telemarketingGoals = [] } = useQuery<TelemarketingGoal[]>({
+    queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Form para telemarketing
+  const {
+    register: registerTelemarketing,
+    handleSubmit: handleSubmitTelemarketing,
+    reset: resetTelemarketing,
+    setValue: setValueTelemarketing,
+    formState: { errors: telemarketingErrors },
+  } = useForm<TelemarketingGoalFormData>({
+    resolver: zodResolver(telemarketingGoalSchema),
   });
 
   // Mutation para criar/atualizar meta
@@ -298,6 +353,65 @@ export default function AdminGoals() {
     },
   });
 
+  // Mutation para metas de telemarketing
+  const telemarketingGoalMutation = useMutation({
+    mutationFn: async (data: TelemarketingGoalFormData) => {
+      const goalData = {
+        userId: data.userId,
+        targetResult: data.targetResult,
+        targetQuantity: parseInt(data.targetQuantity),
+        month: parseInt(data.month),
+        year: parseInt(data.year),
+      };
+
+      if (editingTelemarketingGoal) {
+        return apiRequest(`/api/telemarketing-goals/${editingTelemarketingGoal.id}`, "PUT", goalData);
+      } else {
+        return apiRequest("/api/telemarketing-goals", "POST", goalData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: editingTelemarketingGoal ? "Meta de telemarketing atualizada" : "Meta de telemarketing criada",
+        description: `Meta de telemarketing foi ${editingTelemarketingGoal ? "atualizada" : "criada"} com sucesso.`,
+      });
+      handleCloseTelemarketingModal();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || `Erro ao ${editingTelemarketingGoal ? "atualizar" : "criar"} meta de telemarketing.`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para deletar meta de telemarketing
+  const deleteTelemarketingMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest(`/api/telemarketing-goals/${goalId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: "Meta de telemarketing excluída",
+        description: "Meta de telemarketing foi excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir meta de telemarketing.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteGoal = (goal: UserGoal) => {
     if (confirm(`Tem certeza que deseja excluir a meta de ${goal.userName}?`)) {
       deleteMutation.mutate(goal.id);
@@ -365,6 +479,33 @@ export default function AdminGoals() {
 
   const onSubmitResult = (data: WeeklyResultFormData) => {
     resultMutation.mutate(data);
+  };
+
+  // Handlers para metas de telemarketing
+  const handleEditTelemarketingGoal = (goal: TelemarketingGoal) => {
+    setEditingTelemarketingGoal(goal);
+    setValueTelemarketing("userId", goal.userId);
+    setValueTelemarketing("targetResult", goal.targetResult);
+    setValueTelemarketing("targetQuantity", goal.targetQuantity.toString());
+    setValueTelemarketing("month", goal.month.toString());
+    setValueTelemarketing("year", goal.year.toString());
+    setIsTelemarketingModalOpen(true);
+  };
+
+  const handleCloseTelemarketingModal = () => {
+    setIsTelemarketingModalOpen(false);
+    setEditingTelemarketingGoal(null);
+    resetTelemarketing();
+  };
+
+  const handleDeleteTelemarketingGoal = (goal: TelemarketingGoal) => {
+    if (confirm(`Deseja realmente excluir a meta de telemarketing para ${goal.userName}?`)) {
+      deleteTelemarketingMutation.mutate(goal.id);
+    }
+  };
+
+  const onSubmitTelemarketing = (data: TelemarketingGoalFormData) => {
+    telemarketingGoalMutation.mutate(data);
   };
 
   return (
@@ -522,18 +663,32 @@ export default function AdminGoals() {
             </Card>
           </div>
 
-          {/* Tabela de metas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Metas por Usuário
-              </CardTitle>
-              <CardDescription>
-                Lista de todos os usuários e suas respectivas metas de vendas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          {/* Tabs para Metas de Vendas e Telemarketing */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="admin-metas">
+                <Target className="h-4 w-4 mr-2" />
+                Metas de Vendas
+              </TabsTrigger>
+              <TabsTrigger value="metas-telemarketing">
+                <Phone className="h-4 w-4 mr-2" />
+                Metas de Telemarketing
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tab Content: Metas de Vendas */}
+            <TabsContent value="admin-metas">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Metas de Vendas por Usuário
+                  </CardTitle>
+                  <CardDescription>
+                    Lista de todos os usuários e suas respectivas metas de vendas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-gray-500">Carregando metas...</div>
@@ -647,8 +802,111 @@ export default function AdminGoals() {
                   </Table>
                 </div>
               )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab Content: Metas de Telemarketing */}
+            <TabsContent value="metas-telemarketing">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Phone className="h-5 w-5" />
+                        Metas de Telemarketing por Usuário
+                      </CardTitle>
+                      <CardDescription>
+                        Gestão de metas baseadas em resultados de telemarketing
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setValueTelemarketing("month", selectedMonth.toString());
+                        setValueTelemarketing("year", selectedYear.toString());
+                        setIsTelemarketingModalOpen(true);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Phone className="mr-2 h-4 w-4" />
+                      Nova Meta Telemarketing
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {telemarketingGoals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Phone className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">Nenhuma meta de telemarketing cadastrada</p>
+                      <p className="text-sm">
+                        Comece definindo metas de telemarketing para os usuários
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Período</TableHead>
+                            <TableHead>Resultado Esperado</TableHead>
+                            <TableHead>Meta de Quantidade</TableHead>
+                            <TableHead>Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {telemarketingGoals.map((goal) => (
+                            <TableRow key={goal.id}>
+                              <TableCell className="font-medium">
+                                {goal.userName}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {new Date(0, goal.month - 1).toLocaleDateString(
+                                  "pt-BR",
+                                  { month: "long" },
+                                )}{" "}
+                                {goal.year}
+                              </TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  {goal.targetResult}
+                                </span>
+                              </TableCell>
+                              <TableCell className="font-semibold text-purple-600">
+                                {goal.targetQuantity} chamadas
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditTelemarketingGoal(goal)}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Editar
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeleteTelemarketingGoal(goal)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    disabled={deleteTelemarketingMutation.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Excluir
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 
@@ -901,6 +1159,139 @@ export default function AdminGoals() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {resultMutation.isPending ? "Salvando..." : "Salvar Resultado"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de metas de telemarketing */}
+      <Dialog open={isTelemarketingModalOpen} onOpenChange={handleCloseTelemarketingModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTelemarketingGoal ? "Editar Meta de Telemarketing" : "Nova Meta de Telemarketing"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitTelemarketing(onSubmitTelemarketing)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="telemarketingUserId">Usuário</Label>
+              <select
+                id="telemarketingUserId"
+                {...registerTelemarketing("userId")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={!!editingTelemarketingGoal}
+              >
+                <option value="">Selecione um usuário</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              {telemarketingErrors.userId && (
+                <p className="text-sm text-red-600">{telemarketingErrors.userId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="targetResult">Resultado Esperado</Label>
+              <select
+                id="targetResult"
+                {...registerTelemarketing("targetResult")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="">Selecione um resultado</option>
+                <option value="COM SUCESSO">COM SUCESSO</option>
+                <option value="NÃO ATENDIDA">NÃO ATENDIDA</option>
+                <option value="SEM INTERESSE">SEM INTERESSE</option>
+                <option value="NÃO LIGAR MAIS">NÃO LIGAR MAIS</option>
+                <option value="EM OCUPADO">EM OCUPADO</option>
+                <option value="OUTROS">OUTROS</option>
+              </select>
+              {telemarketingErrors.targetResult && (
+                <p className="text-sm text-red-600">{telemarketingErrors.targetResult.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="targetQuantity">Meta de Quantidade</Label>
+              <Input
+                id="targetQuantity"
+                type="number"
+                min="1"
+                placeholder="Quantidade de chamadas"
+                {...registerTelemarketing("targetQuantity")}
+              />
+              {telemarketingErrors.targetQuantity && (
+                <p className="text-sm text-red-600">{telemarketingErrors.targetQuantity.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="telemarketingMonth">Mês</Label>
+                <select
+                  id="telemarketingMonth"
+                  {...registerTelemarketing("month")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={!!editingTelemarketingGoal}
+                >
+                  <option value="">Selecione o mês</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                    </option>
+                  ))}
+                </select>
+                {telemarketingErrors.month && (
+                  <p className="text-sm text-red-600">{telemarketingErrors.month.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="telemarketingYear">Ano</Label>
+                <select
+                  id="telemarketingYear"
+                  {...registerTelemarketing("year")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={!!editingTelemarketingGoal}
+                >
+                  <option value="">Selecione o ano</option>
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                {telemarketingErrors.year && (
+                  <p className="text-sm text-red-600">{telemarketingErrors.year.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseTelemarketingModal}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={telemarketingGoalMutation.isPending}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {telemarketingGoalMutation.isPending
+                  ? "Salvando..."
+                  : editingTelemarketingGoal
+                    ? "Atualizar Meta"
+                    : "Criar Meta"}
               </Button>
             </div>
           </form>

@@ -15,6 +15,7 @@ import {
   insertOriginSchema,
   insertClientInteractionSchema,
   insertUserGoalSchema,
+  insertTelemarketingGoalSchema,
   insertCashbackSettingSchema,
   insertCashbackTransactionSchema,
 } from "@shared/schema";
@@ -879,6 +880,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir meta:", error);
       res.status(500).json({ message: "Erro ao excluir meta" });
+    }
+  });
+
+  // Telemarketing Goals routes
+  app.get("/api/telemarketing-goals", async (req, res) => {
+    try {
+      const goals = await storage.getTelemarketingGoals();
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de telemarketing" });
+    }
+  });
+
+  app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const goals = await storage.getTelemarketingGoalsByMonthYear(Number(month), Number(year));
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de telemarketing" });
+    }
+  });
+
+  app.post("/api/telemarketing-goals", async (req, res) => {
+    try {
+      const validatedData = insertTelemarketingGoalSchema.parse(req.body);
+      const goal = await storage.createTelemarketingGoal(validatedData);
+      res.status(201).json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar meta de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao criar meta de telemarketing" });
+    }
+  });
+
+  app.put("/api/telemarketing-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertTelemarketingGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateTelemarketingGoal(id, validatedData);
+      res.json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar meta de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao atualizar meta de telemarketing" });
+    }
+  });
+
+  app.delete("/api/telemarketing-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteTelemarketingGoal(id);
+      if (success === false) {
+        return res.status(404).json({ message: "Meta de telemarketing não encontrada" });
+      }
+      res.json({ message: "Meta de telemarketing excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir meta de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao excluir meta de telemarketing" });
     }
   });
 
