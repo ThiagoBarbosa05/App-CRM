@@ -1133,7 +1133,7 @@ export class DatabaseStorage implements IStorage {
         subject: clientInteractions.subject,
         description: clientInteractions.description,
         date: clientInteractions.date,
-        duration: clientInteractions.duration,
+        callResult: clientInteractions.callResult,
         status: clientInteractions.status,
         attachments: clientInteractions.attachments,
         createdAt: clientInteractions.createdAt,
