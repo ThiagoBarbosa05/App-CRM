@@ -950,6 +950,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Telemarketing statistics route
+  app.get("/api/telemarketing-stats/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const stats = await storage.getTelemarketingStatsByPeriod(parseInt(month), parseInt(year));
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de telemarketing:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de telemarketing" });
+    }
+  });
+
   // Client import route
   app.post("/api/clients/import", upload.single("file"), async (req, res) => {
     try {

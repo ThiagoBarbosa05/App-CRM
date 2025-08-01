@@ -54,6 +54,19 @@ interface TelemarketingGoal {
   updatedAt: string;
 }
 
+interface TelemarketingStats {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  "COM SUCESSO": number;
+  "NÃO ATENDIDA": number;
+  "SEM INTERESSE": number;
+  "NÃO LIGAR MAIS": number;
+  "EM OCUPADO": number;
+  "OUTROS": number;
+  total: number;
+}
+
 export default function Metas() {
   const { user } = useAuth();
 
@@ -75,6 +88,11 @@ export default function Metas() {
   // Buscar metas de telemarketing
   const { data: telemarketingGoals = [] } = useQuery<TelemarketingGoal[]>({
     queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de telemarketing
+  const { data: telemarketingStats = [] } = useQuery<TelemarketingStats[]>({
+    queryKey: [`/api/telemarketing-stats/${selectedMonth}/${selectedYear}`],
   });
 
   // Função para calcular percentual atingido
@@ -311,61 +329,98 @@ export default function Metas() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredTelemarketingGoals.map((goal) => (
-                    <Card key={goal.id} className="relative border-purple-200 hover:shadow-lg transition-shadow">
-                      <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg text-purple-900">{goal.userName}</CardTitle>
-                          <Badge variant="outline" className="bg-white border-purple-300 text-purple-700">
-                            <Phone className="h-3 w-3 mr-1" />
-                            Telemarketing
-                          </Badge>
-                        </div>
-                        <CardDescription className="text-purple-700">{goal.userEmail}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="pt-6">
-                        {/* Meta de Resultado */}
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+                  {filteredTelemarketingGoals.map((goal) => {
+                    // Buscar estatísticas do usuário
+                    const userStats = telemarketingStats.find(stat => stat.userId === goal.userId);
+                    const achieved = userStats ? userStats[goal.targetResult as keyof TelemarketingStats] || 0 : 0;
+                    const percentage = goal.targetQuantity > 0 ? calculatePercentage(Number(achieved), goal.targetQuantity) : 0;
+
+                    return (
+                      <Card key={goal.id} className="relative border-purple-200 hover:shadow-lg transition-shadow">
+                        <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg text-purple-900">{goal.userName}</CardTitle>
+                            <Badge variant="outline" className="bg-white border-purple-300 text-purple-700">
+                              <Phone className="h-3 w-3 mr-1" />
+                              Telemarketing
+                            </Badge>
+                          </div>
+                          <CardDescription className="text-purple-700">{goal.userEmail}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                          {/* Progresso da Meta */}
+                          <div className="space-y-4">
                             <div>
-                              <p className="text-sm font-medium text-purple-900">Resultado Esperado</p>
-                              <p className="text-lg font-bold text-purple-700">{goal.targetResult}</p>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-medium text-purple-900">{goal.targetResult}</span>
+                                <span className="text-sm text-purple-600">{percentage.toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3">
+                                <div 
+                                  className="bg-purple-600 h-3 rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                                ></div>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                <span>Realizado: {achieved} chamadas</span>
+                                <span>Meta: {goal.targetQuantity} chamadas</span>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm text-purple-600">Meta de Quantidade</p>
-                              <p className="text-2xl font-bold text-purple-800">{goal.targetQuantity}</p>
-                              <p className="text-xs text-purple-600">chamadas</p>
-                            </div>
-                          </div>
-                          
-                          {/* Informações da Meta */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Período:</span>
-                              <span className="font-medium">
-                                {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Tipo de Resultado:</span>
-                              <span className="font-medium">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  goal.targetResult === 'COM SUCESSO' ? 'bg-green-100 text-green-800' :
-                                  goal.targetResult === 'NÃO ATENDIDA' ? 'bg-yellow-100 text-yellow-800' :
-                                  goal.targetResult === 'SEM INTERESSE' ? 'bg-red-100 text-red-800' :
-                                  goal.targetResult === 'NÃO LIGAR MAIS' ? 'bg-red-100 text-red-800' :
-                                  goal.targetResult === 'EM OCUPADO' ? 'bg-orange-100 text-orange-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {goal.targetResult}
+
+                            {/* Resumo das Estatísticas */}
+                            {userStats && (
+                              <div className="mt-4 pt-4 border-t">
+                                <p className="text-xs text-gray-500 mb-2">Estatísticas do mês:</p>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="flex justify-between">
+                                    <span>Total:</span>
+                                    <span className="font-medium">{userStats.total}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Sucesso:</span>
+                                    <span className="font-medium text-green-600">{userStats["COM SUCESSO"]}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Não Atendida:</span>
+                                    <span className="font-medium text-yellow-600">{userStats["NÃO ATENDIDA"]}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Sem Interesse:</span>
+                                    <span className="font-medium text-red-600">{userStats["SEM INTERESSE"]}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Informações da Meta */}
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Período:</span>
+                                <span className="font-medium">
+                                  {new Date(0, goal.month - 1).toLocaleDateString('pt-BR', { month: 'long' })} {goal.year}
                                 </span>
-                              </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Foco:</span>
+                                <span className="font-medium">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    goal.targetResult === 'COM SUCESSO' ? 'bg-green-100 text-green-800' :
+                                    goal.targetResult === 'NÃO ATENDIDA' ? 'bg-yellow-100 text-yellow-800' :
+                                    goal.targetResult === 'SEM INTERESSE' ? 'bg-red-100 text-red-800' :
+                                    goal.targetResult === 'NÃO LIGAR MAIS' ? 'bg-red-100 text-red-800' :
+                                    goal.targetResult === 'EM OCUPADO' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {goal.targetResult}
+                                  </span>
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             )}

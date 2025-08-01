@@ -2118,6 +2118,66 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(telemarketingWeeklyResults).where(eq(telemarketingWeeklyResults.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
+
+  // Telemarketing Statistics methods
+  async getTelemarketingStatsByPeriod(month: number, year: number): Promise<any[]> {
+    // Buscar todas as interações de telemarketing no período especificado
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const interactions = await db
+      .select({
+        userId: clientInteractions.userId,
+        userName: users.name,
+        userEmail: users.email,
+        callResult: clientInteractions.callResult,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(clientInteractions)
+      .leftJoin(users, eq(clientInteractions.userId, users.id))
+      .where(
+        and(
+          eq(clientInteractions.type, 'telemarketing'),
+          gte(clientInteractions.date, startDate),
+          lt(clientInteractions.date, endDate),
+          isNotNull(clientInteractions.callResult)
+        )
+      )
+      .groupBy(
+        clientInteractions.userId,
+        users.name,
+        users.email,
+        clientInteractions.callResult
+      );
+
+    // Agrupar por usuário e somar os resultados
+    const statsByUser: { [key: string]: any } = {};
+
+    interactions.forEach((interaction) => {
+      const userId = interaction.userId;
+      if (!statsByUser[userId]) {
+        statsByUser[userId] = {
+          userId,
+          userName: interaction.userName,
+          userEmail: interaction.userEmail,
+          "COM SUCESSO": 0,
+          "NÃO ATENDIDA": 0,
+          "SEM INTERESSE": 0,
+          "NÃO LIGAR MAIS": 0,
+          "EM OCUPADO": 0,
+          "OUTROS": 0,
+          total: 0,
+        };
+      }
+
+      if (interaction.callResult) {
+        statsByUser[userId][interaction.callResult] = interaction.count;
+        statsByUser[userId].total += interaction.count;
+      }
+    });
+
+    return Object.values(statsByUser);
+  }
 }
 
 export const storage = new DatabaseStorage();
