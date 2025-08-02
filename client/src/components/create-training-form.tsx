@@ -45,7 +45,7 @@ export function CreateTrainingForm({
 
   const selectedTrainingType = watch("trainingType");
 
-  const [multipleFiles, setMultipleFiles] = useState([]);
+  const [multipleFiles, setMultipleFiles] = useState<string[]>([]);
 
   const onSubmit = (data: CreateTrainingData) => {
     const files = data.files ? Array.from(data.files) : [];
@@ -62,7 +62,7 @@ export function CreateTrainingForm({
     }
 
     files.forEach((file) => {
-      formData.append("files", file);
+      formData.append("files", file as File);
     });
 
     // Exemplo: envio para API
@@ -208,7 +208,7 @@ export function CreateTrainingForm({
                     const imageArray = Array.from(e.target.files).map((file) =>
                       URL.createObjectURL(file),
                     );
-                    setMultipleFiles((prev) => [...prev, imageArray]);
+                    setMultipleFiles((prev) => [...prev, ...imageArray]);
                   }
                 }}
               />
@@ -248,7 +248,7 @@ export function CreateTrainingForm({
               {watch("files") && (
                 <ul className="text-sm mt-2 list-disc ml-4">
                   {Array.from(watch("files") || []).map((file, index) => (
-                    <li key={index}>{file.name}</li>
+                    <li key={index}>{(file as File).name}</li>
                   ))}
                 </ul>
               )}
