@@ -24,6 +24,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [nomeFantasiaFilter, setNomeFantasiaFilter] = useState("");
   const [razaoSocialFilter, setRazaoSocialFilter] = useState("");
   const [cnpjFilter, setCnpjFilter] = useState("");
+  const [responsavelFilter, setResponsavelFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -147,7 +148,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     const matchesCnpj = cnpjFilter === "" || 
       (company.cnpj && company.cnpj.includes(cnpjFilter));
     
-    return matchesSearch && matchesNomeFantasia && matchesRazaoSocial && matchesCnpj;
+    const matchesResponsavel = responsavelFilter === "" || 
+      company.responsavelId === responsavelFilter;
+    
+    return matchesSearch && matchesNomeFantasia && matchesRazaoSocial && matchesCnpj && matchesResponsavel;
   });
 
   const handleEdit = (company: Company) => {
@@ -269,7 +273,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           </div>
           
           {/* Filtros específicos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
                 Nome Fantasia
@@ -300,10 +304,27 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 onChange={(e) => setCnpjFilter(e.target.value)}
               />
             </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Responsável
+              </label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={responsavelFilter}
+                onChange={(e) => setResponsavelFilter(e.target.value)}
+              >
+                <option value="">Todos os responsáveis</option>
+                {users.map((user: any) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
           {/* Botão de limpar filtros */}
-          {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || searchQuery) && (
+          {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || responsavelFilter || searchQuery) && (
             <div className="flex justify-end">
               <Button 
                 variant="outline" 
@@ -313,6 +334,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                   setNomeFantasiaFilter("");
                   setRazaoSocialFilter("");
                   setCnpjFilter("");
+                  setResponsavelFilter("");
                 }}
               >
                 Limpar Filtros

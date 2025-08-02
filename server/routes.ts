@@ -229,9 +229,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Company routes
   app.get("/api/companies", async (req, res) => {
     try {
-      const companies = await storage.getCompanies();
+      const { userId, userRole } = req.query;
+      const companies = await storage.getCompanies(
+        userId as string, 
+        userRole as string
+      );
       res.json(companies);
     } catch (error) {
+      console.error("Erro ao buscar empresas:", error);
       res.status(500).json({ message: "Erro ao buscar empresas" });
     }
   });
