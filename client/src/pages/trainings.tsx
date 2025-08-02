@@ -708,10 +708,13 @@ ATENDIMENTO AO CLIENTE
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                    onClick={() => {
+                                      setPoliticasContent('');
+                                    }}
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
                                   >
-                                    <BookOpen className="h-4 w-4 mr-2" />
-                                    Imprimir
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Excluir
                                   </Button>
                                 </div>
                               </div>
@@ -824,10 +827,13 @@ ATENDIMENTO AO CLIENTE
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              onClick={() => {
+                                setScriptsContent('');
+                              }}
+                              className="text-red-600 border-red-300 hover:bg-red-50"
                             >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Imprimir
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
                             </Button>
                           </div>
                         </div>
@@ -905,10 +911,13 @@ ATENDIMENTO AO CLIENTE
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              onClick={() => {
+                                setAnivSemanaContent('');
+                              }}
+                              className="text-red-600 border-red-300 hover:bg-red-50"
                             >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Imprimir
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
                             </Button>
                           </div>
                         </div>
@@ -986,10 +995,13 @@ ATENDIMENTO AO CLIENTE
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              onClick={() => {
+                                setAnivDiaContent('');
+                              }}
+                              className="text-red-600 border-red-300 hover:bg-red-50"
                             >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Imprimir
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
                             </Button>
                           </div>
                         </div>
@@ -1206,10 +1218,11 @@ ATENDIMENTO AO CLIENTE
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                onClick={() => deleteCard(card.id)}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
                               >
-                                <BookOpen className="h-4 w-4 mr-2" />
-                                Imprimir
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
                               </Button>
                             </div>
                           </div>
