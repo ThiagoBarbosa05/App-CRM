@@ -44,6 +44,7 @@ interface LearningCard {
   content: string;
   category: string;
   isEditing: boolean;
+  imageUrl?: string;
 }
 
 export default function Trainings() {
@@ -162,6 +163,7 @@ DICAS DE PRONÚNCIA
   const [newCardDescription, setNewCardDescription] = useState('');
   const [newCardContent, setNewCardContent] = useState('');
   const [newCardCategory, setNewCardCategory] = useState('');
+  const [newCardImageUrl, setNewCardImageUrl] = useState('');
   const [isCreatingCard, setIsCreatingCard] = useState(false);
 
   // Funções para gerenciar cards
@@ -176,6 +178,7 @@ DICAS DE PRONÚNCIA
       description: newCardDescription,
       content: newCardContent,
       category: newCardCategory || 'Geral',
+      imageUrl: newCardImageUrl || undefined,
       isEditing: false
     };
 
@@ -186,6 +189,7 @@ DICAS DE PRONÚNCIA
     setNewCardDescription('');
     setNewCardContent('');
     setNewCardCategory('');
+    setNewCardImageUrl('');
     setIsCreatingCard(false);
   };
 
@@ -962,6 +966,27 @@ ATENDIMENTO AO CLIENTE
                         />
                       </div>
                       <div>
+                        <label className="text-sm font-medium text-wine-700">URL da Imagem (opcional)</label>
+                        <Input
+                          value={newCardImageUrl}
+                          onChange={(e) => setNewCardImageUrl(e.target.value)}
+                          placeholder="Ex: https://exemplo.com/imagem.jpg ou deixe vazio"
+                          className="mt-1"
+                        />
+                        {newCardImageUrl && (
+                          <div className="mt-2">
+                            <img 
+                              src={newCardImageUrl} 
+                              alt="Preview" 
+                              className="w-full max-w-xs h-32 object-cover rounded-lg border"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Imagem não encontrada</text></svg>';
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div>
                         <label className="text-sm font-medium text-wine-700">Conteúdo</label>
                         <Textarea
                           value={newCardContent}
@@ -1063,6 +1088,18 @@ ATENDIMENTO AO CLIENTE
                         </div>
                       ) : (
                         <>
+                          {card.imageUrl && (
+                            <div className="mb-4">
+                              <img 
+                                src={card.imageUrl} 
+                                alt={card.title}
+                                className="w-full h-48 object-cover rounded-lg border"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
                           <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                             <div className="prose prose-sm">
                               <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
