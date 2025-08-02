@@ -42,6 +42,8 @@ export default function Trainings() {
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
   const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
   const [isEditingPoliticas, setIsEditingPoliticas] = useState(false);
+  const [isEditingPronuncia, setIsEditingPronuncia] = useState(false);
+  const [isEditingPaises, setIsEditingPaises] = useState(false);
   const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
 
 SCRIPT – CLIENTES INATIVOS
@@ -155,6 +157,94 @@ ATENDIMENTO AO CLIENTE
 • Pós-venda: acompanhar satisfação do cliente
 • Reclamações: encaminhar imediatamente à supervisão
 • Fidelização: oferecer programa de cashback quando aplicável`);
+
+  const [pronunciaContent, setPronunciaContent] = useState(`PRONÚNCIA DAS UVAS
+
+UVAS TINTAS
+• Cabernet Sauvignon - [ka-ber-NEH so-vi-NYON]
+• Merlot - [mer-LÔ]
+• Pinot Noir - [pi-NÔ nu-ÁR]
+• Syrah/Shiraz - [si-RÁ / shi-RÁZ]
+• Malbec - [mal-BÉK]
+• Sangiovese - [san-jo-VE-ze]
+• Tempranillo - [tem-pra-NI-lho]
+• Carmenère - [kar-me-NÊ-re]
+• Grenache - [gre-NA-she]
+• Nebbiolo - [ne-bi-Ô-lo]
+
+UVAS BRANCAS
+• Chardonnay - [shar-do-NÊ]
+• Sauvignon Blanc - [so-vi-NYON BLAN]
+• Riesling - [RÍS-ling]
+• Pinot Grigio/Pinot Gris - [pi-NÔ GRÍ-jo / pi-NÔ GRÍ]
+• Gewürztraminer - [ge-VÚRTS-tra-mi-ner]
+• Viognier - [vi-o-ni-ÊR]
+• Albariño - [al-ba-RI-nho]
+• Moscato - [mos-KA-to]
+• Chenin Blanc - [she-NIN BLAN]
+• Sémillon - [se-mi-LYON]
+
+UVAS BRASILEIRAS
+• Touriga Nacional - [tu-RI-ga na-sio-NAL]
+• Tannat - [ta-NÁT]
+• Ancellotta - [an-che-LÔ-ta]
+• Marselan - [mar-se-LAN]
+
+DICAS DE PRONÚNCIA
+• O "R" francês é mais suave
+• Acentos tônicos marcados em maiúsculo
+• Praticar com clientes demonstra conhecimento
+• Sempre confirmar se o cliente entendeu`);
+
+  const [paisesContent, setPaisesContent] = useState(`PRINCIPAIS PAÍSES PRODUTORES DE VINHO
+
+🇫🇷 FRANÇA
+• Regiões: Bordeaux, Burgundy, Champagne, Loire, Rhône
+• Especialidades: Champagne, Bordeaux tintos, Burgundy Pinot Noir
+• Características: Tradição, terroir, elegância
+• Uvas principais: Cabernet Sauvignon, Merlot, Pinot Noir, Chardonnay
+
+🇮🇹 ITÁLIA
+• Regiões: Toscana, Piemonte, Vêneto, Sicília
+• Especialidades: Chianti, Barolo, Amarone, Prosecco
+• Características: Diversidade, tradição milenar
+• Uvas principais: Sangiovese, Nebbiolo, Pinot Grigio
+
+🇪🇸 ESPANHA
+• Regiões: Rioja, Ribera del Duero, Rías Baixas
+• Especialidades: Tempranillo, Albariño, Cava
+• Características: Tradição, valor, diversidade climática
+• Uvas principais: Tempranillo, Garnacha, Albariño
+
+🇺🇸 ESTADOS UNIDOS
+• Regiões: Califórnia (Napa, Sonoma), Oregon, Washington
+• Especialidades: Cabernet Sauvignon, Pinot Noir
+• Características: Inovação, qualidade premium
+• Uvas principais: Cabernet Sauvignon, Chardonnay, Pinot Noir
+
+🇦🇺 AUSTRÁLIA
+• Regiões: Barossa Valley, Hunter Valley, Margaret River
+• Especialidades: Shiraz, Chardonnay
+• Características: Estilo moderno, frutas intensas
+• Uvas principais: Shiraz, Chardonnay, Cabernet Sauvignon
+
+🇦🇷 ARGENTINA
+• Regiões: Mendoza, Salta, San Juan
+• Especialidades: Malbec, Torrontés
+• Características: Altitude, clima seco, value
+• Uvas principais: Malbec, Cabernet Sauvignon, Torrontés
+
+🇨🇱 CHILE
+• Regiões: Valle Central, Casablanca, Colchagua
+• Especialidades: Cabernet Sauvignon, Carmenère
+• Características: Diversidade climática, qualidade/preço
+• Uvas principais: Cabernet Sauvignon, Carmenère, Sauvignon Blanc
+
+🇧🇷 BRASIL
+• Regiões: Serra Gaúcha, Campanha, Vale do São Francisco
+• Especialidades: Espumantes, tintos de altitude
+• Características: Clima tropical, inovação
+• Uvas principais: Chardonnay, Pinot Noir, Merlot, Tannat`);
 
   // Mock data - em produção, isso viria da API
   const trainingVideos: TrainingVideo[] = [
@@ -746,6 +836,168 @@ ATENDIMENTO AO CLIENTE
                               variant="outline"
                               size="sm"
                               onClick={() => setIsEditingAnivDia(true)}
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              Imprimir
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Card Pronúncia das Uvas */}
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-wine-600" />
+                          Pronúncia das Uvas
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Guia completo de pronúncia das principais castas de uvas nacionais e internacionais
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {isEditingPronuncia ? (
+                      <div className="space-y-4">
+                        <Textarea
+                          value={pronunciaContent}
+                          onChange={(e) => setPronunciaContent(e.target.value)}
+                          className="min-h-96 resize-none font-mono text-sm"
+                          placeholder="Digite aqui o guia de pronúncia das uvas..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingPronuncia(false)}
+                            className="text-gray-600 border-gray-300"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingPronuncia(false)}
+                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                          <div className="prose prose-sm">
+                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                              {pronunciaContent}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-wine-700 border-wine-300">Conhecimento Técnico</Badge>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditingPronuncia(true)}
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              Imprimir
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Card Principais Países */}
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-wine-600" />
+                          Principais Países
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Informações essenciais sobre os principais países produtores de vinho do mundo
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {isEditingPaises ? (
+                      <div className="space-y-4">
+                        <Textarea
+                          value={paisesContent}
+                          onChange={(e) => setPaisesContent(e.target.value)}
+                          className="min-h-96 resize-none font-mono text-sm"
+                          placeholder="Digite aqui informações sobre os principais países..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingPaises(false)}
+                            className="text-gray-600 border-gray-300"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingPaises(false)}
+                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                          <div className="prose prose-sm">
+                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                              {paisesContent}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-wine-700 border-wine-300">Geografia Vinícola</Badge>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditingPaises(true)}
                               className="text-wine-700 border-wine-300 hover:bg-wine-50"
                             >
                               <Edit className="h-4 w-4 mr-2" />
