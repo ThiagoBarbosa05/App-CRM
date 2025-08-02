@@ -80,11 +80,6 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   const [newMarker, setNewMarker] = useState("");
   const { user } = useAuth();
 
-  // Buscar usuários do sistema para o campo responsável
-  const { data: users = [] } = useQuery({
-    queryKey: ["/api/users"],
-  });
-
   // Buscar categorias das configurações
   const { data: categories = [] } = useQuery({
     queryKey: ["/api/categories"],
@@ -143,7 +138,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
       city: client?.city || "",
       state: client?.state || "",
       markers: client?.markers || [],
-      responsavelId: client?.responsavelId || "",
+      responsavelId: client?.responsavelId || user?.id || "",
       categoria: client?.categoria || "",
       origem: client?.origem || "",
     },
@@ -151,7 +146,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("/api/clients", "POST", data);
+      const url = `/api/clients?userId=${user?.id}&userRole=${user?.role}`;
+      const response = await apiRequest(url, "POST", data);
       return response.json();
     },
     onSuccess: () => {
@@ -174,7 +170,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest(`/api/clients/${client!.id}`, "PUT", data);
+      const url = `/api/clients/${client!.id}?userId=${user?.id}&userRole=${user?.role}`;
+      const response = await apiRequest(url, "PUT", data);
       return response.json();
     },
     onSuccess: () => {
@@ -212,10 +209,24 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
     console.log("Erros do formulário:", form.formState.errors);
     setIsSubmitting(true);
     try {
+      // Converter campos vazios para null e garantir que responsavelId seja sempre o usuário atual
+      const processedData = {
+        ...data,
+        cpf: data.cpf?.trim() || null,
+        email: data.email?.trim() || null,
+        cep: data.cep?.trim() || "",
+        address: data.address?.trim() || "",
+        number: data.number?.trim() || "",
+        neighborhood: data.neighborhood?.trim() || "",
+        city: data.city?.trim() || "",
+        state: data.state?.trim() || "",
+        responsavelId: user?.id || null, // Sempre usar o usuário atual
+      };
+
       if (client) {
-        await updateClientMutation.mutateAsync(data);
+        await updateClientMutation.mutateAsync(processedData);
       } else {
-        await createClientMutation.mutateAsync(data);
+        await createClientMutation.mutateAsync(processedData);
       }
     } catch (error) {
       console.error("Erro no submit:", error);
@@ -328,31 +339,20 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="responsavelId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Responsável</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um responsável..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum responsável</SelectItem>
-                        {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Campo informativo do responsável (usuário atual) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Responsável
+                </label>
+                <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+                  <span className="text-muted-foreground">
+                    {user?.name || "Usuário atual"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Clientes são automaticamente atribuídos a você como responsável
+                </p>
+              </div>
 
               <FormField
                 control={form.control}

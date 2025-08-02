@@ -118,13 +118,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Dados recebidos para criação de cliente:", JSON.stringify(req.body, null, 2));
       
+      // Pegar informações do usuário logado
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
       // Converter strings vazias em null para campos opcionais
-      const processedData = {
+      let processedData = {
         ...req.body,
         responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
         cpf: req.body.cpf === "" ? null : req.body.cpf,
         email: req.body.email === "" ? null : req.body.email
       };
+      
+      // Se não for admin, forçar o responsável para o usuário atual
+      if (userRole !== "admin") {
+        processedData.responsavelId = userId;
+      }
       
       const validatedData = insertClientSchema.parse(processedData);
       console.log("Dados validados:", JSON.stringify(validatedData, null, 2));
@@ -144,13 +153,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/clients/:id", async (req, res) => {
     try {
+      // Pegar informações do usuário logado
+      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
+      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
+      
       // Converter strings vazias em null para campos opcionais
-      const processedData = {
+      let processedData = {
         ...req.body,
         responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
         cpf: req.body.cpf === "" ? null : req.body.cpf,
         email: req.body.email === "" ? null : req.body.email
       };
+      
+      // Se não for admin, forçar o responsável para o usuário atual
+      if (userRole !== "admin") {
+        processedData.responsavelId = userId;
+      }
       
       const validatedData = insertClientSchema.partial().parse(processedData);
       const client = await storage.updateClient(req.params.id, validatedData);
