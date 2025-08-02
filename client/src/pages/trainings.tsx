@@ -10,6 +10,7 @@ import Sidebar from "@/components/sidebar";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import type { UploadResult } from "@uppy/core";
 
 interface TrainingVideo {
@@ -53,6 +54,7 @@ interface LearningCard {
 
 export default function Trainings() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(null);
   const [isEditingScripts, setIsEditingScripts] = useState(false);
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
@@ -470,6 +472,9 @@ ATENDIMENTO AO CLIENTE
   // Mock data para imagens de aprendizado - em produção viria da API
   const mockLearningImages: LearningImage[] = [];
 
+  // Função para verificar se o usuário é administrador
+  const isAdmin = user?.role === 'admin';
+
   const getCategoryColor = (category: string) => {
     const colors = {
       vendas: "bg-green-100 text-green-800",
@@ -670,28 +675,30 @@ ATENDIMENTO AO CLIENTE
                               </div>
                               <div className="flex justify-between items-center">
                                 <Badge variant="outline" className="text-wine-700 border-wine-300">{doc.category}</Badge>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsEditingPoliticas(true)}
-                                    className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setPoliticasContent('');
-                                    }}
-                                    className="text-red-600 border-red-300 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Excluir
-                                  </Button>
-                                </div>
+                                {isAdmin && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setIsEditingPoliticas(true)}
+                                      className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setPoliticasContent('');
+                                      }}
+                                      className="text-red-600 border-red-300 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Excluir
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </>
                           )}
@@ -789,28 +796,30 @@ ATENDIMENTO AO CLIENTE
                         </div>
                         <div className="flex justify-between items-center">
                           <Badge variant="outline" className="text-wine-700 border-wine-300">Scripts de Vendas</Badge>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingScripts(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setScriptsContent('');
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditingScripts(true)}
+                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setScriptsContent('');
+                                }}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -873,28 +882,30 @@ ATENDIMENTO AO CLIENTE
                         </div>
                         <div className="flex justify-between items-center">
                           <Badge variant="outline" className="text-wine-700 border-wine-300">Script Aniversário</Badge>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingAnivSemana(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setAnivSemanaContent('');
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditingAnivSemana(true)}
+                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setAnivSemanaContent('');
+                                }}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -957,28 +968,30 @@ ATENDIMENTO AO CLIENTE
                         </div>
                         <div className="flex justify-between items-center">
                           <Badge variant="outline" className="text-wine-700 border-wine-300">Script Aniversário</Badge>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingAnivDia(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setAnivDiaContent('');
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditingAnivDia(true)}
+                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setAnivDiaContent('');
+                                }}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
@@ -1088,7 +1101,7 @@ ATENDIMENTO AO CLIENTE
                       </div>
                     </CardContent>
                   </Card>
-                ) : (
+                ) : isAdmin ? (
                   <Card className="hover:shadow-lg transition-shadow border-dashed border-wine-300 bg-wine-50/30">
                     <CardContent className="flex items-center justify-center p-8">
                       <Button
@@ -1101,7 +1114,7 @@ ATENDIMENTO AO CLIENTE
                       </Button>
                     </CardContent>
                   </Card>
-                )}
+                ) : null}
 
                 {/* Cards dinâmicos */}
                 {learningCards.map((card) => (
@@ -1117,14 +1130,16 @@ ATENDIMENTO AO CLIENTE
                             {card.description}
                           </CardDescription>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteCard(card.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteCard(card.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -1180,26 +1195,28 @@ ATENDIMENTO AO CLIENTE
                           </div>
                           <div className="flex justify-between items-center">
                             <Badge variant="outline" className="text-wine-700 border-wine-300">{card.category}</Badge>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateCard(card.id, 'isEditing', true)}
-                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteCard(card.id)}
-                                className="text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Excluir
-                              </Button>
-                            </div>
+                            {isAdmin && (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateCard(card.id, 'isEditing', true)}
+                                  className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => deleteCard(card.id)}
+                                  className="text-red-600 border-red-300 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </>
                       )}
