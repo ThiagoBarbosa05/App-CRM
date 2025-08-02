@@ -557,8 +557,10 @@ export default function LearningImagesManagement() {
           </div>
         </div>
       </div>
-
-
+      <CreateTrainingForm
+        open={openCreateTrainingModal}
+        onOpenChange={setOpenCreateTrainingModal}
+      />
     </>
   );
 }

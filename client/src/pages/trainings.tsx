@@ -319,6 +319,98 @@ export default function Trainings() {
 
             <TabsContent value="learning" className="space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Card dos Scripts de Ligação */}
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-wine-600" />
+                          Scripts de Ligação
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Roteiros completos para diferentes situações de ligação: clientes inativos, aniversários e prospecção
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                      <div className="prose prose-sm">
+                        <h4 className="font-semibold text-wine-800 mb-3">SCRIPTS DE LIGAÇÃO</h4>
+                        
+                        <div className="mb-4">
+                          <h5 className="font-medium text-wine-700 mb-2">SCRIPT – CLIENTES INATIVOS</h5>
+                          <p className="text-sm mb-2">
+                            Alô, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?!
+                          </p>
+                          <p className="text-sm mb-2">
+                            Eu vi aqui em nosso sistema que já faz um tempinho que o Sr/Sra. não compra conosco e ai consegui com meu gerente DUAS condições muito bacana para vc voltar a ser nosso cliente.
+                          </p>
+                          <p className="text-sm mb-2">
+                            Gostaria de saber se posso enviar para seu whatsapp esta condição especial?
+                          </p>
+                          <div className="text-sm mb-2">
+                            <strong>As condições:</strong><br/>
+                            • 1 PRATO PRINCIPAL EM NOSSO BISTROT<br/>
+                            • Desconto especial de 40% em uma lista de vinhos selecionados<br/>
+                            • Comprando 3 gfs GANHA 1 TAÇA DE CRISTAL BORDEAUX
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <h5 className="font-medium text-wine-700 mb-2">SCRIPT – 1 SEMANA DO ANIVERSÁRIO</h5>
+                          <p className="text-sm mb-2">
+                            <strong>1º ETAPA:</strong><br/>
+                            Olá, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?!
+                          </p>
+                          <p className="text-sm mb-2">
+                            Estou te ligando por que vi aqui em nosso sistema que irá fazer aniversario no próximo dia XXX, e gostaria de dizer que tenho alguns presentes para vc no mês do seu niver:
+                          </p>
+                          <div className="text-sm mb-2">
+                            • 1 PRATO PRINCIPAL em um de nossos bistrot<br/>
+                            • 30% DE DESCONTO na compra de vinhos comigo
+                          </div>
+                          <p className="text-sm mb-2">
+                            <strong>3º ETAPA:</strong><br/>
+                            Eu não sei se sabe, mas temos uma charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado à partir das 18hs até 23hs.
+                          </p>
+                        </div>
+
+                        <div className="mb-4">
+                          <h5 className="font-medium text-wine-700 mb-2">SCRIPT – NO DIA DO ANIVERSÁRIO</h5>
+                          <p className="text-sm mb-2">
+                            <strong>1º ETAPA:</strong><br/>
+                            Olá, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?! Estou te ligando para desejar um feliz aniversário! Parabéns pelo seu GRAND DIA.
+                          </p>
+                          <p className="text-sm mb-2">
+                            <strong>2º ETAPA:</strong><br/>
+                            E dizer que tenho 2 presentes para vc, para o seu dia especial:
+                          </p>
+                          <div className="text-sm mb-2">
+                            • 1 PRATO PRINCIPAL em um de nossos bistrot<br/>
+                            • 30% DE DESCONTO na compra de vinhos comigo
+                          </div>
+                          <p className="text-sm mb-2">
+                            <strong>3º ETAPA:</strong><br/>
+                            Eu não sei se sabe, mas temos uma charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado à partir das 18hs até 23hs.
+                          </p>
+                          <p className="text-sm font-medium text-wine-800">
+                            Parabéns e bons vinhos 🍷
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <Badge variant="outline" className="text-wine-700 border-wine-300">Scripts de Vendas</Badge>
+                      <Button variant="outline" size="sm" className="text-wine-700 border-wine-300 hover:bg-wine-50">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Imprimir
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {mockLearningImages.map((image) => (
                   <Card key={image.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>

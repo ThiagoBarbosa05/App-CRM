@@ -79,7 +79,7 @@ export default function Configurations() {
               <TabsTrigger value="markers">Marcadores</TabsTrigger>
               <TabsTrigger value="origins">Origens</TabsTrigger>
               <TabsTrigger value="sectors">Setores</TabsTrigger>
-              <TabsTrigger value="learning-images">Imagens</TabsTrigger>
+              <TabsTrigger value="learning-images">Treinamentos</TabsTrigger>
               <TabsTrigger value="cashback">Cashback</TabsTrigger>
             </TabsList>
 
