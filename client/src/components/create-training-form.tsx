@@ -45,6 +45,8 @@ export function CreateTrainingForm({
 
   const selectedTrainingType = watch("trainingType");
 
+  const [multipleFiles, setMultipleFiles] = useState([]);
+
   const onSubmit = (data: CreateTrainingData) => {
     const files = data.files ? Array.from(data.files) : [];
 
@@ -201,17 +203,22 @@ export function CreateTrainingForm({
                 multiple
                 className="hidden"
                 {...register("files")}
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const imageArray = Array.from(e.target.files).map((file) =>
+                      URL.createObjectURL(file),
+                    );
+                    setMultipleFiles((prev) => [...prev, imageArray]);
+                  }
+                }}
               />
               {/* {errors.files && (
                 <p className="text-red-500 text-sm">{errors.files.message}</p>
               )} */}
-              {watch("files") && (
-                <ul className="text-sm mt-2 list-disc ml-4">
-                  {Array.from(watch("files") || []).map((file, index) => (
-                    <li key={index}>{file.name}</li>
-                  ))}
-                </ul>
-              )}
+
+              {multipleFiles.map((image, index) => (
+                <img key={index} src={image} alt="Uploaded" />
+              ))}
             </div>
           )}
 
