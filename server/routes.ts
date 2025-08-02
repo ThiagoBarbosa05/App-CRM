@@ -19,6 +19,7 @@ import {
   insertClientRegistrationGoalSchema,
   insertCashbackSettingSchema,
   insertCashbackTransactionSchema,
+  insertWeeklyResultSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -912,6 +913,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir meta:", error);
       res.status(500).json({ message: "Erro ao excluir meta" });
+    }
+  });
+
+  // Weekly Results routes
+  app.get("/api/weekly-results", async (req, res) => {
+    try {
+      const results = await storage.getAllWeeklyResults();
+      res.json(results);
+    } catch (error) {
+      console.error("Erro ao buscar resultados semanais:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados semanais" });
+    }
+  });
+
+  app.get("/api/weekly-results/:goalId", async (req, res) => {
+    try {
+      const { goalId } = req.params;
+      const results = await storage.getWeeklyResultsByGoalId(goalId);
+      res.json(results);
+    } catch (error) {
+      console.error("Erro ao buscar resultados semanais:", error);
+      res.status(500).json({ message: "Erro ao buscar resultados semanais" });
+    }
+  });
+
+  app.post("/api/weekly-results", async (req, res) => {
+    try {
+      const validatedData = insertWeeklyResultSchema.parse(req.body);
+      
+      // Verificar se já existe resultado para essa meta e semana
+      const existingResult = await storage.getWeeklyResult(validatedData.goalId, validatedData.week);
+      
+      if (existingResult) {
+        // Se existe, atualizar
+        const updatedResult = await storage.updateWeeklyResult(existingResult.id, validatedData);
+        return res.json(updatedResult);
+      }
+      
+      // Se não existe, criar novo
+      const result = await storage.createWeeklyResult(validatedData);
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao salvar resultado semanal:", error);
+      res.status(500).json({ message: "Erro ao salvar resultado semanal" });
+    }
+  });
+
+  app.put("/api/weekly-results/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertWeeklyResultSchema.partial().parse(req.body);
+      const result = await storage.updateWeeklyResult(id, validatedData);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar resultado semanal:", error);
+      res.status(500).json({ message: "Erro ao atualizar resultado semanal" });
+    }
+  });
+
+  app.delete("/api/weekly-results/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteWeeklyResult(id);
+      if (success === false) {
+        return res.status(404).json({ message: "Resultado semanal não encontrado" });
+      }
+      res.json({ message: "Resultado semanal excluído com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir resultado semanal:", error);
+      res.status(500).json({ message: "Erro ao excluir resultado semanal" });
     }
   });
 

@@ -1566,6 +1566,26 @@ export class DatabaseStorage implements IStorage {
     return result || null;
   }
 
+  async getAllWeeklyResults(): Promise<any[]> {
+    const results = await db
+      .select()
+      .from(weeklyResults)
+      .orderBy(weeklyResults.createdAt);
+    return results;
+  }
+
+  async deleteWeeklyResult(id: string): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(weeklyResults)
+        .where(eq(weeklyResults.id, id));
+      return result.rowCount !== null && result.rowCount > 0;
+    } catch (error) {
+      console.error("Erro ao excluir resultado semanal:", error);
+      return false;
+    }
+  }
+
   // Learning Images methods
   async getLearningImages(): Promise<LearningImage[]> {
     const result = await db
