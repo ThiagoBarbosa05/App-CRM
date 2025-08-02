@@ -47,6 +47,21 @@ export default function ClientFilters({
     queryKey: ["/api/users"],
   });
 
+  // Buscar categorias para o dropdown
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+  });
+
+  // Buscar origens para o dropdown
+  const { data: origins = [] } = useQuery({
+    queryKey: ["/api/origins"],
+  });
+
+  // Buscar marcadores para o dropdown
+  const { data: markers = [] } = useQuery({
+    queryKey: ["/api/markers"],
+  });
+
   const handleFilterChange = (key: keyof ClientFilters, value: string) => {
     setLocalFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -176,38 +191,78 @@ export default function ClientFilters({
               <Label htmlFor="filter-categoria" className="text-sm font-medium">
                 Categoria
               </Label>
-              <Input
-                id="filter-categoria"
-                placeholder="Filtrar por categoria..."
+              <Select
                 value={localFilters.categoria}
-                onChange={(e) =>
-                  handleFilterChange("categoria", e.target.value)
+                onValueChange={(value) =>
+                  handleFilterChange("categoria", value)
                 }
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma categoria..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas as categorias</SelectItem>
+                  {(categories as any[]).map((category: any) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <Label htmlFor="filter-origem" className="text-sm font-medium">
                 Origem
               </Label>
-              <Input
-                id="filter-origem"
-                placeholder="Filtrar por origem..."
+              <Select
                 value={localFilters.origem}
-                onChange={(e) => handleFilterChange("origem", e.target.value)}
-              />
+                onValueChange={(value) =>
+                  handleFilterChange("origem", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma origem..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas as origens</SelectItem>
+                  {(origins as any[]).map((origin: any) => (
+                    <SelectItem key={origin.id} value={origin.name}>
+                      {origin.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <Label htmlFor="filter-markers" className="text-sm font-medium">
                 Marcadores
               </Label>
-              <Input
-                id="filter-markers"
-                placeholder="Filtrar por marcadores..."
+              <Select
                 value={localFilters.markers}
-                onChange={(e) => handleFilterChange("markers", e.target.value)}
-              />
+                onValueChange={(value) =>
+                  handleFilterChange("markers", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um marcador..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os marcadores</SelectItem>
+                  {(markers as any[]).map((marker: any) => (
+                    <SelectItem key={marker.id} value={marker.name}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: marker.color }}
+                        ></div>
+                        {marker.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
