@@ -1,7 +1,13 @@
 import { useState } from "react";
 import Sidebar from "@/components/sidebar";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Settings } from "lucide-react";
 import UsersManagement from "@/components/users-management";
@@ -11,6 +17,7 @@ import OriginsManagement from "@/components/origins-management";
 import SectorsManagement from "@/components/sectors-management";
 import LearningImagesManagement from "@/components/learning-images-management";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
+import { Separator } from "@/components/ui/separator";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -36,8 +43,9 @@ export default function Configurations() {
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Você não possui permissão para acessar as configurações do sistema.
-                  Entre em contato com um administrador se precisar fazer alterações.
+                  Você não possui permissão para acessar as configurações do
+                  sistema. Entre em contato com um administrador se precisar
+                  fazer alterações.
                 </p>
               </CardContent>
             </Card>
@@ -55,8 +63,12 @@ export default function Configurations() {
           <div className="flex items-center gap-3 mb-6">
             <Settings className="h-8 w-8 text-wine-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-              <p className="text-gray-600">Gerencie as configurações do sistema</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Configurações
+              </h1>
+              <p className="text-gray-600">
+                Gerencie as configurações do sistema
+              </p>
             </div>
           </div>
 
