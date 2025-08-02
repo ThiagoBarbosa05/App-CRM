@@ -39,6 +39,8 @@ interface LearningImage {
 export default function Trainings() {
   const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(null);
   const [isEditingScripts, setIsEditingScripts] = useState(false);
+  const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
+  const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
   const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
 
 SCRIPT – CLIENTES INATIVOS
@@ -77,6 +79,50 @@ E dizer que tenho 2 presentes para vc, para o seu dia especial:
 Eu não sei se sabe, mas temos uma charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado à partir das 18hs até 23hs.
 
 Parabéns e bons vinhos 🍷`);
+
+  const [anivSemanaContent, setAnivSemanaContent] = useState(`SCRIPT - ANIVERSARIANTES - 1 SEMANA ANTES
+
+Olá, [NOME]! [Bom dia - Boa tarde]! Sou a [NOME VENDEDOR] da Grand Cru, tudo bom?
+
+Estou te ligando porque vi aqui em nosso sistema que você irá fazer aniversário no próximo dia [DATA], e gostaria de dizer que tenho alguns presentes especiais para você no mês do seu aniversário:
+
+🎁 PRESENTES DE ANIVERSÁRIO:
+• 1 PRATO PRINCIPAL em um de nossos bistrôs
+• 30% DE DESCONTO na compra de vinhos comigo
+• Degustação gratuita em nosso Wine Bar
+
+WINE BAR COPACABANA:
+Eu não sei se você sabe, mas temos um charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado a partir das 18h até 23h.
+
+Seria um prazer recebê-lo(a) para uma experiência única!
+
+Posso agendar uma visita para você?`);
+
+  const [anivDiaContent, setAnivDiaContent] = useState(`SCRIPT - ANIVERSARIANTES - NO DIA
+
+🎉 FELIZ ANIVERSÁRIO! 🎉
+
+Olá, [NOME]! [Bom dia - Boa tarde]! Sou a [NOME VENDEDOR] da Grand Cru, tudo bom?
+
+Estou te ligando para desejar um FELIZ ANIVERSÁRIO! Parabéns pelo seu GRAND DIA! 🍷
+
+Como presente especial do seu aniversário, preparei algumas surpresas exclusivas para você:
+
+🎁 PRESENTES ESPECIAIS:
+• 1 PRATO PRINCIPAL em um de nossos bistrôs
+• 30% DE DESCONTO na compra de vinhos comigo
+• Taça de degustação cortesia em nosso Wine Bar
+• Desconto especial em produtos selecionados
+
+CONVITE ESPECIAL:
+Que tal celebrar seu aniversário em nosso Wine Bar? Temos uma atmosfera aconchegante e os melhores vinhos para tornar sua data ainda mais especial!
+
+WINE BAR COPACABANA:
+Funcionamos de segunda à sábado das 18h às 23h.
+
+Posso reservar uma mesa especial para o aniversariante?
+
+Mais uma vez, PARABÉNS e que este novo ano seja repleto de bons vinhos e momentos especiais! 🍷✨`);
 
   // Mock data - em produção, isso viria da API
   const trainingVideos: TrainingVideo[] = [
@@ -420,6 +466,168 @@ Parabéns e bons vinhos 🍷`);
                               variant="outline"
                               size="sm"
                               onClick={() => setIsEditingScripts(true)}
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              Imprimir
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Card Aniversariantes - 1 semana antes */}
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-wine-600" />
+                          Aniversariantes - 1 semana antes
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Script personalizado para contatar clientes uma semana antes do aniversário
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {isEditingAnivSemana ? (
+                      <div className="space-y-4">
+                        <Textarea
+                          value={anivSemanaContent}
+                          onChange={(e) => setAnivSemanaContent(e.target.value)}
+                          className="min-h-96 resize-none font-mono text-sm"
+                          placeholder="Digite aqui o script para aniversariantes - 1 semana antes..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingAnivSemana(false)}
+                            className="text-gray-600 border-gray-300"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingAnivSemana(false)}
+                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                          <div className="prose prose-sm">
+                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                              {anivSemanaContent}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-wine-700 border-wine-300">Script Aniversário</Badge>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditingAnivSemana(true)}
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              Imprimir
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Card Aniversariantes - No Dia */}
+                <Card className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-wine-600" />
+                          Aniversariantes - No Dia
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Script especial para parabenizar clientes no dia do aniversário
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {isEditingAnivDia ? (
+                      <div className="space-y-4">
+                        <Textarea
+                          value={anivDiaContent}
+                          onChange={(e) => setAnivDiaContent(e.target.value)}
+                          className="min-h-96 resize-none font-mono text-sm"
+                          placeholder="Digite aqui o script para aniversariantes - no dia..."
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingAnivDia(false)}
+                            className="text-gray-600 border-gray-300"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingAnivDia(false)}
+                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                          >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                          <div className="prose prose-sm">
+                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                              {anivDiaContent}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-wine-700 border-wine-300">Script Aniversário</Badge>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditingAnivDia(true)}
                               className="text-wine-700 border-wine-300 hover:bg-wine-50"
                             >
                               <Edit className="h-4 w-4 mr-2" />
