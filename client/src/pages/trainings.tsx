@@ -41,6 +41,7 @@ export default function Trainings() {
   const [isEditingScripts, setIsEditingScripts] = useState(false);
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
   const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
+  const [isEditingPoliticas, setIsEditingPoliticas] = useState(false);
   const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
 
 SCRIPT – CLIENTES INATIVOS
@@ -123,6 +124,37 @@ Funcionamos de segunda à sábado das 18h às 23h.
 Posso reservar uma mesa especial para o aniversariante?
 
 Mais uma vez, PARABÉNS e que este novo ano seja repleto de bons vinhos e momentos especiais! 🍷✨`);
+
+  const [politicasContent, setPoliticasContent] = useState(`POLÍTICA DE VENDAS - GRAND CRU
+
+VENDAS PARCELADA NO CARTÃO
+• MÁXIMO DE 3X SEM JUROS
+• Acima de 3X consultar gerência
+• Todas as parcelas devem ser aprovadas previamente
+
+DESCONTOS AUTORIZADOS
+• PAGAMENTO À VISTA: MÁXIMO 15%
+• PAGAMENTO NO CARTÃO: MÁXIMO 10%
+• Descontos superiores necessitam aprovação gerencial
+• Documentar sempre o motivo do desconto aplicado
+
+PROCEDIMENTOS OBRIGATÓRIOS
+• Conferir limite de crédito antes da venda
+• Solicitar documento de identificação
+• Preencher todos os campos obrigatórios no sistema
+• Confirmar dados de entrega quando aplicável
+
+METAS E COMISSÕES
+• Meta mensal individual será comunicada no início de cada mês
+• Comissão base: conforme tabela em vigor
+• Bonificações por superação de meta
+• Relatórios de performance disponíveis semanalmente
+
+ATENDIMENTO AO CLIENTE
+• Prazo de resposta: máximo 24h
+• Pós-venda: acompanhar satisfação do cliente
+• Reclamações: encaminhar imediatamente à supervisão
+• Fidelização: oferecer programa de cashback quando aplicável`);
 
   // Mock data - em produção, isso viria da API
   const trainingVideos: TrainingVideo[] = [
@@ -374,32 +406,118 @@ Mais uma vez, PARABÉNS e que este novo ano seja repleto de bons vinhos e moment
 
             <TabsContent value="documents" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trainingDocuments.map((doc) => (
-                  <Card key={doc.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{doc.title}</CardTitle>
-                          <CardDescription className="mt-2">{doc.description}</CardDescription>
+                {trainingDocuments.map((doc) => {
+                  // Card especial para Política de Vendas
+                  if (doc.title === "Política de Vendas") {
+                    return (
+                      <Card key={doc.id} className="hover:shadow-lg transition-shadow">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-wine-600" />
+                                {doc.title}
+                              </CardTitle>
+                              <CardDescription className="mt-2">{doc.description}</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {isEditingPoliticas ? (
+                            <div className="space-y-4">
+                              <Textarea
+                                value={politicasContent}
+                                onChange={(e) => setPoliticasContent(e.target.value)}
+                                className="min-h-96 resize-none font-mono text-sm"
+                                placeholder="Digite aqui as políticas de vendas..."
+                              />
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setIsEditingPoliticas(false)}
+                                  className="text-gray-600 border-gray-300"
+                                >
+                                  <X className="h-4 w-4 mr-2" />
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setIsEditingPoliticas(false)}
+                                  className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                >
+                                  <Save className="h-4 w-4 mr-2" />
+                                  Salvar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                                <div className="prose prose-sm">
+                                  <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                                    {politicasContent}
+                                  </pre>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <Badge variant="outline" className="text-wine-700 border-wine-300">{doc.category}</Badge>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsEditingPoliticas(true)}
+                                    className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                                  >
+                                    <BookOpen className="h-4 w-4 mr-2" />
+                                    Imprimir
+                                  </Button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  // Cards normais para outros documentos
+                  return (
+                    <Card key={doc.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{doc.title}</CardTitle>
+                            <CardDescription className="mt-2">{doc.description}</CardDescription>
+                          </div>
+                          <div className="ml-4">
+                            {doc.fileType === 'pdf' && <FileText className="h-8 w-8 text-red-500" />}
+                            {doc.fileType === 'doc' && <FileText className="h-8 w-8 text-blue-500" />}
+                            {doc.fileType === 'ppt' && <FileText className="h-8 w-8 text-orange-500" />}
+                          </div>
                         </div>
-                        <div className="ml-4">
-                          {doc.fileType === 'pdf' && <FileText className="h-8 w-8 text-red-500" />}
-                          {doc.fileType === 'doc' && <FileText className="h-8 w-8 text-blue-500" />}
-                          {doc.fileType === 'ppt' && <FileText className="h-8 w-8 text-orange-500" />}
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline">{doc.category}</Badge>
+                          <Button variant="outline" size="sm">
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            Abrir
+                          </Button>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline">{doc.category}</Badge>
-                        <Button variant="outline" size="sm">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Abrir
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </TabsContent>
 
