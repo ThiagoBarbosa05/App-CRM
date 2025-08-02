@@ -5,8 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Play, BookOpen, Video, Users, Target, Award, Clock, FileText, Edit, Save, X, Plus, Trash2 } from "lucide-react";
+import { Play, BookOpen, Video, Users, Target, Award, Clock, FileText, Edit, Save, X, Plus, Trash2, Upload, Image } from "lucide-react";
 import Sidebar from "@/components/sidebar";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { UploadResult } from "@uppy/core";
 
 interface TrainingVideo {
   id: string;
@@ -48,6 +52,7 @@ interface LearningCard {
 }
 
 export default function Trainings() {
+  const { toast } = useToast();
   const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(null);
   const [isEditingScripts, setIsEditingScripts] = useState(false);
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
@@ -201,6 +206,71 @@ DICAS DE PRONÚNCIA
     setLearningCards(prev => prev.map(card => 
       card.id === cardId ? { ...card, [field]: value } : card
     ));
+  };
+
+  // Funções para upload de imagens
+  const handleGetUploadParameters = async () => {
+    try {
+      const response = await fetch("/api/objects/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Falha ao obter URL de upload");
+      }
+      
+      const data = await response.json();
+      return {
+        method: "PUT" as const,
+        url: data.uploadURL,
+      };
+    } catch (error) {
+      console.error("Erro ao obter URL de upload:", error);
+      toast({
+        title: "Erro no upload",
+        description: "Não foi possível obter a URL de upload",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      const imageURL = uploadedFile.uploadURL;
+      
+      // Normalizar o caminho da imagem
+      fetch("/api/training-images", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageURL }),
+      }).then(async (response) => {
+        if (response.ok) {
+          const data = await response.json();
+          const normalizedPath = data.objectPath;
+          setNewCardImageUrl(normalizedPath);
+          toast({
+            title: "Upload concluído",
+            description: "Imagem carregada com sucesso!",
+          });
+        } else {
+          throw new Error("Erro no processamento da imagem");
+        }
+      }).catch((error) => {
+        console.error("Erro ao processar imagem:", error);
+        toast({
+          title: "Erro no processamento",
+          description: "A imagem foi carregada, mas houve um erro no processamento",
+          variant: "destructive",
+        });
+      });
+    }
   };
   const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
 
@@ -966,25 +1036,39 @@ ATENDIMENTO AO CLIENTE
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-wine-700">URL da Imagem (opcional)</label>
-                        <Input
-                          value={newCardImageUrl}
-                          onChange={(e) => setNewCardImageUrl(e.target.value)}
-                          placeholder="Ex: https://exemplo.com/imagem.jpg ou deixe vazio"
-                          className="mt-1"
-                        />
-                        {newCardImageUrl && (
-                          <div className="mt-2">
-                            <img 
-                              src={newCardImageUrl} 
-                              alt="Preview" 
-                              className="w-full max-w-xs h-32 object-cover rounded-lg border"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Imagem não encontrada</text></svg>';
-                              }}
+                        <label className="text-sm font-medium text-wine-700">Imagem (opcional)</label>
+                        <div className="mt-1 space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={newCardImageUrl}
+                              onChange={(e) => setNewCardImageUrl(e.target.value)}
+                              placeholder="URL da imagem ou use o botão de upload"
+                              className="flex-1"
                             />
+                            <ObjectUploader
+                              maxNumberOfFiles={1}
+                              maxFileSize={5242880} // 5MB
+                              onGetUploadParameters={handleGetUploadParameters}
+                              onComplete={handleUploadComplete}
+                              buttonClassName="text-wine-700 border-wine-300 hover:bg-wine-50"
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload
+                            </ObjectUploader>
                           </div>
-                        )}
+                          {newCardImageUrl && (
+                            <div className="mt-2">
+                              <img 
+                                src={newCardImageUrl.startsWith('/objects/') ? newCardImageUrl : newCardImageUrl} 
+                                alt="Preview" 
+                                className="w-full max-w-xs h-32 object-cover rounded-lg border"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Imagem não encontrada</text></svg>';
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-wine-700">Conteúdo</label>

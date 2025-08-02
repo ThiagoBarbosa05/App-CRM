@@ -53,7 +53,7 @@ task = "shell.exec"
 args = "npm run dev"
 
 [agent]
-integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0", "javascript_sendgrid==1.0.0"]
+integrations = ["javascript_sendgrid==1.0.0", "javascript_object_storage==1.0.0", "javascript_database==1.0.0", "javascript_log_in_with_replit==1.0.0"]
 
 [objectStorage]
 defaultBucketID = "replit-objstore-23a3d0a6-8c69-4745-95d6-3dfc6a46a69d"
