@@ -90,6 +90,12 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
     queryKey: ["/api/origins"],
   }) as { data: any[] };
 
+  // Buscar usuários para administradores
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+    enabled: user?.role === "admin",
+  }) as { data: any[] };
+
   // Função para converter data brasileira para ISO
   const convertBrazilianDateToISO = (dateStr: string) => {
     if (!dateStr) return "";
@@ -220,7 +226,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
         neighborhood: data.neighborhood?.trim() || "",
         city: data.city?.trim() || "",
         state: data.state?.trim() || "",
-        responsavelId: user?.id || null, // Sempre usar o usuário atual
+        responsavelId: user?.role === "admin" ? data.responsavelId : user?.id || null, // Admin pode escolher, outros usam usuário atual
       };
 
       if (client) {
@@ -339,20 +345,57 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 )}
               />
 
-              {/* Campo informativo do responsável (usuário atual) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Responsável
-                </label>
-                <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
-                  <span className="text-muted-foreground">
-                    {user?.name || "Usuário atual"}
-                  </span>
+              {/* Campo responsável - selecionável para admin, informativo para outros */}
+              {user?.role === "admin" ? (
+                <FormField
+                  control={form.control}
+                  name="responsavelId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Responsável *</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o responsável" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(users as any[]).length === 0 ? (
+                              <div className="p-2 text-sm text-gray-500 text-center">
+                                Nenhum usuário encontrado.
+                              </div>
+                            ) : (
+                              (users as any[]).map((user: any) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name} - {user.role === "admin" ? "Administrador" : 
+                                   user.role === "gerente" ? "Gerente" :
+                                   user.role === "vendedor" ? "Vendedor" : "Usuário"}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Responsável
+                  </label>
+                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+                    <span className="text-muted-foreground">
+                      {user?.name || "Usuário atual"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Clientes são automaticamente atribuídos a você como responsável
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Clientes são automaticamente atribuídos a você como responsável
-                </p>
-              </div>
+              )}
 
               <FormField
                 control={form.control}
