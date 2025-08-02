@@ -39,7 +39,6 @@ import {
   Trash,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { CreateTrainingForm } from "./create-training-form";
 
 interface TrainingVideo {
   id: string;
