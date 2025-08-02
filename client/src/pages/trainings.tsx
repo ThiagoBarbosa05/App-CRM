@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, BookOpen, Video, Users, Target, Award, Clock, FileText, Edit, Save, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Play, BookOpen, Video, Users, Target, Award, Clock, FileText, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 
 interface TrainingVideo {
@@ -36,14 +37,167 @@ interface LearningImage {
   createdAt: Date;
 }
 
+interface LearningCard {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  category: string;
+  isEditing: boolean;
+}
+
 export default function Trainings() {
   const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(null);
   const [isEditingScripts, setIsEditingScripts] = useState(false);
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
   const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
   const [isEditingPoliticas, setIsEditingPoliticas] = useState(false);
-  const [isEditingPronuncia, setIsEditingPronuncia] = useState(false);
-  const [isEditingPaises, setIsEditingPaises] = useState(false);
+
+  
+  // Estados para os cards dinâmicos
+  const [learningCards, setLearningCards] = useState<LearningCard[]>([
+    {
+      id: 'pronuncia-uvas',
+      title: 'Pronúncia das Uvas',
+      description: 'Guia completo de pronúncia das principais castas de uvas nacionais e internacionais',
+      content: `PRONÚNCIA DAS UVAS
+
+UVAS TINTAS
+• Cabernet Sauvignon - [ka-ber-NEH so-vi-NYON]
+• Merlot - [mer-LÔ]
+• Pinot Noir - [pi-NÔ nu-ÁR]
+• Syrah/Shiraz - [si-RÁ / shi-RÁZ]
+• Malbec - [mal-BÉK]
+• Sangiovese - [san-jo-VE-ze]
+• Tempranillo - [tem-pra-NI-lho]
+• Carmenère - [kar-me-NÊ-re]
+• Grenache - [gre-NA-she]
+• Nebbiolo - [ne-bi-Ô-lo]
+
+UVAS BRANCAS
+• Chardonnay - [shar-do-NÊ]
+• Sauvignon Blanc - [so-vi-NYON BLAN]
+• Riesling - [RÍS-ling]
+• Pinot Grigio/Pinot Gris - [pi-NÔ GRÍ-jo / pi-NÔ GRÍ]
+• Gewürztraminer - [ge-VÚRTS-tra-mi-ner]
+• Viognier - [vi-o-ni-ÊR]
+• Albariño - [al-ba-RI-nho]
+• Moscato - [mos-KA-to]
+• Chenin Blanc - [she-NIN BLAN]
+• Sémillon - [se-mi-LYON]
+
+UVAS BRASILEIRAS
+• Touriga Nacional - [tu-RI-ga na-sio-NAL]
+• Tannat - [ta-NÁT]
+• Ancellotta - [an-che-LÔ-ta]
+• Marselan - [mar-se-LAN]
+
+DICAS DE PRONÚNCIA
+• O "R" francês é mais suave
+• Acentos tônicos marcados em maiúsculo
+• Praticar com clientes demonstra conhecimento
+• Sempre confirmar se o cliente entendeu`,
+      category: 'Conhecimento Técnico',
+      isEditing: false
+    },
+    {
+      id: 'principais-paises',
+      title: 'Principais Países',
+      description: 'Informações essenciais sobre os principais países produtores de vinho do mundo',
+      content: `PRINCIPAIS PAÍSES PRODUTORES DE VINHO
+
+🇫🇷 FRANÇA
+• Regiões: Bordeaux, Burgundy, Champagne, Loire, Rhône
+• Especialidades: Champagne, Bordeaux tintos, Burgundy Pinot Noir
+• Características: Tradição, terroir, elegância
+• Uvas principais: Cabernet Sauvignon, Merlot, Pinot Noir, Chardonnay
+
+🇮🇹 ITÁLIA
+• Regiões: Toscana, Piemonte, Vêneto, Sicília
+• Especialidades: Chianti, Barolo, Amarone, Prosecco
+• Características: Diversidade, tradição milenar
+• Uvas principais: Sangiovese, Nebbiolo, Pinot Grigio
+
+🇪🇸 ESPANHA
+• Regiões: Rioja, Ribera del Duero, Rías Baixas
+• Especialidades: Tempranillo, Albariño, Cava
+• Características: Tradição, valor, diversidade climática
+• Uvas principais: Tempranillo, Garnacha, Albariño
+
+🇺🇸 ESTADOS UNIDOS
+• Regiões: Califórnia (Napa, Sonoma), Oregon, Washington
+• Especialidades: Cabernet Sauvignon, Pinot Noir
+• Características: Inovação, qualidade premium
+• Uvas principais: Cabernet Sauvignon, Chardonnay, Pinot Noir
+
+🇦🇺 AUSTRÁLIA
+• Regiões: Barossa Valley, Hunter Valley, Margaret River
+• Especialidades: Shiraz, Chardonnay
+• Características: Estilo moderno, frutas intensas
+• Uvas principais: Shiraz, Chardonnay, Cabernet Sauvignon
+
+🇦🇷 ARGENTINA
+• Regiões: Mendoza, Salta, San Juan
+• Especialidades: Malbec, Torrontés
+• Características: Altitude, clima seco, value
+• Uvas principais: Malbec, Cabernet Sauvignon, Torrontés
+
+🇨🇱 CHILE
+• Regiões: Valle Central, Casablanca, Colchagua
+• Especialidades: Cabernet Sauvignon, Carmenère
+• Características: Diversidade climática, qualidade/preço
+• Uvas principais: Cabernet Sauvignon, Carmenère, Sauvignon Blanc
+
+🇧🇷 BRASIL
+• Regiões: Serra Gaúcha, Campanha, Vale do São Francisco
+• Especialidades: Espumantes, tintos de altitude
+• Características: Clima tropical, inovação
+• Uvas principais: Chardonnay, Pinot Noir, Merlot, Tannat`,
+      category: 'Geografia Vinícola',
+      isEditing: false
+    }
+  ]);
+  
+  const [newCardTitle, setNewCardTitle] = useState('');
+  const [newCardDescription, setNewCardDescription] = useState('');
+  const [newCardContent, setNewCardContent] = useState('');
+  const [newCardCategory, setNewCardCategory] = useState('');
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
+
+  // Funções para gerenciar cards
+  const createCard = () => {
+    if (!newCardTitle.trim() || !newCardDescription.trim() || !newCardContent.trim()) {
+      return;
+    }
+
+    const newCard: LearningCard = {
+      id: `card-${Date.now()}`,
+      title: newCardTitle,
+      description: newCardDescription,
+      content: newCardContent,
+      category: newCardCategory || 'Geral',
+      isEditing: false
+    };
+
+    setLearningCards(prev => [...prev, newCard]);
+    
+    // Limpar formulário
+    setNewCardTitle('');
+    setNewCardDescription('');
+    setNewCardContent('');
+    setNewCardCategory('');
+    setIsCreatingCard(false);
+  };
+
+  const deleteCard = (cardId: string) => {
+    setLearningCards(prev => prev.filter(card => card.id !== cardId));
+  };
+
+  const updateCard = (cardId: string, field: keyof LearningCard, value: string | boolean) => {
+    setLearningCards(prev => prev.map(card => 
+      card.id === cardId ? { ...card, [field]: value } : card
+    ));
+  };
   const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
 
 SCRIPT – CLIENTES INATIVOS
@@ -158,93 +312,7 @@ ATENDIMENTO AO CLIENTE
 • Reclamações: encaminhar imediatamente à supervisão
 • Fidelização: oferecer programa de cashback quando aplicável`);
 
-  const [pronunciaContent, setPronunciaContent] = useState(`PRONÚNCIA DAS UVAS
 
-UVAS TINTAS
-• Cabernet Sauvignon - [ka-ber-NEH so-vi-NYON]
-• Merlot - [mer-LÔ]
-• Pinot Noir - [pi-NÔ nu-ÁR]
-• Syrah/Shiraz - [si-RÁ / shi-RÁZ]
-• Malbec - [mal-BÉK]
-• Sangiovese - [san-jo-VE-ze]
-• Tempranillo - [tem-pra-NI-lho]
-• Carmenère - [kar-me-NÊ-re]
-• Grenache - [gre-NA-she]
-• Nebbiolo - [ne-bi-Ô-lo]
-
-UVAS BRANCAS
-• Chardonnay - [shar-do-NÊ]
-• Sauvignon Blanc - [so-vi-NYON BLAN]
-• Riesling - [RÍS-ling]
-• Pinot Grigio/Pinot Gris - [pi-NÔ GRÍ-jo / pi-NÔ GRÍ]
-• Gewürztraminer - [ge-VÚRTS-tra-mi-ner]
-• Viognier - [vi-o-ni-ÊR]
-• Albariño - [al-ba-RI-nho]
-• Moscato - [mos-KA-to]
-• Chenin Blanc - [she-NIN BLAN]
-• Sémillon - [se-mi-LYON]
-
-UVAS BRASILEIRAS
-• Touriga Nacional - [tu-RI-ga na-sio-NAL]
-• Tannat - [ta-NÁT]
-• Ancellotta - [an-che-LÔ-ta]
-• Marselan - [mar-se-LAN]
-
-DICAS DE PRONÚNCIA
-• O "R" francês é mais suave
-• Acentos tônicos marcados em maiúsculo
-• Praticar com clientes demonstra conhecimento
-• Sempre confirmar se o cliente entendeu`);
-
-  const [paisesContent, setPaisesContent] = useState(`PRINCIPAIS PAÍSES PRODUTORES DE VINHO
-
-🇫🇷 FRANÇA
-• Regiões: Bordeaux, Burgundy, Champagne, Loire, Rhône
-• Especialidades: Champagne, Bordeaux tintos, Burgundy Pinot Noir
-• Características: Tradição, terroir, elegância
-• Uvas principais: Cabernet Sauvignon, Merlot, Pinot Noir, Chardonnay
-
-🇮🇹 ITÁLIA
-• Regiões: Toscana, Piemonte, Vêneto, Sicília
-• Especialidades: Chianti, Barolo, Amarone, Prosecco
-• Características: Diversidade, tradição milenar
-• Uvas principais: Sangiovese, Nebbiolo, Pinot Grigio
-
-🇪🇸 ESPANHA
-• Regiões: Rioja, Ribera del Duero, Rías Baixas
-• Especialidades: Tempranillo, Albariño, Cava
-• Características: Tradição, valor, diversidade climática
-• Uvas principais: Tempranillo, Garnacha, Albariño
-
-🇺🇸 ESTADOS UNIDOS
-• Regiões: Califórnia (Napa, Sonoma), Oregon, Washington
-• Especialidades: Cabernet Sauvignon, Pinot Noir
-• Características: Inovação, qualidade premium
-• Uvas principais: Cabernet Sauvignon, Chardonnay, Pinot Noir
-
-🇦🇺 AUSTRÁLIA
-• Regiões: Barossa Valley, Hunter Valley, Margaret River
-• Especialidades: Shiraz, Chardonnay
-• Características: Estilo moderno, frutas intensas
-• Uvas principais: Shiraz, Chardonnay, Cabernet Sauvignon
-
-🇦🇷 ARGENTINA
-• Regiões: Mendoza, Salta, San Juan
-• Especialidades: Malbec, Torrontés
-• Características: Altitude, clima seco, value
-• Uvas principais: Malbec, Cabernet Sauvignon, Torrontés
-
-🇨🇱 CHILE
-• Regiões: Valle Central, Casablanca, Colchagua
-• Especialidades: Cabernet Sauvignon, Carmenère
-• Características: Diversidade climática, qualidade/preço
-• Uvas principais: Cabernet Sauvignon, Carmenère, Sauvignon Blanc
-
-🇧🇷 BRASIL
-• Regiões: Serra Gaúcha, Campanha, Vale do São Francisco
-• Especialidades: Espumantes, tintos de altitude
-• Características: Clima tropical, inovação
-• Uvas principais: Chardonnay, Pinot Noir, Merlot, Tannat`);
 
   // Mock data - em produção, isso viria da API
   const trainingVideos: TrainingVideo[] = [
@@ -856,167 +924,179 @@ DICAS DE PRONÚNCIA
                   </CardContent>
                 </Card>
 
-                {/* Card Pronúncia das Uvas */}
-                <Card className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-wine-600" />
-                          Pronúncia das Uvas
-                        </CardTitle>
-                        <CardDescription className="mt-2">
-                          Guia completo de pronúncia das principais castas de uvas nacionais e internacionais
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {isEditingPronuncia ? (
-                      <div className="space-y-4">
-                        <Textarea
-                          value={pronunciaContent}
-                          onChange={(e) => setPronunciaContent(e.target.value)}
-                          className="min-h-96 resize-none font-mono text-sm"
-                          placeholder="Digite aqui o guia de pronúncia das uvas..."
+                {/* Botão para criar novo card */}
+                {isCreatingCard ? (
+                  <Card className="hover:shadow-lg transition-shadow border-wine-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Plus className="h-5 w-5 text-wine-600" />
+                        Criar Novo Card
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-wine-700">Título</label>
+                        <Input
+                          value={newCardTitle}
+                          onChange={(e) => setNewCardTitle(e.target.value)}
+                          placeholder="Digite o título do card..."
+                          className="mt-1"
                         />
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsEditingPronuncia(false)}
-                            className="text-gray-600 border-gray-300"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsEditingPronuncia(false)}
-                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            Salvar
-                          </Button>
-                        </div>
                       </div>
-                    ) : (
-                      <>
-                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                          <div className="prose prose-sm">
-                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                              {pronunciaContent}
-                            </pre>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <Badge variant="outline" className="text-wine-700 border-wine-300">Conhecimento Técnico</Badge>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingPronuncia(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Imprimir
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                      <div>
+                        <label className="text-sm font-medium text-wine-700">Descrição</label>
+                        <Input
+                          value={newCardDescription}
+                          onChange={(e) => setNewCardDescription(e.target.value)}
+                          placeholder="Digite uma breve descrição..."
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-wine-700">Categoria</label>
+                        <Input
+                          value={newCardCategory}
+                          onChange={(e) => setNewCardCategory(e.target.value)}
+                          placeholder="Ex: Conhecimento Técnico, Procedimentos..."
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-wine-700">Conteúdo</label>
+                        <Textarea
+                          value={newCardContent}
+                          onChange={(e) => setNewCardContent(e.target.value)}
+                          placeholder="Digite o conteúdo completo do card..."
+                          className="mt-1 min-h-48 resize-none"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsCreatingCard(false)}
+                          className="text-gray-600 border-gray-300"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Cancelar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={createCard}
+                          className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Criar Card
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="hover:shadow-lg transition-shadow border-dashed border-wine-300 bg-wine-50/30">
+                    <CardContent className="flex items-center justify-center p-8">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreatingCard(true)}
+                        className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar Novo Card
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
 
-                {/* Card Principais Países */}
-                <Card className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-wine-600" />
-                          Principais Países
-                        </CardTitle>
-                        <CardDescription className="mt-2">
-                          Informações essenciais sobre os principais países produtores de vinho do mundo
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {isEditingPaises ? (
-                      <div className="space-y-4">
-                        <Textarea
-                          value={paisesContent}
-                          onChange={(e) => setPaisesContent(e.target.value)}
-                          className="min-h-96 resize-none font-mono text-sm"
-                          placeholder="Digite aqui informações sobre os principais países..."
-                        />
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsEditingPaises(false)}
-                            className="text-gray-600 border-gray-300"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsEditingPaises(false)}
-                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            Salvar
-                          </Button>
+                {/* Cards dinâmicos */}
+                {learningCards.map((card) => (
+                  <Card key={card.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-wine-600" />
+                            {card.title}
+                          </CardTitle>
+                          <CardDescription className="mt-2">
+                            {card.description}
+                          </CardDescription>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteCard(card.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    ) : (
-                      <>
-                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                          <div className="prose prose-sm">
-                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                              {paisesContent}
-                            </pre>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <Badge variant="outline" className="text-wine-700 border-wine-300">Geografia Vinícola</Badge>
-                          <div className="flex gap-2">
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {card.isEditing ? (
+                        <div className="space-y-4">
+                          <Textarea
+                            value={card.content}
+                            onChange={(e) => updateCard(card.id, 'content', e.target.value)}
+                            className="min-h-96 resize-none font-mono text-sm"
+                            placeholder="Digite aqui o conteúdo do card..."
+                          />
+                          <div className="flex justify-end gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setIsEditingPaises(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              onClick={() => updateCard(card.id, 'isEditing', false)}
+                              className="text-gray-600 border-gray-300"
                             >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
+                              <X className="h-4 w-4 mr-2" />
+                              Cancelar
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => updateCard(card.id, 'isEditing', false)}
                               className="text-wine-700 border-wine-300 hover:bg-wine-50"
                             >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              Imprimir
+                              <Save className="h-4 w-4 mr-2" />
+                              Salvar
                             </Button>
                           </div>
                         </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                      ) : (
+                        <>
+                          <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                            <div className="prose prose-sm">
+                              <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
+                                {card.content}
+                              </pre>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <Badge variant="outline" className="text-wine-700 border-wine-300">{card.category}</Badge>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateCard(card.id, 'isEditing', true)}
+                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
+                              >
+                                <BookOpen className="h-4 w-4 mr-2" />
+                                Imprimir
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
 
                 {mockLearningImages.map((image) => (
                   <Card key={image.id} className="hover:shadow-lg transition-shadow">
