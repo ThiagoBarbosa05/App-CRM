@@ -468,32 +468,7 @@ ATENDIMENTO AO CLIENTE
   ];
 
   // Mock data para imagens de aprendizado - em produção viria da API
-  const mockLearningImages: LearningImage[] = [
-    {
-      id: "1",
-      title: "Processo de Venda Consultiva",
-      description: "Fluxograma do processo de venda consultiva",
-      category: "Vendas",
-      imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&h=300&fit=crop",
-      createdAt: new Date()
-    },
-    {
-      id: "2",
-      title: "Características dos Vinhos",
-      description: "Infográfico sobre características dos vinhos",
-      category: "Produtos",
-      imageUrl: "https://images.unsplash.com/photo-1506377585622-bedcbb027afc?w=500&h=300&fit=crop",
-      createdAt: new Date()
-    },
-    {
-      id: "3",
-      title: "Interface do Sistema",
-      description: "Tutorial visual da interface do VinoCRM",
-      category: "Sistema",
-      imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&h=300&fit=crop",
-      createdAt: new Date()
-    }
-  ];
+  const mockLearningImages: LearningImage[] = [];
 
   const getCategoryColor = (category: string) => {
     const colors = {
