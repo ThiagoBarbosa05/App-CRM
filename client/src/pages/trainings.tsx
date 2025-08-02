@@ -442,7 +442,7 @@ ATENDIMENTO AO CLIENTE
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeTab="treinamentos" onTabChange={() => {}} />
+      <Sidebar />
 
       <div className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
