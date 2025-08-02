@@ -25,6 +25,15 @@ import {
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
 
+// Função para formatar valores em moeda brasileira
+const formatCurrency = (value: string | number) => {
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(numValue);
+};
+
 export default function Cashback() {
   const [activeTab, setActiveTab] = useState("cashback");
   const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -39,27 +48,27 @@ export default function Cashback() {
   const isAdmin = user?.role === 'administrador' || user?.role === 'admin';
 
   // Buscar transações de cashback
-  const { data: transactions = [] } = useQuery({
+  const { data: transactions = [] } = useQuery<any[]>({
     queryKey: ["/api/cashback-transactions"],
   });
 
   // Buscar saldos de cashback
-  const { data: balances = [] } = useQuery({
+  const { data: balances = [] } = useQuery<any[]>({
     queryKey: ["/api/cashback-balances"],
   });
 
   // Buscar configurações de cashback
-  const { data: settings = [] } = useQuery({
+  const { data: settings = [] } = useQuery<any[]>({
     queryKey: ["/api/cashback-settings"],
   });
 
   // Buscar histórico de resgates
-  const { data: allUsage = [] } = useQuery({
+  const { data: allUsage = [] } = useQuery<any[]>({
     queryKey: ["/api/cashback-usage"],
   });
 
   // Buscar usuários para o filtro
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
   });
 
@@ -111,8 +120,13 @@ export default function Cashback() {
 
   // Calcular estatísticas
   const totalCashback = transactions
-    .filter((t: any) => t.status === 'approved')
-    .reduce((sum: number, t: any) => sum + parseFloat(t.cashbackAmount), 0);
+    .reduce((sum: number, item: any) => {
+      const t = item.cashback_transactions || item;
+      if (t.status === 'approved') {
+        return sum + parseFloat(t.cashbackAmount || 0);
+      }
+      return sum;
+    }, 0);
 
   const activeClients = balances.filter((b: any) => parseFloat(b.currentBalance) > 0).length;
 
@@ -218,7 +232,8 @@ export default function Cashback() {
                     const sevenDaysFromNow = new Date();
                     sevenDaysFromNow.setDate(today.getDate() + 7);
 
-                    const expiringTransactions = transactions.filter((transaction: any) => {
+                    const expiringTransactions = transactions.filter((item: any) => {
+                      const transaction = item.cashback_transactions || item;
                       if (!transaction.expiresAt || transaction.status !== 'approved') return false;
                       
                       const expiryDate = new Date(transaction.expiresAt);
@@ -239,7 +254,9 @@ export default function Cashback() {
 
                     return (
                       <div className="space-y-4">
-                        {expiringTransactions.slice(0, 5).map((transaction: any) => {
+                        {expiringTransactions.slice(0, 5).map((item: any) => {
+                          const transaction = item.cashback_transactions || item;
+                          const client = item.clients || {};
                           const expiryDate = new Date(transaction.expiresAt);
                           const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                           
@@ -250,7 +267,7 @@ export default function Cashback() {
                                   <AlertTriangle className="h-4 w-4 text-orange-600" />
                                 </div>
                                 <div>
-                                  <p className="font-medium">{transaction.client?.name || 'Cliente'}</p>
+                                  <p className="font-medium">{client.name || 'Cliente'}</p>
                                   <p className="text-sm text-gray-600">
                                     Compra de {formatCurrency(transaction.purchaseAmount)}
                                   </p>
@@ -432,21 +449,31 @@ export default function Cashback() {
                     // Combinar transações de cashback (ganhos) e resgates (uso)
                     const allTransactions = [
                       // Transações de cashback (ganhos)
-                      ...transactions.map((t: any) => ({
-                        ...t,
-                        type: 'earn',
-                        date: new Date(t.createdAt),
-                        amount: parseFloat(t.cashbackAmount),
-                        description: `Compra de ${formatCurrency(t.purchaseAmount)} • ${parseFloat(t.cashbackRate).toFixed(1)}% cashback`
-                      })),
+                      ...transactions.map((item: any) => {
+                        const t = item.cashback_transactions || item;
+                        const client = item.clients || {};
+                        return {
+                          ...t,
+                          client,
+                          type: 'earn',
+                          date: new Date(t.createdAt),
+                          amount: parseFloat(t.cashbackAmount),
+                          description: `Compra de ${formatCurrency(t.purchaseAmount)} • ${parseFloat(t.cashbackRate).toFixed(1)}% cashback`
+                        };
+                      }),
                       // Resgates (uso)
-                      ...allUsage.map((u: any) => ({
-                        ...u,
-                        type: 'redeem',
-                        date: new Date(u.createdAt),
-                        amount: -parseFloat(u.usedAmount),
-                        description: u.description || 'Resgate de cashback'
-                      }))
+                      ...allUsage.map((item: any) => {
+                        const u = item.cashback_usage || item;
+                        const client = item.clients || {};
+                        return {
+                          ...u,
+                          client,
+                          type: 'redeem',
+                          date: new Date(u.createdAt),
+                          amount: -parseFloat(u.usedAmount),
+                          description: u.description || 'Resgate de cashback'
+                        };
+                      })
                     ].sort((a, b) => b.date.getTime() - a.date.getTime()); // Ordenar por data (mais recente primeiro)
 
                     return allTransactions.length === 0 ? (
@@ -535,27 +562,31 @@ export default function Cashback() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {allUsage.map((usage: any) => (
-                        <div key={usage.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                              <Wallet className="h-4 w-4 text-red-600" />
+                      {allUsage.map((item: any) => {
+                        const usage = item.cashback_usage || item;
+                        const client = item.clients || {};
+                        return (
+                          <div key={usage.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <Wallet className="h-4 w-4 text-red-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{client.name || 'Cliente'}</p>
+                                <p className="text-sm text-gray-500">{usage.description}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{usage.client?.name || 'Cliente'}</p>
-                              <p className="text-sm text-gray-500">{usage.description}</p>
+                            <div className="text-right">
+                              <p className="font-medium text-red-600">
+                                -{formatCurrency(usage.usedAmount)}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(usage.createdAt).toLocaleDateString('pt-BR')}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium text-red-600">
-                              -{formatCurrency(usage.usedAmount)}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(usage.createdAt).toLocaleDateString('pt-BR')}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -582,7 +613,10 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(allUsage.reduce((sum: number, usage: any) => sum + parseFloat(usage.usedAmount || 0), 0))}
+                      {formatCurrency(allUsage.reduce((sum: number, item: any) => {
+                        const usage = item.cashback_usage || item;
+                        return sum + parseFloat(usage.usedAmount || 0);
+                      }, 0))}
                     </div>
                     <p className="text-xs text-muted-foreground">Em resgates realizados</p>
                   </CardContent>
