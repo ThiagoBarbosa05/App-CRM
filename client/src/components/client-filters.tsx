@@ -77,9 +77,9 @@ export default function ClientFilters({
       phone: "",
       cpf: "",
       responsavelId: "all",
-      categoria: "",
-      origem: "",
-      markers: "",
+      categoria: "all",
+      origem: "all",
+      markers: "all",
     };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
@@ -201,7 +201,7 @@ export default function ClientFilters({
                   <SelectValue placeholder="Selecione uma categoria..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as categorias</SelectItem>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
                   {(categories as any[]).map((category: any) => (
                     <SelectItem key={category.id} value={category.name}>
                       {category.name}
@@ -225,7 +225,7 @@ export default function ClientFilters({
                   <SelectValue placeholder="Selecione uma origem..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as origens</SelectItem>
+                  <SelectItem value="all">Todas as origens</SelectItem>
                   {(origins as any[]).map((origin: any) => (
                     <SelectItem key={origin.id} value={origin.name}>
                       {origin.name}
@@ -249,7 +249,7 @@ export default function ClientFilters({
                   <SelectValue placeholder="Selecione um marcador..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os marcadores</SelectItem>
+                  <SelectItem value="all">Todos os marcadores</SelectItem>
                   {(markers as any[]).map((marker: any) => (
                     <SelectItem key={marker.id} value={marker.name}>
                       <div className="flex items-center gap-2">

@@ -186,11 +186,12 @@ export default function ClientsTableWithSelection({
           client.responsavelId !== filters.responsavelId
         )
           return false;
-        if (filters.categoria && client.categoria !== filters.categoria)
+        if (filters.categoria && filters.categoria !== "all" && client.categoria !== filters.categoria)
           return false;
-        if (filters.origem && client.origem !== filters.origem) return false;
+        if (filters.origem && filters.origem !== "all" && client.origem !== filters.origem) return false;
         if (
           filters.markers &&
+          filters.markers !== "all" &&
           client.markers &&
           !client.markers.some((marker) =>
             marker.toLowerCase().includes(filters.markers.toLowerCase()),
