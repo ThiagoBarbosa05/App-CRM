@@ -436,30 +436,6 @@ ATENDIMENTO AO CLIENTE
 
   const trainingDocuments: TrainingDocument[] = [
     {
-      id: "1",
-      title: "Manual do Usuário VinoCRM",
-      description: "Guia completo de uso do sistema",
-      category: "Sistema",
-      fileUrl: "https://exemplo.com/seu-documento.pdf",
-      fileType: "pdf"
-    },
-    {
-      id: "2",
-      title: "Catálogo de Produtos 2024",
-      description: "Catálogo completo com todos os produtos disponíveis",
-      category: "Produtos",
-      fileUrl: "#",
-      fileType: "pdf"
-    },
-    {
-      id: "3",
-      title: "Scripts de Vendas",
-      description: "Roteiros prontos para diferentes situações de venda",
-      category: "Vendas",
-      fileUrl: "#",
-      fileType: "doc"
-    },
-    {
       id: "4",
       title: "Política de Vendas",
       description: "Diretrizes e políticas para o time de vendas",
