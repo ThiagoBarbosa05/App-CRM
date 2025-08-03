@@ -1,4 +1,4 @@
-import { Upload } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,13 @@ import {
   CreateTrainingData,
   useCreateTrainingForm,
 } from "@/hooks/use-training-form";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "./ui/sheet";
 
 interface CreateTrainingFormProps {
   open: boolean;
@@ -74,17 +81,24 @@ export function CreateTrainingForm({
     console.log("Enviado:", formData);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Criar novo treinamento</DialogTitle>
-          <DialogDescription>
-            Adicione um novo treinamento para seus usuários
-          </DialogDescription>
-        </DialogHeader>
+  function removeImage(index: number) {
+    setMultipleFiles((prev) => prev.filter((_, i) => i !== index));
+  }
 
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[1200px] h-full overflow-auto ">
+        <SheetHeader>
+          <SheetTitle>Criar novo treinamento</SheetTitle>
+          <SheetDescription>
+            Adicione um novo treinamento para seus usuários
+          </SheetDescription>
+        </SheetHeader>
+
+        <form
+          className="space-y-4 w-full mt-5 rounded-lg"
+          onSubmit={handleSubmit(onSubmit)}
+        >
           <div>
             <Label>Título *</Label>
             <Input
@@ -216,9 +230,28 @@ export function CreateTrainingForm({
                 <p className="text-red-500 text-sm">{errors.files.message}</p>
               )} */}
 
-              {multipleFiles.map((image, index) => (
-                <img key={index} src={image} alt="Uploaded" />
-              ))}
+              <div className="flex items-center flex-wrap gap-2 mt-5">
+                {multipleFiles.map((image, index) => (
+                  <div
+                    className="w-full relative h-48 border border-[#7c3aed]  rounded-md"
+                    key={index}
+                  >
+                    <img
+                      className="object-contain w-full h-full"
+                      src={image}
+                      alt="Uploaded"
+                    />
+                    <Button
+                      className="bg-red-500 absolute top-2 right-2 text-white"
+                      size="icon"
+                      onClick={() => removeImage(index)}
+                      type="button"
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -266,7 +299,7 @@ export function CreateTrainingForm({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
