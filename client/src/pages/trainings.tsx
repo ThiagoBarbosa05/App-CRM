@@ -472,8 +472,11 @@ ATENDIMENTO AO CLIENTE
   // Mock data para imagens de aprendizado - em produção viria da API
   const mockLearningImages: LearningImage[] = [];
 
-  // Função para verificar se o usuário é administrador
-  const isAdmin = user?.role === 'admin';
+  // Função para verificar se o usuário tem permissão para editar cards (admin, gerente)
+  const isAdmin = user?.role === 'admin' || user?.role === 'gerente';
+  
+  // Função para verificar se o usuário pode visualizar os cards (todos os usuários logados)
+  const canViewCards = user !== null;
 
   const getCategoryColor = (category: string) => {
     const colors = {
