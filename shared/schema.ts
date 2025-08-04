@@ -623,14 +623,14 @@ export const insertTrainingSchema = createInsertSchema(trainings).omit({
   createdAt: true,
 });
 
-// Category schemas (usar tags como categories)
-export const insertCategorySchema = insertTagSchema;
+// Category schemas (usar tags como categories) - apenas name e color do frontend
+export const insertCategorySchema = insertTagSchema.omit({ type: true });
 
-// Marker schemas (também usar tags como markers)
-export const insertMarkerSchema = insertTagSchema;
+// Marker schemas (também usar tags como markers) - apenas name e color do frontend
+export const insertMarkerSchema = insertTagSchema.omit({ type: true });
 
-// Origin schemas (também usar tags como origins)
-export const insertOriginSchema = insertTagSchema;
+// Origin schemas (também usar tags como origins) - apenas name e color do frontend  
+export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
 export const insertClientInteractionSchema = createInsertSchema(
   clientInteractions,

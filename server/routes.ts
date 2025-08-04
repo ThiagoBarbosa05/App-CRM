@@ -11,6 +11,8 @@ import {
   insertBirthdayReminderSchema,
   insertBirthdayReminderSettingsSchema,
   insertTagSchema,
+  insertCategorySchema,
+  insertMarkerSchema,
   insertSectorSchema,
   insertOriginSchema,
   insertClientInteractionSchema,
@@ -776,11 +778,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Categories routes
   app.post("/api/categories", async (req, res) => {
     try {
-      const validatedData = insertTagSchema.parse(req.body);
-      const category = await storage.createTag({
-        ...validatedData,
+      const categoryData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
         type: "categoria",
-      });
+      };
+      
+      const validatedData = insertTagSchema.parse(categoryData);
+      const category = await storage.createTag(validatedData);
       res.status(201).json(category);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -794,11 +799,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Origins routes
   app.post("/api/origins", async (req, res) => {
     try {
-      const validatedData = insertOriginSchema.parse(req.body);
-      const origin = await storage.createTag({
-        ...validatedData,
+      const originData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
         type: "origem",
-      });
+      };
+      
+      const validatedData = insertTagSchema.parse(originData);
+      const origin = await storage.createTag(validatedData);
       res.status(201).json(origin);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -812,11 +820,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Markers routes
   app.post("/api/markers", async (req, res) => {
     try {
-      const validatedData = insertTagSchema.parse(req.body);
-      const marker = await storage.createTag({
-        ...validatedData,
+      const markerData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
         type: "marcador",
-      });
+      };
+      
+      const validatedData = insertTagSchema.parse(markerData);
+      const marker = await storage.createTag(validatedData);
       res.status(201).json(marker);
     } catch (error) {
       if (error instanceof z.ZodError) {
