@@ -1,0 +1,3 @@
+Nome,Telefone,CPF,Email,Aniversario,CEP,Endereco,Numero,Bairro,Cidade,Estado,Categoria,Origem,Marcadores,Responsavel
+"Teste Cliente 1",21999888777,123.456.789-01,teste1@email.com,1990-01-15,01234-567,Rua das Flores,123,Centro,São Paulo,SP,Premium,Site,VIP,contato@grandcrucentro.com.br
+"Teste Cliente 2",21999888778,123.456.789-02,teste2@email.com,1985-05-20,01234-568,Rua das Rosas,456,Centro,Rio de Janeiro,RJ,Regular,Telefone,Regular,eventos@grandcrucopacabana.com.br

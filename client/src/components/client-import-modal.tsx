@@ -292,6 +292,12 @@ export default function ClientImportModal({
             responsavelId: responsavelId,
           };
 
+          console.log(`Linha ${i + 1}: clientData com responsavelId:`, {
+            responsavelEmail: responsavelEmail,
+            responsavelId: responsavelId,
+            clientData: clientData
+          });
+
           // Validações básicas
           if (
             !clientData.name?.trim() ||

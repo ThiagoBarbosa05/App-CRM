@@ -185,8 +185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: req.body.email === "" ? null : req.body.email,
       };
 
-      // Se não for admin, forçar o responsável para o usuário atual
-      if (userRole !== "admin") {
+      // Se não for admin e não foi especificado um responsável, usar o usuário atual
+      if (userRole !== "admin" && !processedData.responsavelId) {
         processedData.responsavelId = userId;
       }
 
@@ -224,8 +224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: req.body.email === "" ? null : req.body.email,
       };
 
-      // Se não for admin, forçar o responsável para o usuário atual
-      if (userRole !== "admin") {
+      // Se não for admin e não foi especificado um responsável, usar o usuário atual
+      if (userRole !== "admin" && !processedData.responsavelId) {
         processedData.responsavelId = userId;
       }
 
