@@ -132,6 +132,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para buscar cliente por telefone
+  app.get("/api/clients/by-phone/:phone", async (req, res) => {
+    try {
+      const { phone } = req.params;
+      const client = await storage.getClientByPhone(phone);
+      if (!client) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      res.json(client);
+    } catch (error) {
+      console.error("Erro ao buscar cliente por telefone:", error);
+      res.status(500).json({ message: "Erro ao buscar cliente por telefone" });
+    }
+  });
+
   app.post("/api/clients", async (req, res) => {
     try {
       console.log(

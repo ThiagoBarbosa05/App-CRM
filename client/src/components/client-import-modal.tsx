@@ -318,11 +318,49 @@ export default function ClientImportModal({
           clientData.cpf = clientData.cpf.trim();
           clientData.email = clientData.email?.trim() || null;
 
-          await apiRequest("/api/clients", "POST", {
-            ...clientData,
-            birthday: clientData.birthday,
-          });
-          results.success++;
+          // Primeiro, verificar se já existe um cliente com este telefone
+          const phone = clientData.phone;
+          if (phone) {
+            try {
+              // Buscar cliente existente por telefone
+              const existingClientResponse = await fetch(`/api/clients/by-phone/${encodeURIComponent(phone)}`);
+              
+              if (existingClientResponse.ok) {
+                // Cliente existe, atualizar dados
+                const existingClient = await existingClientResponse.json();
+                await apiRequest(`/api/clients/${existingClient.id}`, "PUT", {
+                  ...clientData,
+                  birthday: clientData.birthday,
+                });
+                results.success++;
+                console.log(`Linha ${i + 1}: Cliente atualizado por telefone ${phone}`);
+              } else {
+                // Cliente não existe, criar novo
+                await apiRequest("/api/clients", "POST", {
+                  ...clientData,
+                  birthday: clientData.birthday,
+                });
+                results.success++;
+                console.log(`Linha ${i + 1}: Novo cliente criado com telefone ${phone}`);
+              }
+            } catch (updateError: any) {
+              // Se houver erro na atualização, tentar criar novo
+              await apiRequest("/api/clients", "POST", {
+                ...clientData,
+                birthday: clientData.birthday,
+              });
+              results.success++;
+              console.log(`Linha ${i + 1}: Cliente criado após erro na atualização`);
+            }
+          } else {
+            // Se não tem telefone, criar normalmente
+            await apiRequest("/api/clients", "POST", {
+              ...clientData,
+              birthday: clientData.birthday,
+            });
+            results.success++;
+            console.log(`Linha ${i + 1}: Novo cliente criado sem telefone`);
+          }
         } catch (error: any) {
           let errorMessage = "Erro desconhecido";
 
@@ -440,8 +478,8 @@ export default function ClientImportModal({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Faça upload de um arquivo Excel (.xlsx) com os dados dos
-                clientes.
+                Faça upload de um arquivo Excel (.xlsx) com os dados dos clientes. 
+                <strong>Se um cliente com o mesmo telefone já existir, seus dados serão atualizados automaticamente.</strong>
                 <Button
                   variant="link"
                   onClick={downloadTemplate}
@@ -500,8 +538,9 @@ export default function ClientImportModal({
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                {importData.length} registros encontrados. Revise os dados antes
-                de importar.
+                {importData.length} registros encontrados. Revise os dados antes de importar.
+                <br />
+                <strong>Nota:</strong> Clientes com telefones já cadastrados terão seus dados atualizados.
               </AlertDescription>
             </Alert>
 
