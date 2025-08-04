@@ -469,6 +469,10 @@ export default function ClientsTableWithSelection({
         client={viewingClient}
         isOpen={!!viewingClient}
         onClose={() => setViewingClient(null)}
+        onEdit={(client) => {
+          setViewingClient(null);
+          setEditingClient(client);
+        }}
       />
 
       {/* Sale Form Modal */}

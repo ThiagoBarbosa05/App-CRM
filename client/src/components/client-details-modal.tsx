@@ -25,7 +25,8 @@ import {
   DollarSign,
   Gift,
   Wallet,
-  MessageSquare
+  MessageSquare,
+  Edit
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
@@ -40,9 +41,10 @@ interface ClientDetailsModalProps {
   client: Client | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: (client: Client) => void;
 }
 
-export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDetailsModalProps) {
+export default function ClientDetailsModal({ client, isOpen, onClose, onEdit }: ClientDetailsModalProps) {
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
@@ -140,7 +142,23 @@ export default function ClientDetailsModal({ client, isOpen, onClose }: ClientDe
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {onEdit && (
+                  <Button
+                    onClick={() => {
+                      onEdit(client);
+                      onClose();
+                    }}
+                    className="flex items-center gap-2 bg-wine-600 hover:bg-wine-700 text-white h-12"
+                  >
+                    <Edit className="h-5 w-5" />
+                    <div className="text-left">
+                      <div className="font-semibold">Editar</div>
+                      <div className="text-xs opacity-90">Alterar dados</div>
+                    </div>
+                  </Button>
+                )}
+
                 <Button
                   onClick={() => setSaleModalOpen(true)}
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-12"
