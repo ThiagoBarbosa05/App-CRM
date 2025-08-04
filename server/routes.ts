@@ -796,6 +796,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const categoryData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
+        type: "categoria",
+      };
+      
+      const validatedData = insertTagSchema.parse(categoryData);
+      const category = await storage.updateTag(id, validatedData);
+      res.json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar categoria" });
+    }
+  });
+
+  app.delete("/api/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteTag(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir categoria" });
+    }
+  });
+
   // Origins routes
   app.post("/api/origins", async (req, res) => {
     try {
@@ -817,6 +848,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const originData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
+        type: "origem",
+      };
+      
+      const validatedData = insertTagSchema.parse(originData);
+      const origin = await storage.updateTag(id, validatedData);
+      res.json(origin);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar origem" });
+    }
+  });
+
+  app.delete("/api/origins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteTag(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir origem" });
+    }
+  });
+
   // Markers routes
   app.post("/api/markers", async (req, res) => {
     try {
@@ -835,6 +897,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: validationError.toString() });
       }
       res.status(500).json({ message: "Erro ao criar marcador" });
+    }
+  });
+
+  app.put("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const markerData = {
+        name: req.body.name,
+        color: req.body.color || "#6B7280", 
+        type: "marcador",
+      };
+      
+      const validatedData = insertTagSchema.parse(markerData);
+      const marker = await storage.updateTag(id, validatedData);
+      res.json(marker);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar marcador" });
+    }
+  });
+
+  app.delete("/api/markers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteTag(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir marcador" });
     }
   });
 
