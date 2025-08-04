@@ -142,23 +142,7 @@ export default function ClientDetailsModal({ client, isOpen, onClose, onEdit }: 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Button
-                  onClick={() => {
-                    if (onEdit) {
-                      onEdit(client);
-                      onClose();
-                    }
-                  }}
-                  className="flex items-center gap-2 bg-wine-600 hover:bg-wine-700 text-white h-12"
-                >
-                  <Edit className="h-5 w-5" />
-                  <div className="text-left">
-                    <div className="font-semibold">Editar</div>
-                    <div className="text-xs opacity-90">Alterar dados</div>
-                  </div>
-                </Button>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Button
                   onClick={() => setSaleModalOpen(true)}
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-12"
@@ -201,9 +185,24 @@ export default function ClientDetailsModal({ client, isOpen, onClose, onEdit }: 
           {/* Informações Básicas */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Informações Pessoais
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Informações Pessoais
+                </div>
+                <Button
+                  onClick={() => {
+                    if (onEdit) {
+                      onEdit(client);
+                      onClose();
+                    }
+                  }}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+                  size="sm"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
