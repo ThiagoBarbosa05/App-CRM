@@ -138,52 +138,46 @@ export default function ClientImportModal({
           // Log de todos os campos da linha para debug
           console.log(`Linha ${i + 1}: Dados da planilha:`, client);
 
-          // Mapear responsável por nome para ID
+          // Buscar responsável por email
           let responsavelId = null;
-          const responsavelName =
+          const responsavelEmail =
             client.Responsavel ||
             client["Responsável"] ||
             client.responsible ||
             client.Responsavel;
           console.log(
-            `Linha ${i + 1}: Responsavel original:`,
-            responsavelName,
-            typeof responsavelName,
+            `Linha ${i + 1}: Responsavel email original:`,
+            responsavelEmail,
+            typeof responsavelEmail,
           );
 
           if (
-            responsavelName &&
-            typeof responsavelName === "string" &&
-            responsavelName.trim()
+            responsavelEmail &&
+            typeof responsavelEmail === "string" &&
+            responsavelEmail.trim()
           ) {
-            const cleanName = responsavelName.toLowerCase().trim();
-            const foundUserId = userMap.get(cleanName);
-            responsavelId = foundUserId || null;
-            console.log(
-              `Linha ${i + 1}: Responsavel '${responsavelName}' -> '${cleanName}' -> ${foundUserId ? "ENCONTRADO" : "NÃO ENCONTRADO"}`,
-            );
-            console.log(`Available users:`, Array.from(userMap.keys()));
-
-            // Se não encontrou, tentar buscar por similaridade
-            if (!foundUserId) {
-              console.log(
-                `Linha ${i + 1}: Tentando buscar responsavel por similaridade...`,
-              );
-              for (const [userName, userId] of Array.from(userMap.entries())) {
-                if (
-                  userName.includes(cleanName) ||
-                  cleanName.includes(userName)
-                ) {
-                  responsavelId = userId;
-                  console.log(
-                    `Linha ${i + 1}: Encontrado por similaridade: '${userName}' -> ${userId}`,
-                  );
-                  break;
-                }
+            try {
+              const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(responsavelEmail.trim())}`);
+              if (userResponse.ok) {
+                const user = await userResponse.json();
+                responsavelId = user.id;
+                console.log(`Linha ${i + 1}: Responsável encontrado: ${responsavelEmail} -> ${user.name} (${user.id})`);
+              } else {
+                console.warn(`Linha ${i + 1}: Responsável não encontrado para email: ${responsavelEmail}`);
+                // Não falhar a importação por conta do responsável não encontrado, apenas logar
+                // results.errors.push({
+                //   row: i + 2,
+                //   error: `Responsável não encontrado: ${responsavelEmail}`,
+                //   data: client,
+                // });
+                // continue;
               }
+            } catch (error) {
+              console.error(`Linha ${i + 1}: Erro ao buscar responsável:`, error);
+              // Não falhar a importação por conta do erro, apenas logar
             }
           } else {
-            console.log(`Linha ${i + 1}: Responsavel vazio ou inválido`);
+            console.log(`Linha ${i + 1}: Responsavel email vazio ou inválido`);
           }
 
           // Mapear categoria por nome (usando o nome da categoria diretamente)

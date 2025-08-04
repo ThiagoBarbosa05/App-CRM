@@ -147,6 +147,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para buscar usuário por email
+  app.get("/api/users/by-email/:email", async (req, res) => {
+    try {
+      const { email } = req.params;
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Erro ao buscar usuário por email:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário por email" });
+    }
+  });
+
   app.post("/api/clients", async (req, res) => {
     try {
       console.log(
