@@ -1,11 +1,32 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Edit2, Trash2, Trash, Download, Upload } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Trash,
+  Download,
+  Upload,
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -56,7 +77,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   // Função para buscar nome do responsável
   const getResponsavelName = (responsavelId: string | null) => {
     if (!responsavelId) return "-";
-    const user = (users as any[]).find(u => u.id === responsavelId);
+    const user = (users as any[]).find((u) => u.id === responsavelId);
     return user ? user.name : "-";
   };
 
@@ -133,25 +154,37 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   });
 
   const filteredCompanies = companies.filter((company: Company) => {
-    const matchesSearch = searchQuery === "" || (
+    const matchesSearch =
+      searchQuery === "" ||
       company.nomeFantasia.toLowerCase().includes(searchQuery.toLowerCase()) ||
       company.razaoSocial.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (company.cnpj && company.cnpj.includes(searchQuery))
+      (company.cnpj && company.cnpj.includes(searchQuery));
+
+    const matchesNomeFantasia =
+      nomeFantasiaFilter === "" ||
+      company.nomeFantasia
+        .toLowerCase()
+        .includes(nomeFantasiaFilter.toLowerCase());
+
+    const matchesRazaoSocial =
+      razaoSocialFilter === "" ||
+      company.razaoSocial
+        .toLowerCase()
+        .includes(razaoSocialFilter.toLowerCase());
+
+    const matchesCnpj =
+      cnpjFilter === "" || (company.cnpj && company.cnpj.includes(cnpjFilter));
+
+    const matchesResponsavel =
+      responsavelFilter === "" || company.responsavelId === responsavelFilter;
+
+    return (
+      matchesSearch &&
+      matchesNomeFantasia &&
+      matchesRazaoSocial &&
+      matchesCnpj &&
+      matchesResponsavel
     );
-    
-    const matchesNomeFantasia = nomeFantasiaFilter === "" || 
-      company.nomeFantasia.toLowerCase().includes(nomeFantasiaFilter.toLowerCase());
-    
-    const matchesRazaoSocial = razaoSocialFilter === "" || 
-      company.razaoSocial.toLowerCase().includes(razaoSocialFilter.toLowerCase());
-    
-    const matchesCnpj = cnpjFilter === "" || 
-      (company.cnpj && company.cnpj.includes(cnpjFilter));
-    
-    const matchesResponsavel = responsavelFilter === "" || 
-      company.responsavelId === responsavelFilter;
-    
-    return matchesSearch && matchesNomeFantasia && matchesRazaoSocial && matchesCnpj && matchesResponsavel;
   });
 
   const handleEdit = (company: Company) => {
@@ -189,15 +222,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   const handleSelectCompany = (companyId: string, checked: boolean) => {
     if (checked) {
-      setSelectedCompanies(prev => [...prev, companyId]);
+      setSelectedCompanies((prev) => [...prev, companyId]);
     } else {
-      setSelectedCompanies(prev => prev.filter(id => id !== companyId));
+      setSelectedCompanies((prev) => prev.filter((id) => id !== companyId));
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedCompanies(filteredCompanies.map((company: Company) => company.id));
+      setSelectedCompanies(
+        filteredCompanies.map((company: Company) => company.id),
+      );
     } else {
       setSelectedCompanies([]);
     }
@@ -205,10 +240,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   const handleBulkDelete = () => {
     if (selectedCompanies.length === 0) return;
-    
+
     const count = selectedCompanies.length;
     const message = count === 1 ? "esta empresa" : `estas ${count} empresas`;
-    
+
     if (confirm(`Tem certeza que deseja excluir ${message}?`)) {
       bulkDeleteMutation.mutate(selectedCompanies);
     }
@@ -219,254 +254,515 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Empresas</CardTitle>
-        <CardDescription>
-          Gerencie as empresas cadastradas no sistema
-        </CardDescription>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Busca geral..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-              {selectedCompanies.length > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleteMutation.isPending}
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  Excluir Selecionadas ({selectedCompanies.length})
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsImportModalOpen(true)}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Importar
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleExport}
-                disabled={exportMutation.isPending}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {exportMutation.isPending ? "Gerando..." : "Exportar"}
-              </Button>
-              <Button onClick={() => setIsModalOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Empresa
-              </Button>
-            </div>
+    <div className="w-full">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-2 flex-wrap justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Empresas</h2>
+            <p className="text-gray-600 mt-1">
+              Gerencie as empresas cadastradas no sistema
+            </p>
           </div>
-          
-          {/* Filtros específicos */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Nome Fantasia
-              </label>
-              <Input
-                placeholder="Filtrar por Nome Fantasia..."
-                value={nomeFantasiaFilter}
-                onChange={(e) => setNomeFantasiaFilter(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Razão Social
-              </label>
-              <Input
-                placeholder="Filtrar por Razão Social..."
-                value={razaoSocialFilter}
-                onChange={(e) => setRazaoSocialFilter(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                CNPJ
-              </label>
-              <Input
-                placeholder="Filtrar por CNPJ..."
-                value={cnpjFilter}
-                onChange={(e) => setCnpjFilter(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Responsável
-              </label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={responsavelFilter}
-                onChange={(e) => setResponsavelFilter(e.target.value)}
-              >
-                <option value="">Todos os responsáveis</option>
-                {users.map((user: any) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setIsImportModalOpen(true)}
+              className="w-full sm:w-fit"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exportMutation.isPending}
+              className="w-full sm:w-fit"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {exportMutation.isPending ? "Gerando..." : "Exportar"}
+            </Button>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="w-full sm:w-fit"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Empresa
+            </Button>
           </div>
-          
-          {/* Botão de limpar filtros */}
-          {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || responsavelFilter || searchQuery) && (
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  setNomeFantasiaFilter("");
-                  setRazaoSocialFilter("");
-                  setCnpjFilter("");
-                  setResponsavelFilter("");
-                }}
-              >
-                Limpar Filtros
-              </Button>
-            </div>
+        </div>
+      </div>
+
+      {/* table */}
+
+      <div className="mt-5 bg-white shadow-lg p-5 rounded-lg">
+        <div className="flex w-full items-center gap-4">
+          <div className="relative w-full flex-1 max-w-sm">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Busca geral..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 w-full border-gray-400 md:w-[480px]"
+            />
+          </div>
+
+          {selectedCompanies.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Excluir Selecionadas ({selectedCompanies.length})
+            </Button>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-8">
-            <p>Carregando empresas...</p>
+        {/* Filtros específicos */}
+        <div className="grid mt-5 grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Nome Fantasia
+            </label>
+            <Input
+              className="border-gray-400"
+              placeholder="Filtrar por Nome Fantasia..."
+              value={nomeFantasiaFilter}
+              onChange={(e) => setNomeFantasiaFilter(e.target.value)}
+            />
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedCompanies.length === filteredCompanies.length && filteredCompanies.length > 0}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Nome Fantasia</TableHead>
-                <TableHead>Razão Social</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCompanies.length === 0 ? (
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Razão Social
+            </label>
+            <Input
+              className="border-gray-400"
+              placeholder="Filtrar por Razão Social..."
+              value={razaoSocialFilter}
+              onChange={(e) => setRazaoSocialFilter(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              CNPJ
+            </label>
+            <Input
+              className="border-gray-400"
+              placeholder="Filtrar por CNPJ..."
+              value={cnpjFilter}
+              onChange={(e) => setCnpjFilter(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Responsável
+            </label>
+            <select
+              className="flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={responsavelFilter}
+              onChange={(e) => setResponsavelFilter(e.target.value)}
+            >
+              <option value="">Todos os responsáveis</option>
+              {users.map((user: any) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Botão de limpar filtros */}
+        {(nomeFantasiaFilter ||
+          razaoSocialFilter ||
+          cnpjFilter ||
+          responsavelFilter ||
+          searchQuery) && (
+          <div className="flex mt-4 justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setNomeFantasiaFilter("");
+                setRazaoSocialFilter("");
+                setCnpjFilter("");
+                setResponsavelFilter("");
+              }}
+            >
+              Limpar Filtros
+            </Button>
+          </div>
+        )}
+
+        <div className="mt-10">
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p>Carregando empresas...</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      {searchQuery
-                        ? "Nenhuma empresa encontrada com os critérios de busca."
-                        : "Nenhuma empresa cadastrada."}
-                    </p>
-                  </TableCell>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        selectedCompanies.length === filteredCompanies.length &&
+                        filteredCompanies.length > 0
+                      }
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Nome Fantasia</TableHead>
+                  <TableHead>Razão Social</TableHead>
+                  <TableHead>CNPJ</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ) : (
-                filteredCompanies.map((company: Company) => (
-                  <TableRow key={company.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedCompanies.includes(company.id)}
-                        onCheckedChange={(checked) => handleSelectCompany(company.id, checked as boolean)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <button 
-                        onClick={() => handleCompanyClick(company)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                      >
-                        {company.nomeFantasia}
-                      </button>
-                    </TableCell>
-                    <TableCell>{company.razaoSocial}</TableCell>
-                    <TableCell>{company.cnpj || "-"}</TableCell>
-                    <TableCell>
-                      {company.phone ? (
-                        <div className="flex items-center gap-2">
-                          <span>{company.phone}</span>
-                          <a
-                            href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-600 hover:text-green-700 transition-colors"
-                            title="Abrir no WhatsApp"
-                          >
-                            <FaWhatsapp className="h-4 w-4" />
-                          </a>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>{company.email || "-"}</TableCell>
-                    <TableCell>{getResponsavelName(company.responsavelId)}</TableCell>
-                    <TableCell>
-                      <Badge variant={company.active ? "default" : "secondary"}>
-                        {company.active ? "Ativa" : "Inativa"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(company)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(company.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {filteredCompanies.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        {searchQuery
+                          ? "Nenhuma empresa encontrada com os critérios de busca."
+                          : "Nenhuma empresa cadastrada."}
+                      </p>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
+                ) : (
+                  filteredCompanies.map((company: Company) => (
+                    <TableRow key={company.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedCompanies.includes(company.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectCompany(company.id, checked as boolean)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <button
+                          onClick={() => handleCompanyClick(company)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        >
+                          {company.nomeFantasia}
+                        </button>
+                      </TableCell>
+                      <TableCell>{company.razaoSocial}</TableCell>
+                      <TableCell>{company.cnpj || "-"}</TableCell>
+                      <TableCell>
+                        {company.phone ? (
+                          <div className="flex items-center gap-2">
+                            <span>{company.phone}</span>
+                            <a
+                              href={`https://wa.me/${company.phone.replace(
+                                /\D/g,
+                                "",
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-600 hover:text-green-700 transition-colors"
+                              title="Abrir no WhatsApp"
+                            >
+                              <FaWhatsapp className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>{company.email || "-"}</TableCell>
+                      <TableCell>
+                        {getResponsavelName(company.responsavelId)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={company.active ? "default" : "secondary"}
+                        >
+                          {company.active ? "Ativa" : "Inativa"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(company)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(company.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+    </div>
+    // <Card>
+    //   <CardHeader>
+    //     <CardTitle>Empresas</CardTitle>
+    //     <CardDescription>
+    //       Gerencie as empresas cadastradas no sistema
+    //     </CardDescription>
+    //     <div className="space-y-4">
+    //       <div className="flex items-center justify-between">
+    //         <div className="flex items-center gap-4">
+    //           <div className="relative flex-1 max-w-sm">
+    //             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    //             <Input
+    //               placeholder="Busca geral..."
+    //               value={searchQuery}
+    //               onChange={(e) => setSearchQuery(e.target.value)}
+    //               className="pl-8"
+    //             />
+    //           </div>
+    //           {selectedCompanies.length > 0 && (
+    //             <Button
+    //               variant="destructive"
+    //               size="sm"
+    //               onClick={handleBulkDelete}
+    //               disabled={bulkDeleteMutation.isPending}
+    //             >
+    //               <Trash className="mr-2 h-4 w-4" />
+    //               Excluir Selecionadas ({selectedCompanies.length})
+    //             </Button>
+    //           )}
+    //         </div>
+    //         <div className="flex gap-2">
+    //           <Button
+    //             variant="outline"
+    //             onClick={() => setIsImportModalOpen(true)}
+    //           >
+    //             <Upload className="mr-2 h-4 w-4" />
+    //             Importar
+    //           </Button>
+    //           <Button
+    //             variant="outline"
+    //             onClick={handleExport}
+    //             disabled={exportMutation.isPending}
+    //           >
+    //             <Download className="mr-2 h-4 w-4" />
+    //             {exportMutation.isPending ? "Gerando..." : "Exportar"}
+    //           </Button>
+    //           <Button onClick={() => setIsModalOpen(true)}>
+    //             <Plus className="mr-2 h-4 w-4" />
+    //             Nova Empresa
+    //           </Button>
+    //         </div>
+    //       </div>
 
-      <CompanyFormModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        company={editingCompany}
-      />
+    //       {/* Filtros específicos */}
+    //       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    //         <div>
+    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
+    //             Nome Fantasia
+    //           </label>
+    //           <Input
+    //             placeholder="Filtrar por Nome Fantasia..."
+    //             value={nomeFantasiaFilter}
+    //             onChange={(e) => setNomeFantasiaFilter(e.target.value)}
+    //           />
+    //         </div>
+    //         <div>
+    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
+    //             Razão Social
+    //           </label>
+    //           <Input
+    //             placeholder="Filtrar por Razão Social..."
+    //             value={razaoSocialFilter}
+    //             onChange={(e) => setRazaoSocialFilter(e.target.value)}
+    //           />
+    //         </div>
+    //         <div>
+    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
+    //             CNPJ
+    //           </label>
+    //           <Input
+    //             placeholder="Filtrar por CNPJ..."
+    //             value={cnpjFilter}
+    //             onChange={(e) => setCnpjFilter(e.target.value)}
+    //           />
+    //         </div>
+    //         <div>
+    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
+    //             Responsável
+    //           </label>
+    //           <select
+    //             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    //             value={responsavelFilter}
+    //             onChange={(e) => setResponsavelFilter(e.target.value)}
+    //           >
+    //             <option value="">Todos os responsáveis</option>
+    //             {users.map((user: any) => (
+    //               <option key={user.id} value={user.id}>
+    //                 {user.name}
+    //               </option>
+    //             ))}
+    //           </select>
+    //         </div>
+    //       </div>
 
-      <CompanyDetailsModal
-        company={selectedCompany}
-        isOpen={isDetailsModalOpen}
-        onClose={handleDetailsModalClose}
-        onEdit={handleEditFromDetails}
-      />
+    //       {/* Botão de limpar filtros */}
+    //       {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || responsavelFilter || searchQuery) && (
+    //         <div className="flex justify-end">
+    //           <Button
+    //             variant="outline"
+    //             size="sm"
+    //             onClick={() => {
+    //               setSearchQuery("");
+    //               setNomeFantasiaFilter("");
+    //               setRazaoSocialFilter("");
+    //               setCnpjFilter("");
+    //               setResponsavelFilter("");
+    //             }}
+    //           >
+    //             Limpar Filtros
+    //           </Button>
+    //         </div>
+    //       )}
+    //     </div>
+    //   </CardHeader>
+    //   <CardContent>
+    //     {isLoading ? (
+    //       <div className="text-center py-8">
+    //         <p>Carregando empresas...</p>
+    //       </div>
+    //     ) : (
+    //       <Table>
+    //         <TableHeader>
+    //           <TableRow>
+    //             <TableHead className="w-12">
+    //               <Checkbox
+    //                 checked={selectedCompanies.length === filteredCompanies.length && filteredCompanies.length > 0}
+    //                 onCheckedChange={handleSelectAll}
+    //               />
+    //             </TableHead>
+    //             <TableHead>Nome Fantasia</TableHead>
+    //             <TableHead>Razão Social</TableHead>
+    //             <TableHead>CNPJ</TableHead>
+    //             <TableHead>Telefone</TableHead>
+    //             <TableHead>Email</TableHead>
+    //             <TableHead>Responsável</TableHead>
+    //             <TableHead>Status</TableHead>
+    //             <TableHead className="text-right">Ações</TableHead>
+    //           </TableRow>
+    //         </TableHeader>
+    //         <TableBody>
+    //           {filteredCompanies.length === 0 ? (
+    //             <TableRow>
+    //               <TableCell colSpan={9} className="text-center py-8">
+    //                 <p className="text-muted-foreground">
+    //                   {searchQuery
+    //                     ? "Nenhuma empresa encontrada com os critérios de busca."
+    //                     : "Nenhuma empresa cadastrada."}
+    //                 </p>
+    //               </TableCell>
+    //             </TableRow>
+    //           ) : (
+    //             filteredCompanies.map((company: Company) => (
+    //               <TableRow key={company.id}>
+    //                 <TableCell>
+    //                   <Checkbox
+    //                     checked={selectedCompanies.includes(company.id)}
+    //                     onCheckedChange={(checked) => handleSelectCompany(company.id, checked as boolean)}
+    //                   />
+    //                 </TableCell>
+    //                 <TableCell className="font-medium">
+    //                   <button
+    //                     onClick={() => handleCompanyClick(company)}
+    //                     className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+    //                   >
+    //                     {company.nomeFantasia}
+    //                   </button>
+    //                 </TableCell>
+    //                 <TableCell>{company.razaoSocial}</TableCell>
+    //                 <TableCell>{company.cnpj || "-"}</TableCell>
+    //                 <TableCell>
+    //                   {company.phone ? (
+    //                     <div className="flex items-center gap-2">
+    //                       <span>{company.phone}</span>
+    //                       <a
+    //                         href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
+    //                         target="_blank"
+    //                         rel="noopener noreferrer"
+    //                         className="text-green-600 hover:text-green-700 transition-colors"
+    //                         title="Abrir no WhatsApp"
+    //                       >
+    //                         <FaWhatsapp className="h-4 w-4" />
+    //                       </a>
+    //                     </div>
+    //                   ) : (
+    //                     "-"
+    //                   )}
+    //                 </TableCell>
+    //                 <TableCell>{company.email || "-"}</TableCell>
+    //                 <TableCell>{getResponsavelName(company.responsavelId)}</TableCell>
+    //                 <TableCell>
+    //                   <Badge variant={company.active ? "default" : "secondary"}>
+    //                     {company.active ? "Ativa" : "Inativa"}
+    //                   </Badge>
+    //                 </TableCell>
+    //                 <TableCell className="text-right">
+    //                   <div className="flex items-center justify-end gap-2">
+    //                     <Button
+    //                       variant="ghost"
+    //                       size="sm"
+    //                       onClick={() => handleEdit(company)}
+    //                     >
+    //                       <Edit2 className="h-4 w-4" />
+    //                     </Button>
+    //                     <Button
+    //                       variant="ghost"
+    //                       size="sm"
+    //                       onClick={() => handleDelete(company.id)}
+    //                       className="text-destructive hover:text-destructive"
+    //                     >
+    //                       <Trash2 className="h-4 w-4" />
+    //                     </Button>
+    //                   </div>
+    //                 </TableCell>
+    //               </TableRow>
+    //             ))
+    //           )}
+    //         </TableBody>
+    //       </Table>
+    //     )}
+    //   </CardContent>
 
-      <CompanyImportModal
-        open={isImportModalOpen}
-        onOpenChange={setIsImportModalOpen}
-      />
-    </Card>
+    //   <CompanyFormModal
+    //     isOpen={isModalOpen}
+    //     onClose={handleModalClose}
+    //     company={editingCompany}
+    //   />
+
+    //   <CompanyDetailsModal
+    //     company={selectedCompany}
+    //     isOpen={isDetailsModalOpen}
+    //     onClose={handleDetailsModalClose}
+    //     onEdit={handleEditFromDetails}
+    //   />
+
+    //   <CompanyImportModal
+    //     open={isImportModalOpen}
+    //     onOpenChange={setIsImportModalOpen}
+    //   />
+    // </Card>
   );
 }

@@ -159,7 +159,7 @@ export const trainingAttachments = pgTable("training_attachments", {
     .references(() => trainings.id)
     .notNull(),
   name: text("name").notNull(),
-  type: text("type").notNull(),
+  fileType: text("file_type").notNull(),
   url: text("url").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -618,6 +618,11 @@ export const insertTagSchema = createInsertSchema(tags).omit({
   updatedAt: true,
 });
 
+export const insertTrainingSchema = createInsertSchema(trainings).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Category schemas (usar tags como categories)
 export const insertCategorySchema = insertTagSchema;
 
@@ -686,6 +691,13 @@ export const insertClientRegistrationGoalSchema = createInsertSchema(
   updatedAt: true,
 });
 
+export const insertTrainingAttachment = createInsertSchema(
+  trainingAttachments,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   clientRegistrationWeeklyResults,
 ).omit({
@@ -708,6 +720,7 @@ export type Sector = typeof sectors.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Company = typeof companies.$inferSelect;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
+export type InsertTraining = z.infer<typeof insertTrainingSchema>;
 export type Deal = typeof deals.$inferSelect;
 export type InsertBirthdayReminder = z.infer<
   typeof insertBirthdayReminderSchema
@@ -754,6 +767,9 @@ export type InsertClientRegistrationWeeklyResult = z.infer<
 >;
 export type ClientRegistrationWeeklyResult =
   typeof clientRegistrationWeeklyResults.$inferSelect;
+
+export type InsertTrainingAttachment = z.infer<typeof insertTrainingAttachment>;
+export type TrainingAttachment = typeof trainingAttachments.$inferSelect;
 
 // Interfaces com relacionamentos
 export interface DealWithClient extends Deal {
@@ -989,6 +1005,17 @@ export interface CashbackTransactionWithClient extends CashbackTransaction {
   setting?: CashbackSetting;
   processedByUser?: User;
 }
+
+export const createTrainingSchema = z.object({
+  title: z.string().min(1, { message: "Título é obrigatório" }),
+  description: z.string().min(1, { message: "Descrição é obrigatória" }),
+  category: z.string().min(1, { message: "Categoria é obrigatória" }),
+  level: z.string().optional(),
+  type: z.string(),
+  videoUrl: z.string().min(1, { message: "Url do vídeo é obrigatória" }),
+});
+
+export type CreateTrainingData = z.infer<typeof createTrainingSchema>;
 
 export interface ClientCashbackBalanceWithClient extends ClientCashbackBalance {
   client: Client;

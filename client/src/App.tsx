@@ -14,13 +14,12 @@ import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
 import AdminGoals from "@/pages/admin-goals";
-import Settings from "@/pages/settings";
 import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
 import Configurations from "@/pages/configurations";
-import { MainLayout } from "./components/main-layout";
+import { MainLayout } from "./layouts/main-layout";
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -40,8 +39,22 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/clientes" component={Clients} />
-      <Route path="/empresas" component={Companies} />
+      <Route
+        path="/clientes"
+        component={() => (
+          <MainLayout>
+            <Clients />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/empresas"
+        component={() => (
+          <MainLayout>
+            <Companies />
+          </MainLayout>
+        )}
+      />
       <Route
         path="/funil"
         component={() => (
@@ -56,8 +69,22 @@ function Router() {
       <Route path="/metas" component={Metas} />
       <Route path="/admin-metas" component={AdminGoals} />
       <Route path="/assistente-ia" component={AIAssistant} />
-      <Route path="/treinamentos" component={Trainings} />
-      <Route path="/configuracoes" component={Configurations} />
+      <Route
+        path="/treinamentos"
+        component={() => (
+          <MainLayout>
+            <Trainings />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/configuracoes"
+        component={() => (
+          <MainLayout>
+            <Configurations />
+          </MainLayout>
+        )}
+      />
       <Route path="/cashback" component={Cashback} />
       <Route component={NotFound} />
     </Switch>

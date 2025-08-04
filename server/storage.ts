@@ -69,7 +69,11 @@ import {
   type ClientCashbackBalanceWithClient,
   cashbackUsage,
   type CashbackUsage,
-  type InsertCashbackUsage
+  type InsertCashbackUsage,
+  InsertTraining,
+  trainings,
+  InsertTrainingAttachment,
+  trainingAttachments,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -263,7 +267,10 @@ export interface IStorage {
   deleteCashbackSetting(id: string): Promise<boolean>;
 
   // Cashback Transactions methods
-  getCashbackTransactions(userId?: string, userRole?: string): Promise<CashbackTransactionWithClient[]>;
+  getCashbackTransactions(
+    userId?: string,
+    userRole?: string,
+  ): Promise<CashbackTransactionWithClient[]>;
   createCashbackTransaction(
     insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction>;
@@ -273,18 +280,27 @@ export interface IStorage {
   ): Promise<CashbackTransaction | undefined>;
 
   // Client Cashback Balance methods
-  getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined>;
-  getAllClientCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]>;
-  getAllCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]>;
+  getClientCashbackBalance(
+    clientId: string,
+  ): Promise<ClientCashbackBalance | undefined>;
+  getAllClientCashbackBalances(
+    userId?: string,
+    userRole?: string,
+  ): Promise<ClientCashbackBalanceWithClient[]>;
+  getAllCashbackBalances(
+    userId?: string,
+    userRole?: string,
+  ): Promise<ClientCashbackBalanceWithClient[]>;
   updateClientCashbackBalance(clientId: string): Promise<void>;
   deleteCashbackBalance(balanceId: string): Promise<boolean>;
 
   // Cashback Usage methods
-  createCashbackUsage(
-    insertUsage: InsertCashbackUsage,
-  ): Promise<CashbackUsage>;
+  createCashbackUsage(insertUsage: InsertCashbackUsage): Promise<CashbackUsage>;
   getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]>;
-  getAllCashbackUsage(userId?: string, userRole?: string): Promise<CashbackUsage[]>;
+  getAllCashbackUsage(
+    userId?: string,
+    userRole?: string,
+  ): Promise<CashbackUsage[]>;
 
   // Método para calcular cashback baseado nas regras ativas
   calculateCashback(purchaseAmount: number): Promise<{
@@ -297,8 +313,15 @@ export interface IStorage {
 
   // Telemarketing Goals methods
   getTelemarketingGoals(userId?: string, userRole?: string): Promise<any[]>;
-  getTelemarketingGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]>;
-  createTelemarketingGoal(insertGoal: InsertTelemarketingGoal): Promise<TelemarketingGoal>;
+  getTelemarketingGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]>;
+  createTelemarketingGoal(
+    insertGoal: InsertTelemarketingGoal,
+  ): Promise<TelemarketingGoal>;
   updateTelemarketingGoal(
     id: string,
     updateData: Partial<InsertTelemarketingGoal>,
@@ -307,17 +330,31 @@ export interface IStorage {
   getTelemarketingStats(month: number, year: number): Promise<any[]>;
 
   // Telemarketing Weekly Results methods
-  getTelemarketingWeeklyResults(goalId: string): Promise<TelemarketingWeeklyResult[]>;
-  createTelemarketingWeeklyResult(result: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult>;
+  getTelemarketingWeeklyResults(
+    goalId: string,
+  ): Promise<TelemarketingWeeklyResult[]>;
+  createTelemarketingWeeklyResult(
+    result: InsertTelemarketingWeeklyResult,
+  ): Promise<TelemarketingWeeklyResult>;
   updateTelemarketingWeeklyResult(
     id: string,
-    result: Partial<InsertTelemarketingWeeklyResult>
+    result: Partial<InsertTelemarketingWeeklyResult>,
   ): Promise<TelemarketingWeeklyResult | undefined>;
 
   // Client Registration Goals methods
-  getClientRegistrationGoals(userId?: string, userRole?: string): Promise<any[]>;
-  getClientRegistrationGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]>;
-  createClientRegistrationGoal(insertGoal: InsertClientRegistrationGoal): Promise<ClientRegistrationGoal>;
+  getClientRegistrationGoals(
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]>;
+  getClientRegistrationGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]>;
+  createClientRegistrationGoal(
+    insertGoal: InsertClientRegistrationGoal,
+  ): Promise<ClientRegistrationGoal>;
   updateClientRegistrationGoal(
     id: string,
     updateData: Partial<InsertClientRegistrationGoal>,
@@ -326,11 +363,15 @@ export interface IStorage {
   getClientRegistrationStats(month: number, year: number): Promise<any[]>;
 
   // Client Registration Weekly Results methods
-  getClientRegistrationWeeklyResults(goalId: string): Promise<ClientRegistrationWeeklyResult[]>;
-  createClientRegistrationWeeklyResult(result: InsertClientRegistrationWeeklyResult): Promise<ClientRegistrationWeeklyResult>;
+  getClientRegistrationWeeklyResults(
+    goalId: string,
+  ): Promise<ClientRegistrationWeeklyResult[]>;
+  createClientRegistrationWeeklyResult(
+    result: InsertClientRegistrationWeeklyResult,
+  ): Promise<ClientRegistrationWeeklyResult>;
   updateClientRegistrationWeeklyResult(
     id: string,
-    result: Partial<InsertClientRegistrationWeeklyResult>
+    result: Partial<InsertClientRegistrationWeeklyResult>,
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
 }
 
@@ -445,19 +486,25 @@ export class DatabaseStorage implements IStorage {
   async deleteClient(id: string): Promise<boolean> {
     // Primeiro, excluir usos de cashback do cliente
     await db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, id));
-    
+
     // Depois, excluir saldo de cashback do cliente
-    await db.delete(clientCashbackBalance).where(eq(clientCashbackBalance.clientId, id));
-    
+    await db
+      .delete(clientCashbackBalance)
+      .where(eq(clientCashbackBalance.clientId, id));
+
     // Depois, excluir as transações de cashback do cliente
-    await db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, id));
-    
+    await db
+      .delete(cashbackTransactions)
+      .where(eq(cashbackTransactions.clientId, id));
+
     // Depois, excluir os deals associados ao cliente
     await db.delete(deals).where(eq(deals.clientId, id));
-    
+
     // Depois excluir as interações do cliente
-    await db.delete(clientInteractions).where(eq(clientInteractions.clientId, id));
-    
+    await db
+      .delete(clientInteractions)
+      .where(eq(clientInteractions.clientId, id));
+
     // Por fim, excluir o cliente
     const result = await db.delete(clients).where(eq(clients.id, id));
     return result.rowCount !== null && result.rowCount > 0;
@@ -466,19 +513,25 @@ export class DatabaseStorage implements IStorage {
   async deleteClients(ids: string[]): Promise<number> {
     // Primeiro, excluir usos de cashback dos clientes
     await db.delete(cashbackUsage).where(inArray(cashbackUsage.clientId, ids));
-    
+
     // Depois, excluir saldos de cashback dos clientes
-    await db.delete(clientCashbackBalance).where(inArray(clientCashbackBalance.clientId, ids));
-    
+    await db
+      .delete(clientCashbackBalance)
+      .where(inArray(clientCashbackBalance.clientId, ids));
+
     // Depois, excluir as transações de cashback dos clientes
-    await db.delete(cashbackTransactions).where(inArray(cashbackTransactions.clientId, ids));
-    
+    await db
+      .delete(cashbackTransactions)
+      .where(inArray(cashbackTransactions.clientId, ids));
+
     // Depois, excluir os deals associados aos clientes
     await db.delete(deals).where(inArray(deals.clientId, ids));
-    
+
     // Depois excluir as interações dos clientes
-    await db.delete(clientInteractions).where(inArray(clientInteractions.clientId, ids));
-    
+    await db
+      .delete(clientInteractions)
+      .where(inArray(clientInteractions.clientId, ids));
+
     // Por fim, excluir os clientes
     const result = await db.delete(clients).where(inArray(clients.id, ids));
     return result.rowCount || 0;
@@ -508,7 +561,9 @@ export class DatabaseStorage implements IStorage {
 
       // Se for vendedor, só mostra empresas onde ele é responsável
       if (userRole === "vendedor" && userId) {
-        query = query.where(eq(companies.responsavelId, userId)) as typeof query;
+        query = query.where(
+          eq(companies.responsavelId, userId),
+        ) as typeof query;
       }
 
       const result = await query.orderBy(companies.createdAt);
@@ -549,8 +604,15 @@ export class DatabaseStorage implements IStorage {
       .insert(companies)
       .values({
         ...insertCompany,
-        sectorId: insertCompany.sectorId && insertCompany.sectorId.trim() !== '' ? insertCompany.sectorId : null,
-        responsavelId: insertCompany.responsavelId && insertCompany.responsavelId.trim() !== '' ? insertCompany.responsavelId : null,
+        sectorId:
+          insertCompany.sectorId && insertCompany.sectorId.trim() !== ""
+            ? insertCompany.sectorId
+            : null,
+        responsavelId:
+          insertCompany.responsavelId &&
+          insertCompany.responsavelId.trim() !== ""
+            ? insertCompany.responsavelId
+            : null,
       })
       .returning();
     return company;
@@ -563,15 +625,21 @@ export class DatabaseStorage implements IStorage {
     // Handle empty string conversion to null for foreign keys
     const processedData = {
       ...updateData,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
-    if ('sectorId' in updateData) {
-      processedData.sectorId = updateData.sectorId && updateData.sectorId.trim() !== '' ? updateData.sectorId : null;
+    if ("sectorId" in updateData) {
+      processedData.sectorId =
+        updateData.sectorId && updateData.sectorId.trim() !== ""
+          ? updateData.sectorId
+          : null;
     }
 
-    if ('responsavelId' in updateData) {
-      processedData.responsavelId = updateData.responsavelId && updateData.responsavelId.trim() !== '' ? updateData.responsavelId : null;
+    if ("responsavelId" in updateData) {
+      processedData.responsavelId =
+        updateData.responsavelId && updateData.responsavelId.trim() !== ""
+          ? updateData.responsavelId
+          : null;
     }
 
     const [company] = await db
@@ -983,27 +1051,37 @@ export class DatabaseStorage implements IStorage {
       .from(clients)
       .where(isNotNull(clients.birthday));
 
-    console.log(`Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`);
+    console.log(
+      `Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`,
+    );
 
     for (const client of allClients) {
       if (client.birthday) {
         let birthday: Date;
-        
+
         // Parse different date formats
         if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
           // Format: YYYY-MM-DD
           birthday = new Date(client.birthday);
         } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
           // Format: DD/MM/YYYY
-          const [day, month, year] = client.birthday.split('/');
-          birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          const [day, month, year] = client.birthday.split("/");
+          birthday = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+          );
         } else {
-          console.log(`Formato de data inválido para cliente ${client.name}: ${client.birthday}`);
+          console.log(
+            `Formato de data inválido para cliente ${client.name}: ${client.birthday}`,
+          );
           continue;
         }
 
         if (isNaN(birthday.getTime())) {
-          console.log(`Data inválida para cliente ${client.name}: ${client.birthday}`);
+          console.log(
+            `Data inválida para cliente ${client.name}: ${client.birthday}`,
+          );
           continue;
         }
 
@@ -1021,7 +1099,9 @@ export class DatabaseStorage implements IStorage {
         const diffTime = thisYearBirthday.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        console.log(`Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`);
+        console.log(
+          `Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`,
+        );
 
         if (diffDays <= days && diffDays >= 0) {
           upcomingClients.push(client);
@@ -1139,7 +1219,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTagsByType(type: string): Promise<Tag[]> {
-    const result = await db.select().from(tags).where(eq(tags.type, type as "marcador" | "origem" | "categoria")).orderBy(tags.createdAt);
+    const result = await db
+      .select()
+      .from(tags)
+      .where(eq(tags.type, type as "marcador" | "origem" | "categoria"))
+      .orderBy(tags.createdAt);
     return result.reverse();
   }
 
@@ -1222,11 +1306,12 @@ export class DatabaseStorage implements IStorage {
     // Convert date string to Date object if needed
     const processedData = {
       ...insertInteraction,
-      date: typeof insertInteraction.date === 'string' 
-        ? new Date(insertInteraction.date) 
-        : insertInteraction.date,
+      date:
+        typeof insertInteraction.date === "string"
+          ? new Date(insertInteraction.date)
+          : insertInteraction.date,
     };
-    
+
     const [interaction] = await db
       .insert(clientInteractions)
       .values(processedData)
@@ -1241,12 +1326,13 @@ export class DatabaseStorage implements IStorage {
     // Convert date string to Date object if needed
     const processedData = {
       ...updateData,
-      date: updateData.date && typeof updateData.date === 'string' 
-        ? new Date(updateData.date) 
-        : updateData.date,
+      date:
+        updateData.date && typeof updateData.date === "string"
+          ? new Date(updateData.date)
+          : updateData.date,
       updatedAt: new Date(),
     };
-    
+
     const [interaction] = await db
       .update(clientInteractions)
       .set(processedData)
@@ -1453,7 +1539,11 @@ export class DatabaseStorage implements IStorage {
     return result || null;
   }
 
-  async getUserGoalByUserIdMonthYear(userId: string, month: number, year: number): Promise<any | null> {
+  async getUserGoalByUserIdMonthYear(
+    userId: string,
+    month: number,
+    year: number,
+  ): Promise<any | null> {
     const [result] = await db
       .select()
       .from(userGoals)
@@ -1461,8 +1551,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(userGoals.userId, userId),
           eq(userGoals.month, month),
-          eq(userGoals.year, year)
-        )
+          eq(userGoals.year, year),
+        ),
       );
 
     return result || null;
@@ -1517,7 +1607,7 @@ export class DatabaseStorage implements IStorage {
           ...goal,
           weeklyResults: weeklyResultsData,
         };
-      })
+      }),
     );
 
     return goalsWithResults;
@@ -1552,8 +1642,6 @@ export class DatabaseStorage implements IStorage {
 
     return updatedResult;
   }
-
-
 
   async getWeeklyResult(goalId: string, week: number): Promise<any | null> {
     const [result] = await db
@@ -1681,10 +1769,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Cashback Transactions methods
-  async getCashbackTransactions(userId?: string, userRole?: string): Promise<CashbackTransactionWithClient[]> {
-    let transactionsQuery = db
-      .select()
-      .from(cashbackTransactions);
+  async getCashbackTransactions(
+    userId?: string,
+    userRole?: string,
+  ): Promise<CashbackTransactionWithClient[]> {
+    let transactionsQuery = db.select().from(cashbackTransactions);
 
     // Se for vendedor, filtrar apenas transações de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
@@ -1693,7 +1782,9 @@ export class DatabaseStorage implements IStorage {
         .where(eq(clients.responsavelId, userId)) as typeof transactionsQuery;
     }
 
-    const transactions = await transactionsQuery.orderBy(cashbackTransactions.createdAt);
+    const transactions = await transactionsQuery.orderBy(
+      cashbackTransactions.createdAt,
+    );
 
     const transactionsWithDetails: CashbackTransactionWithClient[] = [];
 
@@ -1748,19 +1839,19 @@ export class DatabaseStorage implements IStorage {
     // Se não foi fornecida data de validade, calcular baseado na configuração da regra
     if (!insertTransaction.expiresAt) {
       let expirationDays = 28; // Padrão de 28 dias
-      
+
       // Se há uma regra de cashback definida, usar os dias de vencimento dela
       if (insertTransaction.settingId) {
         const [setting] = await db
           .select()
           .from(cashbackSettings)
           .where(eq(cashbackSettings.id, insertTransaction.settingId));
-        
+
         if (setting && setting.expirationDays) {
           expirationDays = setting.expirationDays;
         }
       }
-      
+
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + expirationDays);
       insertTransaction.expiresAt = expirationDate;
@@ -1796,7 +1887,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Cashback Balance methods
-  async getClientCashbackBalance(clientId: string): Promise<ClientCashbackBalance | undefined> {
+  async getClientCashbackBalance(
+    clientId: string,
+  ): Promise<ClientCashbackBalance | undefined> {
     const [balance] = await db
       .select()
       .from(clientCashbackBalance)
@@ -1804,7 +1897,10 @@ export class DatabaseStorage implements IStorage {
     return balance || undefined;
   }
 
-  async getAllClientCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]> {
+  async getAllClientCashbackBalances(
+    userId?: string,
+    userRole?: string,
+  ): Promise<ClientCashbackBalanceWithClient[]> {
     let balancesQuery = db
       .select({
         id: clientCashbackBalance.id,
@@ -1836,7 +1932,7 @@ export class DatabaseStorage implements IStorage {
           id: users.id,
           name: users.name,
           email: users.email,
-        }
+        },
       })
       .from(clientCashbackBalance)
       .leftJoin(clients, eq(clients.id, clientCashbackBalance.clientId))
@@ -1844,10 +1940,14 @@ export class DatabaseStorage implements IStorage {
 
     // Se for vendedor, filtrar apenas saldos de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
-      balancesQuery = balancesQuery.where(eq(clients.responsavelId, userId)) as typeof balancesQuery;
+      balancesQuery = balancesQuery.where(
+        eq(clients.responsavelId, userId),
+      ) as typeof balancesQuery;
     }
 
-    const balances = await balancesQuery.orderBy(clientCashbackBalance.currentBalance);
+    const balances = await balancesQuery.orderBy(
+      clientCashbackBalance.currentBalance,
+    );
 
     // Para cada saldo, buscar informações das transações de cashback
     const balancesWithDates = await Promise.all(
@@ -1859,8 +1959,8 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(cashbackTransactions.clientId, balance.clientId),
-              eq(cashbackTransactions.status, "approved")
-            )
+              eq(cashbackTransactions.status, "approved"),
+            ),
           )
           .orderBy(cashbackTransactions.createdAt)
           .limit(1);
@@ -1873,8 +1973,8 @@ export class DatabaseStorage implements IStorage {
             and(
               eq(cashbackTransactions.clientId, balance.clientId),
               eq(cashbackTransactions.status, "approved"),
-              gt(cashbackTransactions.expiresAt, new Date())
-            )
+              gt(cashbackTransactions.expiresAt, new Date()),
+            ),
           )
           .orderBy(cashbackTransactions.expiresAt)
           .limit(1);
@@ -1891,7 +1991,7 @@ export class DatabaseStorage implements IStorage {
           firstCashbackDate: firstTransaction?.createdAt || null,
           nextExpiryDate: nextExpiring?.expiresAt || null,
         };
-      })
+      }),
     );
 
     return balancesWithDates;
@@ -1899,7 +1999,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientCashbackBalance(clientId: string): Promise<void> {
     const now = new Date();
-    
+
     // Calcular total ganho (todos os cashbacks aprovados, independente de validade)
     const allEarnedTransactions = await db
       .select()
@@ -1907,13 +2007,13 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(cashbackTransactions.clientId, clientId),
-          eq(cashbackTransactions.status, "approved")
-        )
+          eq(cashbackTransactions.status, "approved"),
+        ),
       );
 
     const totalEarned = allEarnedTransactions.reduce(
       (sum, transaction) => sum + Number(transaction.cashbackAmount),
-      0
+      0,
     );
 
     // Calcular total ganho válido (apenas cashbacks não expirados)
@@ -1924,13 +2024,13 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(cashbackTransactions.clientId, clientId),
           eq(cashbackTransactions.status, "approved"),
-          gt(cashbackTransactions.expiresAt, now) // Apenas não expirados
-        )
+          gt(cashbackTransactions.expiresAt, now), // Apenas não expirados
+        ),
       );
 
     const totalValidEarned = validEarnedTransactions.reduce(
       (sum, transaction) => sum + Number(transaction.cashbackAmount),
-      0
+      0,
     );
 
     // Calcular total usado
@@ -1941,7 +2041,7 @@ export class DatabaseStorage implements IStorage {
 
     const totalUsed = usageTransactions.reduce(
       (sum, usage) => sum + Number(usage.usedAmount),
-      0
+      0,
     );
 
     // Saldo atual = cashback válido - total usado
@@ -1961,14 +2061,12 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(clientCashbackBalance.clientId, clientId));
     } else {
-      await db
-        .insert(clientCashbackBalance)
-        .values({
-          clientId,
-          totalEarned: totalEarned.toString(),
-          totalUsed: totalUsed.toString(),
-          currentBalance: currentBalance.toString(),
-        });
+      await db.insert(clientCashbackBalance).values({
+        clientId,
+        totalEarned: totalEarned.toString(),
+        totalUsed: totalUsed.toString(),
+        currentBalance: currentBalance.toString(),
+      });
     }
   }
 
@@ -1996,7 +2094,10 @@ export class DatabaseStorage implements IStorage {
     return usage;
   }
 
-  async getAllCashbackBalances(userId?: string, userRole?: string): Promise<ClientCashbackBalanceWithClient[]> {
+  async getAllCashbackBalances(
+    userId?: string,
+    userRole?: string,
+  ): Promise<ClientCashbackBalanceWithClient[]> {
     return this.getAllClientCashbackBalances(userId, userRole);
   }
 
@@ -2007,7 +2108,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(clientCashbackBalance)
         .where(eq(clientCashbackBalance.id, balanceId));
-      
+
       if (!balance) {
         return false;
       }
@@ -2015,16 +2116,20 @@ export class DatabaseStorage implements IStorage {
       const clientId = balance.clientId;
 
       // Excluir usos de cashback do cliente
-      await db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, clientId));
-      
+      await db
+        .delete(cashbackUsage)
+        .where(eq(cashbackUsage.clientId, clientId));
+
       // Excluir transações de cashback do cliente
-      await db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, clientId));
-      
+      await db
+        .delete(cashbackTransactions)
+        .where(eq(cashbackTransactions.clientId, clientId));
+
       // Excluir o saldo de cashback
       const result = await db
         .delete(clientCashbackBalance)
         .where(eq(clientCashbackBalance.id, balanceId));
-      
+
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
       console.error("Erro ao excluir saldo de cashback:", error);
@@ -2032,10 +2137,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getAllCashbackUsage(userId?: string, userRole?: string): Promise<CashbackUsage[]> {
-    let usageQuery = db
-      .select()
-      .from(cashbackUsage);
+  async getAllCashbackUsage(
+    userId?: string,
+    userRole?: string,
+  ): Promise<CashbackUsage[]> {
+    let usageQuery = db.select().from(cashbackUsage);
 
     // Se for vendedor, filtrar apenas uso de cashback de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
@@ -2063,9 +2169,9 @@ export class DatabaseStorage implements IStorage {
           eq(cashbackSettings.isActive, "true"),
           or(
             isNull(cashbackSettings.validUntil),
-            gte(cashbackSettings.validUntil, new Date())
-          )
-        )
+            gte(cashbackSettings.validUntil, new Date()),
+          ),
+        ),
       )
       .orderBy(sql`${cashbackSettings.percentageRate} DESC`);
 
@@ -2117,7 +2223,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Telemarketing Goals methods
-  async getTelemarketingGoals(userId?: string, userRole?: string): Promise<any[]> {
+  async getTelemarketingGoals(
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]> {
     let query = db
       .select({
         id: telemarketingGoals.id,
@@ -2136,14 +2245,21 @@ export class DatabaseStorage implements IStorage {
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      query = query.where(eq(telemarketingGoals.userId, userId)) as typeof query;
+      query = query.where(
+        eq(telemarketingGoals.userId, userId),
+      ) as typeof query;
     }
 
     const goals = await query.orderBy(desc(telemarketingGoals.createdAt));
     return goals;
   }
 
-  async getTelemarketingGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]> {
+  async getTelemarketingGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]> {
     let query = db
       .select({
         id: telemarketingGoals.id,
@@ -2161,18 +2277,28 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(telemarketingGoals.userId, users.id));
 
     // Aplicar filtros
-    let whereConditions = and(eq(telemarketingGoals.month, month), eq(telemarketingGoals.year, year));
-    
+    let whereConditions = and(
+      eq(telemarketingGoals.month, month),
+      eq(telemarketingGoals.year, year),
+    );
+
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      whereConditions = and(whereConditions, eq(telemarketingGoals.userId, userId));
+      whereConditions = and(
+        whereConditions,
+        eq(telemarketingGoals.userId, userId),
+      );
     }
 
-    const goals = await query.where(whereConditions).orderBy(desc(telemarketingGoals.createdAt));
+    const goals = await query
+      .where(whereConditions)
+      .orderBy(desc(telemarketingGoals.createdAt));
     return goals;
   }
 
-  async createTelemarketingGoal(insertGoal: InsertTelemarketingGoal): Promise<TelemarketingGoal> {
+  async createTelemarketingGoal(
+    insertGoal: InsertTelemarketingGoal,
+  ): Promise<TelemarketingGoal> {
     const [goal] = await db
       .insert(telemarketingGoals)
       .values(insertGoal)
@@ -2193,12 +2319,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTelemarketingGoal(id: string): Promise<boolean> {
-    const result = await db.delete(telemarketingGoals).where(eq(telemarketingGoals.id, id));
+    const result = await db
+      .delete(telemarketingGoals)
+      .where(eq(telemarketingGoals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Telemarketing Weekly Results methods
-  async getTelemarketingWeeklyResults(goalId: string): Promise<TelemarketingWeeklyResult[]> {
+  async getTelemarketingWeeklyResults(
+    goalId: string,
+  ): Promise<TelemarketingWeeklyResult[]> {
     return await db
       .select()
       .from(telemarketingWeeklyResults)
@@ -2206,7 +2336,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(telemarketingWeeklyResults.week);
   }
 
-  async createTelemarketingWeeklyResult(insertResult: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult> {
+  async createTelemarketingWeeklyResult(
+    insertResult: InsertTelemarketingWeeklyResult,
+  ): Promise<TelemarketingWeeklyResult> {
     const [result] = await db
       .insert(telemarketingWeeklyResults)
       .values(insertResult)
@@ -2227,12 +2359,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTelemarketingWeeklyResult(id: string): Promise<boolean> {
-    const result = await db.delete(telemarketingWeeklyResults).where(eq(telemarketingWeeklyResults.id, id));
+    const result = await db
+      .delete(telemarketingWeeklyResults)
+      .where(eq(telemarketingWeeklyResults.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Telemarketing Statistics methods
-  async getTelemarketingStatsByPeriod(month: number, year: number): Promise<any[]> {
+  async getTelemarketingStatsByPeriod(
+    month: number,
+    year: number,
+  ): Promise<any[]> {
     // Buscar todas as interações de telemarketing no período especificado
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -2249,17 +2386,17 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(clientInteractions.userId, users.id))
       .where(
         and(
-          eq(clientInteractions.type, 'telemarketing'),
+          eq(clientInteractions.type, "telemarketing"),
           gte(clientInteractions.date, startDate),
           lt(clientInteractions.date, endDate),
-          isNotNull(clientInteractions.callResult)
-        )
+          isNotNull(clientInteractions.callResult),
+        ),
       )
       .groupBy(
         clientInteractions.userId,
         users.name,
         users.email,
-        clientInteractions.callResult
+        clientInteractions.callResult,
       );
 
     // Agrupar por usuário e somar os resultados
@@ -2277,7 +2414,7 @@ export class DatabaseStorage implements IStorage {
           "SEM INTERESSE": 0,
           "NÃO LIGAR MAIS": 0,
           "EM OCUPADO": 0,
-          "OUTROS": 0,
+          OUTROS: 0,
           total: 0,
         };
       }
@@ -2292,7 +2429,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Registration Goals methods
-  async getClientRegistrationGoals(userId?: string, userRole?: string): Promise<any[]> {
+  async getClientRegistrationGoals(
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]> {
     let query = db
       .select({
         id: clientRegistrationGoals.id,
@@ -2310,14 +2450,21 @@ export class DatabaseStorage implements IStorage {
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      query = query.where(eq(clientRegistrationGoals.userId, userId)) as typeof query;
+      query = query.where(
+        eq(clientRegistrationGoals.userId, userId),
+      ) as typeof query;
     }
 
     const goals = await query.orderBy(desc(clientRegistrationGoals.createdAt));
     return goals;
   }
 
-  async getClientRegistrationGoalsByMonthYear(month: number, year: number, userId?: string, userRole?: string): Promise<any[]> {
+  async getClientRegistrationGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<any[]> {
     let query = db
       .select({
         id: clientRegistrationGoals.id,
@@ -2334,18 +2481,28 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(clientRegistrationGoals.userId, users.id));
 
     // Aplicar filtros
-    let whereConditions = and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year));
-    
+    let whereConditions = and(
+      eq(clientRegistrationGoals.month, month),
+      eq(clientRegistrationGoals.year, year),
+    );
+
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      whereConditions = and(whereConditions, eq(clientRegistrationGoals.userId, userId));
+      whereConditions = and(
+        whereConditions,
+        eq(clientRegistrationGoals.userId, userId),
+      );
     }
 
-    const goals = await query.where(whereConditions).orderBy(desc(clientRegistrationGoals.createdAt));
+    const goals = await query
+      .where(whereConditions)
+      .orderBy(desc(clientRegistrationGoals.createdAt));
     return goals;
   }
 
-  async createClientRegistrationGoal(insertGoal: InsertClientRegistrationGoal): Promise<ClientRegistrationGoal> {
+  async createClientRegistrationGoal(
+    insertGoal: InsertClientRegistrationGoal,
+  ): Promise<ClientRegistrationGoal> {
     const [goal] = await db
       .insert(clientRegistrationGoals)
       .values(insertGoal)
@@ -2366,12 +2523,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClientRegistrationGoal(id: string): Promise<boolean> {
-    const result = await db.delete(clientRegistrationGoals).where(eq(clientRegistrationGoals.id, id));
+    const result = await db
+      .delete(clientRegistrationGoals)
+      .where(eq(clientRegistrationGoals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Client Registration Statistics methods
-  async getClientRegistrationStatsByPeriod(month: number, year: number): Promise<any[]> {
+  async getClientRegistrationStatsByPeriod(
+    month: number,
+    year: number,
+  ): Promise<any[]> {
     // Buscar todos os clientes cadastrados no período especificado
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -2389,14 +2551,10 @@ export class DatabaseStorage implements IStorage {
         and(
           gte(clients.createdAt, startDate),
           lt(clients.createdAt, endDate),
-          isNotNull(clients.responsavelId)
-        )
+          isNotNull(clients.responsavelId),
+        ),
       )
-      .groupBy(
-        clients.responsavelId,
-        users.name,
-        users.email
-      );
+      .groupBy(clients.responsavelId, users.name, users.email);
 
     // Agrupar por usuário
     const statsByUser: { [key: string]: any } = {};
@@ -2421,12 +2579,17 @@ export class DatabaseStorage implements IStorage {
     return this.getTelemarketingStatsByPeriod(month, year);
   }
 
-  async getClientRegistrationStats(month: number, year: number): Promise<any[]> {
+  async getClientRegistrationStats(
+    month: number,
+    year: number,
+  ): Promise<any[]> {
     return this.getClientRegistrationStatsByPeriod(month, year);
   }
 
   // Client Registration Weekly Results methods
-  async getClientRegistrationWeeklyResults(goalId: string): Promise<ClientRegistrationWeeklyResult[]> {
+  async getClientRegistrationWeeklyResults(
+    goalId: string,
+  ): Promise<ClientRegistrationWeeklyResult[]> {
     const results = await db
       .select()
       .from(clientRegistrationWeeklyResults)
@@ -2435,7 +2598,9 @@ export class DatabaseStorage implements IStorage {
     return results;
   }
 
-  async createClientRegistrationWeeklyResult(result: InsertClientRegistrationWeeklyResult): Promise<ClientRegistrationWeeklyResult> {
+  async createClientRegistrationWeeklyResult(
+    result: InsertClientRegistrationWeeklyResult,
+  ): Promise<ClientRegistrationWeeklyResult> {
     const [newResult] = await db
       .insert(clientRegistrationWeeklyResults)
       .values(result)
@@ -2445,7 +2610,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientRegistrationWeeklyResult(
     id: string,
-    result: Partial<InsertClientRegistrationWeeklyResult>
+    result: Partial<InsertClientRegistrationWeeklyResult>,
   ): Promise<ClientRegistrationWeeklyResult | undefined> {
     const [updatedResult] = await db
       .update(clientRegistrationWeeklyResults)
@@ -2456,7 +2621,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Telemarketing Weekly Results methods
-  async createTelemarketingWeeklyResult(result: InsertTelemarketingWeeklyResult): Promise<TelemarketingWeeklyResult> {
+  async createTelemarketingWeeklyResult(
+    result: InsertTelemarketingWeeklyResult,
+  ): Promise<TelemarketingWeeklyResult> {
     const [newResult] = await db
       .insert(telemarketingWeeklyResults)
       .values(result)
@@ -2466,7 +2633,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTelemarketingWeeklyResult(
     id: string,
-    result: Partial<InsertTelemarketingWeeklyResult>
+    result: Partial<InsertTelemarketingWeeklyResult>,
   ): Promise<TelemarketingWeeklyResult | undefined> {
     const [updatedResult] = await db
       .update(telemarketingWeeklyResults)
@@ -2474,6 +2641,91 @@ export class DatabaseStorage implements IStorage {
       .where(eq(telemarketingWeeklyResults.id, id))
       .returning();
     return updatedResult || undefined;
+  }
+
+  async createTraining(data: InsertTraining) {
+    const [training] = await db.insert(trainings).values(data).returning();
+    return training;
+  }
+
+  async getTrainings() {
+    const trainingsList = await db
+      .select({
+        id: trainings.id,
+        title: trainings.title,
+        description: trainings.description,
+        category: trainings.category,
+        type: trainings.type,
+        level: trainings.level,
+        videoUrl: trainingAttachments.url,
+        createdAt: trainings.createdAt,
+      })
+      .from(trainings)
+      .leftJoin(
+        trainingAttachments,
+        eq(trainings.id, trainingAttachments.trainingId),
+      )
+      .orderBy(desc(trainings.createdAt));
+
+    return trainingsList;
+  }
+
+  async getTraining(trainingId: string) {
+    const [training] = await db
+      .select()
+      .from(trainings)
+      .where(eq(trainings.id, trainingId))
+      .leftJoin(
+        trainingAttachments,
+        eq(trainings.id, trainingAttachments.trainingId),
+      );
+    return training;
+  }
+
+  async updateTraining(data: InsertTraining, trainingId: string) {
+    const [training] = await db
+      .update(trainings)
+      .set(data)
+      .where(eq(trainings.id, trainingId))
+      .returning();
+    return training;
+  }
+
+  async deleteTraining(trainingId: string) {
+    const result = await db
+      .delete(trainings)
+      .where(eq(trainings.id, trainingId));
+    return result;
+  }
+
+  async createTrainingAttachments(data: InsertTrainingAttachment) {
+    const [trainingAttachment] = await db
+      .insert(trainingAttachments)
+      .values(data)
+      .returning();
+    return trainingAttachment;
+  }
+
+  async updateTrainingAttachments(data: InsertTrainingAttachment, url: string) {
+    const [trainingAttachment] = await db
+      .select()
+      .from(trainingAttachments)
+      .where(eq(trainingAttachments.url, url))
+      .limit(1);
+
+    const [trainingsAttachmentsUpdated] = await db
+      .update(trainingAttachments)
+      .set({ ...data })
+      .where(eq(trainingAttachments.id, trainingAttachment.id))
+      .returning();
+    return trainingsAttachmentsUpdated;
+  }
+
+  async deleteTrainingAttachments(trainingId: string) {
+    const result = await db
+      .delete(trainingAttachments)
+      .where(eq(trainingAttachments.trainingId, trainingId));
+    return result;
   }
 }
 

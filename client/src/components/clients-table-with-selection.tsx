@@ -36,6 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Table, TableHead, TableHeader, TableRow } from "./ui/table";
 
 interface ClientsTableWithSelectionProps {
   clients: Client[];
@@ -186,9 +187,18 @@ export default function ClientsTableWithSelection({
           client.responsavelId !== filters.responsavelId
         )
           return false;
-        if (filters.categoria && filters.categoria !== "all" && client.categoria !== filters.categoria)
+        if (
+          filters.categoria &&
+          filters.categoria !== "all" &&
+          client.categoria !== filters.categoria
+        )
           return false;
-        if (filters.origem && filters.origem !== "all" && client.origem !== filters.origem) return false;
+        if (
+          filters.origem &&
+          filters.origem !== "all" &&
+          client.origem !== filters.origem
+        )
+          return false;
         if (
           filters.markers &&
           filters.markers !== "all" &&
@@ -259,11 +269,11 @@ export default function ClientsTableWithSelection({
       )}
 
       {/* Table */}
-      <div className="bg-white shadow-sm rounded-lg border">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+      <div className="bg-white rounded-lg">
+        <div className="overflow-x-auto rounded-lg shadow-lg">
+          <table className="w-full overflow-hidden rounded-lg">
             <thead>
-              <tr className="border-b bg-gray-50">
+              <tr className="border-b border-gray-200 bg-gray-white">
                 <th className="p-4 text-left">
                   <Checkbox
                     checked={allSelected}
@@ -305,7 +315,7 @@ export default function ClientsTableWithSelection({
               {filteredAndSortedClients.map((client) => (
                 <tr
                   key={client.id}
-                  className="border-b hover:bg-gray-50 cursor-pointer"
+                  className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
                   onClick={(e) => {
                     // Não abrir modal se clicou no checkbox ou botão de editar
                     if (
@@ -325,7 +335,7 @@ export default function ClientsTableWithSelection({
                       }
                     />
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 min-w-[240px]">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
                         <div className="h-10 w-10 rounded-full bg-wine-100 flex items-center justify-center">

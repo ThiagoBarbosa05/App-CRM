@@ -20,6 +20,8 @@ import {
   insertCashbackSettingSchema,
   insertCashbackTransactionSchema,
   insertWeeklyResultSchema,
+  insertTrainingSchema,
+  createTrainingSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -28,10 +30,7 @@ import { Client } from "@replit/object-storage";
 import multer from "multer";
 import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
-import {
-  ObjectStorageService,
-  ObjectNotFoundError,
-} from "./objectStorage";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -53,6 +52,15 @@ try {
   console.warn("Object Storage not available:", error);
   objectStorageClient = null;
 }
+
+// const s3 = new S3Client({
+//   region: "auto",
+//   endpoint: process.env.CLOUDFLARE_URL,
+//   credentials: {
+//     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+//   },
+// });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -109,9 +117,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/clients", async (req, res) => {
     try {
       // Pegar informações do usuário logado da query string ou headers
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       const clients = await storage.getClients(userId, userRole);
       res.json(clients);
     } catch (error) {
@@ -121,25 +132,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/clients", async (req, res) => {
     try {
-      console.log("Dados recebidos para criação de cliente:", JSON.stringify(req.body, null, 2));
-      
+      console.log(
+        "Dados recebidos para criação de cliente:",
+        JSON.stringify(req.body, null, 2),
+      );
+
       // Pegar informações do usuário logado
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       // Converter strings vazias em null para campos opcionais
       let processedData = {
         ...req.body,
-        responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
+        responsavelId:
+          req.body.responsavelId === "" ? null : req.body.responsavelId,
         cpf: req.body.cpf === "" ? null : req.body.cpf,
-        email: req.body.email === "" ? null : req.body.email
+        email: req.body.email === "" ? null : req.body.email,
       };
-      
+
       // Se não for admin, forçar o responsável para o usuário atual
       if (userRole !== "admin") {
         processedData.responsavelId = userId;
       }
-      
+
       const validatedData = insertClientSchema.parse(processedData);
       console.log("Dados validados:", JSON.stringify(validatedData, null, 2));
       const client = await storage.createClient(validatedData);
@@ -159,22 +177,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/clients/:id", async (req, res) => {
     try {
       // Pegar informações do usuário logado
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       // Converter strings vazias em null para campos opcionais
       let processedData = {
         ...req.body,
-        responsavelId: req.body.responsavelId === "" ? null : req.body.responsavelId,
+        responsavelId:
+          req.body.responsavelId === "" ? null : req.body.responsavelId,
         cpf: req.body.cpf === "" ? null : req.body.cpf,
-        email: req.body.email === "" ? null : req.body.email
+        email: req.body.email === "" ? null : req.body.email,
       };
-      
+
       // Se não for admin, forçar o responsável para o usuário atual
       if (userRole !== "admin") {
         processedData.responsavelId = userId;
       }
-      
+
       const validatedData = insertClientSchema.partial().parse(processedData);
       const client = await storage.updateClient(req.params.id, validatedData);
       res.json(client);
@@ -193,7 +215,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!success) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
-      res.json({ message: "Cliente e dados relacionados excluídos com sucesso" });
+      res.json({
+        message: "Cliente e dados relacionados excluídos com sucesso",
+      });
     } catch (error) {
       console.error("Erro ao excluir cliente:", error);
       res.status(500).json({ message: "Erro ao excluir cliente" });
@@ -204,12 +228,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/clients", async (req, res) => {
     try {
       // Verificar se o usuário é administrador
-      const userEmail = req.headers['x-user-email'] as string;
-      const userRole = req.headers['x-user-role'] as string;
-      
-      if (!userEmail || !userRole || (userRole !== 'administrador' && userRole !== 'admin')) {
-        return res.status(403).json({ 
-          message: "Acesso negado. Apenas administradores podem excluir clientes." 
+      const userEmail = req.headers["x-user-email"] as string;
+      const userRole = req.headers["x-user-role"] as string;
+
+      if (
+        !userEmail ||
+        !userRole ||
+        (userRole !== "administrador" && userRole !== "admin")
+      ) {
+        return res.status(403).json({
+          message:
+            "Acesso negado. Apenas administradores podem excluir clientes.",
         });
       }
 
@@ -217,16 +246,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "Lista de IDs é obrigatória" });
       }
-      
+
       const deletedCount = await storage.deleteClients(ids);
-      
-      res.json({ 
+
+      res.json({
         message: `${deletedCount} cliente(s) e dados relacionados excluídos com sucesso`,
-        deletedCount 
+        deletedCount,
       });
     } catch (error) {
       console.error("Erro na exclusão em lote:", error);
-      res.status(500).json({ message: "Erro ao excluir clientes. Alguns podem ter dados relacionados." });
+      res.status(500).json({
+        message:
+          "Erro ao excluir clientes. Alguns podem ter dados relacionados.",
+      });
     }
   });
 
@@ -235,8 +267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, userRole } = req.query;
       const companies = await storage.getCompanies(
-        userId as string, 
-        userRole as string
+        userId as string,
+        userRole as string,
       );
       res.json(companies);
     } catch (error) {
@@ -492,10 +524,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
-      const transactions = await storage.getCashbackTransactions(userId, userRole);
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
+      const transactions = await storage.getCashbackTransactions(
+        userId,
+        userRole,
+      );
       res.json(transactions);
     } catch (error) {
       console.error("Erro ao buscar transações:", error);
@@ -581,9 +619,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-balances", async (req, res) => {
     try {
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       const balances = await storage.getAllCashbackBalances(userId, userRole);
       res.json(balances);
     } catch (error) {
@@ -606,12 +647,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/cashback-balances/:balanceId", async (req, res) => {
     try {
       // Verificar se o usuário é administrador
-      const userEmail = req.headers['x-user-email'] as string;
-      const userRole = req.headers['x-user-role'] as string;
-      
-      if (!userEmail || !userRole || (userRole !== 'administrador' && userRole !== 'admin')) {
-        return res.status(403).json({ 
-          message: "Acesso negado. Apenas administradores podem excluir saldos de cashback." 
+      const userEmail = req.headers["x-user-email"] as string;
+      const userRole = req.headers["x-user-role"] as string;
+
+      if (
+        !userEmail ||
+        !userRole ||
+        (userRole !== "administrador" && userRole !== "admin")
+      ) {
+        return res.status(403).json({
+          message:
+            "Acesso negado. Apenas administradores podem excluir saldos de cashback.",
         });
       }
 
@@ -630,9 +676,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashback-usage", async (req, res) => {
     try {
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       const usage = await storage.getAllCashbackUsage(userId, userRole);
       res.json(usage);
     } catch (error) {
@@ -803,7 +852,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/user-goals-with-results/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const goals = await storage.getUserGoalsWithResults(Number(month), Number(year));
+      const goals = await storage.getUserGoalsWithResults(
+        Number(month),
+        Number(year),
+      );
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas com resultados:", error);
@@ -817,7 +869,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       console.error("Erro ao buscar estatísticas de cadastro:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de cadastro" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de cadastro" });
     }
   });
 
@@ -868,20 +922,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);
-      
+
       // Verificar se já existe uma meta para este usuário no mês/ano especificado
       const existingGoal = await storage.getUserGoalByUserIdMonthYear(
         validatedData.userId,
         validatedData.month,
-        validatedData.year
+        validatedData.year,
       );
-      
+
       if (existingGoal) {
         // Se já existe, atualizar a meta existente
-        const updatedGoal = await storage.updateUserGoal(existingGoal.id, validatedData);
+        const updatedGoal = await storage.updateUserGoal(
+          existingGoal.id,
+          validatedData,
+        );
         return res.json(updatedGoal);
       }
-      
+
       // Se não existe, criar uma nova meta
       const goal = await storage.createUserGoal(validatedData);
       res.status(201).json(goal);
@@ -950,16 +1007,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/weekly-results", async (req, res) => {
     try {
       const validatedData = insertWeeklyResultSchema.parse(req.body);
-      
+
       // Verificar se já existe resultado para essa meta e semana
-      const existingResult = await storage.getWeeklyResult(validatedData.goalId, validatedData.week);
-      
+      const existingResult = await storage.getWeeklyResult(
+        validatedData.goalId,
+        validatedData.week,
+      );
+
       if (existingResult) {
         // Se existe, atualizar
-        const updatedResult = await storage.updateWeeklyResult(existingResult.id, validatedData);
+        const updatedResult = await storage.updateWeeklyResult(
+          existingResult.id,
+          validatedData,
+        );
         return res.json(updatedResult);
       }
-      
+
       // Se não existe, criar novo
       const result = await storage.createWeeklyResult(validatedData);
       res.status(201).json(result);
@@ -994,7 +1057,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const success = await storage.deleteWeeklyResult(id);
       if (success === false) {
-        return res.status(404).json({ message: "Resultado semanal não encontrado" });
+        return res
+          .status(404)
+          .json({ message: "Resultado semanal não encontrado" });
       }
       res.json({ message: "Resultado semanal excluído com sucesso" });
     } catch (error) {
@@ -1006,28 +1071,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Telemarketing Goals routes
   app.get("/api/telemarketing-goals", async (req, res) => {
     try {
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       const goals = await storage.getTelemarketingGoals(userId, userRole);
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao buscar metas de telemarketing" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar metas de telemarketing" });
     }
   });
 
   app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
-      const goals = await storage.getTelemarketingGoalsByMonthYear(Number(month), Number(year), userId, userRole);
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
+      const goals = await storage.getTelemarketingGoalsByMonthYear(
+        Number(month),
+        Number(year),
+        userId,
+        userRole,
+      );
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao buscar metas de telemarketing" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar metas de telemarketing" });
     }
   });
 
@@ -1049,7 +1129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/telemarketing-goals/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertTelemarketingGoalSchema.partial().parse(req.body);
+      const validatedData = insertTelemarketingGoalSchema
+        .partial()
+        .parse(req.body);
       const goal = await storage.updateTelemarketingGoal(id, validatedData);
       res.json(goal);
     } catch (error) {
@@ -1058,7 +1140,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: validationError.toString() });
       }
       console.error("Erro ao atualizar meta de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao atualizar meta de telemarketing" });
+      res
+        .status(500)
+        .json({ message: "Erro ao atualizar meta de telemarketing" });
     }
   });
 
@@ -1067,12 +1151,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const success = await storage.deleteTelemarketingGoal(id);
       if (success === false) {
-        return res.status(404).json({ message: "Meta de telemarketing não encontrada" });
+        return res
+          .status(404)
+          .json({ message: "Meta de telemarketing não encontrada" });
       }
       res.json({ message: "Meta de telemarketing excluída com sucesso" });
     } catch (error) {
       console.error("Erro ao excluir meta de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao excluir meta de telemarketing" });
+      res
+        .status(500)
+        .json({ message: "Erro ao excluir meta de telemarketing" });
     }
   });
 
@@ -1080,20 +1168,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/telemarketing-stats/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const stats = await storage.getTelemarketingStatsByPeriod(parseInt(month), parseInt(year));
+      const stats = await storage.getTelemarketingStatsByPeriod(
+        parseInt(month),
+        parseInt(year),
+      );
       res.json(stats);
     } catch (error) {
       console.error("Erro ao buscar estatísticas de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de telemarketing" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de telemarketing" });
     }
   });
 
   // Client Registration Goals routes
   app.get("/api/client-registration-goals", async (req, res) => {
     try {
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
       const goals = await storage.getClientRegistrationGoals(userId, userRole);
       res.json(goals);
     } catch (error) {
@@ -1105,10 +1201,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/client-registration-goals/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const userId = req.query.userId as string || req.headers['x-user-id'] as string;
-      const userRole = req.query.userRole as string || req.headers['x-user-role'] as string;
-      
-      const goals = await storage.getClientRegistrationGoalsByMonthYear(parseInt(month), parseInt(year), userId, userRole);
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+
+      const goals = await storage.getClientRegistrationGoalsByMonthYear(
+        parseInt(month),
+        parseInt(year),
+        userId,
+        userRole,
+      );
       res.json(goals);
     } catch (error) {
       console.error("Erro ao buscar metas de cadastros:", error);
@@ -1134,8 +1238,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/client-registration-goals/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertClientRegistrationGoalSchema.partial().parse(req.body);
-      const goal = await storage.updateClientRegistrationGoal(id, validatedData);
+      const validatedData = insertClientRegistrationGoalSchema
+        .partial()
+        .parse(req.body);
+      const goal = await storage.updateClientRegistrationGoal(
+        id,
+        validatedData,
+      );
       res.json(goal);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1152,7 +1261,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const success = await storage.deleteClientRegistrationGoal(id);
       if (success === false) {
-        return res.status(404).json({ message: "Meta de cadastros não encontrada" });
+        return res
+          .status(404)
+          .json({ message: "Meta de cadastros não encontrada" });
       }
       res.json({ message: "Meta de cadastros excluída com sucesso" });
     } catch (error) {
@@ -1165,11 +1276,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/client-registration-stats/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
-      const stats = await storage.getClientRegistrationStatsByPeriod(parseInt(month), parseInt(year));
+      const stats = await storage.getClientRegistrationStatsByPeriod(
+        parseInt(month),
+        parseInt(year),
+      );
       res.json(stats);
     } catch (error) {
       console.error("Erro ao buscar estatísticas de cadastros:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de cadastros" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de cadastros" });
     }
   });
 
@@ -1255,6 +1371,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error setting training image:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // trainings
+
+  app.post("/api/trainings/video", async (req, res) => {
+    try {
+      const validatedData = createTrainingSchema.parse(req.body);
+      const training = await storage.createTraining(validatedData);
+
+      await storage.createTrainingAttachments({
+        trainingId: training.id,
+        fileType: "video",
+        name: training.title,
+        url: validatedData.videoUrl,
+      });
+      res.status(201).json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar treinamento:", error);
+      res.status(500).json({ message: "Erro ao criar treinamento" });
+    }
+  });
+
+  app.put("/api/trainings/video/:trainingId", async (req, res) => {
+    try {
+      const trainingId = req.params.trainingId;
+      const validatedData = createTrainingSchema.parse(req.body);
+
+      const training = await storage.getTraining(trainingId);
+
+      const trainingUpdated = await storage.updateTraining(
+        validatedData,
+        trainingId,
+      );
+
+      await storage.updateTrainingAttachments(
+        {
+          trainingId: trainingUpdated.id,
+          fileType: "video",
+          name: trainingUpdated.title,
+          url: validatedData.videoUrl,
+        },
+        training.training_attachments?.url!,
+      );
+
+      res.status(201).json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar treinamento:", error);
+      res.status(500).json({ message: "Erro ao criar treinamento" });
+    }
+  });
+
+  app.get("/api/trainings", async (req, res) => {
+    try {
+      const trainingsList = await storage.getTrainings();
+
+      res.json(trainingsList);
+    } catch (error) {
+      console.error("Erro ao Treinamentos: ", error);
+      res.status(500).json({ message: "Erro ao buscar treinamentos" });
+    }
+  });
+
+  app.delete("/api/trainings/:id", async (req, res) => {
+    try {
+      const trainingId = req.params.id;
+
+      await storage.deleteTrainingAttachments(trainingId),
+        await storage.deleteTraining(trainingId),
+        res.json({ message: "Treinamento deletado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao deletar Treinamento: ", error);
+      res.status(500).json({ message: "Erro ao deletar treinamento" });
     }
   });
 
