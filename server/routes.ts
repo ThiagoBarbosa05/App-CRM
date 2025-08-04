@@ -414,9 +414,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users", async (req, res) => {
     try {
       const users = await storage.getUsers();
-      res.json(users);
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      const newUser = await storage.createUser(validatedData);
+      const { password: _, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao criar usuário" });
+    }
+  });
+
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertUserSchema.partial().parse(req.body);
+      const updatedUser = await storage.updateUser(id, validatedData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Usuário excluído com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
+  });
+
+  app.patch("/api/users/:id/toggle-status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      const updatedUser = await storage.updateUser(id, { isActive });
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { password: _pwd, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar status do usuário" });
     }
   });
 

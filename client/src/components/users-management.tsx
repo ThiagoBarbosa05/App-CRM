@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, User, Mail, Shield, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Edit, Trash2, User, Mail, Shield, ToggleLeft, ToggleRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -25,11 +26,22 @@ export default function UsersManagement() {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["/api/users"],
   });
+
+  // Filtrar usuários por nome ou email
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) return users;
+    
+    return users.filter((user: UserType) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -136,6 +148,19 @@ export default function UsersManagement() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Campo de busca */}
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          
           {users.length === 0 ? (
             <div className="text-center py-8">
               <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -145,9 +170,20 @@ export default function UsersManagement() {
                 Cadastrar Primeiro Usuário
               </Button>
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8">
+              <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 mb-4">Nenhum usuário encontrado para "{searchTerm}"</p>
+              <Button 
+                variant="outline" 
+                onClick={() => setSearchTerm("")}
+              >
+                Limpar filtro
+              </Button>
+            </div>
           ) : (
             <div className="space-y-4">
-              {Array.isArray(users) && users.map((user: UserType) => (
+              {Array.isArray(filteredUsers) && filteredUsers.map((user: UserType) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
