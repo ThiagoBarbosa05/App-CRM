@@ -74,6 +74,11 @@ export default function ClientsTableWithSelection({
   // Verificar se o usuário é administrador
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
 
+  // Query para buscar usuários (para mostrar o responsável)
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
+  });
+
   const deleteClientsMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
       const response = await fetch("/api/clients", {
@@ -298,6 +303,9 @@ export default function ClientsTableWithSelection({
                   Contato
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
+                  Responsável
+                </th>
+                <th className="p-4 text-left font-medium text-gray-900">
                   Categoria
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
@@ -375,6 +383,14 @@ export default function ClientsTableWithSelection({
                     </div>
                   </td>
                   <td className="p-4">
+                    <div className="text-sm text-gray-900">
+                      {(() => {
+                        const user = users.find(u => u.id === client.responsavelId);
+                        return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                      })()}
+                    </div>
+                  </td>
+                  <td className="p-4">
                     <Badge variant="outline" className="capitalize">
                       {client.categoria}
                     </Badge>
@@ -429,7 +445,7 @@ export default function ClientsTableWithSelection({
               ))}
               {filteredAndSortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-500">
+                  <td colSpan={8} className="p-8 text-center text-gray-500">
                     Nenhum cliente encontrado
                   </td>
                 </tr>
