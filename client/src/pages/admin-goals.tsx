@@ -17,12 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -104,7 +99,9 @@ const clientRegistrationGoalSchema = z.object({
 
 type GoalFormData = z.infer<typeof goalSchema>;
 type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
-type ClientRegistrationGoalFormData = z.infer<typeof clientRegistrationGoalSchema>;
+type ClientRegistrationGoalFormData = z.infer<
+  typeof clientRegistrationGoalSchema
+>;
 
 interface TelemarketingGoal {
   id: string;
@@ -203,12 +200,16 @@ export default function AdminGoals() {
     useState<UserGoal | null>(null);
 
   // Estado para metas de telemarketing
-  const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] = useState(false);
-  const [editingTelemarketingGoal, setEditingTelemarketingGoal] = useState<TelemarketingGoal | null>(null);
+  const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] =
+    useState(false);
+  const [editingTelemarketingGoal, setEditingTelemarketingGoal] =
+    useState<TelemarketingGoal | null>(null);
 
   // Estado para metas de cadastros de clientes
-  const [isClientRegistrationModalOpen, setIsClientRegistrationModalOpen] = useState(false);
-  const [editingClientRegistrationGoal, setEditingClientRegistrationGoal] = useState<ClientRegistrationGoal | null>(null);
+  const [isClientRegistrationModalOpen, setIsClientRegistrationModalOpen] =
+    useState(false);
+  const [editingClientRegistrationGoal, setEditingClientRegistrationGoal] =
+    useState<ClientRegistrationGoal | null>(null);
 
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
@@ -220,7 +221,7 @@ export default function AdminGoals() {
   // Verificar se o usuário é admin ou gerente
   if (user?.role !== "admin" && user?.role !== "gerente") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className=" flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="text-red-600">Acesso Negado</CardTitle>
@@ -273,13 +274,19 @@ export default function AdminGoals() {
 
   // Buscar metas de cadastros de clientes
   const clientRegistrationGoalsQuery = useQuery<ClientRegistrationGoal[]>({
-    queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+    queryKey: [
+      `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+    ],
   });
   const clientRegistrationGoals = clientRegistrationGoalsQuery.data || [];
 
   // Buscar estatísticas de cadastros de clientes
-  const { data: clientRegistrationStats = [] } = useQuery<{ userId: string; totalRegistrations: number }[]>({
-    queryKey: [`/api/client-registration-stats/${selectedMonth}/${selectedYear}`],
+  const { data: clientRegistrationStats = [] } = useQuery<
+    { userId: string; totalRegistrations: number }[]
+  >({
+    queryKey: [
+      `/api/client-registration-stats/${selectedMonth}/${selectedYear}`,
+    ],
   });
 
   // Form para telemarketing
@@ -417,7 +424,11 @@ export default function AdminGoals() {
       };
 
       if (editingTelemarketingGoal) {
-        return apiRequest(`/api/telemarketing-goals/${editingTelemarketingGoal.id}`, "PUT", goalData);
+        return apiRequest(
+          `/api/telemarketing-goals/${editingTelemarketingGoal.id}`,
+          "PUT",
+          goalData,
+        );
       } else {
         return apiRequest("/api/telemarketing-goals", "POST", goalData);
       }
@@ -427,7 +438,9 @@ export default function AdminGoals() {
         queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
       });
       toast({
-        title: editingTelemarketingGoal ? "Meta de telemarketing atualizada" : "Meta de telemarketing criada",
+        title: editingTelemarketingGoal
+          ? "Meta de telemarketing atualizada"
+          : "Meta de telemarketing criada",
         description: `Meta de telemarketing foi ${editingTelemarketingGoal ? "atualizada" : "criada"} com sucesso.`,
       });
       handleCloseTelemarketingModal();
@@ -435,7 +448,9 @@ export default function AdminGoals() {
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: error.message || `Erro ao ${editingTelemarketingGoal ? "atualizar" : "criar"} meta de telemarketing.`,
+        description:
+          error.message ||
+          `Erro ao ${editingTelemarketingGoal ? "atualizar" : "criar"} meta de telemarketing.`,
         variant: "destructive",
       });
     },
@@ -475,17 +490,25 @@ export default function AdminGoals() {
       };
 
       if (editingClientRegistrationGoal) {
-        return apiRequest(`/api/client-registration-goals/${editingClientRegistrationGoal.id}`, "PUT", goalData);
+        return apiRequest(
+          `/api/client-registration-goals/${editingClientRegistrationGoal.id}`,
+          "PUT",
+          goalData,
+        );
       } else {
         return apiRequest("/api/client-registration-goals", "POST", goalData);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+        queryKey: [
+          `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+        ],
       });
       toast({
-        title: editingClientRegistrationGoal ? "Meta de cadastros atualizada" : "Meta de cadastros criada",
+        title: editingClientRegistrationGoal
+          ? "Meta de cadastros atualizada"
+          : "Meta de cadastros criada",
         description: `Meta de cadastros foi ${editingClientRegistrationGoal ? "atualizada" : "criada"} com sucesso.`,
       });
       handleCloseClientRegistrationModal();
@@ -493,7 +516,9 @@ export default function AdminGoals() {
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: error.message || `Erro ao ${editingClientRegistrationGoal ? "atualizar" : "criar"} meta de cadastros.`,
+        description:
+          error.message ||
+          `Erro ao ${editingClientRegistrationGoal ? "atualizar" : "criar"} meta de cadastros.`,
         variant: "destructive",
       });
     },
@@ -506,7 +531,9 @@ export default function AdminGoals() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+        queryKey: [
+          `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+        ],
       });
       toast({
         title: "Meta de cadastros excluída",
@@ -609,7 +636,11 @@ export default function AdminGoals() {
   };
 
   const handleDeleteTelemarketingGoal = (goal: TelemarketingGoal) => {
-    if (confirm(`Deseja realmente excluir a meta de telemarketing para ${goal.userName}?`)) {
+    if (
+      confirm(
+        `Deseja realmente excluir a meta de telemarketing para ${goal.userName}?`,
+      )
+    ) {
       deleteTelemarketingMutation.mutate(goal.id);
     }
   };
@@ -622,7 +653,10 @@ export default function AdminGoals() {
   const handleEditClientRegistrationGoal = (goal: ClientRegistrationGoal) => {
     setEditingClientRegistrationGoal(goal);
     setValueClientRegistration("userId", goal.userId);
-    setValueClientRegistration("targetQuantity", goal.targetQuantity.toString());
+    setValueClientRegistration(
+      "targetQuantity",
+      goal.targetQuantity.toString(),
+    );
     setValueClientRegistration("month", goal.month.toString());
     setValueClientRegistration("year", goal.year.toString());
     setIsClientRegistrationModalOpen(true);
@@ -635,7 +669,11 @@ export default function AdminGoals() {
   };
 
   const handleDeleteClientRegistrationGoal = (goal: ClientRegistrationGoal) => {
-    if (confirm(`Deseja realmente excluir a meta de cadastros para ${goal.userName}?`)) {
+    if (
+      confirm(
+        `Deseja realmente excluir a meta de cadastros para ${goal.userName}?`,
+      )
+    ) {
       deleteClientRegistrationMutation.mutate(goal.id);
     }
   };
@@ -645,10 +683,8 @@ export default function AdminGoals() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar />
-
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 ml-0 ">
+    <div className="flex">
+      <main className="flex-1 ml-0 ">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -800,7 +836,11 @@ export default function AdminGoals() {
           </div>
 
           {/* Tabs para Metas de Vendas, Telemarketing e Cadastros */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
@@ -825,123 +865,131 @@ export default function AdminGoals() {
                     Metas de Vendas por Usuário
                   </CardTitle>
                   <CardDescription>
-                    Lista de todos os usuários e suas respectivas metas de vendas
+                    Lista de todos os usuários e suas respectivas metas de
+                    vendas
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-gray-500">Carregando metas...</div>
-                </div>
-              ) : userGoals.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium">Nenhuma meta cadastrada</p>
-                  <p className="text-sm">
-                    Comece definindo metas para os usuários do sistema
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Usuário</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Meta de Vendas</TableHead>
-                        <TableHead>Valor Alcançado</TableHead>
-                        <TableHead>Ticket Médio</TableHead>
-                        <TableHead>Itens por Venda</TableHead>
-                        <TableHead>Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {userGoals.map((goal) => {
-                        const totalSalesAchieved = getTotalAchieved(
-                          goal.weeklyResults || [],
-                          "salesAchieved",
-                        );
-                        const progressPercentage =
-                          Number(goal.salesGoal) > 0
-                            ? Math.min(
-                                (totalSalesAchieved / Number(goal.salesGoal)) *
-                                  100,
-                                100,
-                              )
-                            : 0;
-
-                        return (
-                          <TableRow key={goal.id}>
-                            <TableCell className="font-medium">
-                              {goal.userName}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {new Date(0, goal.month - 1).toLocaleDateString(
-                                "pt-BR",
-                                { month: "long" },
-                              )}{" "}
-                              {goal.year}
-                            </TableCell>
-                            <TableCell className="font-semibold text-green-600">
-                              {formatCurrency(goal.salesGoal)}
-                            </TableCell>
-                            <TableCell className="font-semibold">
-                              <div className="flex flex-col gap-1">
-                                <span
-                                  className={`${progressPercentage >= 100 ? "text-green-600" : progressPercentage >= 75 ? "text-blue-600" : progressPercentage >= 50 ? "text-orange-600" : "text-red-600"}`}
-                                >
-                                  {formatCurrency(
-                                    totalSalesAchieved.toString(),
-                                  )}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {progressPercentage.toFixed(1)}% da meta
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-blue-600">
-                              {formatCurrency(goal.averageTicket)}
-                            </TableCell>
-                            <TableCell className="font-semibold">
-                              {goal.itemsPerSale} itens
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditGoal(goal)}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Editar
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleOpenResultModal(goal)}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Add result
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteGoal(goal)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  disabled={deleteMutation.isPending}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Excluir
-                                </Button>
-                              </div>
-                            </TableCell>
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-gray-500">Carregando metas...</div>
+                    </div>
+                  ) : userGoals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">
+                        Nenhuma meta cadastrada
+                      </p>
+                      <p className="text-sm">
+                        Comece definindo metas para os usuários do sistema
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Período</TableHead>
+                            <TableHead>Meta de Vendas</TableHead>
+                            <TableHead>Valor Alcançado</TableHead>
+                            <TableHead>Ticket Médio</TableHead>
+                            <TableHead>Itens por Venda</TableHead>
+                            <TableHead>Ações</TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {userGoals.map((goal) => {
+                            const totalSalesAchieved = getTotalAchieved(
+                              goal.weeklyResults || [],
+                              "salesAchieved",
+                            );
+                            const progressPercentage =
+                              Number(goal.salesGoal) > 0
+                                ? Math.min(
+                                    (totalSalesAchieved /
+                                      Number(goal.salesGoal)) *
+                                      100,
+                                    100,
+                                  )
+                                : 0;
+
+                            return (
+                              <TableRow key={goal.id}>
+                                <TableCell className="font-medium">
+                                  {goal.userName}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {new Date(
+                                    0,
+                                    goal.month - 1,
+                                  ).toLocaleDateString("pt-BR", {
+                                    month: "long",
+                                  })}{" "}
+                                  {goal.year}
+                                </TableCell>
+                                <TableCell className="font-semibold text-green-600">
+                                  {formatCurrency(goal.salesGoal)}
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  <div className="flex flex-col gap-1">
+                                    <span
+                                      className={`${progressPercentage >= 100 ? "text-green-600" : progressPercentage >= 75 ? "text-blue-600" : progressPercentage >= 50 ? "text-orange-600" : "text-red-600"}`}
+                                    >
+                                      {formatCurrency(
+                                        totalSalesAchieved.toString(),
+                                      )}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {progressPercentage.toFixed(1)}% da meta
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-semibold text-blue-600">
+                                  {formatCurrency(goal.averageTicket)}
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  {goal.itemsPerSale} itens
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditGoal(goal)}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleOpenResultModal(goal)
+                                      }
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Add result
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteGoal(goal)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      disabled={deleteMutation.isPending}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Excluir
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -962,7 +1010,10 @@ export default function AdminGoals() {
                     </div>
                     <Button
                       onClick={() => {
-                        setValueTelemarketing("month", selectedMonth.toString());
+                        setValueTelemarketing(
+                          "month",
+                          selectedMonth.toString(),
+                        );
                         setValueTelemarketing("year", selectedYear.toString());
                         setIsTelemarketingModalOpen(true);
                       }}
@@ -977,7 +1028,9 @@ export default function AdminGoals() {
                   {telemarketingGoals.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <Phone className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">Nenhuma meta de telemarketing cadastrada</p>
+                      <p className="text-lg font-medium">
+                        Nenhuma meta de telemarketing cadastrada
+                      </p>
                       <p className="text-sm">
                         Comece definindo metas de telemarketing para os usuários
                       </p>
@@ -1020,7 +1073,9 @@ export default function AdminGoals() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleEditTelemarketingGoal(goal)}
+                                    onClick={() =>
+                                      handleEditTelemarketingGoal(goal)
+                                    }
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
                                     Editar
@@ -1028,9 +1083,13 @@ export default function AdminGoals() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleDeleteTelemarketingGoal(goal)}
+                                    onClick={() =>
+                                      handleDeleteTelemarketingGoal(goal)
+                                    }
                                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    disabled={deleteTelemarketingMutation.isPending}
+                                    disabled={
+                                      deleteTelemarketingMutation.isPending
+                                    }
                                   >
                                     <Trash2 className="h-4 w-4 mr-1" />
                                     Excluir
@@ -1057,8 +1116,14 @@ export default function AdminGoals() {
                     </CardTitle>
                     <Button
                       onClick={() => {
-                        setValueClientRegistration("month", selectedMonth.toString());
-                        setValueClientRegistration("year", selectedYear.toString());
+                        setValueClientRegistration(
+                          "month",
+                          selectedMonth.toString(),
+                        );
+                        setValueClientRegistration(
+                          "year",
+                          selectedYear.toString(),
+                        );
                         setIsClientRegistrationModalOpen(true);
                       }}
                       className="bg-emerald-600 hover:bg-emerald-700"
@@ -1071,7 +1136,9 @@ export default function AdminGoals() {
                 <CardContent>
                   {clientRegistrationGoalsQuery.isLoading ? (
                     <div className="flex justify-center items-center py-8">
-                      <div className="text-gray-500">Carregando metas de cadastros...</div>
+                      <div className="text-gray-500">
+                        Carregando metas de cadastros...
+                      </div>
                     </div>
                   ) : clientRegistrationGoals.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
@@ -1093,12 +1160,17 @@ export default function AdminGoals() {
                         <TableBody>
                           {clientRegistrationGoals.map((goal) => {
                             // Buscar estatísticas do usuário
-                            const userStats = clientRegistrationStats.find(stat => stat.userId === goal.userId);
-                            const achieved = userStats ? userStats.totalRegistrations : 0;
-                            const percentage = goal.targetQuantity > 0 
-                              ? (achieved / goal.targetQuantity) * 100 
+                            const userStats = clientRegistrationStats.find(
+                              (stat) => stat.userId === goal.userId,
+                            );
+                            const achieved = userStats
+                              ? userStats.totalRegistrations
                               : 0;
-                            
+                            const percentage =
+                              goal.targetQuantity > 0
+                                ? (achieved / goal.targetQuantity) * 100
+                                : 0;
+
                             return (
                               <TableRow key={goal.id}>
                                 <TableCell className="font-medium">
@@ -1144,7 +1216,9 @@ export default function AdminGoals() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleEditClientRegistrationGoal(goal)}
+                                      onClick={() =>
+                                        handleEditClientRegistrationGoal(goal)
+                                      }
                                     >
                                       <Edit className="h-4 w-4 mr-1" />
                                       Editar
@@ -1152,9 +1226,13 @@ export default function AdminGoals() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleDeleteClientRegistrationGoal(goal)}
+                                      onClick={() =>
+                                        handleDeleteClientRegistrationGoal(goal)
+                                      }
                                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      disabled={deleteClientRegistrationMutation.isPending}
+                                      disabled={
+                                        deleteClientRegistrationMutation.isPending
+                                      }
                                     >
                                       <Trash2 className="h-4 w-4 mr-1" />
                                       Excluir
@@ -1431,15 +1509,23 @@ export default function AdminGoals() {
       </Dialog>
 
       {/* Modal de metas de telemarketing */}
-      <Dialog open={isTelemarketingModalOpen} onOpenChange={handleCloseTelemarketingModal}>
+      <Dialog
+        open={isTelemarketingModalOpen}
+        onOpenChange={handleCloseTelemarketingModal}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingTelemarketingGoal ? "Editar Meta de Telemarketing" : "Nova Meta de Telemarketing"}
+              {editingTelemarketingGoal
+                ? "Editar Meta de Telemarketing"
+                : "Nova Meta de Telemarketing"}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmitTelemarketing(onSubmitTelemarketing)} className="space-y-4">
+          <form
+            onSubmit={handleSubmitTelemarketing(onSubmitTelemarketing)}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <Label htmlFor="telemarketingUserId">Usuário</Label>
               <select
@@ -1456,7 +1542,9 @@ export default function AdminGoals() {
                 ))}
               </select>
               {telemarketingErrors.userId && (
-                <p className="text-sm text-red-600">{telemarketingErrors.userId.message}</p>
+                <p className="text-sm text-red-600">
+                  {telemarketingErrors.userId.message}
+                </p>
               )}
             </div>
 
@@ -1476,7 +1564,9 @@ export default function AdminGoals() {
                 <option value="OUTROS">OUTROS</option>
               </select>
               {telemarketingErrors.targetResult && (
-                <p className="text-sm text-red-600">{telemarketingErrors.targetResult.message}</p>
+                <p className="text-sm text-red-600">
+                  {telemarketingErrors.targetResult.message}
+                </p>
               )}
             </div>
 
@@ -1490,7 +1580,9 @@ export default function AdminGoals() {
                 {...registerTelemarketing("targetQuantity")}
               />
               {telemarketingErrors.targetQuantity && (
-                <p className="text-sm text-red-600">{telemarketingErrors.targetQuantity.message}</p>
+                <p className="text-sm text-red-600">
+                  {telemarketingErrors.targetQuantity.message}
+                </p>
               )}
             </div>
 
@@ -1506,12 +1598,16 @@ export default function AdminGoals() {
                   <option value="">Selecione o mês</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                     <option key={month} value={month}>
-                      {new Date(0, month - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
                     </option>
                   ))}
                 </select>
                 {telemarketingErrors.month && (
-                  <p className="text-sm text-red-600">{telemarketingErrors.month.message}</p>
+                  <p className="text-sm text-red-600">
+                    {telemarketingErrors.month.message}
+                  </p>
                 )}
               </div>
 
@@ -1534,7 +1630,9 @@ export default function AdminGoals() {
                   ))}
                 </select>
                 {telemarketingErrors.year && (
-                  <p className="text-sm text-red-600">{telemarketingErrors.year.message}</p>
+                  <p className="text-sm text-red-600">
+                    {telemarketingErrors.year.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -1564,15 +1662,25 @@ export default function AdminGoals() {
       </Dialog>
 
       {/* Modal de metas de cadastros de clientes */}
-      <Dialog open={isClientRegistrationModalOpen} onOpenChange={handleCloseClientRegistrationModal}>
+      <Dialog
+        open={isClientRegistrationModalOpen}
+        onOpenChange={handleCloseClientRegistrationModal}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingClientRegistrationGoal ? "Editar Meta de Cadastros" : "Nova Meta de Cadastros"}
+              {editingClientRegistrationGoal
+                ? "Editar Meta de Cadastros"
+                : "Nova Meta de Cadastros"}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmitClientRegistration(onSubmitClientRegistration)} className="space-y-4">
+          <form
+            onSubmit={handleSubmitClientRegistration(
+              onSubmitClientRegistration,
+            )}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <Label htmlFor="clientRegistrationUserId">Usuário</Label>
               <select
@@ -1589,12 +1697,16 @@ export default function AdminGoals() {
                 ))}
               </select>
               {clientRegistrationErrors.userId && (
-                <p className="text-sm text-red-600">{clientRegistrationErrors.userId.message}</p>
+                <p className="text-sm text-red-600">
+                  {clientRegistrationErrors.userId.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clientRegistrationTargetQuantity">Quantidade de Clientes</Label>
+              <Label htmlFor="clientRegistrationTargetQuantity">
+                Quantidade de Clientes
+              </Label>
               <Input
                 id="clientRegistrationTargetQuantity"
                 type="number"
@@ -1603,7 +1715,9 @@ export default function AdminGoals() {
                 {...registerClientRegistration("targetQuantity")}
               />
               {clientRegistrationErrors.targetQuantity && (
-                <p className="text-sm text-red-600">{clientRegistrationErrors.targetQuantity.message}</p>
+                <p className="text-sm text-red-600">
+                  {clientRegistrationErrors.targetQuantity.message}
+                </p>
               )}
             </div>
 
@@ -1619,12 +1733,16 @@ export default function AdminGoals() {
                   <option value="">Selecione o mês</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                     <option key={month} value={month}>
-                      {new Date(0, month - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
                     </option>
                   ))}
                 </select>
                 {clientRegistrationErrors.month && (
-                  <p className="text-sm text-red-600">{clientRegistrationErrors.month.message}</p>
+                  <p className="text-sm text-red-600">
+                    {clientRegistrationErrors.month.message}
+                  </p>
                 )}
               </div>
 
@@ -1647,7 +1765,9 @@ export default function AdminGoals() {
                   ))}
                 </select>
                 {clientRegistrationErrors.year && (
-                  <p className="text-sm text-red-600">{clientRegistrationErrors.year.message}</p>
+                  <p className="text-sm text-red-600">
+                    {clientRegistrationErrors.year.message}
+                  </p>
                 )}
               </div>
             </div>

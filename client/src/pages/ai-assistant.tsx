@@ -267,10 +267,9 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeTab="assistente-ia" onTabChange={() => {}} />
+    <div className="flex">
       
-      <div className="flex-1 p-8">
+      <div className="flex-1">
         <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Sparkles className="h-6 w-6 text-wine-600" />

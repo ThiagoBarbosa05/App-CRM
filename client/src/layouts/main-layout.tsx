@@ -8,7 +8,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-screen overflow-hidden bg-gray-50">
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
@@ -20,7 +20,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {/* Sidebar */}
             <div
                 className={`
-        fixed inset-y-0 left-0 z-50 w-72 overflow-auto bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
       `}
             >

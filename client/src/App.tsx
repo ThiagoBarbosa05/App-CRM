@@ -64,11 +64,43 @@ function Router() {
         )}
       />
 
-      <Route path="/relatorios" component={Reports} />
-      <Route path="/calendario" component={Calendar} />
-      <Route path="/metas" component={Metas} />
-      <Route path="/admin-metas" component={AdminGoals} />
-      <Route path="/assistente-ia" component={AIAssistant} />
+      <Route
+        path="/relatorios"
+        component={() => (
+          <MainLayout>
+            <Reports />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/calendario"
+        component={() => (
+          <MainLayout>
+            <Calendar />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/metas"
+        component={() => (
+          <MainLayout>
+            <Metas />
+          </MainLayout>
+        )}
+      />
+      <Route path="/admin-metas"component={() => (
+          <MainLayout>
+            <AdminGoals />
+          </MainLayout>
+        )} />
+      <Route
+        path="/assistente-ia"
+        component={() => (
+          <MainLayout>
+            <AIAssistant />
+          </MainLayout>
+        )}
+      />
       <Route
         path="/treinamentos"
         component={() => (
@@ -85,7 +117,11 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route path="/cashback" component={Cashback} />
+      <Route path="/cashback" component={() => (
+          <MainLayout>
+            <Cashback />
+          </MainLayout>
+        )} />
       <Route component={NotFound} />
     </Switch>
   );

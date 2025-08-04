@@ -448,7 +448,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       <TableCell className="font-medium">
                         <button
                           onClick={() => handleCompanyClick(company)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                          className="text-blue-600 whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
                         >
                           {company.nomeFantasia}
                         </button>

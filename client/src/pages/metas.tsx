@@ -171,10 +171,10 @@ export default function Metas() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
+    <div className="flex">
+     
       <div className="flex-1 overflow-auto">
-        <div className="container mx-auto p-6 space-y-6">
+        <div className="container mx-auto space-y-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Target className="h-8 w-8 text-blue-600" />

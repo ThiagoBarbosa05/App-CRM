@@ -207,9 +207,9 @@ export default function CalendarPage() {
   
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar activeTab="clientes" onTabChange={() => {}} />
-        <div className="flex-1 overflow-auto p-6">
+      <div className="flex">
+        
+        <div className="flex-1 overflow-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -223,10 +223,10 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar activeTab="clientes" onTabChange={() => {}} />
+    <div className="flex">
+     
       <div className="flex-1 overflow-auto">
-        <div className="container mx-auto p-6 space-y-6">
+        <div className="container mx-auto space-y-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <CalendarIcon className="h-8 w-8 text-wine-600" />
