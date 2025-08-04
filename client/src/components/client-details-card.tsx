@@ -70,7 +70,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
   });
 
   // Query para buscar saldo de cashback
-  const { data: cashbackBalance } = useQuery({
+  const { data: cashbackBalance = {} } = useQuery({
     queryKey: [`/api/cashback-balances/${client?.id}`],
     enabled: !!client?.id,
   });
@@ -79,6 +79,11 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
   const { data: cashbackUsage = [] } = useQuery({
     queryKey: [`/api/cashback-usage/${client?.id}`],
     enabled: !!client?.id,
+  });
+
+  // Query para buscar usuários (para mostrar o responsável)
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
   });
 
   return (
@@ -168,6 +173,15 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       </span>
                     </div>
 
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm">
+                        <strong>Responsável:</strong> {(() => {
+                          const user = users.find(u => u.id === client.responsavelId);
+                          return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                        })()}
+                      </span>
+                    </div>
 
                   </div>
                 </CardContent>
@@ -295,7 +309,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <Button
                       variant="outline"
                       onClick={() => setCashbackUsageModalOpen(true)}
-                      disabled={!cashbackBalance?.currentBalance || parseFloat(cashbackBalance.currentBalance) <= 0}
+                      disabled={!(cashbackBalance as any)?.currentBalance || parseFloat((cashbackBalance as any).currentBalance as string) <= 0}
                       className="flex items-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:text-gray-400 disabled:border-gray-200 h-12"
                     >
                       <Wallet className="h-5 w-5" />
@@ -321,7 +335,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <div>
                       <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
                       <p className="text-2xl font-bold text-green-700">
-                        {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
+                        {cashbackBalance ? formatCurrency((cashbackBalance as any).currentBalance || 0) : formatCurrency(0)}
                       </p>
                     </div>
                     <Gift className="h-8 w-8 text-green-600" />
@@ -331,13 +345,13 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <div className="text-center p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm font-medium text-blue-600">Total Acumulado</p>
                       <p className="text-lg font-bold text-blue-700">
-                        {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned || 0) : formatCurrency(0)}
+                        {cashbackBalance ? formatCurrency((cashbackBalance as any).totalEarned || 0) : formatCurrency(0)}
                       </p>
                     </div>
                     <div className="text-center p-3 bg-orange-50 rounded-lg">
                       <p className="text-sm font-medium text-orange-600">Total Utilizado</p>
                       <p className="text-lg font-bold text-orange-700">
-                        {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed || 0) : formatCurrency(0)}
+                        {cashbackBalance ? formatCurrency((cashbackBalance as any).totalUsed || 0) : formatCurrency(0)}
                       </p>
                     </div>
                   </div>
@@ -347,7 +361,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               </Card>
 
               {/* Histórico de Cashback */}
-              {cashbackUsage && cashbackUsage.length > 0 && (
+              {Array.isArray(cashbackUsage) && cashbackUsage.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -357,7 +371,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {cashbackUsage.map((usage: any, index: number) => (
+                      {(cashbackUsage as any[]).map((usage: any, index: number) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium">{formatCurrency(usage.amount)}</p>
@@ -418,7 +432,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               <div className="bg-green-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance || 0) : formatCurrency(0)}
+                  {cashbackBalance ? formatCurrency((cashbackBalance as any).currentBalance || 0) : formatCurrency(0)}
                 </p>
               </div>
               
@@ -426,20 +440,20 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Total Ganho</p>
                   <p className="font-medium text-blue-600">
-                    {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned || 0) : formatCurrency(0)}
+                    {cashbackBalance ? formatCurrency((cashbackBalance as any).totalEarned || 0) : formatCurrency(0)}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Total Usado</p>
                   <p className="font-medium text-red-600">
-                    {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed || 0) : formatCurrency(0)}
+                    {cashbackBalance ? formatCurrency((cashbackBalance as any).totalUsed || 0) : formatCurrency(0)}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="flex gap-2 pt-4">
-              {cashbackBalance && parseFloat(cashbackBalance.currentBalance || '0') > 0 && (
+              {cashbackBalance && parseFloat((cashbackBalance as any).currentBalance || '0') > 0 && (
                 <Button
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                   onClick={() => {

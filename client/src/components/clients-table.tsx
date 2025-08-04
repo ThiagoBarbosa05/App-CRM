@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { User, Edit, Trash2, Eye, DollarSign } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsCard from "./client-details-card";
 import SaleFormModal from "./sale-form-modal";
@@ -144,6 +145,9 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     E-mail
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Responsável
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Responsável
