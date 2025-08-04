@@ -26,8 +26,7 @@ export default function Configurations() {
   if (!user || user.role !== "admin") {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto">
           <div className="p-6 flex items-center justify-center h-full">
             <Card className="w-full max-w-md">
               <CardHeader className="text-center">
@@ -50,16 +49,15 @@ export default function Configurations() {
               </CardContent>
             </Card>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="container mx-auto p-6 space-y-6">
+    <div>
+      <div className="flex-1 overflow-auto">
+        <div>
           <div className="flex items-center gap-3 mb-6">
             <Settings className="h-8 w-8 text-wine-600" />
             <div>
@@ -112,7 +110,7 @@ export default function Configurations() {
             </TabsContent>
           </Tabs>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -38,7 +38,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
     };
 
     return (
-        <aside className="w-72 bg-white p-5 shadow-lg border-r border-gray-200 h-full flex flex-col">
+        <aside className="w-72 bg-white p-5 shadow-lg border-r border-gray-200 h-full md:overflow-auto flex flex-col">
             <Button
                 className="absolute lg:hidden top-0 right-0"
                 variant={"ghost"}
@@ -55,20 +55,22 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
 
             <Separator className="mt-5 bg-gray-300" />
 
-            <div className="mt-5 flex bg-purple-100 items-start p-2 rounded-md gap-2">
-                <div className="bg-purple-50 rounded-full p-1 flex items-center justify-center">
-                    <User />
+            {user && (
+                <div className="mt-5 flex bg-purple-100 items-start p-2 rounded-md gap-2">
+                    <div className="bg-purple-50 rounded-full p-1 flex items-center justify-center">
+                        <User />
+                    </div>
+                    <div className="flex flex-col  min-w-0 text-sm items-start gap-2">
+                        <span className="leading-none font-semibold">
+                            {user.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                        </span>
+                        <Badge>{user.role}</Badge>
+                    </div>
                 </div>
-                <div className="flex flex-col text-sm items-start gap-2">
-                    <span className="leading-none font-semibold">
-                        Thiago Barbosa
-                    </span>
-                    <span className="leading-none text-gray-700">
-                        estoque@email.com
-                    </span>
-                    <Badge>Administrador</Badge>
-                </div>
-            </div>
+            )}
 
             {/* Navigation */}
             <nav className="flex flex-col gap-1 mt-5">
