@@ -51,6 +51,11 @@ export default function CalendarPage() {
     },
   });
 
+  // Query para buscar usuários (para mostrar o responsável)
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+    queryKey: ["/api/users"],
+  });
+
   const createReminderMutation = useMutation({
     mutationFn: async (reminderData: any) => {
       const response = await fetch("/api/birthday-reminders", {
@@ -345,6 +350,17 @@ export default function CalendarPage() {
                                 </a>
                               </div>
                             )}
+
+                            {/* Nome do responsável */}
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-4 w-4 text-gray-500" />
+                              <span className="text-gray-600">
+                                Responsável: {(() => {
+                                  const user = users.find(u => u.id === client.responsavelId);
+                                  return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                                })()}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -557,6 +573,13 @@ export default function CalendarPage() {
                       <div className="font-medium text-gray-900">{client.name}</div>
                       <div className="text-sm text-gray-600">
                         {formatDate(client.birthday!)} - {age} anos
+                      </div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Responsável: {(() => {
+                          const user = users.find(u => u.id === client.responsavelId);
+                          return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                        })()}
                       </div>
                     </div>
                     <div className="text-right">
