@@ -54,6 +54,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import ImageUploadForm from "./image-upload-form";
+import { DocumentsUploadForm } from "./document-upload-form";
 
 export interface TrainingVideo {
   id: string;
@@ -211,6 +213,8 @@ export default function LearningImagesManagement() {
   const [trainingToDelete, setTrainingToDelete] = useState("");
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+
+  const [openDocumentForm, setOpenDocumentForm] = useState(false);
 
   // const [formData, setFormData] = useState({
   //   title: "",
@@ -660,6 +664,14 @@ export default function LearningImagesManagement() {
                 </Button>
               </div>
             </TabsContent>
+
+            <TabsContent className="w-full" value="documents">
+              <div className="flex flex-col items-center ">
+                <Button onClick={() => setOpenDocumentForm(true)}>
+                  <Upload className="h-4 w-4 mr-2" /> Enviar documento
+                </Button>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -667,6 +679,11 @@ export default function LearningImagesManagement() {
         open={openCreateTrainingModal}
         onOpenChange={setOpenCreateTrainingModal}
         editingTrainingVideo={editingTrainingVideo}
+      />
+
+      <DocumentsUploadForm
+        open={openDocumentForm}
+        onOpenChange={setOpenDocumentForm}
       />
 
       <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>

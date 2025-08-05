@@ -24,20 +24,25 @@ import {
   insertWeeklyResultSchema,
   insertTrainingSchema,
   createTrainingSchema,
+  trainings,
+  trainingAttachments,
+  createDocumentTrainingSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
 import { Client } from "@replit/object-storage";
-import multer from "multer";
+import multer, { MulterError } from "multer";
 import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { randomUUID } from "crypto";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { db } from "./db";
 
 // Configure multer for file uploads
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  // limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
 // Initialize Replit Object Storage client
@@ -55,14 +60,14 @@ try {
   objectStorageClient = null;
 }
 
-// const s3 = new S3Client({
-//   region: "auto",
-//   endpoint: process.env.CLOUDFLARE_URL,
-//   credentials: {
-//     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-//   },
-// });
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: process.env.CLOUDFLARE_URL,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -874,10 +879,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const categoryData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "categoria",
       };
-      
+
       const validatedData = insertTagSchema.parse(categoryData);
       const category = await storage.createTag(validatedData);
       res.status(201).json(category);
@@ -895,10 +900,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const categoryData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "categoria",
       };
-      
+
       const validatedData = insertTagSchema.parse(categoryData);
       const category = await storage.updateTag(id, validatedData);
       res.json(category);
@@ -926,10 +931,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const originData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "origem",
       };
-      
+
       const validatedData = insertTagSchema.parse(originData);
       const origin = await storage.createTag(validatedData);
       res.status(201).json(origin);
@@ -947,10 +952,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const originData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "origem",
       };
-      
+
       const validatedData = insertTagSchema.parse(originData);
       const origin = await storage.updateTag(id, validatedData);
       res.json(origin);
@@ -978,10 +983,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const markerData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "marcador",
       };
-      
+
       const validatedData = insertTagSchema.parse(markerData);
       const marker = await storage.createTag(validatedData);
       res.status(201).json(marker);
@@ -999,10 +1004,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const markerData = {
         name: req.body.name,
-        color: req.body.color || "#6B7280", 
+        color: req.body.color || "#6B7280",
         type: "marcador",
       };
-      
+
       const validatedData = insertTagSchema.parse(markerData);
       const marker = await storage.updateTag(id, validatedData);
       res.json(marker);
@@ -1650,6 +1655,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao deletar Treinamento: ", error);
       res.status(500).json({ message: "Erro ao deletar treinamento" });
+    }
+  });
+
+  app.post("/api/trainings/documents", async (req, res) => {
+    try {
+      const data = createDocumentTrainingSchema.parse(req.body);
+      const [training] = await db
+        .insert(trainings)
+        .values({
+          category: data.category,
+          title: data.title,
+          description: data.description,
+          type: "document",
+        })
+        .returning();
+
+      await db.insert(trainingAttachments).values({
+        name: data.documentUrl,
+        url: data.documentUrl,
+        fileType: data.documentType,
+        trainingId: training.id,
+      });
+
+      res.status(201).json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar treinamento:", error);
+
+      res.status(500).json({ message: "Erro ao criar treinamento" });
+    }
+  });
+
+  // Upload
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ message: "Arquivo não fornecido" });
+      }
+
+      const url = randomUUID() + "-" + req.file?.originalname;
+
+      const upload = await s3.send(
+        new PutObjectCommand({
+          Bucket: "crm-test",
+          Body: req.file?.buffer,
+          Key: url,
+          ContentType: req.file?.mimetype,
+        }),
+      );
+
+      res.json({ url, fileType: req.file?.mimetype });
+    } catch (error) {
+      if (error instanceof MulterError) {
+        res.status(400).json({
+          message: "O arquivo enviado é maior que o tamanho permitido",
+        });
+      }
+      console.error("Erro ao fazer upload:", error);
+      res.status(500).json({ message: "Erro ao fazer upload" });
     }
   });
 
