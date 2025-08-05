@@ -68,6 +68,8 @@ export default function ClientsTableWithSelection({
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
   const { toast } = useToast();
   const { user } = useAuth();
   console.log(clients);
@@ -118,7 +120,7 @@ export default function ClientsTableWithSelection({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedClientIds(filteredAndSortedClients.map((client) => client.id));
+      setSelectedClientIds(paginatedClients.map((client) => client.id));
     } else {
       setSelectedClientIds([]);
     }
@@ -228,12 +230,24 @@ export default function ClientsTableWithSelection({
       return sortOrder === "asc" ? comparison : -comparison;
     });
 
+  // Calcular paginação
+  const totalItems = filteredAndSortedClients.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClients = filteredAndSortedClients.slice(startIndex, endIndex);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
+
   const allSelected =
-    selectedClientIds.length === filteredAndSortedClients.length &&
-    filteredAndSortedClients.length > 0;
+    selectedClientIds.length === paginatedClients.length &&
+    paginatedClients.length > 0;
   const someSelected =
     selectedClientIds.length > 0 &&
-    selectedClientIds.length < filteredAndSortedClients.length;
+    selectedClientIds.length < paginatedClients.length;
 
   // Notificar componente pai sobre mudanças na seleção
   useEffect(() => {
@@ -320,7 +334,7 @@ export default function ClientsTableWithSelection({
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedClients.map((client) => (
+              {paginatedClients.map((client) => (
                 <tr
                   key={client.id}
                   className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
@@ -443,10 +457,10 @@ export default function ClientsTableWithSelection({
                   </td>
                 </tr>
               ))}
-              {filteredAndSortedClients.length === 0 && (
+              {paginatedClients.length === 0 && (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-gray-500">
-                    Nenhum cliente encontrado
+                    {totalItems === 0 ? "Nenhum cliente encontrado" : "Nenhum cliente nesta página"}
                   </td>
                 </tr>
               )}
@@ -454,6 +468,52 @@ export default function ClientsTableWithSelection({
           </table>
         </div>
       </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+          <div className="flex items-center text-sm text-gray-700">
+            Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de {totalItems} clientes
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              Primeira
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Anterior
+            </Button>
+            <span className="px-3 py-1 text-sm">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Próxima
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Última
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Edit Client Modal */}
       {editingClient && (
