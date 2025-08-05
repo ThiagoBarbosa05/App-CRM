@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Gift, Phone, Mail, Bell, MessageSquare, Settings, Download, User } from "lucide-react";
+import { CalendarIcon, Gift, Phone, Mail, Bell, MessageSquare, Settings, User } from "lucide-react";
 import { format, isSameDay, parseISO, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
@@ -181,33 +181,6 @@ export default function CalendarPage() {
     });
   };
 
-  const exportBirthdayList = () => {
-    const csvContent = [
-      ["Nome", "Data de Nascimento", "Idade", "Telefone", "Email"],
-      ...clientsWithBirthdays.map((client: Client) => {
-        const birthdayDate = parseISO(client.birthday!);
-        const age = new Date().getFullYear() - birthdayDate.getFullYear();
-        return [
-          client.name,
-          formatDate(client.birthday!),
-          age.toString(),
-          client.phone || "",
-          client.email || ""
-        ];
-      })
-    ].map(row => row.join(",")).join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "aniversarios.csv");
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const isLoading = !clients || !user;
   
   if (isLoading) {
@@ -241,14 +214,6 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={exportBirthdayList}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Exportar Lista
-              </Button>
               <Button
                 onClick={() => createAutoRemindersMutation.mutate()}
                 disabled={createAutoRemindersMutation.isPending}
