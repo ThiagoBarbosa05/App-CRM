@@ -2648,7 +2648,7 @@ export class DatabaseStorage implements IStorage {
     return training;
   }
 
-  async getTrainings() {
+  async getTrainings(query?: string) {
     const trainingsList = await db
       .select({
         id: trainings.id,
@@ -2665,6 +2665,7 @@ export class DatabaseStorage implements IStorage {
         trainingAttachments,
         eq(trainings.id, trainingAttachments.trainingId),
       )
+      .where(query ? eq(trainings.type, query) : undefined)
       .orderBy(desc(trainings.createdAt));
 
     return trainingsList;

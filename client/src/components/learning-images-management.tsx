@@ -338,14 +338,24 @@ export default function LearningImagesManagement() {
   // };
 
   const { data: trainingVideos } = useQuery<TrainingVideo[]>({
-    queryKey: ["/api/trainings"],
+    queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
-      const response = await fetch("/api/trainings");
+      const response = await fetch("/api/trainings?type=video");
       if (!response.ok) throw new Error("Failed to fetch training videos");
       return response.json();
     },
   });
 
+  const { data: trainingDocument } = useQuery<TrainingVideo[]>({
+    queryKey: ["/api/trainings?type=document"],
+    queryFn: async () => {
+      const response = await fetch("/api/trainings?type=document");
+      if (!response.ok) throw new Error("Failed to fetch training videos");
+      return response.json();
+    },
+  });
+
+  console.log(trainingDocument);
   const deleteMutation = useMutation({
     mutationFn: async (trainingId: string) => {
       const response = await fetch(`/api/trainings/${trainingId}`, {
@@ -358,7 +368,9 @@ export default function LearningImagesManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trainings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=video"],
+      });
       setOpenDeleteDialog(false);
       toast({
         title: "Sucesso",

@@ -109,7 +109,10 @@ export default function ClientFilters({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 h-[400px] overflow-y-scroll">
+      <PopoverContent
+        align="center"
+        className="w-80 h-[400px] overflow-y-scroll"
+      >
         <div className="space-y-4 ">
           <div className="flex items-center justify-between">
             <h4 className="font-medium">Filtros Avançados</h4>
@@ -217,9 +220,7 @@ export default function ClientFilters({
               </Label>
               <Select
                 value={localFilters.origem}
-                onValueChange={(value) =>
-                  handleFilterChange("origem", value)
-                }
+                onValueChange={(value) => handleFilterChange("origem", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma origem..." />
@@ -241,9 +242,7 @@ export default function ClientFilters({
               </Label>
               <Select
                 value={localFilters.markers}
-                onValueChange={(value) =>
-                  handleFilterChange("markers", value)
-                }
+                onValueChange={(value) => handleFilterChange("markers", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um marcador..." />
@@ -253,8 +252,8 @@ export default function ClientFilters({
                   {(markers as any[]).map((marker: any) => (
                     <SelectItem key={marker.id} value={marker.name}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
+                        <div
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: marker.color }}
                         ></div>
                         {marker.name}

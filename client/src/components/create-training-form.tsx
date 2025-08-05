@@ -107,7 +107,9 @@ export function CreateTrainingForm({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trainings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=video"],
+      });
       onOpenChange(false);
       toast({
         title: "Sucesso",
@@ -139,7 +141,9 @@ export function CreateTrainingForm({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trainings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=video"],
+      });
       onOpenChange(false);
       toast({
         title: "Sucesso",

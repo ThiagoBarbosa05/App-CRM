@@ -1636,7 +1636,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/trainings", async (req, res) => {
     try {
-      const trainingsList = await storage.getTrainings();
+      const type = req.query.type as string;
+      const trainingsList = await storage.getTrainings(type);
 
       res.json(trainingsList);
     } catch (error) {

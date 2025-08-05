@@ -520,9 +520,9 @@ ATENDIMENTO AO CLIENTE
   ];
 
   const { data: trainingVideos } = useQuery<TrainingVideo[]>({
-    queryKey: ["/api/trainings"],
+    queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
-      const response = await fetch("/api/trainings");
+      const response = await fetch("/api/trainings?type=video");
       if (!response.ok) throw new Error("Failed to fetch training videos");
       return response.json();
     },
