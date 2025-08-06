@@ -16,6 +16,12 @@ import {
 } from "@/components/ui/select";
 import { Filter, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface ClientFiltersProps {
   onFiltersChange: (filters: ClientFilters) => void;
@@ -91,8 +97,8 @@ export default function ClientFilters({
   );
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
           className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}
@@ -108,24 +114,11 @@ export default function ClientFilters({
             </span>
           )}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="center"
-        className="w-80 h-[400px] overflow-y-scroll"
-      >
-        <div className="space-y-4 ">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Filtros Avançados</h4>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsOpen(false)}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-80 p-4 overflow-y-auto" align="center">
+        <h4 className="font-medium">Filtros avançados</h4>
 
+        <div className="space-y-4">
           <div className="space-y-3">
             <div>
               <Label htmlFor="filter-name" className="text-sm font-medium">
@@ -181,7 +174,9 @@ export default function ClientFilters({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os usuários</SelectItem>
-                  <SelectItem value="unassigned">Responsável não atribuído</SelectItem>
+                  <SelectItem value="unassigned">
+                    Responsável não atribuído
+                  </SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}
@@ -275,7 +270,192 @@ export default function ClientFilters({
             </Button>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    // <Popover open={isOpen} onOpenChange={setIsOpen}>
+    //   <PopoverTrigger asChild>
+    //     <Button
+    //       variant="outline"
+    //       className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}
+    //     >
+    //       <Filter className="h-4 w-4 mr-2" />
+    //       Filtros
+    //       {hasActiveFilters && (
+    //         <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+    //           {
+    //             Object.values(currentFilters).filter((value) => value !== "")
+    //               .length
+    //           }
+    //         </span>
+    //       )}
+    //     </Button>
+    //   </PopoverTrigger>
+    //   <PopoverContent
+    //     align="center"
+    //     className="w-80 h-[400px] overflow-y-scroll"
+    //   >
+    //     <div className="space-y-4 ">
+    //       <div className="flex items-center justify-between">
+    //         <h4 className="font-medium">Filtros Avançados</h4>
+    //         <Button
+    //           variant="ghost"
+    //           size="sm"
+    //           onClick={() => setIsOpen(false)}
+    //           className="h-6 w-6 p-0"
+    //         >
+    //           <X className="h-4 w-4" />
+    //         </Button>
+    //       </div>
+
+    //       <div className="space-y-3">
+    //         <div>
+    //           <Label htmlFor="filter-name" className="text-sm font-medium">
+    //             Nome
+    //           </Label>
+    //           <Input
+    //             id="filter-name"
+    //             placeholder="Filtrar por nome..."
+    //             value={localFilters.name}
+    //             onChange={(e) => handleFilterChange("name", e.target.value)}
+    //           />
+    //         </div>
+
+    //         <div>
+    //           <Label htmlFor="filter-phone" className="text-sm font-medium">
+    //             Telefone
+    //           </Label>
+    //           <Input
+    //             id="filter-phone"
+    //             placeholder="Filtrar por telefone..."
+    //             value={localFilters.phone}
+    //             onChange={(e) => handleFilterChange("phone", e.target.value)}
+    //           />
+    //         </div>
+
+    //         <div>
+    //           <Label htmlFor="filter-cpf" className="text-sm font-medium">
+    //             CPF
+    //           </Label>
+    //           <Input
+    //             id="filter-cpf"
+    //             placeholder="Filtrar por CPF..."
+    //             value={localFilters.cpf}
+    //             onChange={(e) => handleFilterChange("cpf", e.target.value)}
+    //           />
+    //         </div>
+
+    //         <div>
+    //           <Label
+    //             htmlFor="filter-responsible"
+    //             className="text-sm font-medium"
+    //           >
+    //             Usuário Responsável
+    //           </Label>
+    //           <Select
+    //             value={localFilters.responsavelId}
+    //             onValueChange={(value) =>
+    //               handleFilterChange("responsavelId", value)
+    //             }
+    //           >
+    //             <SelectTrigger>
+    //               <SelectValue placeholder="Selecione um usuário..." />
+    //             </SelectTrigger>
+    //             <SelectContent>
+    //               <SelectItem value="all">Todos os usuários</SelectItem>
+    //               {users.map((user) => (
+    //                 <SelectItem key={user.id} value={user.id}>
+    //                   {user.name}
+    //                 </SelectItem>
+    //               ))}
+    //             </SelectContent>
+    //           </Select>
+    //         </div>
+
+    //         <div>
+    //           <Label htmlFor="filter-categoria" className="text-sm font-medium">
+    //             Categoria
+    //           </Label>
+    //           <Select
+    //             value={localFilters.categoria}
+    //             onValueChange={(value) =>
+    //               handleFilterChange("categoria", value)
+    //             }
+    //           >
+    //             <SelectTrigger>
+    //               <SelectValue placeholder="Selecione uma categoria..." />
+    //             </SelectTrigger>
+    //             <SelectContent>
+    //               <SelectItem value="all">Todas as categorias</SelectItem>
+    //               {(categories as any[]).map((category: any) => (
+    //                 <SelectItem key={category.id} value={category.name}>
+    //                   {category.name}
+    //                 </SelectItem>
+    //               ))}
+    //             </SelectContent>
+    //           </Select>
+    //         </div>
+
+    //         <div>
+    //           <Label htmlFor="filter-origem" className="text-sm font-medium">
+    //             Origem
+    //           </Label>
+    //           <Select
+    //             value={localFilters.origem}
+    //             onValueChange={(value) => handleFilterChange("origem", value)}
+    //           >
+    //             <SelectTrigger>
+    //               <SelectValue placeholder="Selecione uma origem..." />
+    //             </SelectTrigger>
+    //             <SelectContent>
+    //               <SelectItem value="all">Todas as origens</SelectItem>
+    //               {(origins as any[]).map((origin: any) => (
+    //                 <SelectItem key={origin.id} value={origin.name}>
+    //                   {origin.name}
+    //                 </SelectItem>
+    //               ))}
+    //             </SelectContent>
+    //           </Select>
+    //         </div>
+
+    //         <div>
+    //           <Label htmlFor="filter-markers" className="text-sm font-medium">
+    //             Marcadores
+    //           </Label>
+    //           <Select
+    //             value={localFilters.markers}
+    //             onValueChange={(value) => handleFilterChange("markers", value)}
+    //           >
+    //             <SelectTrigger>
+    //               <SelectValue placeholder="Selecione um marcador..." />
+    //             </SelectTrigger>
+    //             <SelectContent>
+    //               <SelectItem value="all">Todos os marcadores</SelectItem>
+    //               {(markers as any[]).map((marker: any) => (
+    //                 <SelectItem key={marker.id} value={marker.name}>
+    //                   <div className="flex items-center gap-2">
+    //                     <div
+    //                       className="w-3 h-3 rounded-full"
+    //                       style={{ backgroundColor: marker.color }}
+    //                     ></div>
+    //                     {marker.name}
+    //                   </div>
+    //                 </SelectItem>
+    //               ))}
+    //             </SelectContent>
+    //           </Select>
+    //         </div>
+    //       </div>
+
+    //       <div className="flex gap-2 pt-2">
+    //         <Button onClick={applyFilters} className="flex-1">
+    //           Aplicar Filtros
+    //         </Button>
+    //         <Button variant="outline" onClick={clearFilters}>
+    //           Limpar
+    //         </Button>
+    //       </div>
+    //     </div>
+    //   </PopoverContent>
+    // </Popover>
   );
 }
