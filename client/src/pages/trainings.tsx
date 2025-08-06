@@ -83,7 +83,7 @@ export default function Trainings() {
   const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(
     null,
   );
-  const [isEditingScripts, setIsEditingScripts] = useState(false);
+
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
   const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
   const [isEditingPoliticas, setIsEditingPoliticas] = useState(false);
@@ -317,44 +317,6 @@ DICAS DE PRONÚNCIA
         });
     }
   };
-  const [scriptsContent, setScriptsContent] = useState(`SCRIPTS DE LIGAÇÃO
-
-SCRIPT – CLIENTES INATIVOS
-Alô, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?!
-
-Eu vi aqui em nosso sistema que já faz um tempinho que o Sr/Sra. não compra conosco e ai consegui com meu gerente DUAS condições muito bacana para vc voltar a ser nosso cliente.
-
-Gostaria de saber se posso enviar para seu whatsapp esta condição especial?
-
-As condições:
-• 1 PRATO PRINCIPAL EM NOSSO BISTROT
-• Desconto especial de 40% em uma lista de vinhos selecionados
-• Comprando 3 gfs GANHA 1 TAÇA DE CRISTAL BORDEAUX
-
-SCRIPT – 1 SEMANA DO ANIVERSÁRIO
-1º ETAPA:
-Olá, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?!
-
-Estou te ligando por que vi aqui em nosso sistema que irá fazer aniversario no próximo dia XXX, e gostaria de dizer que tenho alguns presentes para vc no mês do seu niver:
-• 1 PRATO PRINCIPAL em um de nossos bistrot
-• 30% DE DESCONTO na compra de vinhos comigo
-
-3º ETAPA:
-Eu não sei se sabe, mas temos uma charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado à partir das 18hs até 23hs.
-
-SCRIPT – NO DIA DO ANIVERSÁRIO
-1º ETAPA:
-Olá, XXX! [Bom dia - Boa tarde]! Sou a xxxx da Grand Cru, Tudo bom?! Estou te ligando para desejar um feliz aniversário! Parabéns pelo seu GRAND DIA.
-
-2º ETAPA:
-E dizer que tenho 2 presentes para vc, para o seu dia especial:
-• 1 PRATO PRINCIPAL em um de nossos bistrot
-• 30% DE DESCONTO na compra de vinhos comigo
-
-3º ETAPA:
-Eu não sei se sabe, mas temos uma charmoso Wine Bar na nossa unidade de Copacabana, funcionamos de segunda à sábado à partir das 18hs até 23hs.
-
-Parabéns e bons vinhos 🍷`);
 
   const [anivSemanaContent, setAnivSemanaContent] =
     useState(`SCRIPT - ANIVERSARIANTES - 1 SEMANA ANTES
@@ -485,30 +447,6 @@ ATENDIMENTO AO CLIENTE
   // ];
 
   const trainingDocuments: TrainingDocument[] = [
-    {
-      id: "1",
-      title: "Manual do Usuário VinoCRM",
-      description: "Guia completo de uso do sistema",
-      category: "Sistema",
-      fileUrl: "https://exemplo.com/seu-documento.pdf",
-      fileType: "pdf",
-    },
-    {
-      id: "2",
-      title: "Catálogo de Produtos 2024",
-      description: "Catálogo completo com todos os produtos disponíveis",
-      category: "Produtos",
-      fileUrl: "#",
-      fileType: "pdf",
-    },
-    {
-      id: "3",
-      title: "Scripts de Vendas",
-      description: "Roteiros prontos para diferentes situações de venda",
-      category: "Vendas",
-      fileUrl: "#",
-      fileType: "doc",
-    },
     {
       id: "4",
       title: "Política de Vendas",
@@ -829,98 +767,6 @@ ATENDIMENTO AO CLIENTE
 
           <TabsContent value="learning" className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Card dos Scripts de Ligação */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-wine-600" />
-                        Scripts de Ligação
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        Roteiros completos para diferentes situações de ligação:
-                        clientes inativos, aniversários e prospecção
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isEditingScripts ? (
-                    <div className="space-y-4">
-                      <Textarea
-                        value={scriptsContent}
-                        onChange={(e) => setScriptsContent(e.target.value)}
-                        className="min-h-96 resize-none font-mono text-sm"
-                        placeholder="Digite aqui os scripts de ligação..."
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingScripts(false)}
-                          className="text-gray-600 border-gray-300"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingScripts(false)}
-                          className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                        <div className="prose prose-sm">
-                          <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                            {scriptsContent}
-                          </pre>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <Badge
-                          variant="outline"
-                          className="text-wine-700 border-wine-300"
-                        >
-                          Scripts de Vendas
-                        </Badge>
-                        {isAdmin && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingScripts(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setScriptsContent("");
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Card Aniversariantes - 1 semana antes */}
               <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
