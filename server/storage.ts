@@ -2657,7 +2657,7 @@ export class DatabaseStorage implements IStorage {
         category: trainings.category,
         type: trainings.type,
         level: trainings.level,
-        videoUrl: trainingAttachments.url,
+        attachmentUrl: trainingAttachments.url,
         createdAt: trainings.createdAt,
       })
       .from(trainings)

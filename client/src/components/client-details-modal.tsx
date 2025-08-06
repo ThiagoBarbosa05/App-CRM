@@ -102,9 +102,15 @@ export default function ClientDetailsModal({
     const cleanPhone = phone.replace(/\D/g, "");
 
     if (cleanPhone.length === 11) {
-      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2, 7)}-${cleanPhone.slice(7)}`;
+      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
+        2,
+        7,
+      )}-${cleanPhone.slice(7)}`;
     } else if (cleanPhone.length === 10) {
-      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2, 6)}-${cleanPhone.slice(6)}`;
+      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
+        2,
+        6,
+      )}-${cleanPhone.slice(6)}`;
     }
 
     return phone;
@@ -115,7 +121,10 @@ export default function ClientDetailsModal({
     const cleanCPF = cpf.replace(/\D/g, "");
 
     if (cleanCPF.length === 11) {
-      return `${cleanCPF.slice(0, 3)}.${cleanCPF.slice(3, 6)}.${cleanCPF.slice(6, 9)}-${cleanCPF.slice(9)}`;
+      return `${cleanCPF.slice(0, 3)}.${cleanCPF.slice(3, 6)}.${cleanCPF.slice(
+        6,
+        9,
+      )}-${cleanCPF.slice(9)}`;
     }
 
     return cpf;
@@ -129,7 +138,7 @@ export default function ClientDetailsModal({
             <User className="h-5 w-5 text-wine-600" />
             {client.name}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-left">
             Informações detalhadas do cliente
           </DialogDescription>
         </DialogHeader>
@@ -240,7 +249,10 @@ export default function ClientDetailsModal({
                           {formatPhone(client.phone)}
                         </a>
                         <a
-                          href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
+                          href={`https://wa.me/${client.phone.replace(
+                            /\D/g,
+                            "",
+                          )}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-green-600 hover:text-green-700 transition-colors"
@@ -358,7 +370,9 @@ export default function ClientDetailsModal({
                         ].filter(Boolean);
 
                         const fullAddress = addressParts.join(", ");
-                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          fullAddress,
+                        )}`;
                         window.open(mapsUrl, "_blank");
                       }}
                       className="flex items-center gap-2"

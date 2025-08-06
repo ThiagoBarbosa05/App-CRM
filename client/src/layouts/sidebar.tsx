@@ -38,7 +38,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
     };
 
     return (
-        <aside className="w-72 bg-white p-5 shadow-lg border-r border-gray-200 h-full md:overflow-auto flex flex-col">
+        <aside className="w-72 bg-white p-5 shadow-lg border-r border-gray-200 h-full overflow-auto flex flex-col">
             <Button
                 className="absolute lg:hidden top-0 right-0"
                 variant={"ghost"}
