@@ -110,7 +110,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,6 +125,8 @@ import {
 import { File, Loader, Loader2, LoaderCircle, X } from "lucide-react";
 import { CreateDocumentTrainingData } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import { Training } from "./learning-images-management";
 
 // Schema de validação
 const documentSchema = z.object({
@@ -138,11 +140,13 @@ type DocumentFormData = z.infer<typeof documentSchema>;
 interface DocumentsUploadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingTraining: Training | null;
 }
 
 export function DocumentsUploadForm({
   onOpenChange,
   open,
+  editingTraining,
 }: DocumentsUploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -155,6 +159,11 @@ export function DocumentsUploadForm({
     formState: { errors },
   } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
+    defaultValues: {
+      category: editingTraining?.category || "",
+      description: editingTraining?.description || "",
+      title: editingTraining?.title || "",
+    },
   });
 
   // Mutação de upload do arquivo usando react-query
@@ -212,6 +221,10 @@ export function DocumentsUploadForm({
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=document"],
+      });
+      onOpenChange(false);
       toast({
         title: "Sucesso",
         description: "Treinamento criado com sucesso",
@@ -261,6 +274,25 @@ export function DocumentsUploadForm({
     reset();
     handleRemoveFile();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    if (editingTraining) {
+      setFileUrl(editingTraining.attachmentUrl);
+      reset({
+        category: editingTraining?.category,
+        description: editingTraining?.description,
+        title: editingTraining?.title,
+      });
+    } else {
+      setFileUrl(null);
+      reset({
+        title: "",
+        description: "",
+        category: "",
+      });
+    }
+  }, [editingTraining, reset, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -364,7 +396,7 @@ export function DocumentsUploadForm({
             disabled={!fileUrl || uploadMutation.isPending}
             className="disabled:bg-black"
           >
-            {uploadMutation.isPending ? "Enviando..." : "Criar Treinamento"}
+            {uploadMutation.isPending ? "Enviando..." : "Enviar"}
           </Button>
         </form>
       </DialogContent>

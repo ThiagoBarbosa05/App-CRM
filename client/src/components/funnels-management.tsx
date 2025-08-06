@@ -68,10 +68,10 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
-    null,
+    null
   );
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
-    "list",
+    "list"
   );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
   const [updateFunnelModal, setUpdateFunnelModal] = useState<boolean>(false);
@@ -150,7 +150,7 @@ export default function FunnelsManagement() {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -184,7 +184,7 @@ export default function FunnelsManagement() {
     return (
       <div>
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -210,7 +210,7 @@ export default function FunnelsManagement() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center flex-wrap gap-4 justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Funis de Vendas</h2>
           <p className="text-gray-600 mt-1">

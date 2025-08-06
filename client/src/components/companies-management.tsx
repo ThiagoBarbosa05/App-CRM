@@ -35,6 +35,17 @@ import CompanyDetailsModal from "./company-details-modal";
 import CompanyImportModal from "./company-import-modal";
 import { Company } from "@shared/schema";
 import { exportCompaniesToExcel } from "@/lib/excel-export";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
 
 interface CompaniesManagementProps {
   currentUser: any;
@@ -61,7 +72,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       const response = await fetch(
         currentUser?.role === "admin"
           ? "/api/companies"
-          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`,
+          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -193,9 +204,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta empresa?")) {
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.mutate(id);
   };
 
   const handleModalClose = () => {
@@ -231,7 +240,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedCompanies(
-        filteredCompanies.map((company: Company) => company.id),
+        filteredCompanies.map((company: Company) => company.id)
       );
     } else {
       setSelectedCompanies([]);
@@ -462,7 +471,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                             <a
                               href={`https://wa.me/${company.phone.replace(
                                 /\D/g,
-                                "",
+                                ""
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -496,14 +505,36 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(company.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Deseja excluir esta empresa?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir esta empresa?
+                                  Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(company.id)}
+                                >
+                                  Confirmar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -514,6 +545,24 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           )}
         </div>
       </div>
+
+      <CompanyFormModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        company={editingCompany}
+      />
+
+      <CompanyDetailsModal
+        company={selectedCompany}
+        isOpen={isDetailsModalOpen}
+        onClose={handleDetailsModalClose}
+        onEdit={handleEditFromDetails}
+      />
+
+      <CompanyImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+      />
     </div>
     // <Card>
     //   <CardHeader>

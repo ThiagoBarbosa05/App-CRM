@@ -9,15 +9,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload,
   FileSpreadsheet,
   CheckCircle,
   AlertCircle,
   Download,
+  Settings,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,8 +49,9 @@ export default function ClientImportModal({
   const [importData, setImportData] = useState<any[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [step, setStep] = useState<
-    "upload" | "preview" | "importing" | "result"
+    "upload" | "preview" | "field-mapping" | "importing" | "result"
   >("upload");
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState(0);
 
   const processFileMutation = useMutation({
@@ -73,6 +76,26 @@ export default function ClientImportModal({
     },
     onSuccess: (data: any) => {
       setImportData(data);
+      
+      // Detectar campos disponíveis automaticamente e marcar os principais como selecionados
+      if (data.length > 0) {
+        const availableFields = Object.keys(data[0]);
+        const initialFieldSelection: Record<string, boolean> = {};
+        
+        availableFields.forEach(field => {
+          const fieldLower = field.toLowerCase();
+          // Marcar campos essenciais como selecionados por padrão
+          initialFieldSelection[field] = 
+            fieldLower.includes('nome') || fieldLower.includes('name') ||
+            fieldLower.includes('telefone') || fieldLower.includes('phone') ||
+            fieldLower.includes('email') ||
+            fieldLower.includes('categoria') || fieldLower.includes('category') ||
+            fieldLower.includes('origem') || fieldLower.includes('origin');
+        });
+        
+        setSelectedFields(initialFieldSelection);
+      }
+      
       setStep("preview");
     },
     onError: () => {
@@ -424,13 +447,26 @@ export default function ClientImportModal({
   const handleImport = () => {
     setStep("importing");
     setProgress(0);
-    importClientsMutation.mutate(importData);
+    
+    // Filtrar dados apenas com campos selecionados
+    const filteredData = importData.map(item => {
+      const filteredItem: any = {};
+      Object.keys(selectedFields).forEach(field => {
+        if (selectedFields[field] && item[field] !== undefined) {
+          filteredItem[field] = item[field];
+        }
+      });
+      return filteredItem;
+    });
+    
+    importClientsMutation.mutate(filteredData);
   };
 
   const handleClose = () => {
     setFile(null);
     setImportData([]);
     setImportResult(null);
+    setSelectedFields({});
     setStep("upload");
     setProgress(0);
     onOpenChange(false);
@@ -588,8 +624,96 @@ export default function ClientImportModal({
               <Button variant="outline" onClick={() => setStep("upload")}>
                 Voltar
               </Button>
+              <Button variant="outline" onClick={() => setStep("field-mapping")}>
+                Selecionar Campos
+              </Button>
               <Button onClick={handleImport}>
                 Importar {importData.length} Clientes
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "field-mapping" && (
+          <div className="space-y-4">
+            <Alert>
+              <Settings className="h-4 w-4" />
+              <AlertDescription>
+                Selecione quais campos você deseja importar. Os campos marcados serão incluídos na importação.
+              </AlertDescription>
+            </Alert>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Campos Disponíveis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.keys(selectedFields).map((field) => (
+                    <div key={field} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={field}
+                        checked={selectedFields[field]}
+                        onCheckedChange={(checked) => 
+                          setSelectedFields(prev => ({
+                            ...prev,
+                            [field]: checked as boolean
+                          }))
+                        }
+                      />
+                      <Label htmlFor={field} className="text-sm font-medium">
+                        {field}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const allSelected: Record<string, boolean> = {};
+                        Object.keys(selectedFields).forEach(field => {
+                          allSelected[field] = true;
+                        });
+                        setSelectedFields(allSelected);
+                      }}
+                    >
+                      Selecionar Todos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const noneSelected: Record<string, boolean> = {};
+                        Object.keys(selectedFields).forEach(field => {
+                          noneSelected[field] = false;
+                        });
+                        setSelectedFields(noneSelected);
+                      }}
+                    >
+                      Desmarcar Todos
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="text-sm text-gray-600">
+              <strong>Campos selecionados:</strong> {Object.values(selectedFields).filter(Boolean).length} de {Object.keys(selectedFields).length}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStep("preview")}>
+                Voltar
+              </Button>
+              <Button 
+                onClick={handleImport}
+                disabled={Object.values(selectedFields).filter(Boolean).length === 0}
+              >
+                Importar com Campos Selecionados
               </Button>
             </div>
           </div>

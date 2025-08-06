@@ -37,6 +37,8 @@ import {
   GraduationCap,
   Pencil,
   Trash,
+  File,
+  BookOpen,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { CreateTrainingForm } from "./create-training-form";
@@ -56,15 +58,16 @@ import {
 } from "./ui/alert-dialog";
 import ImageUploadForm from "./image-upload-form";
 import { DocumentsUploadForm } from "./document-upload-form";
+import { Link } from "wouter";
 
-export interface TrainingVideo {
+export interface Training {
   id: string;
   title: string;
   description: string;
   category: string;
   type: string;
   level: string | null;
-  videoUrl: string | null;
+  attachmentUrl: string | null;
   createdAt: Date;
 }
 
@@ -207,8 +210,7 @@ export default function LearningImagesManagement() {
   // const [showAddModal, setShowAddModal] = useState(false);
 
   const [openCreateTrainingModal, setOpenCreateTrainingModal] = useState(false);
-  const [editingTrainingVideo, setEditingTrainingVideo] =
-    useState<TrainingVideo | null>(null);
+  const [editingTraining, setEditingTraining] = useState<Training | null>(null);
 
   const [trainingToDelete, setTrainingToDelete] = useState("");
 
@@ -337,7 +339,7 @@ export default function LearningImagesManagement() {
   //   fileInputRef.current?.click();
   // };
 
-  const { data: trainingVideos } = useQuery<TrainingVideo[]>({
+  const { data: trainingVideos } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=video");
@@ -346,7 +348,7 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const { data: trainingDocument } = useQuery<TrainingVideo[]>({
+  const { data: trainingDocument } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=document"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=document");
@@ -355,7 +357,6 @@ export default function LearningImagesManagement() {
     },
   });
 
-  console.log(trainingDocument);
   const deleteMutation = useMutation({
     mutationFn: async (trainingId: string) => {
       const response = await fetch(`/api/trainings/${trainingId}`, {
@@ -589,7 +590,7 @@ export default function LearningImagesManagement() {
                 Documentos e manuais
               </TabsTrigger>
               <TabsTrigger className="w-full" value="learning">
-                Aprendizado
+                Script de vendas
               </TabsTrigger>
             </TabsList>
 
@@ -620,7 +621,7 @@ export default function LearningImagesManagement() {
                         <div className="flex gap-2 mt-6">
                           <Button
                             onClick={() => {
-                              setEditingTrainingVideo(training);
+                              setEditingTraining(training);
                               setOpenCreateTrainingModal(true);
                             }}
                             variant="outline"
@@ -642,14 +643,15 @@ export default function LearningImagesManagement() {
                         </div>
                       </div>
                       <div>
-                        {training.videoUrl && (
+                        {training.attachmentUrl && (
                           <iframe
                             className="rounded-lg"
                             src={
-                              training.videoUrl?.includes("www.youtube.com") &&
-                              !training.videoUrl.includes("embed")
-                                ? getYouTubeEmbedUrl(training.videoUrl)
-                                : training.videoUrl || ""
+                              training.attachmentUrl?.includes(
+                                "www.youtube.com"
+                              ) && !training.attachmentUrl.includes("embed")
+                                ? getYouTubeEmbedUrl(training.attachmentUrl)
+                                : training.attachmentUrl || ""
                             }
                             title={training.title}
                             allowFullScreen
@@ -667,7 +669,7 @@ export default function LearningImagesManagement() {
                 <Button
                   type="button"
                   onClick={() => {
-                    setEditingTrainingVideo(null);
+                    setEditingTraining(null);
                     setOpenCreateTrainingModal(true);
                   }}
                 >
@@ -678,10 +680,72 @@ export default function LearningImagesManagement() {
             </TabsContent>
 
             <TabsContent className="w-full" value="documents">
-              <div className="flex flex-col items-center ">
-                <Button onClick={() => setOpenDocumentForm(true)}>
-                  <Upload className="h-4 w-4 mr-2" /> Enviar documento
-                </Button>
+              <div className="flex flex-col gap-4 items-start ">
+                <section className="grid w-full grid-cols-3 gap-4">
+                  {trainingDocument &&
+                    trainingDocument.map((training) => (
+                      <div
+                        className="bg-white w-full min-h-56 p-5 shadow-lg rounded-md"
+                        key={training.id}
+                      >
+                        <div className="h-full flex flex-col justify-between">
+                          <div className="flex  justify-between">
+                            <div>
+                              <p className="text-xl font-medium">
+                                {training.title}
+                              </p>
+                              <p className="text-sm text-gray-500 pt-1">
+                                {training.description}
+                              </p>
+                            </div>
+                            <File className="size-10 text-red-500" />
+                          </div>
+                          <div className=" flex justify-between items-center">
+                            <Badge variant={"outline"}>
+                              {training.category}
+                            </Badge>
+                            <a
+                              href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
+                              className="border flex items-center gap-1 rounded-sm px-3 py-2"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <BookOpen className="size-4 text-sm " />
+                              Abrir
+                            </a>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => {
+                                setOpenDocumentForm(true);
+                                setEditingTraining(training);
+                              }}
+                              variant={"outline"}
+                            >
+                              <Pencil className="size-4" />
+                              Editar
+                            </Button>
+                            <Button className="bg-red-500 text-white">
+                              <Trash className="size-4" />
+                              Deletar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </section>
+
+                <div className="w-full flex justify-center">
+                  <Button
+                    onClick={() => {
+                      setEditingTraining(null);
+
+                      setOpenDocumentForm(true);
+                    }}
+                  >
+                    <Upload className="h-4 w-4 mr-2" /> Enviar documento
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -690,12 +754,13 @@ export default function LearningImagesManagement() {
       <CreateTrainingForm
         open={openCreateTrainingModal}
         onOpenChange={setOpenCreateTrainingModal}
-        editingTrainingVideo={editingTrainingVideo}
+        editingTrainingVideo={editingTraining}
       />
 
       <DocumentsUploadForm
         open={openDocumentForm}
         onOpenChange={setOpenDocumentForm}
+        editingTraining={editingTraining}
       />
 
       <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>

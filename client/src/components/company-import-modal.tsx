@@ -152,7 +152,7 @@ export default function CompanyImportModal({
           const response = await apiRequest(
             "/api/companies",
             "POST",
-            companyData,
+            companyData
           );
           results.success++;
         } catch (error: any) {
@@ -174,7 +174,11 @@ export default function CompanyImportModal({
       if (result.success > 0) {
         toast({
           title: "Importação concluída",
-          description: `${result.success} empresas importadas com sucesso${result.errors.length > 0 ? ` (${result.errors.length} com erro)` : ""}`,
+          description: `${result.success} empresas importadas com sucesso${
+            result.errors.length > 0
+              ? ` (${result.errors.length} com erro)`
+              : ""
+          }`,
         });
       }
     },
@@ -290,30 +294,37 @@ export default function CompanyImportModal({
               </CardContent>
             </Card>
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={downloadTemplate}>
+            <div className=" grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 justify-between">
+              <Button
+                className="w-full sm:w-initial"
+                variant="outline"
+                onClick={downloadTemplate}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Baixar Template
               </Button>
 
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleClose}>
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleUpload}
-                  disabled={!file || processFileMutation.isPending}
-                >
-                  {processFileMutation.isPending
-                    ? "Processando..."
-                    : "Processar Arquivo"}
-                </Button>
-              </div>
+              <Button
+                className="w-full sm:w-initial"
+                variant="outline"
+                onClick={handleClose}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="w-full sm:w-initial"
+                onClick={handleUpload}
+                disabled={!file || processFileMutation.isPending}
+              >
+                {processFileMutation.isPending
+                  ? "Processando..."
+                  : "Processar Arquivo"}
+              </Button>
             </div>
           </div>
         )}
 
-        {step === "preview" && (
+        {/* {step === "preview" && (
           <div className="space-y-4">
             <Alert>
               <CheckCircle className="h-4 w-4" />
@@ -376,9 +387,9 @@ export default function CompanyImportModal({
               </Button>
             </div>
           </div>
-        )}
+        )} */}
 
-        {step === "importing" && (
+        {/* {step === "importing" && (
           <div className="space-y-4">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -394,9 +405,9 @@ export default function CompanyImportModal({
               {Math.round(progress)}% concluído
             </p>
           </div>
-        )}
+        )} */}
 
-        {step === "result" && importResult && (
+        {/* {step === "result" && importResult && (
           <div className="space-y-4">
             <div className="text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -472,7 +483,7 @@ export default function CompanyImportModal({
               <Button onClick={handleClose}>Fechar</Button>
             </div>
           </div>
-        )}
+        )}  */}
       </DialogContent>
     </Dialog>
   );

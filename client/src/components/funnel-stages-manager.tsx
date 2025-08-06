@@ -100,7 +100,7 @@ export default function FunnelStagesManager({
     queryFn: async () => {
       const response = await apiRequest(
         `/api/funnels/${funnel.id}/stages`,
-        "GET",
+        "GET"
       );
       return response.json();
     },
@@ -119,7 +119,7 @@ export default function FunnelStagesManager({
       return await apiRequest(
         `/api/funnel-stages/${funnel.id}`,
         "POST",
-        stageData,
+        stageData
       );
     },
     onSuccess: () => {
@@ -264,7 +264,7 @@ export default function FunnelStagesManager({
   return (
     <>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center flex-wrap gap-4 justify-between">
           <div>
             <h3 className="text-lg font-semibold">Etapas do Funil</h3>
             <p className="text-gray-600">
@@ -414,7 +414,7 @@ export default function FunnelStagesManager({
             </div>
             <div className="grid gap-2">
               <Label>Cor da Etapa</Label>
-              <div className="grid grid-cols-10 gap-2">
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
                 {defaultColors.map((color) => (
                   <button
                     key={color}

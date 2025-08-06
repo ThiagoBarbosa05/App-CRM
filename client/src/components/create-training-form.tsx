@@ -32,12 +32,12 @@ import z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { TrainingVideo } from "./learning-images-management";
+import { Training } from "./learning-images-management";
 
 interface CreateTrainingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  editingTrainingVideo: TrainingVideo | null;
+  editingTrainingVideo: Training | null;
 }
 
 export function CreateTrainingForm({
@@ -136,7 +136,7 @@ export function CreateTrainingForm({
           headers: {
             "Content-Type": "application/json",
           },
-        },
+        }
       );
       return response.json();
     },
@@ -173,7 +173,7 @@ export function CreateTrainingForm({
       description: editingTrainingVideo?.description || "",
       category: editingTrainingVideo?.category || "",
       level: editingTrainingVideo?.level || "",
-      videoUrl: editingTrainingVideo?.videoUrl || "",
+      videoUrl: editingTrainingVideo?.attachmentUrl || "",
       type: editingTrainingVideo?.type || "",
     },
   });
@@ -187,7 +187,7 @@ export function CreateTrainingForm({
         description: editingTrainingVideo.description,
         category: editingTrainingVideo.category,
         level: editingTrainingVideo.level || "",
-        videoUrl: editingTrainingVideo.videoUrl || "",
+        videoUrl: editingTrainingVideo.attachmentUrl || "",
         type: editingTrainingVideo.type || "video",
       });
     } else {
