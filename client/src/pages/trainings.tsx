@@ -520,7 +520,7 @@ ATENDIMENTO AO CLIENTE
             </TabsTrigger>
             <TabsTrigger value="learning" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              <p> Aprendizado</p>
+              <p> Script de Vendas</p>
             </TabsTrigger>
           </TabsList>
 
