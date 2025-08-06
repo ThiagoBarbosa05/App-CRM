@@ -132,7 +132,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                         )}
                     >
                         <CalendarDays className="mr-3 h-4 w-4" />
-                        <span className="mobile-text">Calendário</span>
+                        <span className="mobile-text">Aniversários</span>
                     </button>
                 </Link>
 

@@ -139,7 +139,7 @@ export default function CalendarPage() {
     });
   };
 
-  // Função para destacar datas com aniversários no calendário
+  // Função para destacar datas com aniversários
   const dayModifiers = {
     birthday: (date: Date) => getClientsForDate(date).length > 0
   };
@@ -217,7 +217,7 @@ export default function CalendarPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarIcon className="h-5 w-5 text-wine-600" />
-              Calendário
+              Aniversários
             </CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center">
