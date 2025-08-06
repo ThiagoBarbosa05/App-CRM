@@ -148,18 +148,38 @@ export default function Clients() {
                 currentFilters={clientFilters}
                 onFiltersChange={setClientFilters}
               />
-              <Button
-                variant="outline"
-                onClick={handleExportClients}
-                disabled={isExporting}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {isExporting
-                  ? "Exportando..."
-                  : selectedClients.length > 0
-                    ? `Exportar ${selectedClients.length} Selecionados`
-                    : "Exportar Todos"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedClients.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-lg">
+                    <span className="text-sm font-medium text-blue-800">
+                      {selectedClients.length} selecionados
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedClientIds([]);
+                        setSelectedClients([]);
+                      }}
+                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={handleExportClients}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting
+                    ? "Exportando..."
+                    : selectedClients.length > 0
+                      ? `Exportar ${selectedClients.length} Selecionados`
+                      : "Exportar Todos"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

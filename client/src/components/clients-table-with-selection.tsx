@@ -120,9 +120,23 @@ export default function ClientsTableWithSelection({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedClientIds(paginatedClients.map((client) => client.id));
+      // Adicionar todos os clientes da página atual aos selecionados
+      const currentPageIds = paginatedClients.map((client) => client.id);
+      setSelectedClientIds((prev) => {
+        const newSelected = [...prev];
+        currentPageIds.forEach((id) => {
+          if (!newSelected.includes(id)) {
+            newSelected.push(id);
+          }
+        });
+        return newSelected;
+      });
     } else {
-      setSelectedClientIds([]);
+      // Remover apenas os clientes da página atual
+      const currentPageIds = paginatedClients.map((client) => client.id);
+      setSelectedClientIds((prev) => 
+        prev.filter((id) => !currentPageIds.includes(id))
+      );
     }
   };
 
@@ -250,12 +264,12 @@ export default function ClientsTableWithSelection({
     setCurrentPage(1);
   }, [searchQuery, filters]);
 
-  const allSelected =
-    selectedClientIds.length === paginatedClients.length &&
-    paginatedClients.length > 0;
-  const someSelected =
-    selectedClientIds.length > 0 &&
-    selectedClientIds.length < paginatedClients.length;
+  // Verificar se todos os clientes da página atual estão selecionados
+  const currentPageIds = paginatedClients.map((client) => client.id);
+  const allCurrentPageSelected = currentPageIds.length > 0 && 
+    currentPageIds.every((id) => selectedClientIds.includes(id));
+  const someCurrentPageSelected = currentPageIds.some((id) => selectedClientIds.includes(id)) && 
+    !allCurrentPageSelected;
 
   // Notificar componente pai sobre mudanças na seleção
   useEffect(() => {
@@ -303,7 +317,7 @@ export default function ClientsTableWithSelection({
               <tr className="border-b border-gray-200 bg-gray-white">
                 <th className="p-4 text-left">
                   <Checkbox
-                    checked={allSelected}
+                    checked={allCurrentPageSelected}
                     onCheckedChange={handleSelectAll}
                   />
                 </th>
