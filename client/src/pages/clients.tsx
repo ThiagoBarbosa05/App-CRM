@@ -6,13 +6,13 @@ import ClientFilters, {
   ClientFilters as ClientFiltersType,
 } from "@/components/client-filters";
 import ClientImportModal from "@/components/client-import-modal";
+import ClientExportModal from "@/components/client-export-modal";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Download, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { exportToExcel, formatClientDataForExport } from "@/lib/excel-export";
 
 export default function Clients() {
   const { user } = useAuth();
@@ -20,8 +20,8 @@ export default function Clients() {
   const [activeTab, setActiveTab] = useState("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
@@ -58,45 +58,6 @@ export default function Clients() {
     },
     [],
   );
-
-  const handleExportClients = async () => {
-    // Usar clientes selecionados se houver, senão usar todos
-    const clientsToExport =
-      selectedClients.length > 0 ? selectedClients : clientsArray;
-    const exportType = selectedClients.length > 0 ? "selecionados" : "todos os";
-
-    if (!clientsToExport || clientsToExport.length === 0) {
-      toast({
-        title: "Nenhum dado para exportar",
-        description:
-          selectedClients.length > 0
-            ? "Nenhum cliente selecionado para exportar"
-            : "Não há clientes cadastrados para exportar",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      const formattedData = formatClientDataForExport(clientsToExport);
-      await exportToExcel(formattedData, "clientes");
-
-      toast({
-        title: "Exportação concluída",
-        description: `${clientsToExport.length} ${exportType} clientes foram exportados com sucesso`,
-      });
-    } catch (error) {
-      console.error("Erro na exportação:", error);
-      toast({
-        title: "Erro na exportação",
-        description: "Ocorreu um erro ao exportar os dados dos clientes",
-        variant: "destructive",
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <div className=" bg-gray-50 dark:bg-gray-900">
@@ -169,15 +130,12 @@ export default function Clients() {
                 )}
                 <Button
                   variant="outline"
-                  onClick={handleExportClients}
-                  disabled={isExporting}
+                  onClick={() => setIsExportModalOpen(true)}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting
-                    ? "Exportando..."
-                    : selectedClients.length > 0
-                      ? `Exportar ${selectedClients.length} Selecionados`
-                      : "Exportar Todos"}
+                  {selectedClients.length > 0
+                    ? `Exportar ${selectedClients.length} Selecionados`
+                    : "Exportar Todos"}
                 </Button>
               </div>
             </div>
@@ -203,6 +161,13 @@ export default function Clients() {
       <ClientImportModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
+      />
+
+      <ClientExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        clients={clientsArray}
+        selectedClients={selectedClients}
       />
     </div>
   );
