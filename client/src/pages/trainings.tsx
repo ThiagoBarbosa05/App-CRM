@@ -45,7 +45,7 @@ interface TrainingVideo {
   duration: string;
   category: "vendas" | "produto" | "sistema" | "atendimento";
   level: "básico" | "intermediário" | "avançado";
-  videoUrl: string;
+  attachmentUrl: string;
   thumbnail: string;
 }
 
@@ -562,10 +562,11 @@ ATENDIMENTO AO CLIENTE
                     <div className="aspect-video mb-4">
                       <iframe
                         src={
-                          selectedVideo.videoUrl?.includes("www.youtube.com") &&
-                          !selectedVideo.videoUrl.includes("embed")
-                            ? getYouTubeEmbedUrl(selectedVideo.videoUrl)
-                            : selectedVideo.videoUrl || ""
+                          selectedVideo.attachmentUrl?.includes(
+                            "www.youtube.com",
+                          ) && !selectedVideo.attachmentUrl.includes("embed")
+                            ? getYouTubeEmbedUrl(selectedVideo.attachmentUrl)
+                            : selectedVideo.attachmentUrl || ""
                         }
                         title={selectedVideo.title}
                         className="w-full h-full rounded-lg"
@@ -592,10 +593,10 @@ ATENDIMENTO AO CLIENTE
                         <iframe
                           className="w-full h-[192px]"
                           src={
-                            video.videoUrl?.includes("www.youtube.com") &&
-                            !video.videoUrl.includes("embed")
-                              ? getYouTubeEmbedUrl(video.videoUrl)
-                              : video.videoUrl || ""
+                            video.attachmentUrl?.includes("www.youtube.com") &&
+                            !video.attachmentUrl.includes("embed")
+                              ? getYouTubeEmbedUrl(video.attachmentUrl)
+                              : video.attachmentUrl || ""
                           }
                           title={video.title}
                           allowFullScreen
