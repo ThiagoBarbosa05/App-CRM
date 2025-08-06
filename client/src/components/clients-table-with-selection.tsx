@@ -190,10 +190,18 @@ export default function ClientsTableWithSelection({
           return false;
         if (
           filters.responsavelId &&
-          filters.responsavelId !== "all" &&
-          client.responsavelId !== filters.responsavelId
-        )
-          return false;
+          filters.responsavelId !== "all"
+        ) {
+          if (filters.responsavelId === "unassigned") {
+            // Filtrar clientes sem responsável atribuído
+            if (client.responsavelId !== null && client.responsavelId !== "")
+              return false;
+          } else {
+            // Filtrar por responsável específico
+            if (client.responsavelId !== filters.responsavelId)
+              return false;
+          }
+        }
         if (
           filters.categoria &&
           filters.categoria !== "all" &&

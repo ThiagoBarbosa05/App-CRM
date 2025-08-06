@@ -181,6 +181,7 @@ export default function ClientFilters({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os usuários</SelectItem>
+                  <SelectItem value="unassigned">Responsável não atribuído</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}
