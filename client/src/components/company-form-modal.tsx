@@ -19,6 +19,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Company, Sector } from "@shared/schema";
+import { lookupCep } from "@/lib/cep-lookup";
 
 const companyFormSchema = z.object({
   nomeFantasia: z.string().min(1, "Nome Fantasia é obrigatório"),
@@ -56,6 +57,9 @@ export default function CompanyFormModal({
   const queryClient = useQueryClient();
   const isEditing = !!company;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+
   // Buscar setores disponíveis
   const { data: sectors = [] } = useQuery<Sector[]>({
     queryKey: ["/api/sectors"],
@@ -74,7 +78,7 @@ export default function CompanyFormModal({
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
@@ -98,6 +102,7 @@ export default function CompanyFormModal({
   });
 
   const activeValue = watch("active");
+  const cepValue = watch("cep");
 
   useEffect(() => {
     if (company) {
@@ -139,6 +144,13 @@ export default function CompanyFormModal({
       });
     }
   }, [company, reset]);
+
+  useEffect(() => {
+    if (cepValue && cepValue.length === 9) {
+      handleCepLookup(cepValue);
+    }
+  }, [cepValue]);
+
 
   const createMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
@@ -198,11 +210,44 @@ export default function CompanyFormModal({
     },
   });
 
-  const onSubmit = (data: CompanyFormData) => {
-    if (isEditing) {
-      updateMutation.mutate(data);
-    } else {
-      createMutation.mutate(data);
+  const handleCepLookup = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
+    setIsLoadingCep(true);
+    try {
+      const cepData = await lookupCep(cep);
+      if (cepData) {
+        setValue("address", cepData.logradouro || "");
+        setValue("city", cepData.localidade || "");
+        setValue("state", cepData.uf || "");
+
+        toast({
+          title: "Endereço encontrado",
+          description: "Os dados do endereço foram preenchidos automaticamente.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao consultar CEP",
+        description: error instanceof Error ? error.message : "Não foi possível consultar o CEP.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
+  const onSubmit = async (data: CompanyFormData) => {
+    setIsSubmitting(true);
+    try {
+      if (isEditing) {
+        await updateMutation.mutateAsync(data);
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -364,11 +409,26 @@ export default function CompanyFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="cep">CEP</Label>
-              <Input
-                id="cep"
-                {...register("cep")}
-                placeholder="00000-000"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="cep"
+                  {...register("cep")}
+                  placeholder="00000-000"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={() => handleCepLookup(watch("cep"))}
+                  disabled={isLoadingCep || watch("cep")?.replace(/\D/g, "").length !== 8}
+                  className="px-3"
+                >
+                  {isLoadingCep ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    "Buscar"
+                  )}
+                </Button>
+              </div>
               {errors.cep && (
                 <p className="text-sm text-destructive">{errors.cep.message}</p>
               )}

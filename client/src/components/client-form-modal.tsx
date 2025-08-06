@@ -78,6 +78,7 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMarker, setNewMarker] = useState("");
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
   const { user } = useAuth();
 
   // Buscar categorias das configurações
@@ -208,6 +209,51 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   const removeMarker = (markerToRemove: string) => {
     const currentMarkers = form.getValues("markers") || [];
     form.setValue("markers", currentMarkers.filter(marker => marker !== markerToRemove));
+  };
+
+  const lookupCep = async (cep: string) => {
+    // Remove non-numeric characters
+    const cleanCep = cep.replace(/\D/g, "");
+    
+    // Check if CEP has 8 digits
+    if (cleanCep.length !== 8) {
+      return;
+    }
+
+    setIsLoadingCep(true);
+    
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast({
+          title: "CEP não encontrado",
+          description: "O CEP informado não foi encontrado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fill the address fields
+      form.setValue("address", data.logradouro || "");
+      form.setValue("neighborhood", data.bairro || "");
+      form.setValue("city", data.localidade || "");
+      form.setValue("state", data.uf || "");
+
+      toast({
+        title: "Endereço encontrado",
+        description: "Os dados do endereço foram preenchidos automaticamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao consultar CEP",
+        description: "Não foi possível consultar o CEP. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingCep(false);
+    }
   };
 
   const onSubmit = async (data: any) => {
@@ -490,13 +536,30 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                   <FormItem>
                     <FormLabel>CEP</FormLabel>
                     <FormControl>
-                      <InputMask
-                        mask="99999-999"
-                        placeholder="00000-000"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <InputMask
+                          mask="99999-999"
+                          placeholder="00000-000"
+                          {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            const cep = e.target.value;
+                            if (cep && cep.length === 9) { // CEP with mask has 9 characters
+                              lookupCep(cep);
+                            }
+                          }}
+                        />
+                        {isLoadingCep && (
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                          </div>
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      O endereço será preenchido automaticamente ao digitar o CEP
+                    </p>
                   </FormItem>
                 )}
               />
