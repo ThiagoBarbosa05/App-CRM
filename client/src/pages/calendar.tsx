@@ -195,8 +195,8 @@ export default function CalendarPage() {
             <div className="flex items-center gap-3">
               <CalendarIcon className="h-8 w-8 text-wine-600" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Calendário de Aniversários</h1>
-                <p className="text-gray-600">Visualize os aniversários dos seus clientes no calendário</p>
+                <h1 className="text-2xl font-bold text-gray-900">Aniversários</h1>
+                <p className="text-gray-600">Visualize os aniversários dos seus clientes</p>
               </div>
             </div>
             <div className="flex gap-2">
