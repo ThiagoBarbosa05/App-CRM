@@ -72,9 +72,11 @@ const brazilianStates = [
   { value: "TO", label: "Tocantins" },
 ];
 
-
-
-export default function ClientFormModal({ open, onOpenChange, client }: ClientFormModalProps) {
+export default function ClientFormModal({
+  open,
+  onOpenChange,
+  client,
+}: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMarker, setNewMarker] = useState("");
@@ -100,33 +102,33 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
   // Função para converter data brasileira para ISO
   const convertBrazilianDateToISO = (dateStr: string) => {
     if (!dateStr) return "";
-    
+
     // Se já está no formato ISO (YYYY-MM-DD), retorna como está
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       return dateStr;
     }
-    
+
     // Se está no formato brasileiro (DD/MM/YYYY), converte para ISO
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-      const [day, month, year] = dateStr.split('/');
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const [day, month, year] = dateStr.split("/");
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     }
-    
+
     // Se é um número (formato Excel), converte para data
     if (/^\d+\.?\d*$/.test(dateStr)) {
       try {
         const excelDate = parseFloat(dateStr);
         const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
         const year = jsDate.getFullYear();
-        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
-        const day = String(jsDate.getDate()).padStart(2, '0');
+        const month = String(jsDate.getMonth() + 1).padStart(2, "0");
+        const day = String(jsDate.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
       } catch (error) {
         console.error("Erro ao converter data do Excel:", error);
         return "";
       }
     }
-    
+
     return dateStr;
   };
 
@@ -208,24 +210,29 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
 
   const removeMarker = (markerToRemove: string) => {
     const currentMarkers = form.getValues("markers") || [];
-    form.setValue("markers", currentMarkers.filter(marker => marker !== markerToRemove));
+    form.setValue(
+      "markers",
+      currentMarkers.filter((marker) => marker !== markerToRemove),
+    );
   };
 
   const lookupCep = async (cep: string) => {
     // Remove non-numeric characters
     const cleanCep = cep.replace(/\D/g, "");
-    
+
     // Check if CEP has 8 digits
     if (cleanCep.length !== 8) {
       return;
     }
 
     setIsLoadingCep(true);
-    
+
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cleanCep}/json/`,
+      );
       const data = await response.json();
-      
+
       if (data.erro) {
         toast({
           title: "CEP não encontrado",
@@ -272,7 +279,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
         neighborhood: data.neighborhood?.trim() || "",
         city: data.city?.trim() || "",
         state: data.state?.trim() || "",
-        responsavelId: user?.role === "admin" ? data.responsavelId : user?.id || null, // Admin pode escolher, outros usam usuário atual
+        responsavelId:
+          user?.role === "admin" ? data.responsavelId : user?.id || null, // Admin pode escolher, outros usam usuário atual
       };
 
       if (client) {
@@ -295,14 +303,6 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
             <DialogTitle className="text-lg font-semibold text-gray-900">
               {client ? "Editar Cliente" : "Novo Cliente"}
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -400,7 +400,10 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     <FormItem>
                       <FormLabel>Responsável *</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o responsável" />
@@ -414,9 +417,14 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                             ) : (
                               (users as any[]).map((user: any) => (
                                 <SelectItem key={user.id} value={user.id}>
-                                  {user.name} - {user.role === "admin" ? "Administrador" : 
-                                   user.role === "gerente" ? "Gerente" :
-                                   user.role === "vendedor" ? "Vendedor" : "Usuário"}
+                                  {user.name} -{" "}
+                                  {user.role === "admin"
+                                    ? "Administrador"
+                                    : user.role === "gerente"
+                                      ? "Gerente"
+                                      : user.role === "vendedor"
+                                        ? "Vendedor"
+                                        : "Usuário"}
                                 </SelectItem>
                               ))
                             )}
@@ -438,7 +446,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Clientes são automaticamente atribuídos a você como responsável
+                    Clientes são automaticamente atribuídos a você como
+                    responsável
                   </p>
                 </div>
               )}
@@ -450,7 +459,10 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                   <FormItem>
                     <FormLabel>Categoria *</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a categoria" />
@@ -459,11 +471,15 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                         <SelectContent>
                           {(categories as any[]).length === 0 ? (
                             <div className="p-2 text-sm text-gray-500 text-center">
-                              Nenhuma categoria encontrada. Crie categorias na página Configurações.
+                              Nenhuma categoria encontrada. Crie categorias na
+                              página Configurações.
                             </div>
                           ) : (
                             (categories as any[]).map((category: any) => (
-                              <SelectItem key={category.id} value={category.name}>
+                              <SelectItem
+                                key={category.id}
+                                value={category.name}
+                              >
                                 {category.name}
                               </SelectItem>
                             ))
@@ -483,7 +499,10 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                   <FormItem>
                     <FormLabel>Origem *</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a origem" />
@@ -492,7 +511,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                         <SelectContent>
                           {(origins as any[]).length === 0 ? (
                             <div className="p-2 text-sm text-gray-500 text-center">
-                              Nenhuma origem encontrada. Crie origens na página Configurações.
+                              Nenhuma origem encontrada. Crie origens na página
+                              Configurações.
                             </div>
                           ) : (
                             (origins as any[]).map((origin: any) => (
@@ -521,8 +541,6 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                         onChange={field.onChange}
                         placeholder="Selecionar marcadores..."
                       />
-
-
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -544,7 +562,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                           onBlur={(e) => {
                             field.onBlur();
                             const cep = e.target.value;
-                            if (cep && cep.length === 9) { // CEP with mask has 9 characters
+                            if (cep && cep.length === 9) {
+                              // CEP with mask has 9 characters
                               lookupCep(cep);
                             }
                           }}
@@ -558,7 +577,8 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                     </FormControl>
                     <FormMessage />
                     <p className="text-xs text-muted-foreground">
-                      O endereço será preenchido automaticamente ao digitar o CEP
+                      O endereço será preenchido automaticamente ao digitar o
+                      CEP
                     </p>
                   </FormItem>
                 )}
@@ -626,7 +646,10 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Estado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -659,9 +682,13 @@ export default function ClientFormModal({ open, onOpenChange, client }: ClientFo
                 type="submit"
                 disabled={isSubmitting}
                 className="bg-purple-700 hover:bg-purple-800 text-white border-0"
-                style={{ backgroundColor: '#7c3aed', color: 'white' }}
+                style={{ backgroundColor: "#7c3aed", color: "white" }}
               >
-                {isSubmitting ? "Salvando..." : client ? "Atualizar Cliente" : "Salvar Cliente"}
+                {isSubmitting
+                  ? "Salvando..."
+                  : client
+                    ? "Atualizar Cliente"
+                    : "Salvar Cliente"}
               </Button>
             </div>
           </form>

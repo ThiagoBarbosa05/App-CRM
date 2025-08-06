@@ -1,4 +1,3 @@
-import Sidebar from "@/components/sidebar";
 import { CompaniesManagement } from "@/components/companies-management";
 import { useAuth } from "@/hooks/useAuth";
 

@@ -299,11 +299,11 @@ export default function Reports() {
     <div className="flex">
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto  space-y-6">
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-start gap-2 mb-6">
             <Calendar className="h-8 w-8 text-wine-600" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-sm">
                 Acompanhe métricas e informações importantes dos clientes e
                 empresas
               </p>

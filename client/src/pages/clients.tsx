@@ -142,6 +142,7 @@ export default function Clients() {
                 <Button
                   variant="outline"
                   onClick={() => setIsExportModalOpen(true)}
+                  className="w-full"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   {selectedClients.length > 0

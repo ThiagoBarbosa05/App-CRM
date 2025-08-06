@@ -72,7 +72,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       const response = await fetch(
         currentUser?.role === "admin"
           ? "/api/companies"
-          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`
+          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`,
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -240,7 +240,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedCompanies(
-        filteredCompanies.map((company: Company) => company.id)
+        filteredCompanies.map((company: Company) => company.id),
       );
     } else {
       setSelectedCompanies([]);
@@ -457,7 +457,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       <TableCell className="font-medium">
                         <button
                           onClick={() => handleCompanyClick(company)}
-                          className="text-blue-600 whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
+                          className="text-blue-600 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
                         >
                           {company.nomeFantasia}
                         </button>
@@ -471,7 +471,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                             <a
                               href={`https://wa.me/${company.phone.replace(
                                 /\D/g,
-                                ""
+                                "",
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"

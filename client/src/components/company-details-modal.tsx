@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -10,16 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Building2, 
-  Mail, 
-  Phone, 
-  Globe, 
-  MapPin, 
+import {
+  Building2,
+  Mail,
+  Phone,
+  Globe,
+  MapPin,
   FileText,
   Calendar,
   Edit,
-  Tag
+  Tag,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Company, Sector } from "@shared/schema";
@@ -55,7 +61,7 @@ export default function CompanyDetailsModal({
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("pt-BR", {
       day: "2-digit",
-      month: "2-digit", 
+      month: "2-digit",
       year: "numeric",
     });
   };
@@ -64,7 +70,7 @@ export default function CompanyDetailsModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center flex-col sm:flex-row gap-4 justify-between">
             <div>
               <DialogTitle className="text-xl font-bold">
                 {company.nomeFantasia}
@@ -104,37 +110,50 @@ export default function CompanyDetailsModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {company.cnpj && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">CNPJ</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      CNPJ
+                    </p>
                     <p className="font-mono">{company.cnpj}</p>
                   </div>
                 )}
-                
+
                 {company.inscricaoEstadual && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Inscrição Estadual</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Inscrição Estadual
+                    </p>
                     <p className="font-mono">{company.inscricaoEstadual}</p>
                   </div>
                 )}
 
                 {company.nomeComprador && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Nome do Comprador</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Nome do Comprador
+                    </p>
                     <p>{company.nomeComprador}</p>
                   </div>
                 )}
 
                 {sector && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Setor</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Setor
+                    </p>
                     <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4" style={{ color: sector.color }} />
+                      <Tag
+                        className="h-4 w-4"
+                        style={{ color: sector.color }}
+                      />
                       <span>{sector.name}</span>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cadastrada em</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Cadastrada em
+                  </p>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>{formatDate(company.createdAt)}</span>
@@ -159,8 +178,10 @@ export default function CompanyDetailsModal({
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Email</p>
-                        <a 
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Email
+                        </p>
+                        <a
                           href={`mailto:${company.email}`}
                           className="text-blue-600 hover:underline"
                         >
@@ -174,16 +195,18 @@ export default function CompanyDetailsModal({
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-muted-foreground">Telefone</p>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Telefone
+                        </p>
                         <div className="flex items-center gap-2">
-                          <a 
+                          <a
                             href={`tel:${company.phone}`}
                             className="text-blue-600 hover:underline"
                           >
                             {company.phone}
                           </a>
                           <a
-                            href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
+                            href={`https://wa.me/${company.phone.replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-green-600 hover:text-green-700 transition-colors"
@@ -200,8 +223,10 @@ export default function CompanyDetailsModal({
                     <div className="flex items-center gap-3">
                       <Globe className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Website</p>
-                        <a 
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Website
+                        </p>
+                        <a
                           href={company.website}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -218,7 +243,10 @@ export default function CompanyDetailsModal({
           )}
 
           {/* Endereço */}
-          {(company.address || company.city || company.state || company.cep) && (
+          {(company.address ||
+            company.city ||
+            company.state ||
+            company.cep) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -228,9 +256,7 @@ export default function CompanyDetailsModal({
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {company.address && (
-                    <p>{company.address}</p>
-                  )}
+                  {company.address && <p>{company.address}</p>}
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {company.city && <span>{company.city}</span>}
                     {company.city && company.state && <span>-</span>}
