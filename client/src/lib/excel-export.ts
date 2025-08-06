@@ -46,19 +46,25 @@ export function exportToExcel(data: ExportData[], filename: string, sheetName: s
   }
 }
 
-export function formatClientDataForExport(clients: any[]) {
+export function formatClientDataForExport(clients: any[], users: any[] = []) {
+  // Criar mapa de responsáveis para busca rápida
+  const usersMap = users.reduce((map, user) => {
+    map[user.id] = user.name;
+    return map;
+  }, {} as Record<string, string>);
+
   return clients.map(client => ({
     'Nome': client.name || '',
     'Telefone': client.phone || '',
     'CPF': client.cpf || '',
     'E-mail': client.email || '',
-    'Endereço': `${client.address || ''} ${client.addressNumber || ''} ${client.neighborhood || ''} ${client.city || ''} ${client.state || ''}`.trim(),
+    'Endereço': `${client.address || ''} ${client.number || ''} ${client.neighborhood || ''} ${client.city || ''} ${client.state || ''}`.trim(),
     'CEP': client.cep || '',
     'Data de Nascimento': client.birthday ? new Date(client.birthday).toLocaleDateString('pt-BR') : '',
     'Categoria': client.categoria || '',
     'Origem': client.origem || '',
-    'Marcadores': client.markers || '',
-    'Responsável': client.responsible || '',
+    'Marcadores': Array.isArray(client.markers) ? client.markers.join(', ') : client.markers || '',
+    'Responsável': client.responsavelId ? (usersMap[client.responsavelId] || 'Usuário não encontrado') : '',
     'Data de Cadastro': client.createdAt ? new Date(client.createdAt).toLocaleDateString('pt-BR') : '',
     'Última Atualização': client.updatedAt ? new Date(client.updatedAt).toLocaleDateString('pt-BR') : ''
   }));

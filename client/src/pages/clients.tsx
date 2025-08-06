@@ -49,7 +49,18 @@ export default function Clients() {
     enabled: !!user,
   });
 
+  // Buscar dados dos usuários para mapear responsáveis
+  const { data: users } = useQuery({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const response = await fetch("/api/users");
+      if (!response.ok) throw new Error("Failed to fetch users");
+      return response.json();
+    },
+  });
+
   const clientsArray = Array.isArray(allClients) ? allClients : [];
+  const usersArray = Array.isArray(users) ? users : [];
 
   const handleSelectionChange = useCallback(
     (selectedIds: string[], selectedClientsData: any[]) => {
@@ -168,6 +179,7 @@ export default function Clients() {
         onOpenChange={setIsExportModalOpen}
         clients={clientsArray}
         selectedClients={selectedClients}
+        users={usersArray}
       />
     </div>
   );

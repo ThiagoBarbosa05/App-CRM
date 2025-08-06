@@ -17,6 +17,7 @@ interface ClientExportModalProps {
   onOpenChange: (open: boolean) => void;
   clients: any[];
   selectedClients: any[];
+  users?: any[];
 }
 
 const AVAILABLE_FIELDS = [
@@ -39,7 +40,8 @@ export default function ClientExportModal({
   open, 
   onOpenChange, 
   clients, 
-  selectedClients 
+  selectedClients,
+  users = []
 }: ClientExportModalProps) {
   const { toast } = useToast();
   const [selectedFields, setSelectedFields] = useState<string[]>(
@@ -56,6 +58,12 @@ export default function ClientExportModal({
   };
 
   const formatSelectedClientData = (clientsList: any[]) => {
+    // Criar mapa de responsáveis para busca rápida
+    const usersMap = users.reduce((map, user) => {
+      map[user.id] = user.name;
+      return map;
+    }, {} as Record<string, string>);
+
     return clientsList.map(client => {
       const formattedData: any = {};
       
@@ -74,7 +82,7 @@ export default function ClientExportModal({
             formattedData['E-mail'] = client.email || '';
             break;
           case 'address':
-            formattedData['Endereço'] = `${client.address || ''} ${client.addressNumber || ''} ${client.neighborhood || ''} ${client.city || ''} ${client.state || ''}`.trim();
+            formattedData['Endereço'] = `${client.address || ''} ${client.number || ''} ${client.neighborhood || ''} ${client.city || ''} ${client.state || ''}`.trim();
             break;
           case 'cep':
             formattedData['CEP'] = client.cep || '';
@@ -89,10 +97,10 @@ export default function ClientExportModal({
             formattedData['Origem'] = client.origem || '';
             break;
           case 'markers':
-            formattedData['Marcadores'] = client.markers?.join(', ') || '';
+            formattedData['Marcadores'] = Array.isArray(client.markers) ? client.markers.join(', ') : client.markers || '';
             break;
           case 'responsible':
-            formattedData['Responsável'] = client.responsible || '';
+            formattedData['Responsável'] = client.responsavelId ? (usersMap[client.responsavelId] || 'Usuário não encontrado') : '';
             break;
           case 'createdAt':
             formattedData['Data de Cadastro'] = client.createdAt ? new Date(client.createdAt).toLocaleDateString('pt-BR') : '';
