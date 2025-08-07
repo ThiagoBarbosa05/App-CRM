@@ -771,6 +771,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSalesFunnel(id: string): Promise<boolean> {
+    await db.delete(deals).where(eq(deals.funnelId, id));
+
+    await db.delete(funnelStages).where(eq(funnelStages.funnelId, id));
     const result = await db.delete(salesFunnels).where(eq(salesFunnels.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }

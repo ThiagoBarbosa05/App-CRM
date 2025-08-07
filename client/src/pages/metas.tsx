@@ -822,17 +822,17 @@ export default function Metas() {
                                   <CardTitle className="text-lg">
                                     {stat.userName}
                                   </CardTitle>
-                                  <CardDescription className="text-sm">
+                                  <CardDescription className="text-sm max-w-[164px] sm:max-w-full sm:text-normal overflow-hidden text-ellipsis">
                                     {stat.userEmail}
                                   </CardDescription>
                                 </div>
                               </div>
-                              <Badge
+                              {/* <Badge
                                 variant="secondary"
                                 className="text-lg font-bold"
                               >
                                 {stat.registrationCount}
-                              </Badge>
+                              </Badge> */}
                             </div>
                           </CardHeader>
                           <CardContent>

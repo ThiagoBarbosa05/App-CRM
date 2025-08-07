@@ -185,7 +185,7 @@ export const salesFunnelsRelations = relations(
     }),
     stages: many(funnelStages),
     deals: many(deals),
-  })
+  }),
 );
 
 export const funnelStagesRelations = relations(
@@ -196,7 +196,7 @@ export const funnelStagesRelations = relations(
       references: [salesFunnels.id],
     }),
     deals: many(deals),
-  })
+  }),
 );
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -353,7 +353,7 @@ export const clientInteractionsRelations = relations(
       fields: [clientInteractions.userId],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // Email Marketing Campaign tables
@@ -430,7 +430,7 @@ export const userGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas
@@ -482,7 +482,7 @@ export const telemarketingGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por resultado/mês/ano
     uniqueUserResultMonthYear: sql`UNIQUE (${table.userId}, ${table.targetResult}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de telemarketing
@@ -499,7 +499,7 @@ export const telemarketingWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de chamadas alcançadas com o resultado
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
+  },
 );
 
 // Tabela de metas de cadastros de clientes
@@ -521,7 +521,7 @@ export const clientRegistrationGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de cadastros
@@ -538,7 +538,7 @@ export const clientRegistrationWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes cadastrados
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
+  },
 );
 
 // Birthday reminder relations
@@ -553,7 +553,7 @@ export const birthdayRemindersRelations = relations(
       fields: [birthdayReminders.createdBy],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // Schemas de inserção
@@ -597,7 +597,7 @@ export const insertDealSchema = createInsertSchema(deals).omit({
 });
 
 export const insertBirthdayReminderSchema = createInsertSchema(
-  birthdayReminders
+  birthdayReminders,
 ).omit({
   id: true,
   createdAt: true,
@@ -605,7 +605,7 @@ export const insertBirthdayReminderSchema = createInsertSchema(
 });
 
 export const insertBirthdayReminderSettingsSchema = createInsertSchema(
-  birthdayReminderSettings
+  birthdayReminderSettings,
 ).omit({
   id: true,
   createdAt: true,
@@ -633,7 +633,7 @@ export const insertMarkerSchema = insertTagSchema.omit({ type: true });
 export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
 export const insertClientInteractionSchema = createInsertSchema(
-  clientInteractions
+  clientInteractions,
 ).omit({
   id: true,
   createdAt: true,
@@ -641,7 +641,7 @@ export const insertClientInteractionSchema = createInsertSchema(
 });
 
 export const insertEmailCampaignSchema = createInsertSchema(
-  emailCampaigns
+  emailCampaigns,
 ).omit({
   id: true,
   createdAt: true,
@@ -649,7 +649,7 @@ export const insertEmailCampaignSchema = createInsertSchema(
 });
 
 export const insertEmailCampaignRecipientSchema = createInsertSchema(
-  emailCampaignRecipients
+  emailCampaignRecipients,
 ).omit({
   id: true,
   createdAt: true,
@@ -668,7 +668,7 @@ export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
 });
 
 export const insertTelemarketingGoalSchema = createInsertSchema(
-  telemarketingGoals
+  telemarketingGoals,
 ).omit({
   id: true,
   createdAt: true,
@@ -676,7 +676,7 @@ export const insertTelemarketingGoalSchema = createInsertSchema(
 });
 
 export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
-  telemarketingWeeklyResults
+  telemarketingWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -684,7 +684,7 @@ export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertClientRegistrationGoalSchema = createInsertSchema(
-  clientRegistrationGoals
+  clientRegistrationGoals,
 ).omit({
   id: true,
   createdAt: true,
@@ -692,14 +692,14 @@ export const insertClientRegistrationGoalSchema = createInsertSchema(
 });
 
 export const insertTrainingAttachment = createInsertSchema(
-  trainingAttachments
+  trainingAttachments,
 ).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
-  clientRegistrationWeeklyResults
+  clientRegistrationWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -972,7 +972,7 @@ export const insertCashbackTransactionSchema = z.object({
     .optional(),
 });
 export const insertClientCashbackBalanceSchema = createInsertSchema(
-  clientCashbackBalance
+  clientCashbackBalance,
 ).omit({
   id: true,
 });
@@ -980,7 +980,7 @@ export const insertCashbackUsageSchema = createInsertSchema(cashbackUsage).omit(
   {
     id: true,
     createdAt: true,
-  }
+  },
 );
 
 export type LearningImage = typeof learningImages.$inferSelect;
@@ -1026,6 +1026,16 @@ export const createDocumentTrainingSchema = z.object({
     .string()
     .min(1, { message: "Tipo do documento é obrigatório" }),
 });
+
+export const updateDocumentTrainingSchema = z.object({
+  title: z.string().min(1, { message: "Título é obrigatório" }),
+  description: z.string().min(1, { message: "Descrição é obrigatória" }),
+  category: z.string().min(1, { message: "Categoria é obrigatória" }),
+});
+
+export type UpdateDocumentTraining = z.infer<
+  typeof updateDocumentTrainingSchema
+>;
 
 export type CreateDocumentTrainingData = z.infer<
   typeof createDocumentTrainingSchema

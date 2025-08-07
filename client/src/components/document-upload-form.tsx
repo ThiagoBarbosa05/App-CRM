@@ -123,7 +123,10 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { File, Loader, Loader2, LoaderCircle, X } from "lucide-react";
-import { CreateDocumentTrainingData } from "@shared/schema";
+import {
+  CreateDocumentTrainingData,
+  UpdateDocumentTraining,
+} from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Training } from "./learning-images-management";
@@ -141,12 +144,16 @@ interface DocumentsUploadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingTraining: Training | null;
+  editFile: {
+    trainingId: string | null;
+  };
 }
 
 export function DocumentsUploadForm({
   onOpenChange,
   open,
   editingTraining,
+  editFile,
 }: DocumentsUploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -243,12 +250,120 @@ export function DocumentsUploadForm({
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (
+      training: UpdateDocumentTraining & { trainingId: string },
+    ) => {
+      const response = await fetch(
+        `/api/trainings/documents/${training.trainingId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(training),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao criar treinamento");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=document"],
+      });
+      onOpenChange(false);
+      toast({
+        title: "Sucesso",
+        description: "Treinamento atualizado com sucesso",
+        variant: "default",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar treinamento",
+        variant: "destructive",
+      });
+      setSelectedFile(null);
+      setFileUrl(null);
+      setFileType(null);
+    },
+  });
+
+  const editArchiveMutation = useMutation({
+    mutationFn: async ({
+      file,
+      trainingId,
+    }: {
+      file: File;
+      trainingId: string;
+    }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `/api/trainings/documents/${trainingId}/file`,
+        {
+          method: "PUT",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar arquivo");
+      }
+
+      const data = await response.json();
+
+      return {
+        url: data.url,
+        fileType: data.fileType,
+      } as {
+        url: string;
+        fileType: string;
+      };
+    },
+    onSuccess: ({ fileType, url }) => {
+      setFileUrl(null);
+      setFileType(null);
+      setSelectedFile(null);
+      onOpenChange(false);
+      toast({
+        title: "Sucesso",
+        description: "Arquivo atualizado com sucesso",
+        variant: "default",
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=document"],
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar arquivo",
+        variant: "destructive",
+      });
+      setSelectedFile(null);
+      setFileUrl(null);
+      setFileType(null);
+    },
+  });
+
   // Seleciona e faz upload do arquivo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    uploadMutation.mutate(file);
+    if (editFile.trainingId) {
+      editArchiveMutation.mutate({ file, trainingId: editFile.trainingId });
+    } else {
+      uploadMutation.mutate(file);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -257,18 +372,27 @@ export function DocumentsUploadForm({
   };
 
   const onSubmit = async (data: DocumentFormData) => {
-    if (!fileUrl) {
-      alert("Você deve enviar um documento antes de criar o treinamento.");
-      return;
-    }
+    if (editingTraining) {
+      await updateMutation.mutateAsync({
+        category: data.category,
+        description: data.description,
+        title: data.title,
+        trainingId: editingTraining.id,
+      });
+    } else {
+      if (!fileUrl) {
+        alert("Você deve enviar um documento antes de criar o treinamento.");
+        return;
+      }
 
-    await createMutation.mutateAsync({
-      category: data.category,
-      description: data.description,
-      title: data.title,
-      documentUrl: fileUrl,
-      documentType: fileType!,
-    });
+      await createMutation.mutateAsync({
+        category: data.category,
+        description: data.description,
+        title: data.title,
+        documentUrl: fileUrl,
+        documentType: fileType!,
+      });
+    }
 
     // Enviar para backend...
     reset();
@@ -306,56 +430,64 @@ export function DocumentsUploadForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label>Título *</Label>
-            <Input
-              type="text"
-              placeholder="Ex: Treinamento de Atendimento"
-              disabled={!fileUrl}
-              {...register("title")}
-            />
-            {errors.title && (
-              <p className="text-red-500 text-sm">{errors.title.message}</p>
-            )}
-          </div>
+          {!editFile.trainingId && (
+            <>
+              <div>
+                <Label>Título *</Label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Treinamento de Atendimento"
+                  disabled={!fileUrl}
+                  {...register("title")}
+                />
+                {errors.title && (
+                  <p className="text-red-500 text-sm">{errors.title.message}</p>
+                )}
+              </div>
 
-          <div>
-            <Label>Descrição *</Label>
-            <Input
-              type="text"
-              placeholder="Breve descrição"
-              disabled={!fileUrl}
-              {...register("description")}
-            />
-            {errors.description && (
-              <p className="text-red-500 text-sm">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
+              <div>
+                <Label>Descrição *</Label>
+                <Input
+                  type="text"
+                  placeholder="Breve descrição"
+                  disabled={!fileUrl}
+                  {...register("description")}
+                />
+                {errors.description && (
+                  <p className="text-red-500 text-sm">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
 
-          <div>
-            <Label>Categoria *</Label>
-            <Input
-              type="text"
-              placeholder="Categoria do documento, ex: vendas, produto..."
-              disabled={!fileUrl}
-              {...register("category")}
-            />
-            {errors.category && (
-              <p className="text-red-500 text-sm">{errors.category.message}</p>
-            )}
-          </div>
+              <div>
+                <Label>Categoria *</Label>
+                <Input
+                  type="text"
+                  placeholder="Categoria do documento, ex: vendas, produto..."
+                  disabled={!fileUrl}
+                  {...register("category")}
+                />
+                {errors.category && (
+                  <p className="text-red-500 text-sm">
+                    {errors.category.message}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
-          <div>
-            <Label>Documento (PDF, DOCX, etc.)</Label>
-            <Input
-              type="file"
-              accept=".pdf,.doc,.docx,.md,.csv,.xlsx"
-              onChange={handleFileChange}
-              disabled={!!fileUrl || uploadMutation.isPending}
-            />
-          </div>
+          {!editingTraining && (
+            <div>
+              <Label>Documento (PDF, DOCX, etc.)</Label>
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,.md,.csv,.xlsx"
+                onChange={handleFileChange}
+                disabled={!!fileUrl || uploadMutation.isPending}
+              />
+            </div>
+          )}
 
           {uploadMutation.isPending && (
             <div className="flex items-center justify-center gap-2">
@@ -391,13 +523,32 @@ export function DocumentsUploadForm({
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={!fileUrl || uploadMutation.isPending}
-            className="disabled:bg-black"
-          >
-            {uploadMutation.isPending ? "Enviando..." : "Enviar"}
-          </Button>
+          {editArchiveMutation.isPending && (
+            <div className="w-full flex justify-center items-center mt-5 text-gray-500">
+              <p>{"Enviando arquivo..."}</p>
+              <Loader2 className="size-4 animate-spin" />
+            </div>
+          )}
+
+          {!editFile.trainingId && (
+            <Button
+              type="submit"
+              disabled={
+                !fileUrl ||
+                uploadMutation.isPending ||
+                updateMutation.isPending ||
+                createMutation.isPending
+              }
+              className="disabled:bg-black"
+            >
+              {uploadMutation.isPending ||
+              uploadMutation.isPending ||
+              updateMutation.isPending ||
+              createMutation.isPending
+                ? "Enviando..."
+                : "Enviar"}
+            </Button>
+          )}
         </form>
       </DialogContent>
     </Dialog>

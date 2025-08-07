@@ -27,6 +27,7 @@ import {
   trainings,
   trainingAttachments,
   createDocumentTrainingSchema,
+  updateDocumentTrainingSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -37,8 +38,13 @@ import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { randomUUID } from "crypto";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -366,6 +372,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: fromZodError(error).toString() });
       }
       res.status(500).json({ message: "Erro ao criar funil de vendas" });
+    }
+  });
+
+  app.delete("/api/funnels/:id", async (req, res) => {
+    try {
+      const funnelsId = req.params.id;
+      await storage.deleteSalesFunnel(funnelsId);
+
+      res.send({ message: "Funil de vendas excluído com sucesso" });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: "Erro ao excluir funil de vendas" });
     }
   });
 
@@ -1688,6 +1706,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao criar treinamento:", error);
 
       res.status(500).json({ message: "Erro ao criar treinamento" });
+    }
+  });
+
+  app.put("/api/trainings/documents/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = updateDocumentTrainingSchema.parse(req.body);
+
+      const [training] = await db
+        .update(trainings)
+        .set({ ...data })
+        .where(eq(trainings.id, id))
+        .returning();
+
+      res.json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar treinamento (documento):", error);
+
+      res
+        .status(500)
+        .json({ message: "Erro ao atualizar treinamento (documento)" });
+    }
+  });
+
+  app.put(
+    "/api/trainings/documents/:id/file",
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const training = await storage.getTraining(id);
+
+        if (!req.file) {
+          res.status(400).json({ message: "Arquivo não fornecido" });
+        }
+
+        await s3.send(
+          new DeleteObjectCommand({
+            Bucket: "crm-test",
+            Key: training.training_attachments?.url!,
+          }),
+        );
+
+        const url = randomUUID() + "-" + req.file?.originalname;
+
+        const upload = await s3.send(
+          new PutObjectCommand({
+            Bucket: "crm-test",
+            Body: req.file?.buffer,
+            Key: url,
+            ContentType: req.file?.mimetype,
+          }),
+        );
+
+        const [trainingsAttachmentsUpdated] = await db
+          .update(trainingAttachments)
+          .set({ url })
+          .where(eq(trainingAttachments.trainingId, id))
+          .returning();
+
+        res.json({ url, fileType: req.file?.mimetype });
+      } catch (error) {
+        if (error instanceof MulterError) {
+          res.status(400).json({
+            message: "O arquivo enviado é maior que o tamanho permitido",
+          });
+        }
+        console.error("Erro ao atualizar arquivo:", error);
+        res.status(500).json({ message: "Erro ao atualizar arquivo" });
+      }
+    },
+  );
+
+  app.delete("/api/trainings/documents/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const training = await storage.getTraining(id);
+
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: "crm-test",
+          Key: training.training_attachments?.url!,
+        }),
+      );
+
+      await storage.deleteTrainingAttachments(id);
+      await storage.deleteTraining(id);
+
+      res.json({ message: "Treinamento deletado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir treinamento:", error);
+      res.status(500).json({ message: "Erro ao excluir treinamento" });
     }
   });
 

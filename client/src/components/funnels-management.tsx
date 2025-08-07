@@ -34,6 +34,17 @@ import { useAuth } from "@/hooks/useAuth";
 import FunnelKanbanBoard from "@/components/funnel-kanban-board";
 import FunnelStagesManager from "@/components/funnel-stages-manager";
 import { UpdateFunnelForm } from "./update-funnel-form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
 
 export interface SalesFunnel {
   id: string;
@@ -68,10 +79,10 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
-    null
+    null,
   );
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
-    "list"
+    "list",
   );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
   const [updateFunnelModal, setUpdateFunnelModal] = useState<boolean>(false);
@@ -114,6 +125,41 @@ export default function FunnelsManagement() {
     onError: (error: any) => {
       toast({
         title: "Erro ao criar funil",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteFunnelMutation = useMutation({
+    mutationFn: async (funnelId: string) => {
+      const response = await fetch(`/api/funnels/${funnelId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao deletar funil");
+      }
+
+      const result = await response.json();
+      console.log("response: ", result);
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Funil deletado com sucesso",
+        description: "O funil de vendas foi deletado com sucesso",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      setIsCreateModalOpen(false);
+      setNewFunnelName("");
+      setNewFunnelDescription("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao deletar funil",
         description: error.message,
         variant: "destructive",
       });
@@ -373,14 +419,42 @@ export default function FunnelsManagement() {
                         </DialogContent>
                       </Dialog>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-800 flex items-center gap-2"
-                      >
-                        <Trash2 className="h-4 w-4 " />
-                        Excluir
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-800 flex items-center gap-2"
+                          >
+                            <Trash2 className="h-4 w-4 " />
+                            Excluir
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Confirmar exclusão
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o funil "
+                              {funnel.name}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              disabled={deleteFunnelMutation.isPending}
+                              onClick={() =>
+                                deleteFunnelMutation.mutate(funnel.id)
+                              }
+                            >
+                              {deleteFunnelMutation.isPending
+                                ? "Excluindo..."
+                                : "Excluir"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </>
                   )}
                 </div>
