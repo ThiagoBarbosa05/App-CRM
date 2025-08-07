@@ -402,19 +402,19 @@ export default function Reports() {
                   {upcomingBirthdays.map((client) => (
                     <div
                       key={client.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                            <Gift className="h-6 w-6 text-amber-600" />
+                      <div className="flex flex-col items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 sm:w-12 sm:h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                            <Gift className="h-4 w-4 sm:h-6 sm:w-6 text-amber-600" />
                           </div>
-                        </div>
-                        <div>
                           <h3 className="font-medium text-gray-900">
                             {client.name}
                           </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                        </div>
+                        <div>
+                          <div className="flex flex-col sm:flex-row items-start gap-2 text-sm text-gray-600">
                             {client.phone && (
                               <div className="flex items-center gap-1">
                                 <Phone className="h-3 w-3" />
@@ -428,7 +428,7 @@ export default function Reports() {
                               </div>
                             )}
                             {client.email && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center tex-xs sm:text-sm gap-1">
                                 <Mail className="h-3 w-3" />
                                 {client.email}
                               </div>
@@ -436,7 +436,7 @@ export default function Reports() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:block text-right">
                         <div className="text-sm font-medium text-gray-900">
                           {format(client.nextBirthday, "dd/MM", {
                             locale: ptBR,
