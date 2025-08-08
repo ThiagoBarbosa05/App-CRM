@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -146,6 +146,7 @@ export const trainings = pgTable("trainings", {
   description: text("description").notNull(),
   type: text("type").notNull(),
   duration: text("duration"),
+  content: text("content"),
   category: text("category").notNull(),
   level: text("level"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1032,6 +1033,15 @@ export const updateDocumentTrainingSchema = z.object({
   description: z.string().min(1, { message: "Descrição é obrigatória" }),
   category: z.string().min(1, { message: "Categoria é obrigatória" }),
 });
+
+export const createScriptSchema = z.object({
+  title: z.string().min(1, { message: "Título é obrigatório" }),
+  description: z.string().min(1, { message: "Descrição é obrigatória" }),
+  category: z.string().min(1, { message: "Categoria é obrigatória" }),
+  content: z.string().min(1, { message: "Conteúdo é obrigatório" }),
+});
+
+export type CreateScriptData = z.infer<typeof createScriptSchema>;
 
 export type UpdateDocumentTraining = z.infer<
   typeof updateDocumentTrainingSchema
