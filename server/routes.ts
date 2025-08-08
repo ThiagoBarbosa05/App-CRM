@@ -28,6 +28,7 @@ import {
   trainingAttachments,
   createDocumentTrainingSchema,
   updateDocumentTrainingSchema,
+  createScriptSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1803,6 +1804,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir treinamento:", error);
       res.status(500).json({ message: "Erro ao excluir treinamento" });
+    }
+  });
+
+  app.post("/api/trainings/scripts", async (req, res) => {
+    try {
+      const data = createScriptSchema.parse(req.body);
+      const [training] = await db
+        .insert(trainings)
+        .values({
+          title: data.title,
+          description: data.description,
+          content: data.content,
+          category: data.category,
+          type: "script",
+        })
+        .returning();
+
+      res.status(201).json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar treinamento:", error);
+
+      res.status(500).json({ message: "Erro ao criar treinamento" });
     }
   });
 

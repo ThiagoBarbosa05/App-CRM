@@ -55,9 +55,9 @@ export default function Configurations() {
   }
 
   return (
-    <div>
-      <div className="flex-1 overflow-auto">
-        <div>
+    <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-auto">
+        <div className="flex-1 flex flex-col">
           <div className="flex items-center gap-3 mb-6">
             <Settings className="h-8 w-8 text-wine-600" />
             <div>
@@ -101,7 +101,7 @@ export default function Configurations() {
               <SectorsManagement />
             </TabsContent>
 
-            <TabsContent value="learning-images">
+            <TabsContent value="learning-images" className="h-full">
               <LearningImagesManagement />
             </TabsContent>
 

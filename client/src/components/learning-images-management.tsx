@@ -19,15 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast, useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import ReactMarkdown from "react-markdown";
 import {
   Image,
   Upload,
@@ -41,6 +33,7 @@ import {
   BookOpen,
   Menu,
   EllipsisVertical,
+  FileText,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { CreateTrainingForm } from "./create-training-form";
@@ -67,6 +60,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { ScriptForm } from "./script-form";
+import ReactQuill from "react-quill";
 
 export interface Training {
   id: string;
@@ -75,6 +70,7 @@ export interface Training {
   category: string;
   type: string;
   level: string | null;
+  content: string | null;
   attachmentUrl: string | null;
   createdAt: Date;
 }
@@ -107,6 +103,8 @@ export default function LearningImagesManagement() {
 
   const [openDocumentForm, setOpenDocumentForm] = useState(false);
   const [trainingEditFile, setTrainingEditFile] = useState<string | null>("");
+  const [showEditor, setShowEditor] = useState(false);
+  const [content, setContent] = useState("");
 
   const categories = [
     "Vendas",
@@ -134,6 +132,19 @@ export default function LearningImagesManagement() {
       return response.json();
     },
   });
+
+  const { data: scripts } = useQuery<Training[]>({
+    queryKey: ["/api/trainings?type=script"],
+    queryFn: async () => {
+      const response = await fetch("/api/trainings?type=script");
+
+      if (!response.ok) throw new Error("Failed to fetch training videos");
+
+      return response.json();
+    },
+  });
+
+  console.log(scripts);
 
   const deleteMutation = useMutation({
     mutationFn: async (trainingId: string) => {
@@ -200,7 +211,7 @@ export default function LearningImagesManagement() {
   });
 
   return (
-    <>
+    <div>
       <Separator className="bg-gray-200" />
       <div className="p-5">
         <div className="flex items-start gap-2 mb-5 justify-between">
@@ -224,7 +235,7 @@ export default function LearningImagesManagement() {
               <TabsTrigger className="w-full" value="documents">
                 Documentos e manuais
               </TabsTrigger>
-              <TabsTrigger className="w-full" value="learning">
+              <TabsTrigger className="w-full" value="scripts">
                 Script de vendas
               </TabsTrigger>
             </TabsList>
@@ -312,7 +323,7 @@ export default function LearningImagesManagement() {
             </TabsContent>
 
             <TabsContent className="w-full" value="documents">
-              <div className="flex flex-col gap-4 items-start ">
+              <div className="flex flex-col gap-4 items-start">
                 <section className="grid w-full grid-cols-3 gap-4">
                   {trainingDocument &&
                     trainingDocument.map((training) => (
@@ -441,6 +452,53 @@ export default function LearningImagesManagement() {
                 </div>
               </div>
             </TabsContent>
+
+            <TabsContent className="w-full" value="scripts">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {scripts?.map((script) => (
+                  <div className="bg-white flex flex-col p-5 rounded-md shadow-md">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText />
+
+                      <div>
+                        <h4 className="text-xl font-medium">{script.title}</h4>
+                        <p className="text-sm">{script.description}</p>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        backgroundColor: "#202938", // cor de fundo fixa
+                        whiteSpace: "normal",
+                        wordWrap: "break-word",
+                        color: "white",
+                      }}
+                      className="prose flex-1 p-4 preview-content leading-none max-w-none max-h-96 overflow-x-hidden break-words"
+                      dangerouslySetInnerHTML={{
+                        __html: script.content || (
+                          <p>Nenhum conteúdo encontrado</p>
+                        ),
+                      }}
+                    />
+
+                    <div className="mt-5 flex gap-2">
+                      <Button variant={"outline"}>
+                        <Pencil /> Editar
+                      </Button>
+                      <Button>
+                        <Trash2 /> Deletar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full flex justify-center mt-5">
+                <Button type="button" onClick={() => setShowEditor(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Script
+                </Button>
+              </div>
+
+              {showEditor && <ScriptForm onOpenChange={setShowEditor} />}
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -479,6 +537,6 @@ export default function LearningImagesManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

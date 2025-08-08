@@ -9,11 +9,11 @@
   --bordeaux-300: #f6ad87;
   --bordeaux-400: #f07d56;
   --bordeaux-500: #ec5638;
-  --bordeaux-600: #8B0000;
-  --bordeaux-700: #7A0000;
-  --bordeaux-800: #6B0000;
-  --bordeaux-900: #5C0000;
-  --bordeaux-950: #4D0000;
+  --bordeaux-600: #8b0000;
+  --bordeaux-700: #7a0000;
+  --bordeaux-800: #6b0000;
+  --bordeaux-900: #5c0000;
+  --bordeaux-950: #4d0000;
 }
 
 @layer base {
@@ -93,9 +93,11 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Prevent zoom on iOS */
   }
 }
 
@@ -299,12 +301,14 @@
 
 /* Touch-friendly interactive elements */
 @media (hover: none) and (pointer: coarse) {
-  button, 
-  [role="button"], 
-  input, 
-  textarea, 
+
+  button,
+  [role="button"],
+  input,
+  textarea,
   select {
-    @apply min-h-[44px] min-w-[44px]; /* 44px is Apple's recommended touch target size */
+    @apply min-h-[44px] min-w-[44px];
+    /* 44px is Apple's recommended touch target size */
   }
 }
 
@@ -356,4 +360,12 @@
   justify-content: center !important;
   background: white !important;
   border: 1px solid #e5e7eb !important;
+}
+
+pre {
+  white-space: pre-wrap;
+}
+
+.preview-content * {
+  color: white !important;
 }

@@ -219,8 +219,6 @@ export function DocumentsUploadForm({
         },
       });
 
-      console.log(response);
-
       if (!response.ok) {
         throw new Error("Erro ao criar treinamento");
       }
