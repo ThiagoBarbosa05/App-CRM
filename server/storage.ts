@@ -373,6 +373,9 @@ export interface IStorage {
     id: string,
     result: Partial<InsertClientRegistrationWeeklyResult>,
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
+
+  // Method to get clients without recent contact
+  getClientsWithoutRecentContact(userId?: string, userRole?: string, daysThreshold?: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2731,6 +2734,88 @@ export class DatabaseStorage implements IStorage {
       .delete(trainingAttachments)
       .where(eq(trainingAttachments.trainingId, trainingId));
     return result;
+  }
+
+  async getClientsWithoutRecentContact(userId?: string, userRole?: string, daysThreshold: number = 1) {
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+
+    // Buscar clientes
+    let clientsQuery = db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        phone: clients.phone,
+        email: clients.email,
+        cpf: clients.cpf,
+        birthday: clients.birthday,
+        categoria: clients.categoria,
+        origem: clients.origem,
+        markers: clients.markers,
+        responsavelId: clients.responsavelId,
+        createdAt: clients.createdAt,
+        responsavelName: users.name,
+      })
+      .from(clients)
+      .leftJoin(users, eq(clients.responsavelId, users.id));
+
+    // Aplicar filtros de permissão
+    if (userRole !== "admin" && userRole !== "administrador" && userId) {
+      clientsQuery = clientsQuery.where(eq(clients.responsavelId, userId));
+    }
+
+    const allClients = await clientsQuery;
+
+    // Buscar última interação de cada cliente
+    const clientsWithLastInteraction = await Promise.all(
+      allClients.map(async (client) => {
+        const lastInteraction = await db
+          .select({
+            date: clientInteractions.date,
+          })
+          .from(clientInteractions)
+          .where(eq(clientInteractions.clientId, client.id))
+          .orderBy(desc(clientInteractions.date))
+          .limit(1);
+
+        const lastInteractionDate = lastInteraction[0]?.date;
+        const createdDate = new Date(client.createdAt);
+        const today = new Date();
+
+        const daysSinceCreated = Math.floor(
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // Determinar se o cliente precisa ser contactado
+        let needsContact = false;
+
+        if (!lastInteractionDate) {
+          // Se nunca foi contactado e foi criado há mais de X dias
+          needsContact = daysSinceCreated >= daysThreshold;
+        } else {
+          // Se a última interação foi há mais de X dias
+          const daysSinceLastContact = Math.floor(
+            (today.getTime() - new Date(lastInteractionDate).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          needsContact = daysSinceLastContact >= daysThreshold;
+        }
+
+        return {
+          ...client,
+          daysSinceCreated,
+          lastInteractionDate,
+          needsContact,
+          daysSinceLastContact: lastInteractionDate 
+            ? Math.floor((today.getTime() - new Date(lastInteractionDate).getTime()) / (1000 * 60 * 60 * 24))
+            : null,
+        };
+      })
+    );
+
+    // Filtrar apenas clientes que precisam ser contactados
+    return clientsWithLastInteraction
+      .filter(client => client.needsContact)
+      .sort((a, b) => b.daysSinceCreated - a.daysSinceCreated);
   }
 }
 

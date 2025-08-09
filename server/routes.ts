@@ -174,6 +174,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para buscar clientes sem contato recente
+  app.get("/api/clients/without-contact", async (req, res) => {
+    try {
+      const userId =
+        (req.query.userId as string) || (req.headers["x-user-id"] as string);
+      const userRole =
+        (req.query.userRole as string) ||
+        (req.headers["x-user-role"] as string);
+      const days = parseInt(req.query.days as string) || 1;
+
+      const clients = await storage.getClientsWithoutRecentContact(userId, userRole, days);
+      res.json(clients);
+    } catch (error) {
+      console.error("Erro ao buscar clientes sem contato:", error);
+      res.status(500).json({ message: "Erro ao buscar clientes sem contato" });
+    }
+  });
+
   app.post("/api/clients", async (req, res) => {
     try {
       console.log(

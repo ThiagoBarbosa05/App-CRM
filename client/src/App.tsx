@@ -20,6 +20,7 @@ import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
 import Configurations from "@/pages/configurations";
 import { MainLayout } from "./layouts/main-layout";
+import Acompanhamento from "./pages/acompanhamento";
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -120,6 +121,11 @@ function Router() {
       <Route path="/cashback" component={() => (
           <MainLayout>
             <Cashback />
+          </MainLayout>
+        )} />
+      <Route path="/acompanhamento" component={() => (
+          <MainLayout>
+            <Acompanhamento />
           </MainLayout>
         )} />
       <Route component={NotFound} />
