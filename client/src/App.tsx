@@ -48,6 +48,11 @@ function Router() {
           </MainLayout>
         )}
       />
+      <Route path="/acompanhamento" component={() => (
+          <MainLayout>
+            <Acompanhamento />
+          </MainLayout>
+        )} />
       <Route
         path="/empresas"
         component={() => (
