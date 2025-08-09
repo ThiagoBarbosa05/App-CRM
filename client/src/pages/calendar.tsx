@@ -253,7 +253,7 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1  lg:grid-cols-2 gap-6">
             {/* Calendário */}
             <Card>
               <CardHeader>
@@ -262,7 +262,7 @@ export default function CalendarPage() {
                   Aniversários
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex justify-center">
+              <CardContent className="flex justify-center max-h-[480px] overflow-y-auto">
                 <UICalendar
                   mode="single"
                   selected={selectedDate}
@@ -276,7 +276,7 @@ export default function CalendarPage() {
             </Card>
 
             {/* Detalhes da data selecionada */}
-            <Card>
+            <Card >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5 text-amber-600" />
@@ -285,7 +285,7 @@ export default function CalendarPage() {
                   })}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="max-h-[480px] overflow-y-auto">
                 {selectedDateClients.length === 0 ? (
                   <div className="text-center py-8">
                     <Gift className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -555,18 +555,14 @@ export default function CalendarPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
-
-          {/* Estatísticas e próximos aniversários */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <Card>
+            <Card >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5 text-wine-600" />
                   Estatísticas
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="max-h-[480px] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
                   {["Hoje", "Amanhã", "Esta semana", "Este mês"].map(
                     (period, index) => {
@@ -630,8 +626,7 @@ export default function CalendarPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
+            <Card className="max-h-[480px] overflow-y-auto">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5 text-amber-600" />
@@ -714,6 +709,8 @@ export default function CalendarPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Estatísticas e próximos aniversários */}
         </div>
       </div>
     </div>
