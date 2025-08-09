@@ -13,6 +13,10 @@ import {
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  ChevronsLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -77,7 +81,9 @@ export default function ClientsTableWithSelection({
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
 
   // Query para buscar usuários (para mostrar o responsável)
-  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+  const { data: users = [] } = useQuery<
+    { id: string; name: string; email: string }[]
+  >({
     queryKey: ["/api/users"],
   });
 
@@ -134,8 +140,8 @@ export default function ClientsTableWithSelection({
     } else {
       // Remover apenas os clientes da página atual
       const currentPageIds = paginatedClients.map((client) => client.id);
-      setSelectedClientIds((prev) => 
-        prev.filter((id) => !currentPageIds.includes(id))
+      setSelectedClientIds((prev) =>
+        prev.filter((id) => !currentPageIds.includes(id)),
       );
     }
   };
@@ -202,18 +208,14 @@ export default function ClientsTableWithSelection({
           !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())
         )
           return false;
-        if (
-          filters.responsavelId &&
-          filters.responsavelId !== "all"
-        ) {
+        if (filters.responsavelId && filters.responsavelId !== "all") {
           if (filters.responsavelId === "unassigned") {
             // Filtrar clientes sem responsável atribuído
             if (client.responsavelId !== null && client.responsavelId !== "")
               return false;
           } else {
             // Filtrar por responsável específico
-            if (client.responsavelId !== filters.responsavelId)
-              return false;
+            if (client.responsavelId !== filters.responsavelId) return false;
           }
         }
         if (
@@ -266,9 +268,11 @@ export default function ClientsTableWithSelection({
 
   // Verificar se todos os clientes da página atual estão selecionados
   const currentPageIds = paginatedClients.map((client) => client.id);
-  const allCurrentPageSelected = currentPageIds.length > 0 && 
+  const allCurrentPageSelected =
+    currentPageIds.length > 0 &&
     currentPageIds.every((id) => selectedClientIds.includes(id));
-  const someCurrentPageSelected = currentPageIds.some((id) => selectedClientIds.includes(id)) && 
+  const someCurrentPageSelected =
+    currentPageIds.some((id) => selectedClientIds.includes(id)) &&
     !allCurrentPageSelected;
 
   // Notificar componente pai sobre mudanças na seleção
@@ -421,8 +425,14 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <div className="text-sm text-gray-900">
                       {(() => {
-                        const user = users.find(u => u.id === client.responsavelId);
-                        return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                        const user = users.find(
+                          (u) => u.id === client.responsavelId,
+                        );
+                        return user
+                          ? user.name
+                          : client.responsavelId
+                            ? "Usuário não encontrado"
+                            : "Não atribuído";
                       })()}
                     </div>
                   </td>
@@ -482,7 +492,9 @@ export default function ClientsTableWithSelection({
               {paginatedClients.length === 0 && (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-gray-500">
-                    {totalItems === 0 ? "Nenhum cliente encontrado" : "Nenhum cliente nesta página"}
+                    {totalItems === 0
+                      ? "Nenhum cliente encontrado"
+                      : "Nenhum cliente nesta página"}
                   </td>
                 </tr>
               )}
@@ -493,45 +505,54 @@ export default function ClientsTableWithSelection({
 
       {/* Paginação */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
-          <div className="flex items-center text-sm text-gray-700">
-            Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de {totalItems} clientes
+        <div className="flex items-center flex-wrap gap-1 justify-between py-3 bg-white border-t border-gray-200">
+          <div className="flex items-center text-xs sm:text-sm text-gray-700">
+            Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de{" "}
+            {totalItems} clientes
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center w-full gap-2">
             <Button
               variant="outline"
+              title="Primeira página"
               size="sm"
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
             >
-              Primeira
+              <ChevronsLeft className="size-5 sm:hidden" />
+              <span className="hidden sm:inline">Primeira</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
+              title="Página anterior"
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={currentPage === 1}
             >
-              Anterior
+              <ChevronLeft className="size-5 sm:hidden" />
+              <span className="hidden sm:inline">Anterior</span>
             </Button>
-            <span className="px-3 py-1 text-sm">
+            <span className="px-3 flex-1 text-center py-1 text-xs sm:text-sm">
               Página {currentPage} de {totalPages}
             </span>
             <Button
               variant="outline"
+              title="Próxima página"
               size="sm"
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
-              Próxima
+              <ChevronRight className="size-5 sm:hidden" />
+              <span className="hidden sm:inline">Próxima</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
+              title="Última página"
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
             >
-              Última
+              <ChevronsRight className="size-5 sm:hidden" />
+              <span className="hidden sm:inline">Última</span>
             </Button>
           </div>
         </div>
@@ -585,6 +606,7 @@ export default function ClientsTableWithSelection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
     </div>
   );
 }

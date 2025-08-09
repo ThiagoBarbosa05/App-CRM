@@ -683,63 +683,58 @@ export default function AdminGoals() {
   };
 
   return (
-    <div className="flex">
-      <main className="flex-1 ml-0 ">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <Target className="h-8 w-8 text-blue-600" />
-                  Administração de Metas
-                </h1>
-                <p className="text-gray-600 mt-2">
-                  Gerencie as metas de vendas, ticket médio e itens por venda de
-                  todos os usuários do sistema
-                </p>
+    <div>
+      <div className="flex-1 ml-0 ">
+        <div className="max-w-7xl  mx-auto">
+          <div className="mb-8 flex flex-col items-start gap-4">
+            <div>
+              <h1 className="text-3xl text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <Target className="h-8 w-8 shrink-0 text-blue-600" />
+                Administração de Metas
+              </h1>
+              <p className="text-gray-600 text-sm sm:text-base mt-2">
+                Gerencie as metas de vendas, ticket médio e itens por venda de
+                todos os usuários do sistema
+              </p>
+            </div>
+
+            <div className="flex items-center flex-wrap flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="month-select">Mês:</Label>
+                <select
+                  id="month-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="month-select">Mês:</Label>
-                  <select
-                    id="month-select"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(
-                      (month) => (
-                        <option key={month} value={month}>
-                          {new Date(0, month - 1).toLocaleDateString("pt-BR", {
-                            month: "long",
-                          })}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="year-select">Ano:</Label>
-                  <select
-                    id="year-select"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  >
-                    {Array.from(
-                      { length: 5 },
-                      (_, i) => currentDate.getFullYear() - 2 + i,
-                    ).map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="year-select">Ano:</Label>
+                <select
+                  id="year-select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
               </div>
-
               <Button
                 onClick={() => {
                   setValue("month", selectedMonth.toString());
@@ -836,12 +831,8 @@ export default function AdminGoals() {
           </div>
 
           {/* Tabs para Metas de Vendas, Telemarketing e Cadastros */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
                 Metas de Vendas
@@ -857,19 +848,19 @@ export default function AdminGoals() {
             </TabsList>
 
             {/* Tab Content: Metas de Vendas */}
-            <TabsContent value="admin-metas">
+            <TabsContent value="admin-metas" className="w-full overflow-hidden">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-2xl">
                     <Users className="h-5 w-5" />
                     Metas de Vendas por Usuário
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">
                     Lista de todos os usuários e suas respectivas metas de
                     vendas
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-hidden">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <div className="text-gray-500">Carregando metas...</div>
@@ -885,7 +876,7 @@ export default function AdminGoals() {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -898,7 +889,7 @@ export default function AdminGoals() {
                             <TableHead>Ações</TableHead>
                           </TableRow>
                         </TableHeader>
-                        <TableBody>
+                        <TableBody className="">
                           {userGoals.map((goal) => {
                             const totalSalesAchieved = getTotalAchieved(
                               goal.weeklyResults || [],
@@ -995,16 +986,19 @@ export default function AdminGoals() {
             </TabsContent>
 
             {/* Tab Content: Metas de Telemarketing */}
-            <TabsContent value="metas-telemarketing">
+            <TabsContent
+              value="metas-telemarketing"
+              className="w-full overflow-hidden"
+            >
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items:start gap-2 sm:items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Phone className="h-5 w-5" />
+                      <CardTitle className="flex text-sm sm:text-2xl items-center gap-2">
+                        <Phone className="size-4 sm:size-5" />
                         Metas de Telemarketing por Usuário
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-xs sm:text-base">
                         Gestão de metas baseadas em resultados de telemarketing
                       </CardDescription>
                     </div>
@@ -1017,7 +1011,7 @@ export default function AdminGoals() {
                         setValueTelemarketing("year", selectedYear.toString());
                         setIsTelemarketingModalOpen(true);
                       }}
-                      className="bg-purple-600 hover:bg-purple-700"
+                      className="bg-purple-600 text-white hover:bg-purple-700"
                     >
                       <Phone className="mr-2 h-4 w-4" />
                       Nova Meta Telemarketing
@@ -1107,10 +1101,13 @@ export default function AdminGoals() {
             </TabsContent>
 
             {/* Tab de Metas de Cadastros */}
-            <TabsContent value="metas-cadastros">
+            <TabsContent
+              value="metas-cadastros"
+              className="w-full overflow-hidden"
+            >
               <Card>
                 <CardHeader className="pb-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col gap-2 sm:flex-row items-start justify-between sm:items-center">
                     <CardTitle className="text-xl font-bold text-emerald-700">
                       Metas de Cadastros de Clientes
                     </CardTitle>
@@ -1251,7 +1248,7 @@ export default function AdminGoals() {
             </TabsContent>
           </Tabs>
         </div>
-      </main>
+      </div>
 
       {/* Modal de formulário */}
       <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>

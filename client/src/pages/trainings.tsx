@@ -509,7 +509,7 @@ ATENDIMENTO AO CLIENTE
         </div>
 
         <Tabs defaultValue="videos" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
             <TabsTrigger value="videos" className="flex items-center gap-2">
               <Video className="h-4 w-4" />
               <p>Vídeos de Treinamento</p>
@@ -830,7 +830,7 @@ ATENDIMENTO AO CLIENTE
                         >
                           Script Aniversário
                         </Badge>
-                        {isAdmin && (
+                        {/* {isAdmin && (
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -853,7 +853,7 @@ ATENDIMENTO AO CLIENTE
                               Excluir
                             </Button>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </>
                   )}
