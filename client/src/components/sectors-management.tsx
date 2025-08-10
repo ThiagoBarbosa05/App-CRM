@@ -144,7 +144,7 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
               <p className="text-sm text-destructive">{errors.name.message}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="color">Cor</Label>
             <div className="flex gap-2 items-center">
@@ -235,7 +235,7 @@ export default function SectorsManagement() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h2 className="text-2xl font-bold">Gerenciamento de Setores</h2>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -243,7 +243,7 @@ export default function SectorsManagement() {
         </Button>
       </div>
 
-      <div className="border rounded-md">
+      <div className="border rounded-md overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -256,8 +256,12 @@ export default function SectorsManagement() {
           <TableBody>
             {sectors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  Nenhum setor encontrado. Clique em "Novo Setor" para adicionar.
+                <TableCell
+                  colSpan={4}
+                  className="text-center text-muted-foreground"
+                >
+                  Nenhum setor encontrado. Clique em "Novo Setor" para
+                  adicionar.
                 </TableCell>
               </TableRow>
             ) : (

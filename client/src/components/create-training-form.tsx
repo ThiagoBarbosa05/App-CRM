@@ -45,56 +45,6 @@ export function CreateTrainingForm({
   onOpenChange,
   editingTrainingVideo,
 }: CreateTrainingFormProps) {
-  // const {
-  //   register,
-  //   handleSubmit,
-  //   control,
-  //   formState: { errors },
-  //   watch,
-  //   setValue,
-  // } = useCreateTrainingForm();
-
-  // const selectedTrainingType = watch("trainingType");
-  // const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  // const [documentFiles, setDocumentFiles] = useState<File[]>([]);
-
-  // const onSubmit = (data: CreateTrainingData) => {
-  //   const files = data.files ? Array.from(data.files) : [];
-
-  //   console.log(data);
-
-  //   const formData = new FormData();
-  //   formData.append("title", data.title);
-  //   formData.append("description", data.description);
-  //   formData.append("category", data.category);
-  //   if (data.level) formData.append("level", data.level);
-  //   formData.append("trainingType", data.trainingType);
-
-  //   if (data.trainingType === "video" && data.videoUrl) {
-  //     formData.append("videoUrl", data.videoUrl);
-  //   }
-
-  //   files.forEach((file) => {
-  //     formData.append("files", file as File);
-  //   });
-  // };
-
-  // function removeImage(index: number) {
-  //   setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  //   const updatedFiles = (watch("files") || []).filter(
-  //     (_: any, i: number) => i !== index
-  //   );
-  //   setValue("files", updatedFiles);
-  // }
-
-  // function removeDocument(index: number) {
-  //   setDocumentFiles((prev) => prev.filter((_, i) => i !== index));
-  //   const updatedFiles = (watch("files") || []).filter(
-  //     (_: any, i: number) => i !== index
-  //   );
-  //   setValue("files", updatedFiles);
-  // }
-
   const createTrainingMutation = useMutation({
     mutationFn: async (data: CreateTrainingData) => {
       const response = await fetch("/api/trainings/video", {
@@ -136,7 +86,7 @@ export function CreateTrainingForm({
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
       return response.json();
     },
@@ -289,34 +239,6 @@ export function CreateTrainingForm({
             />
           </div>
 
-          {/* Tipo */}
-          {/* <div>
-            <Label>Tipo do treinamento *</Label>
-            <Controller
-              name="trainingType"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo do treinamento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="video">Vídeo</SelectItem>
-                    <SelectItem value="images">Imagens</SelectItem>
-                    <SelectItem value="documents">Documentos</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.trainingType && (
-              <p className="text-red-500 text-sm">
-                {errors.trainingType.message}
-              </p>
-            )}
-          </div> */}
-
-          {/* Vídeo */}
-
           <input type="hidden" value={"video"} {...register("type")} />
 
           <div>
@@ -331,107 +253,6 @@ export function CreateTrainingForm({
             )}
           </div>
 
-          {/* Imagens */}
-          {/* {selectedTrainingType === "images" && (
-            <div>
-              <span className="text-sm font-medium">Adicionar imagens *</span>
-              <Label
-                htmlFor="image-upload"
-                className="bg-primary text-white p-2 rounded-md flex items-center gap-2 cursor-pointer mt-1"
-              >
-                <Upload className="size-5" />
-                Escolher arquivos
-              </Label>
-
-              <Input
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setImagePreviews((prev) => [
-                    ...prev,
-                    ...files.map((file) => URL.createObjectURL(file)),
-                  ]);
-                  setValue("files", [...(watch("files") || []), ...files]);
-                }}
-              />
-
-              <div className="flex items-center flex-wrap gap-2 mt-5">
-                {imagePreviews.map((image, index) => (
-                  <div
-                    className="relative w-32 h-32 border border-[#7c3aed] rounded-md"
-                    key={index}
-                  >
-                    <img
-                      className="object-cover w-full h-full rounded-md"
-                      src={image}
-                      alt="Preview"
-                    />
-                    <Button
-                      type="button"
-                      size="icon"
-                      className="absolute top-1 right-1 bg-red-500 text-white"
-                      onClick={() => removeImage(index)}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )} */}
-
-          {/* Documentos */}
-          {/* {selectedTrainingType === "documents" && (
-            <div>
-              <span className="text-sm font-medium">
-                Adicionar documentos *
-              </span>
-              <Label
-                htmlFor="document-upload"
-                className="bg-primary text-white p-2 rounded-md flex items-center gap-2 cursor-pointer mt-1"
-              >
-                <Upload className="size-5" />
-                Escolher arquivos
-              </Label>
-
-              <Input
-                id="document-upload"
-                type="file"
-                accept=".pdf,.doc,.docx,.ppt,.pptx"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setDocumentFiles((prev) => [...prev, ...files]);
-                  setValue("files", [...(watch("files") || []), ...files]);
-                }}
-              />
-
-              <ul className="mt-2 ml-4 list-disc text-sm">
-                {documentFiles.map((file, index) => (
-                  <li
-                    key={index}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    {file.name}
-                    <Button
-                      type="button"
-                      size="icon"
-                      className="bg-red-500 text-white"
-                      onClick={() => removeDocument(index)}
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )} */}
-
           {/* Botões */}
           <div className="flex gap-2">
             <Button
@@ -440,7 +261,9 @@ export function CreateTrainingForm({
               }
               type="submit"
             >
-              {createTrainingMutation.isPending ? "Enviando..." : "Enviar"}
+              {createTrainingMutation.isPending || updateMutation.isPending
+                ? "Enviando..."
+                : "Enviar"}
             </Button>
             <Button
               type="button"

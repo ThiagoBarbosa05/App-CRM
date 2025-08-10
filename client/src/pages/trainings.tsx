@@ -27,6 +27,7 @@ import {
   Trash2,
   Upload,
   Image,
+  File,
 } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -37,6 +38,13 @@ import type { UploadResult } from "@uppy/core";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { getYouTubeEmbedUrl } from "@/lib/get-embed-youtube";
+import { Training } from "@/components/learning-images-management";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TrainingVideo {
   id: string;
@@ -80,9 +88,7 @@ interface LearningCard {
 export default function Trainings() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [selectedVideo, setSelectedVideo] = useState<TrainingVideo | null>(
-    null,
-  );
+  const [selectedVideo, setSelectedVideo] = useState<Training | null>(null);
 
   const [isEditingAnivSemana, setIsEditingAnivSemana] = useState(false);
   const [isEditingAnivDia, setIsEditingAnivDia] = useState(false);
@@ -457,11 +463,31 @@ ATENDIMENTO AO CLIENTE
     },
   ];
 
-  const { data: trainingVideos } = useQuery<TrainingVideo[]>({
+  const { data: trainingVideos } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=video");
       if (!response.ok) throw new Error("Failed to fetch training videos");
+      return response.json();
+    },
+  });
+
+  const { data: trainingDocument } = useQuery<Training[]>({
+    queryKey: ["/api/trainings?type=document"],
+    queryFn: async () => {
+      const response = await fetch("/api/trainings?type=document");
+      if (!response.ok) throw new Error("Failed to fetch training documents");
+      return response.json();
+    },
+  });
+
+  const { data: scripts } = useQuery<Training[]>({
+    queryKey: ["/api/trainings?type=script"],
+    queryFn: async () => {
+      const response = await fetch("/api/trainings?type=script");
+
+      if (!response.ok) throw new Error("Failed to fetch training videos");
+
       return response.json();
     },
   });
@@ -518,7 +544,7 @@ ATENDIMENTO AO CLIENTE
               <FileText className="h-4 w-4" />
               <p>Documentos e Manuais</p>
             </TabsTrigger>
-            <TabsTrigger value="learning" className="flex items-center gap-2">
+            <TabsTrigger value="scripts" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <p> Script de Vendas</p>
             </TabsTrigger>
@@ -552,7 +578,7 @@ ATENDIMENTO AO CLIENTE
                         >
                           {selectedVideo.category}
                         </Badge>
-                        <Badge className={getLevelColor(selectedVideo.level)}>
+                        <Badge className={getLevelColor(selectedVideo.level!)}>
                           {selectedVideo.level}
                         </Badge>
                       </div>
@@ -573,10 +599,10 @@ ATENDIMENTO AO CLIENTE
                         allowFullScreen
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    {/* <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Clock className="h-4 w-4" />
                       Duração: {selectedVideo.duration}
-                    </div>
+                    </div> */}
                   </CardContent>
                 </Card>
               </div>
@@ -622,620 +648,79 @@ ATENDIMENTO AO CLIENTE
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6 w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {trainingDocuments.map((doc) => {
-                // Card especial para Política de Vendas
-                if (doc.title === "Política de Vendas") {
-                  return (
-                    <Card
-                      key={doc.id}
-                      className="hover:shadow-lg transition-shadow"
+            <div className="flex flex-col gap-4 items-start">
+              <section className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {trainingDocument &&
+                  trainingDocument.map((training) => (
+                    <div
+                      className="bg-white w-full min-h-56 p-5 shadow-lg rounded-md"
+                      key={training.id}
                     >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
+                      <div className="h-full flex flex-col justify-between">
+                        <div className="flex gap-4">
+                          <File className="size-10 text-red-500 flex-shrink-0" />
                           <div className="flex-1">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                              <FileText className="h-5 w-5 text-wine-600" />
-                              {doc.title}
-                            </CardTitle>
-                            <CardDescription className="mt-2">
-                              {doc.description}
-                            </CardDescription>
+                            <p className="text-xl font-medium">
+                              {training.title}
+                            </p>
+                            <p className="text-sm text-gray-500 pt-1">
+                              {training.description}
+                            </p>
                           </div>
                         </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {isEditingPoliticas ? (
-                          <div className="space-y-4">
-                            <Textarea
-                              value={politicasContent}
-                              onChange={(e) =>
-                                setPoliticasContent(e.target.value)
-                              }
-                              className="min-h-96 resize-none font-mono text-sm"
-                              placeholder="Digite aqui as políticas de vendas..."
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsEditingPoliticas(false)}
-                                className="text-gray-600 border-gray-300"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Cancelar
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsEditingPoliticas(false)}
-                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                              >
-                                <Save className="h-4 w-4 mr-2" />
-                                Salvar
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                              <div className="prose prose-sm">
-                                <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                                  {politicasContent}
-                                </pre>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <Badge
-                                variant="outline"
-                                className="text-wine-700 border-wine-300"
-                              >
-                                {doc.category}
-                              </Badge>
-                              {isAdmin && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsEditingPoliticas(true)}
-                                    className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setPoliticasContent("");
-                                    }}
-                                    className="text-red-600 border-red-300 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Excluir
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                }
-
-                // Cards normais para outros documentos
-                return (
-                  <Card
-                    key={doc.id}
-                    className="hover:shadow-lg transition-shadow"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{doc.title}</CardTitle>
-                          <CardDescription className="mt-2">
-                            {doc.description}
-                          </CardDescription>
-                        </div>
-                        <div className="ml-4">
-                          {doc.fileType === "pdf" && (
-                            <FileText className="h-8 w-8 text-red-500" />
-                          )}
-                          {doc.fileType === "doc" && (
-                            <FileText className="h-8 w-8 text-blue-500" />
-                          )}
-                          {doc.fileType === "ppt" && (
-                            <FileText className="h-8 w-8 text-orange-500" />
-                          )}
+                        <div className="flex justify-between items-center mt-4">
+                          <Badge variant={"outline"}>{training.category}</Badge>
+                          <a
+                            href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
+                            className="border flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <BookOpen className="size-4 mr-1" />
+                            Abrir
+                          </a>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline">{doc.category}</Badge>
-                        <Button variant="outline" size="sm">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Abrir
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                    </div>
+                  ))}
+              </section>
             </div>
           </TabsContent>
 
-          <TabsContent value="learning" className="space-y-6 w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Card Aniversariantes - 1 semana antes */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
+          <TabsContent value="scripts" className="space-y-6 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scripts?.map((script) => (
+                <div
+                  key={script.id}
+                  className="bg-white flex flex-col items-start p-5 rounded-md shadow-md"
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="flex-shrink-0" />
+
                     <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-wine-600" />
-                        Aniversariantes - 1 semana antes
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        Script personalizado para contatar clientes uma semana
-                        antes do aniversário
-                      </CardDescription>
+                      <h4 className="text-xl font-medium">{script.title}</h4>
+                      <p className="text-sm">{script.description}</p>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isEditingAnivSemana ? (
-                    <div className="space-y-4">
-                      <Textarea
-                        value={anivSemanaContent}
-                        onChange={(e) => setAnivSemanaContent(e.target.value)}
-                        className="min-h-96 resize-none font-mono text-sm"
-                        placeholder="Digite aqui o script para aniversariantes - 1 semana antes..."
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingAnivSemana(false)}
-                          className="text-gray-600 border-gray-300"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingAnivSemana(false)}
-                          className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                        <div className="prose prose-sm">
-                          <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                            {anivSemanaContent}
-                          </pre>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <Badge
-                          variant="outline"
-                          className="text-wine-700 border-wine-300"
-                        >
-                          Script Aniversário
-                        </Badge>
-                        {/* {isAdmin && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingAnivSemana(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setAnivSemanaContent("");
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
-                        )} */}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                  <div
+                    style={{
+                      backgroundColor: "#202938", // cor de fundo fixa
+                      whiteSpace: "normal",
+                      wordWrap: "break-word",
+                      color: "white",
+                    }}
+                    className="prose w-full flex-1 p-4 preview-content leading-none max-w-none max-h-96 overflow-x-hidden break-words"
+                    dangerouslySetInnerHTML={{
+                      __html: script.content || (
+                        <p>Nenhum conteúdo encontrado</p>
+                      ),
+                    }}
+                  />
 
-              {/* Card Aniversariantes - No Dia */}
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-wine-600" />
-                        Aniversariantes - No Dia
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        Script especial para parabenizar clientes no dia do
-                        aniversário
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isEditingAnivDia ? (
-                    <div className="space-y-4">
-                      <Textarea
-                        value={anivDiaContent}
-                        onChange={(e) => setAnivDiaContent(e.target.value)}
-                        className="min-h-96 resize-none font-mono text-sm"
-                        placeholder="Digite aqui o script para aniversariantes - no dia..."
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingAnivDia(false)}
-                          className="text-gray-600 border-gray-300"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingAnivDia(false)}
-                          className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                        <div className="prose prose-sm">
-                          <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                            {anivDiaContent}
-                          </pre>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <Badge
-                          variant="outline"
-                          className="text-wine-700 border-wine-300"
-                        >
-                          Script Aniversário
-                        </Badge>
-                        {isAdmin && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditingAnivDia(true)}
-                              className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setAnivDiaContent("");
-                              }}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Botão para criar novo card */}
-              {isCreatingCard ? (
-                <Card className="hover:shadow-lg transition-shadow border-wine-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Plus className="h-5 w-5 text-wine-600" />
-                      Criar Novo Card
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-wine-700">
-                        Título
-                      </label>
-                      <Input
-                        value={newCardTitle}
-                        onChange={(e) => setNewCardTitle(e.target.value)}
-                        placeholder="Digite o título do card..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-wine-700">
-                        Descrição
-                      </label>
-                      <Input
-                        value={newCardDescription}
-                        onChange={(e) => setNewCardDescription(e.target.value)}
-                        placeholder="Digite uma breve descrição..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-wine-700">
-                        Categoria
-                      </label>
-                      <Input
-                        value={newCardCategory}
-                        onChange={(e) => setNewCardCategory(e.target.value)}
-                        placeholder="Ex: Conhecimento Técnico, Procedimentos..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-wine-700">
-                        Imagem (opcional)
-                      </label>
-                      <div className="mt-1 space-y-2">
-                        <div className="flex gap-2">
-                          <Input
-                            value={newCardImageUrl}
-                            onChange={(e) => setNewCardImageUrl(e.target.value)}
-                            placeholder="URL da imagem ou use o botão de upload"
-                            className="flex-1"
-                          />
-                          <ObjectUploader
-                            maxNumberOfFiles={1}
-                            maxFileSize={5242880} // 5MB
-                            onGetUploadParameters={handleGetUploadParameters}
-                            onComplete={handleUploadComplete}
-                            buttonClassName="text-wine-700 border-wine-300 hover:bg-wine-50"
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload
-                          </ObjectUploader>
-                        </div>
-                        {newCardImageUrl && (
-                          <div className="mt-2">
-                            <img
-                              src={
-                                newCardImageUrl.startsWith("/objects/")
-                                  ? newCardImageUrl
-                                  : newCardImageUrl
-                              }
-                              alt="Preview"
-                              className="w-full max-w-xs h-32 object-cover rounded-lg border"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src =
-                                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%236b7280">Imagem não encontrada</text></svg>';
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-wine-700">
-                        Conteúdo
-                      </label>
-                      <Textarea
-                        value={newCardContent}
-                        onChange={(e) => setNewCardContent(e.target.value)}
-                        placeholder="Digite o conteúdo completo do card..."
-                        className="mt-1 min-h-48 resize-none"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCreatingCard(false)}
-                        className="text-gray-600 border-gray-300"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={createCard}
-                        className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Criar Card
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : isAdmin ? (
-                <Card className="hover:shadow-lg transition-shadow border-dashed border-wine-300 bg-wine-50/30">
-                  <CardContent className="flex items-center justify-center p-8">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsCreatingCard(true)}
-                      className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Criar Novo Card
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {/* Cards dinâmicos */}
-              {learningCards.map((card) => (
-                <Card
-                  key={card.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-wine-600" />
-                          {card.title}
-                        </CardTitle>
-                        <CardDescription className="mt-2">
-                          {card.description}
-                        </CardDescription>
-                      </div>
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteCard(card.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {card.isEditing ? (
-                      <div className="space-y-4">
-                        <Textarea
-                          value={card.content}
-                          onChange={(e) =>
-                            updateCard(card.id, "content", e.target.value)
-                          }
-                          className="min-h-96 resize-none font-mono text-sm"
-                          placeholder="Digite aqui o conteúdo do card..."
-                        />
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateCard(card.id, "isEditing", false)
-                            }
-                            className="text-gray-600 border-gray-300"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateCard(card.id, "isEditing", false)
-                            }
-                            className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            Salvar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {card.imageUrl && (
-                          <div className="mb-4">
-                            <img
-                              src={card.imageUrl}
-                              alt={card.title}
-                              className="w-full h-48 object-cover rounded-lg border"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                              }}
-                            />
-                          </div>
-                        )}
-                        <div className="bg-wine-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                          <div className="prose prose-sm">
-                            <pre className="whitespace-pre-wrap text-sm text-wine-800 font-sans">
-                              {card.content}
-                            </pre>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <Badge
-                            variant="outline"
-                            className="text-wine-700 border-wine-300"
-                          >
-                            {card.category}
-                          </Badge>
-                          {isAdmin && (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  updateCard(card.id, "isEditing", true)
-                                }
-                                className="text-wine-700 border-wine-300 hover:bg-wine-50"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteCard(card.id)}
-                                className="text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Excluir
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {mockLearningImages.map((image) => (
-                <Card
-                  key={image.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{image.title}</CardTitle>
-                        <CardDescription className="mt-2">
-                          {image.description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <img
-                      src={image.imageUrl}
-                      alt={image.title}
-                      className="w-full h-48 object-cover rounded-t-lg"
-                    />
-                    <div className="flex justify-between items-center">
-                      <Badge variant="outline">{image.category}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Badge className="mt-5" variant={"outline"}>
+                    {script.category}
+                  </Badge>
+                </div>
               ))}
             </div>
           </TabsContent>

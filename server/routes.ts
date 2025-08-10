@@ -184,7 +184,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.headers["x-user-role"] as string);
       const days = parseInt(req.query.days as string) || 1;
 
-      const clients = await storage.getClientsWithoutRecentContact(userId, userRole, days);
+      const clients = await storage.getClientsWithoutRecentContact(
+        userId,
+        userRole,
+        days,
+      );
       res.json(clients);
     } catch (error) {
       console.error("Erro ao buscar clientes sem contato:", error);
@@ -1848,6 +1852,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao criar treinamento:", error);
 
       res.status(500).json({ message: "Erro ao criar treinamento" });
+    }
+  });
+
+  app.put("/api/trainings/scripts/:id", async (req, res) => {
+    try {
+      const data = createScriptSchema.parse(req.body);
+      const [training] = await db
+        .update(trainings)
+        .set({ ...data })
+        .where(eq(trainings.id, req.params.id))
+        .returning();
+
+      res.status(201).json(training);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar treinamento:", error);
+
+      res.status(500).json({ message: "Erro ao atualizar treinamento" });
     }
   });
 

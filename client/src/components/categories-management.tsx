@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +45,9 @@ interface Category {
 export default function CategoriesManagement() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
+    null,
+  );
   const [formData, setFormData] = useState({ name: "", color: "#8B5CF6" });
   const { toast } = useToast();
 
@@ -64,14 +72,21 @@ export default function CategoriesManagement() {
       console.error("Error creating category:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao criar categoria",
+        description:
+          error instanceof Error ? error.message : "Erro ao criar categoria",
         variant: "destructive",
       });
     },
   });
 
   const updateCategoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name: string; color: string };
+    }) => {
       return await apiRequest(`/api/categories/${id}`, "PUT", data);
     },
     onSuccess: () => {
@@ -87,7 +102,10 @@ export default function CategoriesManagement() {
       console.error("Error updating category:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao atualizar categoria",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Erro ao atualizar categoria",
         variant: "destructive",
       });
     },
@@ -125,9 +143,9 @@ export default function CategoriesManagement() {
     }
 
     if (editingCategory) {
-      updateCategoryMutation.mutate({ 
-        id: editingCategory.id, 
-        data: formData 
+      updateCategoryMutation.mutate({
+        id: editingCategory.id,
+        data: formData,
       });
     } else {
       createCategoryMutation.mutate(formData);
@@ -155,26 +173,25 @@ export default function CategoriesManagement() {
             <Tag className="h-5 w-5" />
             Categorias
           </CardTitle>
-          <CardDescription>
-            Carregando categorias...
-          </CardDescription>
+          <CardDescription>Carregando categorias...</CardDescription>
         </CardHeader>
       </Card>
     );
   }
 
-
-
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="flex items-center gap-2">
               <Tag className="h-5 w-5" />
               Categorias
             </div>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="w-full md:w-auto"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Nova Categoria
             </Button>
@@ -187,15 +204,20 @@ export default function CategoriesManagement() {
           {!categories || (categories as Category[]).length === 0 ? (
             <div className="text-center py-8">
               <Tag className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma categoria cadastrada</h3>
-              <p className="text-gray-500 mb-4">Comece criando sua primeira categoria para organizar os clientes.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma categoria cadastrada
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Comece criando sua primeira categoria para organizar os
+                clientes.
+              </p>
               <Button onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Criar Primeira Categoria
               </Button>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {(categories as Category[]).map((category: Category) => (
                 <div
                   key={category.id}
@@ -239,10 +261,9 @@ export default function CategoriesManagement() {
               {editingCategory ? "Editar Categoria" : "Nova Categoria"}
             </DialogTitle>
             <DialogDescription>
-              {editingCategory 
-                ? "Edite as informações da categoria." 
-                : "Crie uma nova categoria para organizar seus clientes."
-              }
+              {editingCategory
+                ? "Edite as informações da categoria."
+                : "Crie uma nova categoria para organizar seus clientes."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -252,7 +273,9 @@ export default function CategoriesManagement() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="Ex: VIP, Interessado, Fidelizado..."
                 />
               </div>
@@ -263,12 +286,16 @@ export default function CategoriesManagement() {
                     type="color"
                     id="color"
                     value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, color: e.target.value })
+                    }
                     className="w-12 h-10 border rounded cursor-pointer"
                   />
                   <Input
                     value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, color: e.target.value })
+                    }
                     placeholder="#8B5CF6"
                   />
                 </div>
@@ -278,14 +305,17 @@ export default function CategoriesManagement() {
               <Button variant="outline" onClick={handleCloseModal}>
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 onClick={handleSave}
-                disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-              >
-                {createCategoryMutation.isPending || updateCategoryMutation.isPending 
-                  ? "Salvando..." 
-                  : "Salvar"
+                disabled={
+                  createCategoryMutation.isPending ||
+                  updateCategoryMutation.isPending
                 }
+              >
+                {createCategoryMutation.isPending ||
+                updateCategoryMutation.isPending
+                  ? "Salvando..."
+                  : "Salvar"}
               </Button>
             </DialogFooter>
           </div>
@@ -293,19 +323,25 @@ export default function CategoriesManagement() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!categoryToDelete} onOpenChange={() => setCategoryToDelete(null)}>
+      <AlertDialog
+        open={!!categoryToDelete}
+        onOpenChange={() => setCategoryToDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a categoria "{categoryToDelete?.name}"? 
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir a categoria "
+              {categoryToDelete?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => categoryToDelete && deleteCategoryMutation.mutate(categoryToDelete.id)}
+            <AlertDialogAction
+              onClick={() =>
+                categoryToDelete &&
+                deleteCategoryMutation.mutate(categoryToDelete.id)
+              }
               disabled={deleteCategoryMutation.isPending}
             >
               {deleteCategoryMutation.isPending ? "Excluindo..." : "Excluir"}

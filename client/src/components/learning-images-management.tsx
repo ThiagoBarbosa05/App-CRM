@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast, useToast } from "@/hooks/use-toast";
-import ReactMarkdown from "react-markdown";
 import {
   Image,
   Upload,
@@ -50,6 +49,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import ImageUploadForm from "./image-upload-form";
 import { DocumentsUploadForm } from "./document-upload-form";
@@ -104,6 +104,9 @@ export default function LearningImagesManagement() {
   const [openDocumentForm, setOpenDocumentForm] = useState(false);
   const [trainingEditFile, setTrainingEditFile] = useState<string | null>("");
   const [showEditor, setShowEditor] = useState(false);
+  const [openScriptForm, setOpenScriptForm] = useState(false);
+  const [scriptToEdit, setScriptToEdit] = useState<Training | null>(null);
+
   const [content, setContent] = useState("");
 
   const categories = [
@@ -144,8 +147,6 @@ export default function LearningImagesManagement() {
     },
   });
 
-  console.log(scripts);
-
   const deleteMutation = useMutation({
     mutationFn: async (trainingId: string) => {
       const response = await fetch(`/api/trainings/${trainingId}`, {
@@ -160,6 +161,9 @@ export default function LearningImagesManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["/api/trainings?type=video"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=script"],
       });
       setOpenDeleteDialog(false);
       toast({
@@ -210,16 +214,18 @@ export default function LearningImagesManagement() {
     },
   });
 
+  const formRef = useRef<HTMLDivElement>(null);
+
   return (
     <div>
       <Separator className="bg-gray-200" />
-      <div className="p-5">
-        <div className="flex items-start gap-2 mb-5 justify-between">
+      <div className="p-2 md:p-5">
+        <div className="flex flex-col md:flex-row items-start gap-2 mb-5 justify-between">
           <div className="space-y-2">
-            <h2 className="flex text-2xl font-semibold items-center gap-2 ">
+            <h2 className="flex text-2xl font-semibold items-center gap-2">
               <GraduationCap className="h-6 w-6" /> Gerenciar treinamentos
             </h2>
-            <p className="text-sm ml-8">
+            <p className="text-sm md:ml-8">
               Gerencie e crie seus treinamentos de vídeo, upload de documentos e
               manuais, etc.
             </p>
@@ -228,7 +234,7 @@ export default function LearningImagesManagement() {
 
         <div className="mt-5">
           <Tabs defaultValue="videos">
-            <TabsList className="w-full justify-evenly">
+            <TabsList className="w-full flex-col sm:flex-row justify-evenly">
               <TabsTrigger className="w-full" value="videos">
                 Vídeos
               </TabsTrigger>
@@ -245,50 +251,52 @@ export default function LearningImagesManagement() {
                 {trainingVideos &&
                   trainingVideos.map((training) => (
                     <div
-                      className="rounded-md flex items-start gap-2 p-5 bg-white w-full shadow-lg"
+                      className="rounded-md flex flex-col md:flex-row items-start gap-4 p-5 bg-white w-full shadow-lg"
                       key={training.id}
                     >
-                      <div className="flex-1">
+                      <div className="flex-1 w-full">
                         <h4 className="text-primary font-semibold text-lg">
                           {training.title}
                         </h4>
                         <p className="text-sm">{training.description}</p>
 
-                        <div className="flex gap-2 mt-4">
+                        <div className="flex gap-2 mt-4 flex-wrap">
                           <Badge>{training.category}</Badge>
                           <Badge className="bg-orange-300">
                             {training.level}
                           </Badge>
                         </div>
 
-                        <div className="flex gap-2 mt-6">
+                        <div className="flex gap-2 mt-6 flex-wrap">
                           <Button
                             onClick={() => {
                               setEditingTraining(training);
                               setOpenCreateTrainingModal(true);
                             }}
                             variant="outline"
+                            size="sm"
                           >
-                            <Pencil className="size-4" />
+                            <Pencil className="size-4 mr-1" />
                             Editar
                           </Button>
                           <Button
                             className="bg-red-500 text-white"
                             variant="destructive"
+                            size="sm"
                             onClick={() => {
                               setTrainingToDelete(training.id);
                               setOpenDeleteDialog(true);
                             }}
                           >
-                            <Trash className="size-4" />
+                            <Trash className="size-4 mr-1" />
                             Deletar
                           </Button>
                         </div>
                       </div>
-                      <div>
+                      <div className="w-full md:w-auto">
                         {training.attachmentUrl && (
                           <iframe
-                            className="rounded-lg"
+                            className="rounded-lg w-full md:w-[400px] h-auto aspect-video"
                             src={
                               training.attachmentUrl?.includes(
                                 "www.youtube.com",
@@ -316,7 +324,7 @@ export default function LearningImagesManagement() {
                     setOpenCreateTrainingModal(true);
                   }}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-1" />
                   Criar Treinamento
                 </Button>
               </div>
@@ -324,7 +332,7 @@ export default function LearningImagesManagement() {
 
             <TabsContent className="w-full" value="documents">
               <div className="flex flex-col gap-4 items-start">
-                <section className="grid w-full grid-cols-3 gap-4">
+                <section className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {trainingDocument &&
                     trainingDocument.map((training) => (
                       <div
@@ -333,7 +341,7 @@ export default function LearningImagesManagement() {
                       >
                         <div className="h-full flex flex-col justify-between">
                           <div className="flex gap-4">
-                            <File className="size-10 text-red-500" />
+                            <File className="size-10 text-red-500 flex-shrink-0" />
                             <div className="flex-1">
                               <p className="text-xl font-medium">
                                 {training.title}
@@ -363,7 +371,7 @@ export default function LearningImagesManagement() {
                                       setEditingTraining(training);
                                     }}
                                   >
-                                    <Pencil />
+                                    <Pencil className="mr-2" />
                                     Editar
                                   </Button>
                                 </DropdownMenuItem>
@@ -377,7 +385,7 @@ export default function LearningImagesManagement() {
                                       setTrainingEditFile(training.id);
                                     }}
                                   >
-                                    <Upload />
+                                    <Upload className="mr-2" />
                                     Editar arquivo
                                   </Button>
                                 </DropdownMenuItem>
@@ -394,7 +402,7 @@ export default function LearningImagesManagement() {
                                       )
                                     }
                                   >
-                                    <Trash2 />
+                                    <Trash2 className="mr-2" />
                                     {deleteDocumentTrainingMutation.isPending
                                       ? "Deletando..."
                                       : "Deletar"}
@@ -403,37 +411,20 @@ export default function LearningImagesManagement() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-                          <div className=" flex justify-between items-center">
+                          <div className="flex justify-between items-center mt-4">
                             <Badge variant={"outline"}>
                               {training.category}
                             </Badge>
                             <a
                               href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
-                              className="border flex items-center gap-1 rounded-sm px-3 py-2"
+                              className="border flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <BookOpen className="size-4 text-sm " />
+                              <BookOpen className="size-4 mr-1" />
                               Abrir
                             </a>
                           </div>
-
-                          {/* <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                setOpenDocumentForm(true);
-                                setEditingTraining(training);
-                              }}
-                              variant={"outline"}
-                            >
-                              <Pencil className="size-4" />
-                              Editar
-                            </Button>
-                            <Button className="bg-red-500 text-white">
-                              <Trash className="size-4" />
-                              Deletar
-                            </Button>
-                          </div> */}
                         </div>
                       </div>
                     ))}
@@ -456,11 +447,14 @@ export default function LearningImagesManagement() {
             <TabsContent className="w-full" value="scripts">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {scripts?.map((script) => (
-                  <div className="bg-white flex flex-col p-5 rounded-md shadow-md">
+                  <div
+                    key={script.id}
+                    className="bg-white flex flex-col p-5 rounded-md shadow-md"
+                  >
                     <div className="flex items-center gap-2 mb-4">
-                      <FileText />
+                      <FileText className="flex-shrink-0" />
 
-                      <div>
+                      <div className="flex-1">
                         <h4 className="text-xl font-medium">{script.title}</h4>
                         <p className="text-sm">{script.description}</p>
                       </div>
@@ -480,24 +474,85 @@ export default function LearningImagesManagement() {
                       }}
                     />
 
-                    <div className="mt-5 flex gap-2">
-                      <Button variant={"outline"}>
-                        <Pencil /> Editar
+                    <div className="mt-5 flex gap-2 flex-wrap">
+                      <Button
+                        onClick={() => {
+                          setTimeout(() => {
+                            formRef.current?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                          }, 100);
+                          setScriptToEdit(script);
+                          setShowEditor(true);
+                        }}
+                        variant={"outline"}
+                        size="sm"
+                      >
+                        <Pencil className="mr-1" /> Editar
                       </Button>
-                      <Button>
-                        <Trash2 /> Deletar
-                      </Button>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            disabled={deleteMutation.isPending}
+                            className="bg-red-500 text-white"
+                            size="sm"
+                          >
+                            <Trash2 className="mr-1" /> Deletar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Deseja excluir esse script?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Essa ação não poderá ser desfeita
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-500 text-white"
+                              disabled={deleteMutation.isPending}
+                              onClick={() => deleteMutation.mutate(script.id)}
+                            >
+                              Confirmar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="w-full flex justify-center mt-5">
-                <Button type="button" onClick={() => setShowEditor(true)}>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowEditor(true);
+                    setScriptToEdit(null);
+                    setTimeout(() => {
+                      formRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }, 100);
+                  }}
+                >
                   <Plus className="mr-2 h-4 w-4" /> Adicionar Script
                 </Button>
               </div>
 
-              {showEditor && <ScriptForm onOpenChange={setShowEditor} />}
+              {showEditor && (
+                <div ref={formRef}>
+                  <ScriptForm
+                    scriptToEdit={scriptToEdit}
+                    onOpenChange={setShowEditor}
+                  />
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

@@ -68,7 +68,10 @@ export default function OriginsManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: OriginFormData) => {
-      const response = await apiRequest("/api/origins", "POST", { ...data, type: "origem" });
+      const response = await apiRequest("/api/origins", "POST", {
+        ...data,
+        type: "origem",
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -91,10 +94,10 @@ export default function OriginsManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: OriginFormData & { id: string }) => {
-      const response = await apiRequest(`/api/origins/${data.id}`, "PUT", { 
-        name: data.name, 
-        color: data.color, 
-        type: "origem" 
+      const response = await apiRequest(`/api/origins/${data.id}`, "PUT", {
+        name: data.name,
+        color: data.color,
+        type: "origem",
       });
       return response.json();
     },
@@ -170,7 +173,7 @@ export default function OriginsManagement() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5" />
@@ -182,7 +185,7 @@ export default function OriginsManagement() {
           </div>
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full md:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Origem
               </Button>
@@ -192,7 +195,10 @@ export default function OriginsManagement() {
                 <DialogTitle>Criar Nova Origem</DialogTitle>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit(handleSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="name"
@@ -214,7 +220,11 @@ export default function OriginsManagement() {
                         <FormLabel>Cor</FormLabel>
                         <FormControl>
                           <div className="flex items-center gap-2">
-                            <Input type="color" {...field} className="w-16 h-10" />
+                            <Input
+                              type="color"
+                              {...field}
+                              className="w-16 h-10"
+                            />
                             <Input
                               placeholder="#6B7280"
                               {...field}
@@ -234,10 +244,7 @@ export default function OriginsManagement() {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending}
-                    >
+                    <Button type="submit" disabled={createMutation.isPending}>
                       {createMutation.isPending ? "Criando..." : "Criar"}
                     </Button>
                   </div>
@@ -263,16 +270,16 @@ export default function OriginsManagement() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {origins.map((origin) => (
               <div
                 key={origin.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded-lg hover:bg-gray-50 gap-2"
               >
                 <div className="flex items-center gap-3">
                   <Badge
                     variant="secondary"
-                    style={{ backgroundColor: origin.color, color: 'white' }}
+                    style={{ backgroundColor: origin.color, color: "white" }}
                   >
                     {origin.name}
                   </Badge>
@@ -303,13 +310,19 @@ export default function OriginsManagement() {
         )}
 
         {editingOrigin && (
-          <Dialog open={!!editingOrigin} onOpenChange={() => handleCancelEdit()}>
+          <Dialog
+            open={!!editingOrigin}
+            onOpenChange={() => handleCancelEdit()}
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Editar Origem</DialogTitle>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit(handleSubmit)}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="name"
@@ -331,7 +344,11 @@ export default function OriginsManagement() {
                         <FormLabel>Cor</FormLabel>
                         <FormControl>
                           <div className="flex items-center gap-2">
-                            <Input type="color" {...field} className="w-16 h-10" />
+                            <Input
+                              type="color"
+                              {...field}
+                              className="w-16 h-10"
+                            />
                             <Input
                               placeholder="#6B7280"
                               {...field}
@@ -351,10 +368,7 @@ export default function OriginsManagement() {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      disabled={updateMutation.isPending}
-                    >
+                    <Button type="submit" disabled={updateMutation.isPending}>
                       {updateMutation.isPending ? "Salvando..." : "Salvar"}
                     </Button>
                   </div>

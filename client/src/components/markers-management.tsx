@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,14 +72,21 @@ export default function MarkersManagement() {
       console.error("Error creating marker:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao criar marcador",
+        description:
+          error instanceof Error ? error.message : "Erro ao criar marcador",
         variant: "destructive",
       });
     },
   });
 
   const updateMarkerMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name: string; color: string };
+    }) => {
       return await apiRequest(`/api/markers/${id}`, "PUT", data);
     },
     onSuccess: () => {
@@ -89,7 +102,8 @@ export default function MarkersManagement() {
       console.error("Error updating marker:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao atualizar marcador",
+        description:
+          error instanceof Error ? error.message : "Erro ao atualizar marcador",
         variant: "destructive",
       });
     },
@@ -127,9 +141,9 @@ export default function MarkersManagement() {
     }
 
     if (editingMarker) {
-      updateMarkerMutation.mutate({ 
-        id: editingMarker.id, 
-        data: formData 
+      updateMarkerMutation.mutate({
+        id: editingMarker.id,
+        data: formData,
       });
     } else {
       createMarkerMutation.mutate(formData);
@@ -157,9 +171,7 @@ export default function MarkersManagement() {
             <Bookmark className="h-5 w-5" />
             Marcadores
           </CardTitle>
-          <CardDescription>
-            Carregando marcadores...
-          </CardDescription>
+          <CardDescription>Carregando marcadores...</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -179,12 +191,15 @@ export default function MarkersManagement() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="flex items-center gap-2">
               <Bookmark className="h-5 w-5" />
               Marcadores
             </div>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="w-full md:w-auto"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Marcador
             </Button>
@@ -197,15 +212,19 @@ export default function MarkersManagement() {
           {!markers || (markers as Marker[]).length === 0 ? (
             <div className="text-center py-8">
               <Bookmark className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum marcador cadastrado</h3>
-              <p className="text-gray-500 mb-4">Comece criando seu primeiro marcador para etiquetar os clientes.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhum marcador cadastrado
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Comece criando seu primeiro marcador para etiquetar os clientes.
+              </p>
               <Button onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Criar Primeiro Marcador
               </Button>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {(markers as Marker[]).map((marker: Marker) => (
                 <div
                   key={marker.id}
@@ -216,7 +235,13 @@ export default function MarkersManagement() {
                       className="w-4 h-4 rounded-full border"
                       style={{ backgroundColor: marker.color }}
                     />
-                    <Badge variant="secondary" style={{ backgroundColor: marker.color + '20', color: marker.color }}>
+                    <Badge
+                      variant="secondary"
+                      style={{
+                        backgroundColor: marker.color + "20",
+                        color: marker.color,
+                      }}
+                    >
                       {marker.name}
                     </Badge>
                   </div>
@@ -251,10 +276,9 @@ export default function MarkersManagement() {
               {editingMarker ? "Editar Marcador" : "Novo Marcador"}
             </DialogTitle>
             <DialogDescription>
-              {editingMarker 
-                ? "Edite as informações do marcador." 
-                : "Crie um novo marcador para etiquetar seus clientes."
-              }
+              {editingMarker
+                ? "Edite as informações do marcador."
+                : "Crie um novo marcador para etiquetar seus clientes."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -263,7 +287,9 @@ export default function MarkersManagement() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Ex: Urgente, Follow-up, Proposta Enviada..."
               />
             </div>
@@ -274,12 +300,16 @@ export default function MarkersManagement() {
                   type="color"
                   id="color"
                   value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, color: e.target.value })
+                  }
                   className="w-12 h-10 border rounded cursor-pointer"
                 />
                 <Input
                   value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, color: e.target.value })
+                  }
                   placeholder="#10B981"
                 />
               </div>
@@ -289,33 +319,39 @@ export default function MarkersManagement() {
             <Button variant="outline" onClick={handleCloseModal}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleSave}
-              disabled={createMarkerMutation.isPending || updateMarkerMutation.isPending}
-            >
-              {createMarkerMutation.isPending || updateMarkerMutation.isPending 
-                ? "Salvando..." 
-                : "Salvar"
+              disabled={
+                createMarkerMutation.isPending || updateMarkerMutation.isPending
               }
+            >
+              {createMarkerMutation.isPending || updateMarkerMutation.isPending
+                ? "Salvando..."
+                : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!markerToDelete} onOpenChange={() => setMarkerToDelete(null)}>
+      <AlertDialog
+        open={!!markerToDelete}
+        onOpenChange={() => setMarkerToDelete(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o marcador "{markerToDelete?.name}"? 
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o marcador "{markerToDelete?.name}
+              "? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => markerToDelete && deleteMarkerMutation.mutate(markerToDelete.id)}
+            <AlertDialogAction
+              onClick={() =>
+                markerToDelete && deleteMarkerMutation.mutate(markerToDelete.id)
+              }
               disabled={deleteMarkerMutation.isPending}
             >
               {deleteMarkerMutation.isPending ? "Excluindo..." : "Excluir"}

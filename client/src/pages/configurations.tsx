@@ -9,7 +9,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Settings } from "lucide-react";
+import {
+  AlertTriangle,
+  Bookmark,
+  BookMarked,
+  CircleDollarSign,
+  GraduationCap,
+  Grid,
+  LayoutPanelTop,
+  Settings,
+  Tag,
+  Tags,
+  Users,
+} from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
 import MarkersManagement from "@/components/markers-management";
@@ -70,15 +82,36 @@ export default function Configurations() {
             </div>
           </div>
 
-          <Tabs defaultValue="users" className="space-y-4">
+          <Tabs defaultValue="users" className="space-y-4  ">
             <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="users">Usuários</TabsTrigger>
-              <TabsTrigger value="categories">Categorias</TabsTrigger>
-              <TabsTrigger value="markers">Marcadores</TabsTrigger>
-              <TabsTrigger value="origins">Origens</TabsTrigger>
-              <TabsTrigger value="sectors">Setores</TabsTrigger>
-              <TabsTrigger value="learning-images">Treinamentos</TabsTrigger>
-              <TabsTrigger value="cashback">Cashback</TabsTrigger>
+              <TabsTrigger title="usuários" value="users">
+                <span className="hidden sm:block">Usuários</span>
+                <Users className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="categorias" value="categories">
+                <span className="hidden sm:block">Categorias</span>
+                <Tags className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="marcadores" value="markers">
+                <span className="hidden sm:block">Marcadores</span>
+                <Bookmark className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="origens" value="origins">
+                <span className="hidden sm:block">Origens</span>
+                <Tag className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="setores" value="sectors">
+                <span className="hidden sm:block">Setores</span>
+                <LayoutPanelTop className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="treinamentos" value="learning-images">
+                <span className="hidden sm:block">Treinamentos</span>
+                <GraduationCap className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="cashback" value="cashback">
+                <span className="hidden sm:block">Cashback</span>
+                <CircleDollarSign className="size-4 sm:hidden" />
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="users">

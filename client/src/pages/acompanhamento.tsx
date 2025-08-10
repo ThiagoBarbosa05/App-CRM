@@ -5,7 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Phone, Calendar, Clock, Search, AlertCircle, TrendingUp, Users, BarChart3 } from "lucide-react";
+import {
+  User,
+  Phone,
+  Calendar,
+  Clock,
+  Search,
+  AlertCircle,
+  TrendingUp,
+  Users,
+  BarChart3,
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import InteractionFormModal from "@/components/interaction-form-modal";
 
@@ -41,20 +51,25 @@ interface ClientWithStats extends Client {
 export default function Acompanhamento() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClient, setSelectedClient] = useState<ClientWithStats | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientWithStats | null>(
+    null,
+  );
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
 
   // Buscar clientes
-  const { data: allClients = [], isLoading: loadingClients } = useQuery<Client[]>({
+  const { data: allClients = [], isLoading: loadingClients } = useQuery<
+    Client[]
+  >({
     queryKey: ["/api/clients"],
     enabled: !!user,
   });
 
   // Buscar interações
-  const { data: allInteractions = [], isLoading: loadingInteractions } = useQuery<Interaction[]>({
-    queryKey: ["/api/interactions"],
-    enabled: !!user,
-  });
+  const { data: allInteractions = [], isLoading: loadingInteractions } =
+    useQuery<Interaction[]>({
+      queryKey: ["/api/interactions"],
+      enabled: !!user,
+    });
 
   // Buscar usuários para mapear responsáveis
   const { data: users = [] } = useQuery<{ id: string; name: string }[]>({
@@ -65,25 +80,27 @@ export default function Acompanhamento() {
   const isLoading = loadingClients || loadingInteractions;
 
   // Processar dados dos clientes
-  const processedClients: ClientWithStats[] = allClients.map(client => {
+  const processedClients: ClientWithStats[] = allClients.map((client) => {
     const createdDate = new Date(client.createdAt);
     const today = new Date();
     const daysSinceCreated = Math.floor(
-      (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+      (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     // Buscar interações do cliente
-    const clientInteractions = allInteractions.filter(interaction => 
-      interaction.clientId === client.id
+    const clientInteractions = allInteractions.filter(
+      (interaction) => interaction.clientId === client.id,
     );
 
     const hasRecentContact = clientInteractions.length > 0;
-    const lastContactDate = hasRecentContact 
-      ? clientInteractions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
+    const lastContactDate = hasRecentContact
+      ? clientInteractions.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        )[0].date
       : undefined;
 
     // Mapear responsável
-    const responsavel = users.find(u => u.id === client.responsavelId);
+    const responsavel = users.find((u) => u.id === client.responsavelId);
     const responsavelName = responsavel?.name || "Não definido";
 
     return {
@@ -96,38 +113,54 @@ export default function Acompanhamento() {
   });
 
   // Filtrar clientes sem contato recente
-  const clientsWithoutContact = processedClients.filter(client => {
-    const needsContact = !client.hasRecentContact && client.daysSinceCreated >= 1;
-    
-    // Aplicar filtros de permissão
-    if (user?.role !== "admin" && user?.role !== "administrador") {
-      return needsContact && client.responsavelId === user?.id;
-    }
-    
-    return needsContact;
-  }).sort((a, b) => b.daysSinceCreated - a.daysSinceCreated);
+  const clientsWithoutContact = processedClients
+    .filter((client) => {
+      const needsContact =
+        !client.hasRecentContact && client.daysSinceCreated >= 1;
+
+      // Aplicar filtros de permissão
+      if (user?.role !== "admin" && user?.role !== "administrador") {
+        return needsContact && client.responsavelId === user?.id;
+      }
+
+      return needsContact;
+    })
+    .sort((a, b) => b.daysSinceCreated - a.daysSinceCreated);
 
   // Filtrar por busca
-  const filteredClients = clientsWithoutContact.filter(client =>
-    searchQuery === "" || (
+  const filteredClients = clientsWithoutContact.filter(
+    (client) =>
+      searchQuery === "" ||
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone.includes(searchQuery) ||
-      (client.cpf && client.cpf.includes(searchQuery))
-    )
+      (client.cpf && client.cpf.includes(searchQuery)),
   );
 
   // Calcular estatísticas
   const stats = {
     totalPendentes: filteredClients.length,
-    criticos: filteredClients.filter(c => c.daysSinceCreated > 30).length,
-    alta: filteredClients.filter(c => c.daysSinceCreated > 14 && c.daysSinceCreated <= 30).length,
-    media: filteredClients.filter(c => c.daysSinceCreated > 7 && c.daysSinceCreated <= 14).length,
-    normal: filteredClients.filter(c => c.daysSinceCreated >= 1 && c.daysSinceCreated <= 7).length,
-    produtividade: allClients.length > 0 
-      ? Math.round(((allClients.length - filteredClients.length) / allClients.length) * 100)
-      : 100,
+    criticos: filteredClients.filter((c) => c.daysSinceCreated > 30).length,
+    alta: filteredClients.filter(
+      (c) => c.daysSinceCreated > 14 && c.daysSinceCreated <= 30,
+    ).length,
+    media: filteredClients.filter(
+      (c) => c.daysSinceCreated > 7 && c.daysSinceCreated <= 14,
+    ).length,
+    normal: filteredClients.filter(
+      (c) => c.daysSinceCreated >= 1 && c.daysSinceCreated <= 7,
+    ).length,
+    produtividade:
+      allClients.length > 0
+        ? Math.round(
+            ((allClients.length - filteredClients.length) / allClients.length) *
+              100,
+          )
+        : 100,
     totalInteracoes: allInteractions.length,
-    mediaInteracoes: allClients.length > 0 ? (allInteractions.length / allClients.length).toFixed(1) : "0"
+    mediaInteracoes:
+      allClients.length > 0
+        ? (allInteractions.length / allClients.length).toFixed(1)
+        : "0",
   };
 
   const handleContact = (client: ClientWithStats) => {
@@ -153,8 +186,12 @@ export default function Acompanhamento() {
     return (
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 rounded-lg shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Acompanhamento</h2>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Carregando dados...</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Acompanhamento
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">
+            Carregando dados...
+          </p>
         </div>
       </div>
     );
@@ -164,19 +201,22 @@ export default function Acompanhamento() {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Acompanhamento</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Acompanhamento
+            </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-1">
               Clientes que precisam ser contactados
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-2xl font-bold text-primary">{stats.totalPendentes}</div>
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="text-right space-y-2">
+              <div className="text-2xl font-bold flex items-center gap-2 text-primary">
+                {stats.totalPendentes}
+              </div>
               <div className="text-sm text-gray-500">Clientes pendentes</div>
             </div>
-            <AlertCircle className="h-8 w-8 text-orange-500" />
           </div>
         </div>
       </div>
@@ -201,8 +241,12 @@ export default function Acompanhamento() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Pendentes</p>
-                <p className="text-2xl font-bold text-primary">{stats.totalPendentes}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Total Pendentes
+                </p>
+                <p className="text-2xl font-bold text-primary">
+                  {stats.totalPendentes}
+                </p>
               </div>
               <Users className="h-8 w-8 text-primary/60" />
             </div>
@@ -213,8 +257,12 @@ export default function Acompanhamento() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Críticos</p>
-                <p className="text-2xl font-bold text-red-600">{stats.criticos}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Críticos
+                </p>
+                <p className="text-2xl font-bold text-red-600">
+                  {stats.criticos}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">30+ dias</p>
               </div>
               <AlertCircle className="h-8 w-8 text-red-500/60" />
@@ -226,9 +274,15 @@ export default function Acompanhamento() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Taxa Produtividade</p>
-                <p className="text-2xl font-bold text-green-600">{stats.produtividade}%</p>
-                <p className="text-xs text-gray-500 mt-1">Clientes acompanhados</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Taxa Produtividade
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats.produtividade}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Clientes acompanhados
+                </p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-500/60" />
             </div>
@@ -239,8 +293,12 @@ export default function Acompanhamento() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Interações Média</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.mediaInteracoes}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Interações Média
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {stats.mediaInteracoes}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">Por cliente</p>
               </div>
               <BarChart3 className="h-8 w-8 text-blue-500/60" />
@@ -250,20 +308,24 @@ export default function Acompanhamento() {
       </div>
 
       {/* Métricas por Prioridade */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-3">
             <div className="text-center">
-              <div className="text-lg font-bold text-orange-600">{stats.alta}</div>
+              <div className="text-lg font-bold text-orange-600">
+                {stats.alta}
+              </div>
               <p className="text-xs text-gray-500">Alta (14-30 dias)</p>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-3">
             <div className="text-center">
-              <div className="text-lg font-bold text-yellow-600">{stats.media}</div>
+              <div className="text-lg font-bold text-yellow-600">
+                {stats.media}
+              </div>
               <p className="text-xs text-gray-500">Média (7-14 dias)</p>
             </div>
           </CardContent>
@@ -272,7 +334,9 @@ export default function Acompanhamento() {
         <Card>
           <CardContent className="p-3">
             <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{stats.normal}</div>
+              <div className="text-lg font-bold text-blue-600">
+                {stats.normal}
+              </div>
               <p className="text-xs text-gray-500">Normal (1-7 dias)</p>
             </div>
           </CardContent>
@@ -281,7 +345,9 @@ export default function Acompanhamento() {
         <Card>
           <CardContent className="p-3">
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">{stats.totalInteracoes}</div>
+              <div className="text-lg font-bold text-purple-600">
+                {stats.totalInteracoes}
+              </div>
               <p className="text-xs text-gray-500">Total Interações</p>
             </div>
           </CardContent>
@@ -294,10 +360,12 @@ export default function Acompanhamento() {
           <div className="p-8 text-center">
             <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              {searchQuery ? "Nenhum cliente encontrado" : "Excelente trabalho!"}
+              {searchQuery
+                ? "Nenhum cliente encontrado"
+                : "Excelente trabalho!"}
             </h3>
             <p className="text-gray-500">
-              {searchQuery 
+              {searchQuery
                 ? "Tente ajustar os termos de busca."
                 : "Todos os clientes estão sendo acompanhados adequadamente."}
             </p>
@@ -305,15 +373,20 @@ export default function Acompanhamento() {
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredClients.map((client) => (
-              <div key={client.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <div
+                key={client.id}
+                className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                       <User className="text-primary h-4 w-4" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{client.name}</h3>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {client.name}
+                      </h3>
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" />
                           {client.phone}
@@ -325,7 +398,7 @@ export default function Acompanhamento() {
                         </span>
                         <span>Responsável: {client.responsavelName}</span>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {client.categoria && (
                           <Badge variant="outline" className="text-xs">
                             {client.categoria}
@@ -339,20 +412,27 @@ export default function Acompanhamento() {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <Badge className={`${getPriorityColor(client.daysSinceCreated)} border`}>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="text-left sm:text-right w-full">
+                      <Badge
+                        className={`${getPriorityColor(
+                          client.daysSinceCreated,
+                        )} border`}
+                      >
                         {getPriorityLabel(client.daysSinceCreated)}
                       </Badge>
                       <p className="text-xs text-gray-500 mt-1">
                         {client.daysSinceCreated} dias sem contato
                       </p>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-2 flex-wrap justify-start w-full sm:w-auto">
                       <a
-                        href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
+                        href={`https://wa.me/${client.phone.replace(
+                          /\D/g,
+                          "",
+                        )}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
@@ -370,7 +450,7 @@ export default function Acompanhamento() {
                       <Button
                         size="sm"
                         onClick={() => handleContact(client)}
-                        className="bg-primary hover:bg-primary/90"
+                        className="bg-primary hover:bg-primary/90 flex-grow sm:flex-grow-0"
                       >
                         Registrar Contato
                       </Button>

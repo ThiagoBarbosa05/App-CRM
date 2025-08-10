@@ -12,23 +12,28 @@ import { CreateScriptData, createScriptSchema } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
+import { Training } from "./learning-images-management";
+import { useEffect } from "react";
 
 interface ScriptFormProps {
   onOpenChange: (open: boolean) => void;
+  scriptToEdit: Training | null;
 }
 
-export function ScriptForm({ onOpenChange }: ScriptFormProps) {
+export function ScriptForm({ onOpenChange, scriptToEdit }: ScriptFormProps) {
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<CreateScriptData>({
     resolver: zodResolver(createScriptSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      category: "",
+      title: scriptToEdit?.title || "",
+      description: scriptToEdit?.description || "",
+      category: scriptToEdit?.category || "",
+      content: scriptToEdit?.content || "",
     },
   });
 
@@ -68,8 +73,71 @@ export function ScriptForm({ onOpenChange }: ScriptFormProps) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (script: CreateScriptData) => {
+      const response = await fetch(
+        `/api/trainings/scripts/${scriptToEdit?.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(script),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar script");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=script"],
+      });
+      onOpenChange(false);
+      toast({
+        title: "Sucesso",
+        description: "Script atualizado com sucesso",
+        variant: "default",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar script",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (scriptToEdit) {
+      if (!open) return;
+
+      reset({
+        title: scriptToEdit.title,
+        description: scriptToEdit.description,
+        category: scriptToEdit.category,
+        content: scriptToEdit.content || "",
+      });
+    } else {
+      reset({
+        title: "",
+        description: "",
+        category: "",
+        content: "",
+      });
+    }
+  }, [scriptToEdit, reset, open]);
+
   async function onSubmit(data: CreateScriptData) {
-    await createMutation.mutateAsync(data);
+    if (scriptToEdit) {
+      await updateMutation.mutateAsync(data);
+    } else {
+      await createMutation.mutateAsync(data);
+    }
   }
 
   return (
@@ -117,6 +185,7 @@ export function ScriptForm({ onOpenChange }: ScriptFormProps) {
           render={({ field }) => (
             <ReactQuill
               {...field}
+              value={field.value || ""}
               onChange={field.onChange}
               placeholder="Escreva seu script aqui..."
             />
