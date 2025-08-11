@@ -88,7 +88,19 @@ import {
   inArray,
   or,
   isNull,
+  ilike,
 } from "drizzle-orm";
+
+export interface ClientFilters {
+  search?: string;
+  name?: string;
+  phone?: string;
+  cpf?: string;
+  responsavelId?: string;
+  categoria?: string;
+  origem?: string;
+  markers?: string;
+}
 
 export interface IStorage {
   // Users
@@ -430,16 +442,81 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client methods
-  async getClients(userId?: string, userRole?: string): Promise<Client[]> {
+ 
+  // async getClients(userId?: string, userRole?: string): Promise<Client[]> {
+  //   let query = db.select().from(clients);
+
+  //   // Se for vendedor, só mostra clientes onde ele é responsável
+  //   if (userRole === "vendedor" && userId) {
+  //     query = query.where(eq(clients.responsavelId, userId)) as typeof query;
+  //   }
+
+  //   const result = await query.orderBy(clients.createdAt);
+  //   return result.reverse(); // Most recent first
+  // }
+
+  async getClients(
+    userId?: string,
+    userRole?: string,
+    filters: ClientFilters = {},
+    page: number = 1,
+    pageSize: number = 100,
+  ): Promise<Client[]> {
     let query = db.select().from(clients);
+    const conditions: any[] = [];
 
     // Se for vendedor, só mostra clientes onde ele é responsável
     if (userRole === "vendedor" && userId) {
-      query = query.where(eq(clients.responsavelId, userId)) as typeof query;
+      conditions.push(eq(clients.responsavelId, userId));
     }
 
-    const result = await query.orderBy(clients.createdAt);
-    return result.reverse(); // Most recent first
+    // Filtros específicos
+    if (filters.name) {
+      conditions.push(ilike(clients.name, `%${filters.name}%`));
+    }
+    if (filters.phone) {
+      conditions.push(ilike(clients.phone, `%${filters.phone}%`));
+    }
+    if (filters.cpf) {
+      conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
+    }
+    if (filters.responsavelId) {
+      conditions.push(eq(clients.responsavelId, filters.responsavelId));
+    }
+    if (filters.categoria) {
+      conditions.push(eq(clients.categoria, filters.categoria));
+    }
+    if (filters.origem) {
+      conditions.push(eq(clients.origem, filters.origem));
+    }
+    if (filters.markers) {
+      conditions.push(sql`'${filters.markers}' = ANY(${clients.markers})`);
+    }
+
+    // Filtro de busca geral (case-insensitive)
+    if (filters.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          ilike(clients.name, searchTerm),
+          ilike(clients.email, searchTerm),
+          ilike(clients.phone, searchTerm),
+          ilike(clients.cpf, searchTerm),
+        ),
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as typeof query;
+    }
+
+    const offset = (page - 1) * pageSize;
+
+    const result = await query
+      .orderBy(desc(clients.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+    return result;
   }
 
   async getClient(id: string): Promise<Client | undefined> {

@@ -29,6 +29,9 @@ import {
   createDocumentTrainingSchema,
   updateDocumentTrainingSchema,
   createScriptSchema,
+  clientInteractions,
+  clients,
+  users,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -45,7 +48,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -127,7 +130,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para a página de Acompanhamento
+  app.get("/api/acompanhamento", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      const userRole = req.headers["x-user-role"] as string;
+      const searchQuery = req.query.search as string | undefined;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+
+      // --- Base de Condições para as Queries ---
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+      const clientsWithInteractions = db
+        .selectDistinct({ clientId: clientInteractions.clientId })
+        .from(clientInteractions);
+
+      const baseConditions = [
+        sql`${clients.id} NOT IN ${clientsWithInteractions}`,
+        lte(clients.createdAt, oneDayAgo),
+      ];
+
+      if (userRole !== "admin" && userRole !== "administrador") {
+        baseConditions.push(eq(clients.responsavelId, userId));
+      }
+
+      if (searchQuery) {
+        const lowercasedQuery = `%${searchQuery.toLowerCase()}%`;
+        baseConditions.push(
+          or(
+            like(clients.name, lowercasedQuery),
+            like(clients.phone, lowercasedQuery),
+            like(clients.cpf, lowercasedQuery)
+          )
+        );
+      }
+
+      const finalConditions = and(...baseConditions);
+
+      // --- Queries ---
+
+      // 1. Query para buscar os clientes da página atual
+      const clientsQuery = db
+        .select({
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email,
+          cpf: clients.cpf,
+          createdAt: clients.createdAt,
+          responsavelName: users.name,
+        })
+        .from(clients)
+        .leftJoin(users, eq(clients.responsavelId, users.id))
+        .where(finalConditions)
+        .orderBy(asc(clients.createdAt))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
+
+      // 2. Query para contar o total de clientes pendentes (para stats e paginação)
+      const totalPendentesQuery = db
+        .select({ count: count() })
+        .from(clients)
+        .where(finalConditions);
+
+      // 3. Queries para as estatísticas de prioridade
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const criticosQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, thirtyDaysAgo)));
+      const altaQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, fourteenDaysAgo), gt(clients.createdAt, thirtyDaysAgo)));
+      const mediaQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, sevenDaysAgo), gt(clients.createdAt, fourteenDaysAgo)));
+      const normalQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
+
+      // 4. Queries para estatísticas gerais
+      let totalClientsInSystemQuery = db.select({ count: count() }).from(clients);
+      if (userRole !== "admin" && userRole !== "administrador") {
+        totalClientsInSystemQuery = totalClientsInSystemQuery.where(eq(clients.responsavelId, userId));
+      }
+      const totalInteracoesQuery = db.select({ count: count() }).from(clientInteractions);
+
+      // --- Execução das Queries em Paralelo ---
+      const [
+          clientsToContactRaw,
+          totalPendentesResult,
+          criticosResult,
+          altaResult,
+          mediaResult,
+          normalResult,
+          totalClientsResult,
+          totalInteracoesResult,
+      ] = await Promise.all([
+          clientsQuery,
+          totalPendentesQuery,
+          criticosQuery,
+          altaQuery,
+          mediaQuery,
+          normalQuery,
+          totalClientsInSystemQuery,
+          totalInteracoesQuery,
+      ]);
+
+      // --- Processamento e Resposta ---
+      const today = new Date();
+      const clientsToContact = clientsToContactRaw.map(client => {
+          const createdDate = new Date(client.createdAt);
+          const daysSinceCreated = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+          return { ...client, daysSinceCreated, responsavelName: client.responsavelName || "Não definido" };
+      });
+
+      const totalPendentes = totalPendentesResult[0].count;
+      const totalClientes = totalClientsResult[0].count;
+      const totalInteracoes = totalInteracoesResult[0].count;
+
+      const stats = {
+        totalPendentes,
+        criticos: criticosResult[0].count,
+        alta: altaResult[0].count,
+        media: mediaResult[0].count,
+        normal: normalResult[0].count,
+        produtividade: totalClientes > 0 ? Math.round(((totalClientes - totalPendentes) / totalClientes) * 100) : 100,
+        totalInteracoes,
+        mediaInteracoes: totalClientes > 0 ? (totalInteracoes / totalClientes).toFixed(1) : "0",
+      };
+
+      res.json({
+        clients: clientsToContact,
+        stats,
+        pagination: {
+          currentPage: page,
+          pageSize,
+          totalPages: Math.ceil(totalPendentes / pageSize),
+          totalItems: totalPendentes,
+        },
+      });
+
+    } catch (error) {
+      console.error("Erro ao buscar dados de acompanhamento:", error);
+      res.status(500).json({ message: "Erro ao buscar dados de acompanhamento" });
+    }
+  });
+
   // Client routes
+  // app.get("/api/clients", async (req, res) => {
+  //   try {
+  //     const userId =
+  //       (req.query.userId as string) || (req.headers["x-user-id"] as string);
+  //     const userRole =
+  //       (req.query.userRole as string) ||
+  //       (req.headers["x-user-role"] as string);
+
+  //     const clients = await storage.getClients(userId, userRole);
+  //     res.json(clients);
+  //   } catch (error) {
+  //     res.status(500).json({ message: "Erro ao buscar clientes" });
+  //   }
+  // });
+
   app.get("/api/clients", async (req, res) => {
     try {
       // Pegar informações do usuário logado da query string ou headers
@@ -137,9 +301,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.query.userRole as string) ||
         (req.headers["x-user-role"] as string);
 
-      const clients = await storage.getClients(userId, userRole);
+      // Extrair paginação da query string
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 100;
+
+      // Extrair filtros da query string
+      const filters = {
+        search: req.query.search as string | undefined,
+        name: req.query.name as string | undefined,
+        phone: req.query.phone as string | undefined,
+        cpf: req.query.cpf as string | undefined,
+        responsavelId: req.query.responsavelId as string | undefined,
+        categoria: req.query.categoria as string | undefined,
+        origem: req.query.origem as string | undefined,
+        markers: req.query.markers as string | undefined,
+      };
+
+      const clients = await storage.getClients(
+        userId,
+        userRole,
+        filters,
+        page,
+        pageSize,
+      );
       res.json(clients);
     } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
       res.status(500).json({ message: "Erro ao buscar clientes" });
     }
   });

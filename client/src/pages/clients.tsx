@@ -1,5 +1,4 @@
-import { useCallback, useState } from "react";
-import Sidebar from "@/components/sidebar";
+import { useCallback, useState, useEffect } from "react";
 import ClientsTableWithSelection from "@/components/clients-table-with-selection";
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, {
@@ -8,20 +7,18 @@ import ClientFilters, {
 import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download, Upload } from "lucide-react";
+import { Plus, Search, Download, Upload, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Clients() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("clientes");
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
@@ -33,23 +30,67 @@ export default function Clients() {
     origem: "",
     markers: "",
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
-  // Buscar dados dos clientes para exportação
-  const { data: allClients } = useQuery({
-    queryKey: ["/api/clients", user?.id, user?.role],
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  const handleFiltersChange = useCallback((filters: ClientFiltersType) => {
+    setClientFilters(filters);
+    setCurrentPage(1);
+  }, []);
+
+  const {
+    data: clients,
+    isFetching,
+  } = useQuery({
+    queryKey: [
+      "/api/clients",
+      user?.id,
+      user?.role,
+      debouncedSearchQuery,
+      clientFilters,
+      currentPage,
+    ],
     queryFn: async () => {
-      const response = await fetch(
-        user?.role === "admin"
-          ? "/api/clients"
-          : `/api/clients?userId=${user?.id}&userRole=${user?.role}`,
-      );
+      const params = new URLSearchParams();
+      if (user?.role !== "admin") {
+        if (user?.id) params.append("userId", user.id);
+        if (user?.role) params.append("userRole", user.role);
+      }
+
+      if (debouncedSearchQuery) {
+        params.append("search", debouncedSearchQuery);
+      }
+
+      Object.entries(clientFilters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          params.append(key, value);
+        }
+      });
+
+      params.append("page", currentPage.toString());
+      params.append("pageSize", itemsPerPage.toString());
+
+      const response = await fetch(`/api/clients?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
     },
     enabled: !!user,
   });
 
-  // Buscar dados dos usuários para mapear responsáveis
+  const clientsArray = Array.isArray(clients) ? clients : [];
+  const hasNextPage = clientsArray.length === itemsPerPage;
+
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
@@ -59,7 +100,6 @@ export default function Clients() {
     },
   });
 
-  const clientsArray = Array.isArray(allClients) ? allClients : [];
   const usersArray = Array.isArray(users) ? users : [];
 
   const handleSelectionChange = useCallback(
@@ -118,7 +158,7 @@ export default function Clients() {
             <div className="flex flex-col sm:flex-row gap-2">
               <ClientFilters
                 currentFilters={clientFilters}
-                onFiltersChange={setClientFilters}
+                onFiltersChange={handleFiltersChange}
               />
               <div className="flex items-center gap-2">
                 {selectedClients.length > 0 && (
@@ -156,12 +196,21 @@ export default function Clients() {
 
         {/* Clients Table */}
         <div className="bg-white rounded-lg">
-          <ClientsTableWithSelection
-            clients={clientsArray}
-            searchQuery={searchQuery}
-            filters={clientFilters}
-            onSelectionChange={handleSelectionChange}
-          />
+          <div className="bg-white rounded-lg relative">
+            <ClientsTableWithSelection
+              clients={clientsArray}
+              onSelectionChange={handleSelectionChange}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              hasNextPage={hasNextPage}
+            />
+
+            {isFetching && (
+              <div className="absolute h-full inset-0 justify-center  items-center   flex flex-col p-6 space-y-4 backdrop-blur-sm">
+                <Loader2 className="animate-spin text-[#7b3aec]" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

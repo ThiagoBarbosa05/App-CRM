@@ -10,13 +10,9 @@ import {
   MapPin,
   Tag,
   DollarSign,
-  ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
   ChevronsLeft,
   ChevronLeft,
   ChevronRight,
-  ChevronsRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
 import { formatDate } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsModal from "./client-details-modal";
@@ -40,47 +35,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Table, TableHead, TableHeader, TableRow } from "./ui/table";
 
 interface ClientsTableWithSelectionProps {
   clients: Client[];
-  searchQuery?: string;
-  filters?: {
-    name: string;
-    phone: string;
-    cpf: string;
-    responsavelId: string;
-    categoria: string;
-    origem: string;
-    markers: string;
-  };
   onSelectionChange?: (
     selectedIds: string[],
     selectedClients: Client[],
   ) => void;
+  currentPage: number;
+  setCurrentPage: (page: number | ((prev: number) => number)) => void;
+  hasNextPage: boolean;
 }
 
 export default function ClientsTableWithSelection({
   clients,
-  searchQuery = "",
-  filters,
   onSelectionChange,
+  currentPage,
+  setCurrentPage,
+  hasNextPage,
 }: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100;
   const { toast } = useToast();
   const { user } = useAuth();
-  console.log(clients);
-  // Verificar se o usuário é administrador
+
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
 
-  // Query para buscar usuários (para mostrar o responsável)
   const { data: users = [] } = useQuery<
     { id: string; name: string; email: string }[]
   >({
@@ -126,8 +109,7 @@ export default function ClientsTableWithSelection({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      // Adicionar todos os clientes da página atual aos selecionados
-      const currentPageIds = paginatedClients.map((client) => client.id);
+      const currentPageIds = clients.map((client) => client.id);
       setSelectedClientIds((prev) => {
         const newSelected = [...prev];
         currentPageIds.forEach((id) => {
@@ -138,8 +120,7 @@ export default function ClientsTableWithSelection({
         return newSelected;
       });
     } else {
-      // Remover apenas os clientes da página atual
-      const currentPageIds = paginatedClients.map((client) => client.id);
+      const currentPageIds = clients.map((client) => client.id);
       setSelectedClientIds((prev) =>
         prev.filter((id) => !currentPageIds.includes(id)),
       );
@@ -164,118 +145,6 @@ export default function ClientsTableWithSelection({
     setShowDeleteDialog(false);
   };
 
-  // Função para alternar ordenação
-  const toggleSort = () => {
-    if (sortOrder === null) {
-      setSortOrder("asc");
-    } else if (sortOrder === "asc") {
-      setSortOrder("desc");
-    } else {
-      setSortOrder(null);
-    }
-  };
-
-  // Filter and sort clients based on search, filters, and sort order
-  const filteredAndSortedClients = clients
-    .filter((client) => {
-      // Search query filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const searchMatch =
-          client.name.toLowerCase().includes(query) ||
-          client.phone.toLowerCase().includes(query) ||
-          (client.email?.toLowerCase() || "").includes(query) ||
-          (client.cpf?.toLowerCase() || "").includes(query);
-
-        if (!searchMatch) return false;
-      }
-
-      // Advanced filters
-      if (filters) {
-        if (
-          filters.name &&
-          !client.name.toLowerCase().includes(filters.name.toLowerCase())
-        )
-          return false;
-        if (
-          filters.phone &&
-          !client.phone.toLowerCase().includes(filters.phone.toLowerCase())
-        )
-          return false;
-        if (
-          filters.cpf &&
-          client.cpf &&
-          !client.cpf.toLowerCase().includes(filters.cpf.toLowerCase())
-        )
-          return false;
-        if (filters.responsavelId && filters.responsavelId !== "all") {
-          if (filters.responsavelId === "unassigned") {
-            // Filtrar clientes sem responsável atribuído
-            if (client.responsavelId !== null && client.responsavelId !== "")
-              return false;
-          } else {
-            // Filtrar por responsável específico
-            if (client.responsavelId !== filters.responsavelId) return false;
-          }
-        }
-        if (
-          filters.categoria &&
-          filters.categoria !== "all" &&
-          client.categoria !== filters.categoria
-        )
-          return false;
-        if (
-          filters.origem &&
-          filters.origem !== "all" &&
-          client.origem !== filters.origem
-        )
-          return false;
-        if (
-          filters.markers &&
-          filters.markers !== "all" &&
-          client.markers &&
-          !client.markers.some((marker) =>
-            marker.toLowerCase().includes(filters.markers.toLowerCase()),
-          )
-        )
-          return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortOrder === null) return 0;
-
-      const comparison = a.name.localeCompare(b.name, "pt-BR", {
-        numeric: true,
-        sensitivity: "base",
-      });
-
-      return sortOrder === "asc" ? comparison : -comparison;
-    });
-
-  // Calcular paginação
-  const totalItems = filteredAndSortedClients.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedClients = filteredAndSortedClients.slice(startIndex, endIndex);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters]);
-
-  // Verificar se todos os clientes da página atual estão selecionados
-  const currentPageIds = paginatedClients.map((client) => client.id);
-  const allCurrentPageSelected =
-    currentPageIds.length > 0 &&
-    currentPageIds.every((id) => selectedClientIds.includes(id));
-  const someCurrentPageSelected =
-    currentPageIds.some((id) => selectedClientIds.includes(id)) &&
-    !allCurrentPageSelected;
-
-  // Notificar componente pai sobre mudanças na seleção
   useEffect(() => {
     if (onSelectionChange) {
       const selectedClients = clients.filter((client) =>
@@ -285,9 +154,12 @@ export default function ClientsTableWithSelection({
     }
   }, [selectedClientIds, clients, onSelectionChange]);
 
+  const allCurrentPageSelected =
+    clients.length > 0 &&
+    clients.every((client) => selectedClientIds.includes(client.id));
+
   return (
     <div className="space-y-4">
-      {/* Selection Actions */}
       {selectedClientIds.length > 0 && (
         <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <span className="text-sm font-medium">
@@ -305,15 +177,9 @@ export default function ClientsTableWithSelection({
               Excluir Selecionados
             </Button>
           )}
-          {!isAdmin && (
-            <span className="text-sm text-gray-500 italic">
-              Apenas administradores podem excluir clientes
-            </span>
-          )}
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-white rounded-lg">
         <div className="overflow-x-auto rounded-lg shadow-lg">
           <table className="w-full overflow-hidden rounded-lg">
@@ -326,18 +192,7 @@ export default function ClientsTableWithSelection({
                   />
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
-                  <button
-                    onClick={toggleSort}
-                    className="flex items-center space-x-1 hover:text-wine-600 transition-colors"
-                    title="Clique para ordenar alfabeticamente"
-                  >
-                    <span>Cliente</span>
-                    {sortOrder === null && <ArrowUpDown className="h-4 w-4" />}
-                    {sortOrder === "asc" && <ChevronUp className="h-4 w-4" />}
-                    {sortOrder === "desc" && (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
+                  Cliente
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
                   Contato
@@ -360,12 +215,11 @@ export default function ClientsTableWithSelection({
               </tr>
             </thead>
             <tbody>
-              {paginatedClients.map((client) => (
+              {clients.map((client) => (
                 <tr
                   key={client.id}
                   className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
                   onClick={(e) => {
-                    // Não abrir modal se clicou no checkbox ou botão de editar
                     if (
                       (e.target as HTMLElement).closest("button") ||
                       (e.target as HTMLElement).closest('[role="checkbox"]')
@@ -431,8 +285,8 @@ export default function ClientsTableWithSelection({
                         return user
                           ? user.name
                           : client.responsavelId
-                            ? "Usuário não encontrado"
-                            : "Não atribuído";
+                          ? "Usuário não encontrado"
+                          : "Não atribuído";
                       })()}
                     </div>
                   </td>
@@ -489,12 +343,10 @@ export default function ClientsTableWithSelection({
                   </td>
                 </tr>
               ))}
-              {paginatedClients.length === 0 && (
+              {clients.length === 0 && (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-gray-500">
-                    {totalItems === 0
-                      ? "Nenhum cliente encontrado"
-                      : "Nenhum cliente nesta página"}
+                    Nenhum cliente encontrado
                   </td>
                 </tr>
               )}
@@ -503,12 +355,10 @@ export default function ClientsTableWithSelection({
         </div>
       </div>
 
-      {/* Paginação */}
-      {totalPages > 1 && (
+      {(currentPage > 1 || hasNextPage) && (
         <div className="flex items-center flex-wrap gap-1 justify-between py-3 bg-white border-t border-gray-200">
           <div className="flex items-center text-xs sm:text-sm text-gray-700">
-            Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de{" "}
-            {totalItems} clientes
+            Página {currentPage}
           </div>
           <div className="flex items-center w-full gap-2">
             <Button
@@ -532,33 +382,22 @@ export default function ClientsTableWithSelection({
               <span className="hidden sm:inline">Anterior</span>
             </Button>
             <span className="px-3 flex-1 text-center py-1 text-xs sm:text-sm">
-              Página {currentPage} de {totalPages}
+              Página {currentPage}
             </span>
             <Button
               variant="outline"
               title="Próxima página"
               size="sm"
               onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              disabled={!hasNextPage}
             >
               <ChevronRight className="size-5 sm:hidden" />
               <span className="hidden sm:inline">Próxima</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              title="Última página"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronsRight className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Última</span>
             </Button>
           </div>
         </div>
       )}
 
-      {/* Edit Client Modal */}
       {editingClient && (
         <ClientFormModal
           open={!!editingClient}
@@ -567,7 +406,6 @@ export default function ClientsTableWithSelection({
         />
       )}
 
-      {/* Client Details Modal */}
       <ClientDetailsModal
         client={viewingClient}
         isOpen={!!viewingClient}
@@ -578,14 +416,12 @@ export default function ClientsTableWithSelection({
         }}
       />
 
-      {/* Sale Form Modal */}
       <SaleFormModal
         client={saleClient}
         open={!!saleClient}
         onOpenChange={(open) => !open && setSaleClient(null)}
       />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -606,7 +442,6 @@ export default function ClientsTableWithSelection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
     </div>
   );
 }
