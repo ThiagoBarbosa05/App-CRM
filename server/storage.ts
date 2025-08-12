@@ -387,7 +387,11 @@ export interface IStorage {
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
 
   // Method to get clients without recent contact
-  getClientsWithoutRecentContact(userId?: string, userRole?: string, daysThreshold?: number): Promise<any[]>;
+  getClientsWithoutRecentContact(
+    userId?: string,
+    userRole?: string,
+    daysThreshold?: number,
+  ): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -442,7 +446,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client methods
- 
+
   // async getClients(userId?: string, userRole?: string): Promise<Client[]> {
   //   let query = db.select().from(clients);
 
@@ -1125,9 +1129,97 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Birthday utility methods
-  async getUpcomingBirthdays(days: number = 7): Promise<Client[]> {
+  // async getUpcomingBirthdays(days: number = 7): Promise<Client[]> {
+  //   const today = new Date();
+  //   const upcomingClients: Client[] = [];
+
+  //   const allClients = await db
+  //     .select()
+  //     .from(clients)
+  //     .where(isNotNull(clients.birthday));
+
+  //   console.log(
+  //     `Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`,
+  //   );
+
+  //   for (const client of allClients) {
+  //     if (client.birthday) {
+  //       let birthday: Date;
+
+  //       // Parse different date formats
+  //       if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
+  //         // Format: YYYY-MM-DD
+  //         birthday = new Date(client.birthday);
+  //       } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+  //         // Format: DD/MM/YYYY
+  //         const [day, month, year] = client.birthday.split("/");
+  //         birthday = new Date(
+  //           parseInt(year),
+  //           parseInt(month) - 1,
+  //           parseInt(day),
+  //         );
+  //       } else {
+  //         console.log(
+  //           `Formato de data inválido para cliente ${client.name}: ${client.birthday}`,
+  //         );
+  //         continue;
+  //       }
+
+  //       if (isNaN(birthday.getTime())) {
+  //         console.log(
+  //           `Data inválida para cliente ${client.name}: ${client.birthday}`,
+  //         );
+  //         continue;
+  //       }
+
+  //       const thisYearBirthday = new Date(
+  //         today.getFullYear(),
+  //         birthday.getMonth(),
+  //         birthday.getDate(),
+  //       );
+
+  //       // Se o aniversário já passou este ano, considere o do próximo ano
+  //       if (thisYearBirthday < today) {
+  //         thisYearBirthday.setFullYear(today.getFullYear() + 1);
+  //       }
+
+  //       const diffTime = thisYearBirthday.getTime() - today.getTime();
+  //       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  //       console.log(
+  //         `Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`,
+  //       );
+
+  //       if (diffDays <= days && diffDays >= 0) {
+  //         upcomingClients.push(client);
+  //       }
+  //     }
+  //   }
+
+  //   return upcomingClients.sort((a, b) => {
+  //     const aBirthday = new Date(a.birthday!);
+  //     const bBirthday = new Date(b.birthday!);
+  //     const aThisYear = new Date(
+  //       today.getFullYear(),
+  //       aBirthday.getMonth(),
+  //       aBirthday.getDate(),
+  //     );
+  //     const bThisYear = new Date(
+  //       today.getFullYear(),
+  //       bBirthday.getMonth(),
+  //       bBirthday.getDate(),
+  //     );
+
+  //     if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
+  //     if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
+
+  //     return aThisYear.getTime() - bThisYear.getTime();
+  //   });
+  // }
+
+  async getUpcomingBirthdays(days: number = 7): Promise<any[]> {
     const today = new Date();
-    const upcomingClients: Client[] = [];
+    const upcomingClients: any[] = [];
 
     const allClients = await db
       .select()
@@ -1135,7 +1227,7 @@ export class DatabaseStorage implements IStorage {
       .where(isNotNull(clients.birthday));
 
     console.log(
-      `Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`,
+      `Buscando todos os ${allClients.length} clientes com data de aniversário cadastrada.`,
     );
 
     for (const client of allClients) {
@@ -1179,38 +1271,13 @@ export class DatabaseStorage implements IStorage {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
         }
 
-        const diffTime = thisYearBirthday.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        console.log(
-          `Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`,
-        );
-
-        if (diffDays <= days && diffDays >= 0) {
-          upcomingClients.push(client);
-        }
+        upcomingClients.push({ ...client, nextBirthday: thisYearBirthday });
       }
     }
 
-    return upcomingClients.sort((a, b) => {
-      const aBirthday = new Date(a.birthday!);
-      const bBirthday = new Date(b.birthday!);
-      const aThisYear = new Date(
-        today.getFullYear(),
-        aBirthday.getMonth(),
-        aBirthday.getDate(),
-      );
-      const bThisYear = new Date(
-        today.getFullYear(),
-        bBirthday.getMonth(),
-        bBirthday.getDate(),
-      );
-
-      if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
-      if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
-
-      return aThisYear.getTime() - bThisYear.getTime();
-    });
+    return upcomingClients.sort(
+      (a, b) => a.nextBirthday.getTime() - b.nextBirthday.getTime(),
+    );
   }
 
   async createAutomaticReminders(): Promise<number> {
@@ -2813,7 +2880,11 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getClientsWithoutRecentContact(userId?: string, userRole?: string, daysThreshold: number = 1) {
+  async getClientsWithoutRecentContact(
+    userId?: string,
+    userRole?: string,
+    daysThreshold: number = 1,
+  ) {
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
 
@@ -2860,7 +2931,7 @@ export class DatabaseStorage implements IStorage {
         const today = new Date();
 
         const daysSinceCreated = Math.floor(
-          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
         );
 
         // Determinar se o cliente precisa ser contactado
@@ -2872,7 +2943,8 @@ export class DatabaseStorage implements IStorage {
         } else {
           // Se a última interação foi há mais de X dias
           const daysSinceLastContact = Math.floor(
-            (today.getTime() - new Date(lastInteractionDate).getTime()) / (1000 * 60 * 60 * 24)
+            (today.getTime() - new Date(lastInteractionDate).getTime()) /
+              (1000 * 60 * 60 * 24),
           );
           needsContact = daysSinceLastContact >= daysThreshold;
         }
@@ -2882,16 +2954,19 @@ export class DatabaseStorage implements IStorage {
           daysSinceCreated,
           lastInteractionDate,
           needsContact,
-          daysSinceLastContact: lastInteractionDate 
-            ? Math.floor((today.getTime() - new Date(lastInteractionDate).getTime()) / (1000 * 60 * 60 * 24))
+          daysSinceLastContact: lastInteractionDate
+            ? Math.floor(
+                (today.getTime() - new Date(lastInteractionDate).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
             : null,
         };
-      })
+      }),
     );
 
     // Filtrar apenas clientes que precisam ser contactados
     return clientsWithLastInteraction
-      .filter(client => client.needsContact)
+      .filter((client) => client.needsContact)
       .sort((a, b) => b.daysSinceCreated - a.daysSinceCreated);
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useTransition } from "react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
@@ -29,19 +29,19 @@ import {
   Mail,
   Bell,
   MessageSquare,
-  Settings,
   User,
 } from "lucide-react";
-import { format, isSameDay, parseISO, addDays, startOfDay } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Client } from "@shared/schema";
-import Sidebar from "@/components/sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isPending, startTransition] = useTransition();
 
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -52,13 +52,11 @@ export default function CalendarPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data: clients = [] } = useQuery({
-    queryKey: ["/api/clients", user?.id, user?.role],
+  const { data: clients = [], isLoading: isClientsLoading } = useQuery({
+    queryKey: ["/api/upcoming-birthdays", "all"],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/clients?userId=${user?.id}&userRole=${user?.role}`,
-      );
-      if (!response.ok) throw new Error("Failed to fetch clients");
+      const response = await fetch(`/api/upcoming-birthdays`);
+      if (!response.ok) throw new Error("Failed to fetch all birthdays");
       return response.json();
     },
     enabled: !!user,
@@ -124,34 +122,6 @@ export default function CalendarPage() {
     },
   });
 
-  // Filtrar clientes que têm aniversário
-  const clientsWithBirthdays = clients.filter(
-    (client: Client) => client.birthday,
-  );
-
-  // Verificar se há aniversários hoje
-  const todaysBirthdays = clientsWithBirthdays.filter((client: Client) => {
-    if (!client.birthday) return false;
-
-    const today = new Date();
-    let birthday: Date;
-
-    // Parse different date formats
-    if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      birthday = new Date(client.birthday);
-    } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = client.birthday.split("/");
-      birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    } else {
-      return false;
-    }
-
-    return (
-      today.getDate() === birthday.getDate() &&
-      today.getMonth() === birthday.getMonth()
-    );
-  });
-
   // Função para obter a data do aniversário deste ano
   const getBirthdayThisYear = (birthday: string) => {
     const birthdayDate = parseISO(birthday);
@@ -163,13 +133,24 @@ export default function CalendarPage() {
     );
   };
 
-  // Função para verificar se uma data tem aniversários
-  const getClientsForDate = (date: Date) => {
-    return clientsWithBirthdays.filter((client: Client) => {
-      if (!client.birthday) return false;
-      const birthdayThisYear = getBirthdayThisYear(client.birthday);
-      return isSameDay(birthdayThisYear, date);
+  const birthdayMap = useMemo(() => {
+    const map = new Map<string, Client[]>();
+    clients.forEach((client: Client) => {
+      if (client.birthday) {
+        const birthdayThisYear = getBirthdayThisYear(client.birthday);
+        const key = format(birthdayThisYear, "yyyy-MM-dd");
+        if (!map.has(key)) {
+          map.set(key, []);
+        }
+        map.get(key)!.push(client);
+      }
     });
+    return map;
+  }, [clients]);
+
+  const getClientsForDate = (date: Date) => {
+    const key = format(date, "yyyy-MM-dd");
+    return birthdayMap.get(key) || [];
   };
 
   // Função para destacar datas com aniversários
@@ -182,7 +163,10 @@ export default function CalendarPage() {
       "bg-wine-100 text-wine-800 font-semibold relative after:content-['🎂'] after:absolute after:bottom-0 after:right-0 after:text-xs",
   };
 
-  const selectedDateClients = getClientsForDate(selectedDate);
+  const selectedDateClients = useMemo(
+    () => getClientsForDate(selectedDate),
+    [selectedDate, birthdayMap],
+  );
 
   const handleCreateReminder = () => {
     if (!selectedClient) return;
@@ -205,7 +189,7 @@ export default function CalendarPage() {
     });
   };
 
-  const isLoading = !clients || !user;
+  const isLoading = isClientsLoading || !user;
 
   if (isLoading) {
     return (
@@ -266,7 +250,13 @@ export default function CalendarPage() {
                 <UICalendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
+                  onSelect={(date) => {
+                    if (date) {
+                      startTransition(() => {
+                        setSelectedDate(date);
+                      });
+                    }
+                  }}
                   locale={ptBR}
                   modifiers={dayModifiers}
                   modifiersClassNames={dayModifiersClassNames}
@@ -276,7 +266,7 @@ export default function CalendarPage() {
             </Card>
 
             {/* Detalhes da data selecionada */}
-            <Card >
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5 text-amber-600" />
@@ -420,7 +410,10 @@ export default function CalendarPage() {
                               onClick={() => {
                                 const message = `Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`;
                                 window.open(
-                                  `https://wa.me/${client.phone?.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
+                                  `https://wa.me/${client.phone?.replace(
+                                    /\D/g,
+                                    "",
+                                  )}?text=${encodeURIComponent(message)}`,
                                   "_blank",
                                 );
                               }}
@@ -555,7 +548,7 @@ export default function CalendarPage() {
                 )}
               </CardContent>
             </Card>
-            <Card >
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Gift className="h-5 w-5 text-wine-600" />
@@ -568,8 +561,6 @@ export default function CalendarPage() {
                     (period, index) => {
                       const today = new Date();
                       let count = 0;
-                      let startDate = new Date(today);
-                      let endDate = new Date(today);
 
                       switch (index) {
                         case 0: // Hoje
@@ -581,32 +572,18 @@ export default function CalendarPage() {
                           count = getClientsForDate(tomorrow).length;
                           break;
                         case 2: // Esta semana
-                          endDate.setDate(today.getDate() + 7);
-                          count = clientsWithBirthdays.filter(
-                            (client: Client) => {
-                              const birthdayThisYear = getBirthdayThisYear(
-                                client.birthday!,
-                              );
-                              return (
-                                birthdayThisYear >= startDate &&
-                                birthdayThisYear <= endDate
-                              );
-                            },
-                          ).length;
+                          for (let i = 0; i < 7; i++) {
+                            const date = new Date(today);
+                            date.setDate(today.getDate() + i);
+                            count += getClientsForDate(date).length;
+                          }
                           break;
                         case 3: // Este mês
-                          endDate.setDate(today.getDate() + 30);
-                          count = clientsWithBirthdays.filter(
-                            (client: Client) => {
-                              const birthdayThisYear = getBirthdayThisYear(
-                                client.birthday!,
-                              );
-                              return (
-                                birthdayThisYear >= startDate &&
-                                birthdayThisYear <= endDate
-                              );
-                            },
-                          ).length;
+                          for (let i = 0; i < 30; i++) {
+                            const date = new Date(today);
+                            date.setDate(today.getDate() + i);
+                            count += getClientsForDate(date).length;
+                          }
                           break;
                       }
 
@@ -688,7 +665,10 @@ export default function CalendarPage() {
                               onClick={() => {
                                 const message = `Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`;
                                 window.open(
-                                  `https://wa.me/${client.phone?.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
+                                  `https://wa.me/${client.phone?.replace(
+                                    /\D/g,
+                                    "",
+                                  )}?text=${encodeURIComponent(message)}`,
                                   "_blank",
                                 );
                               }}
