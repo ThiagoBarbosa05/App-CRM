@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,23 +24,36 @@ export default function Login({ onLogin }: LoginProps) {
   const { toast } = useToast();
 
   const loginMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      console.log("Tentando fazer login com:", { email, password: password ? "***" : "vazio" });
-      
+    mutationFn: async ({
+      email,
+      password,
+    }: {
+      email: string;
+      password: string;
+    }) => {
+      console.log("Tentando fazer login com:", {
+        email,
+        password: password ? "***" : "vazio",
+      });
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      
-      console.log("Resposta do servidor:", response.status, response.statusText);
-      
+
+      console.log(
+        "Resposta do servidor:",
+        response.status,
+        response.statusText,
+      );
+
       if (!response.ok) {
         const error = await response.json();
         console.error("Erro na resposta:", error);
         throw new Error(error.message || "Erro no login");
       }
-      
+
       const data = await response.json();
       console.log("Login bem-sucedido:", data);
       return data;
@@ -52,6 +71,9 @@ export default function Login({ onLogin }: LoginProps) {
         title: "Erro no login",
         description: error.message || "Credenciais inválidas",
         variant: "destructive",
+        style: {
+          backgroundColor: "#FFFFFF",
+        },
       });
     },
   });
@@ -70,17 +92,17 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-bordeaux-50 to-bordeaux-100 dark:from-bordeaux-950 dark:to-bordeaux-900">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-primary max-w- flex px-5 items-center justify-center">
+      <Card className="w-full border-none bg-white shadow-lg max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Wine className="h-12 w-12 text-bordeaux-600 dark:text-bordeaux-400" />
+            <Wine className="h-12 w-12 text-[#7b3aec] dark:text-bordeaux-400" />
           </div>
-          <CardTitle className="text-2xl font-bold text-bordeaux-800 dark:text-bordeaux-200">
-            Grand Cru
+          <CardTitle className="text-2xl font-bold text-[#7b3aec] dark:text-bordeaux-200">
+            CRM - Grand Cru
           </CardTitle>
           <CardDescription>
-            Sistema de gestão premium
+            Bem-vindo (a) ao sistema de gestão e relacionamento com os clientes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,8 +129,8 @@ export default function Login({ onLogin }: LoginProps) {
                 required
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full"
               disabled={loginMutation.isPending}
             >
