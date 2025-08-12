@@ -6,10 +6,10 @@ import {
   Trash2,
   User,
   Mail,
-  Shield,
   ToggleLeft,
   ToggleRight,
   Search,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { formatDate } from "@/lib/utils";
 
 export default function UsersManagement() {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
@@ -45,14 +46,16 @@ export default function UsersManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  const { data: users = [], isLoading } = useQuery<UserType[]>({
+  const {
+    data: users = [],
+    isLoading,
+    isFetching,
+  } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
   });
 
-  // Filtrar usuários por nome ou email
   const filteredUsers = useMemo(() => {
     if (!searchTerm) return users;
-
     return (users || []).filter(
       (user: UserType) =>
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -140,19 +143,158 @@ export default function UsersManagement() {
     toggleUserStatusMutation.mutate({ userId: user.id, isActive: newStatus });
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-center text-gray-500">Carregando usuários...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <Card>
+    // <div>
+    //   <Card className="w-full">
+    //     <CardHeader className="sm:flex-row items-start sm:items-center justify-between gap-2">
+    //       <div>
+    //         <CardTitle className="flex items-center gap-2">
+    //           <User className="shrink-0" />
+    //           Usuários do Sistema
+    //         </CardTitle>
+    //         <CardDescription>
+    //           Gerencie os usuários e seus acessos ao sistema.
+    //         </CardDescription>
+    //       </div>
+    //       <Button
+    //         onClick={() => setShowCreateModal(true)}
+    //         className="w-full md:w-auto"
+    //       >
+    //         <Plus className="h-4 w-4 mr-2" />
+    //         Novo Usuário
+    //       </Button>
+    //     </CardHeader>
+
+    //     <CardContent>
+    //       <div className="relative">
+    //         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+    //         <Input
+    //           placeholder="Buscar por nome ou email..."
+    //           value={searchTerm}
+    //           onChange={(e) => setSearchTerm(e.target.value)}
+    //           className="pl-10"
+    //         />
+    //       </div>
+
+    //       {isLoading || isFetching ? (
+    //         <div className="w-full p-10 flex items-center justify-center">
+    //           <Loader2 className="animate-spin text-[#7b3aec]" />
+    //         </div>
+    //       ) : users.length === 0 ? (
+    //         <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
+    //           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+    //           <p className="text-gray-500 mb-4">Nenhum usuário cadastrado</p>
+    //           <Button onClick={() => setShowCreateModal(true)}>
+    //             <Plus className="h-4 w-4 mr-2" />
+    //             Cadastrar Primeiro Usuário
+    //           </Button>
+    //         </div>
+    //       ) : filteredUsers.length === 0 ? (
+    //         <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
+    //           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+    //           <p className="text-gray-500 mb-4">
+    //             Nenhum usuário encontrado para "{searchTerm}"
+    //           </p>
+    //           <Button variant="outline" onClick={() => setSearchTerm("")}>
+    //             Limpar filtro
+    //           </Button>
+    //         </div>
+    //       ) : (
+    //         <div>
+    //           {filteredUsers.map((user: UserType) => (
+    //             <div className="mt-5 space-y-4">
+    //               {/* <div className="flex items-center p-3 rounded-md border space-x-4 flex-1">
+    //                 <div className="h-10 w-10 rounded-full bg-wine-100 flex items-center justify-center">
+    //                   <User className="h-5 w-5 text-wine-600" />
+    //                 </div>
+    //                 <div className="">
+    //                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    //                     <h3
+    //                       className="font-medium text-gray-900 truncate"
+    //                       title={user.name}
+    //                     >
+    //                       {user.name}
+    //                     </h3>
+    //                     <Badge
+    //                       variant={"outline"}
+    //                       className="text-xs "
+    //                     >
+    //                       {getRoleLabel(user.role)}
+    //                     </Badge>
+    //                     {user.isActive === "false" && (
+    //                       <Badge
+    //                         variant="outline"
+    //                         className="text-xs text-red-600  border-red-200"
+    //                       >
+    //                         Inativo
+    //                       </Badge>
+    //                     )}
+    //                   </div>
+    //                   <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+    //                     <Mail className="h-3 w-3 flex-shrink-0" />
+    //                     <p className="truncate" title={user.email}>
+    //                       {user.email}
+    //                     </p>
+    //                   </div>
+    //                   <p className="text-xs text-gray-500 pt-1">
+    //                     Cadastrado em {formatDate(user.createdAt.toString())}
+    //                   </p>
+    //                 </div>
+    //               </div> */}
+
+    //               <div>
+    //             <Button size={"icon"}><Trash2 /></Button>
+    //                 {/* <Button
+    //                   variant="ghost"
+    //                   size="icon"
+    //                   onClick={() => handleToggleStatus(user)}
+    //                   disabled={toggleUserStatusMutation.isPending}
+    //                   title={
+    //                     user.isActive === "true"
+    //                       ? "Desativar usuário"
+    //                       : "Ativar usuário"
+    //                   }
+    //                   className="h-8 w-8"
+    //                 >
+    //                   {user.isActive === "true" ? (
+    //                     <ToggleRight className="h-5 w-5 text-green-600" />
+    //                   ) : (
+    //                     <ToggleLeft className="h-5 w-5 text-gray-400" />
+    //                   )}
+    //                   <span className="sr-only">
+    //                     {user.isActive === "true" ? "Desativar" : "Ativar"}
+    //                   </span>
+    //                 </Button> */}
+    //                 {/* <Button
+    //                   variant="ghost"
+    //                   size="icon"
+    //                   onClick={() => setEditingUser(user)}
+    //                   title="Editar usuário"
+    //                   className="h-8 w-8"
+    //                 >
+    //                   <Edit className="h-4 w-4" />
+    //                   <span className="sr-only">Editar</span>
+    //                 </Button> */}
+    //                 {/* <Button
+    //                   variant="ghost"
+    //                   size="icon"
+    //                   onClick={() => setUserToDelete(user)}
+    //                   className="text-red-600 hover:text-red-700 h-8 w-8"
+    //                   title="Excluir usuário"
+    //                 >
+    //                   <Trash2 className="h-4 w-4" />
+    //                   <span className="sr-only">Excluir</span>
+    //                 </Button> */}
+    //               </div>
+    //             </div>
+    //           ))}
+    //         </div>
+    //       )}
+    //     </CardContent>
+    //   </Card>
+    // </div>
+    <div className="flex flex-col h-full">
+      <Card className="flex flex-col flex-1 overflow-hidden">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
@@ -173,22 +315,23 @@ export default function UsersManagement() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          {/* Campo de busca */}
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar por nome ou email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <CardContent className="flex flex-col flex-1 min-h-0 gap-4 p-4 md:p-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Buscar por nome ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
 
-          {users.length === 0 ? (
-            <div className="text-center py-8">
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">
+              Carregando usuários...
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
               <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">Nenhum usuário cadastrado</p>
               <Button onClick={() => setShowCreateModal(true)}>
@@ -197,7 +340,7 @@ export default function UsersManagement() {
               </Button>
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
               <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">
                 Nenhum usuário encontrado para "{searchTerm}"
@@ -207,108 +350,104 @@ export default function UsersManagement() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {Array.isArray(filteredUsers) &&
-                filteredUsers.map((user: UserType) => (
-                  <div
-                    key={user.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors gap-4"
-                  >
-                    <div className="flex items-center space-x-2 flex-1">
-                      <div className="h-10 w-10 rounded-full bg-wine-100 flex items-center justify-center flex-shrink-0">
-                        <User className="h-5 w-5 text-wine-600" />
-                      </div>
-                      <div className="flex-grow overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium text-gray-900 truncate">
-                            {user.name}
-                          </h3>
+            <div className="flex-1 min-h-0 overflow-y-auto -mx-4 px-4 space-y-3">
+              {filteredUsers.map((user: UserType) => (
+                <div
+                  key={user.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg hover:bg-gray-50/50 transition-colors gap-3"
+                >
+                  <div className="flex items-center space-x-4 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-full bg-wine-100 flex items-center justify-center flex-shrink-0">
+                      <User className="h-5 w-5 text-wine-600" />
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3
+                          className="font-medium text-gray-900 truncate"
+                          title={user.name}
+                        >
+                          {user.name}
+                        </h3>
+                        <Badge
+                          variant={getRoleBadgeVariant(user.role)}
+                          className="text-xs whitespace-nowrap"
+                        >
+                          {getRoleLabel(user.role)}
+                        </Badge>
+                        {user.isActive === "false" && (
                           <Badge
-                            variant={getRoleBadgeVariant(user.role)}
-                            className="text-xs whitespace-nowrap"
+                            variant="outline"
+                            className="text-xs text-red-600 whitespace-nowrap border-red-200"
                           >
-                            {getRoleLabel(user.role)}
+                            Inativo
                           </Badge>
-                          {user.isActive === "false" && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs text-red-600 whitespace-nowrap"
-                            >
-                              Inativo
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 overflow-hidden text-sm text-gray-500 mt-1">
-                          <Mail className="h-3 w-3 flex-shrink-0" />
-                          <p className="text-sm truncate text-ellipsis">
-                            {user.email}
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Cadastrado em{" "}
-                          {format(new Date(user.createdAt), "dd/MM/yyyy", {
-                            locale: ptBR,
-                          })}
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <p className="truncate" title={user.email}>
+                          {user.email}
                         </p>
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-end space-x-1 md:space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStatus(user)}
-                        disabled={toggleUserStatusMutation.isPending}
-                        title={
-                          user.isActive === "true"
-                            ? "Desativar usuário"
-                            : "Ativar usuário"
-                        }
-                      >
-                        {user.isActive === "true" ? (
-                          <ToggleRight className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <ToggleLeft className="h-5 w-5 text-gray-400" />
-                        )}
-                        <span className="sr-only">
-                          {user.isActive === "true" ? "Desativar" : "Ativar"}
-                        </span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingUser(user)}
-                        title="Editar usuário"
-                      >
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setUserToDelete(user)}
-                        className="text-red-600 hover:text-red-700"
-                        title="Excluir usuário"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Excluir</span>
-                      </Button>
-                    </div>
                   </div>
-                ))}
+
+                  <div className="flex items-center self-end sm:self-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleStatus(user)}
+                      disabled={toggleUserStatusMutation.isPending}
+                      title={
+                        user.isActive === "true"
+                          ? "Desativar usuário"
+                          : "Ativar usuário"
+                      }
+                      className="h-8 w-8"
+                    >
+                      {user.isActive === "true" ? (
+                        <ToggleRight className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <ToggleLeft className="h-5 w-5 text-gray-400" />
+                      )}
+                      {/* <span className="sr-only">
+                        {user.isActive === "true" ? "Desativar" : "Ativar"}
+                      </span> */}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingUser(user)}
+                      title="Editar usuário"
+                      className="h-8 w-8"
+                    >
+                      <Edit className="h-4 w-4" />
+                      {/* <span className="sr-only">Editar</span> */}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setUserToDelete(user)}
+                      className="text-red-600 hover:text-red-700 h-8 w-8"
+                      title="Excluir usuário"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {/* <span className="sr-only">Excluir</span> */}
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Create User Modal */}
       <UserFormModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         user={null}
       />
 
-      {/* Edit User Modal */}
       {editingUser && (
         <UserFormModal
           open={!!editingUser}
@@ -317,7 +456,6 @@ export default function UsersManagement() {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={!!userToDelete}
         onOpenChange={() => setUserToDelete(null)}
@@ -345,6 +483,6 @@ export default function UsersManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+   </div>
   );
 }

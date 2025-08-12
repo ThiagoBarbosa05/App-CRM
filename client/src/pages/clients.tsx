@@ -111,7 +111,7 @@ export default function Clients() {
   );
 
   return (
-    <div className=" bg-gray-50 dark:bg-gray-900">
+    <div className=" bg-gray-50">
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
