@@ -43,16 +43,18 @@ export default function DataExportManagement() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Buscar clientes
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [], isLoading: loadingClients } = useQuery<any[]>({
     queryKey: ["/api/clients"],
-    queryFn: () => apiRequest("/api/clients"),
+    enabled: true,
   });
 
   // Buscar usuários
-  const { data: users = [] } = useQuery({
+  const { data: users = [], isLoading: loadingUsers } = useQuery<any[]>({
     queryKey: ["/api/users"],
-    queryFn: () => apiRequest("/api/users"),
+    enabled: true,
   });
+
+  const isLoading = loadingClients || loadingUsers;
 
   const toggleField = (fieldKey: string) => {
     setSelectedFields(prev => 
@@ -72,7 +74,7 @@ export default function DataExportManagement() {
 
   const formatClientData = (clientsList: any[]) => {
     // Criar mapa de responsáveis para busca rápida
-    const usersMap = users.reduce((map, user) => {
+    const usersMap = (Array.isArray(users) ? users : []).reduce((map: Record<string, string>, user: any) => {
       map[user.id] = user.name;
       return map;
     }, {} as Record<string, string>);
@@ -138,7 +140,8 @@ export default function DataExportManagement() {
       return;
     }
 
-    if (!clients || clients.length === 0) {
+    const clientsArray = Array.isArray(clients) ? clients : [];
+    if (clientsArray.length === 0) {
       toast({
         title: "Nenhum dado para exportar",
         description: "Não há clientes cadastrados para exportar",
@@ -149,7 +152,7 @@ export default function DataExportManagement() {
 
     setIsExporting(true);
     try {
-      const formattedData = formatClientData(clients);
+      const formattedData = formatClientData(clientsArray);
       const fileName = `clientes_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}_${new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-')}`;
 
       if (exportFormat === 'excel') {
@@ -160,7 +163,7 @@ export default function DataExportManagement() {
 
       toast({
         title: "Exportação concluída",
-        description: `${clients.length} clientes foram exportados com sucesso em formato ${exportFormat.toUpperCase()}`,
+        description: `${clientsArray.length} clientes foram exportados com sucesso em formato ${exportFormat.toUpperCase()}`,
       });
     } catch (error) {
       console.error("Erro na exportação:", error);
@@ -173,6 +176,27 @@ export default function DataExportManagement() {
       setIsExporting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Exportação de Dados
+            </CardTitle>
+            <CardDescription>
+              Carregando dados para exportação...
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -192,7 +216,7 @@ export default function DataExportManagement() {
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               <h3 className="text-lg font-semibold">Base de Clientes</h3>
-              <span className="text-sm text-gray-500">({clients.length} registros)</span>
+              <span className="text-sm text-gray-500">({Array.isArray(clients) ? clients.length : 0} registros)</span>
             </div>
 
             {/* Formato de Exportação */}
@@ -265,7 +289,7 @@ export default function DataExportManagement() {
             <div className="flex justify-end pt-4">
               <Button 
                 onClick={handleExport} 
-                disabled={isExporting || selectedFields.length === 0 || clients.length === 0}
+                disabled={isExporting || selectedFields.length === 0 || !Array.isArray(clients) || clients.length === 0}
                 className="bg-primary hover:bg-primary-dark"
               >
                 <Download className="h-4 w-4 mr-2" />
