@@ -14,6 +14,7 @@ import {
   Bookmark,
   BookMarked,
   CircleDollarSign,
+  Download,
   GraduationCap,
   Grid,
   LayoutPanelTop,
@@ -29,6 +30,7 @@ import OriginsManagement from "@/components/origins-management";
 import SectorsManagement from "@/components/sectors-management";
 import LearningImagesManagement from "@/components/learning-images-management";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
+import DataExportManagement from "@/components/data-export-management";
 import { Separator } from "@/components/ui/separator";
 
 export default function Configurations() {
@@ -83,7 +85,7 @@ export default function Configurations() {
           </div>
 
           <Tabs defaultValue="users" className="space-y-4  ">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger title="usuários" value="users">
                 <span className="hidden sm:block">Usuários</span>
                 <Users className="size-4 sm:hidden" />
@@ -111,6 +113,10 @@ export default function Configurations() {
               <TabsTrigger title="cashback" value="cashback">
                 <span className="hidden sm:block">Cashback</span>
                 <CircleDollarSign className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="exportação" value="export">
+                <span className="hidden sm:block">Exportação</span>
+                <Download className="size-4 sm:hidden" />
               </TabsTrigger>
             </TabsList>
 
@@ -140,6 +146,10 @@ export default function Configurations() {
 
             <TabsContent value="cashback">
               <CashbackSettingsManagement />
+            </TabsContent>
+
+            <TabsContent value="export">
+              <DataExportManagement />
             </TabsContent>
           </Tabs>
         </div>
