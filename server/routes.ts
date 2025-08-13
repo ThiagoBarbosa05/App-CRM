@@ -383,6 +383,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota específica para exportação - retorna TODOS os clientes do sistema
+  app.get("/api/clients/export-all", async (req, res) => {
+    try {
+      // Verificar se o usuário é admin (apenas admins podem exportar todos os dados)
+      const userRole = req.headers["x-user-role"] as string;
+      
+      if (userRole !== "admin" && userRole !== "administrador") {
+        return res.status(403).json({ 
+          message: "Acesso negado. Apenas administradores podem exportar todos os dados." 
+        });
+      }
+
+      const clients = await storage.getAllClientsForExport();
+      res.json(clients);
+    } catch (error) {
+      console.error("Erro ao buscar todos os clientes para exportação:", error);
+      res.status(500).json({ message: "Erro ao buscar dados para exportação" });
+    }
+  });
+
   app.post("/api/clients", async (req, res) => {
     try {
       console.log(

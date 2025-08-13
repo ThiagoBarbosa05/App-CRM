@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from "@/lib/excel-export";
 import { exportToCSV } from "@/lib/csv-export";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 
 const AVAILABLE_CLIENT_FIELDS = [
   { key: 'name', label: 'Nome', defaultChecked: true },
@@ -36,16 +37,23 @@ const AVAILABLE_CLIENT_FIELDS = [
 
 export default function DataExportManagement() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedFields, setSelectedFields] = useState<string[]>(
     AVAILABLE_CLIENT_FIELDS.filter(field => field.defaultChecked).map(field => field.key)
   );
   const [exportFormat, setExportFormat] = useState<'excel' | 'csv'>('excel');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Buscar clientes
+  // Buscar todos os clientes para exportação (sem filtros)
   const { data: clients = [], isLoading: loadingClients } = useQuery<any[]>({
-    queryKey: ["/api/clients"],
-    enabled: true,
+    queryKey: ["/api/clients/export-all"],
+    queryFn: () => fetch('/api/clients/export-all', {
+      headers: {
+        'x-user-id': user?.id || '',
+        'x-user-role': user?.role || '',
+      }
+    }).then(res => res.json()),
+    enabled: !!user,
   });
 
   // Buscar usuários

@@ -113,6 +113,7 @@ export interface IStorage {
 
   // Clients
   getClients(userId?: string, userRole?: string): Promise<Client[]>;
+  getAllClientsForExport(): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
   getClientByCpf(cpf: string): Promise<Client | undefined>;
   getClientByPhone(phone: string): Promise<Client | undefined>;
@@ -521,6 +522,19 @@ export class DatabaseStorage implements IStorage {
       .limit(pageSize)
       .offset(offset);
     return result;
+  }
+
+  async getAllClientsForExport(): Promise<Client[]> {
+    try {
+      const result = await db
+        .select()
+        .from(clients)
+        .orderBy(desc(clients.createdAt));
+      return result;
+    } catch (error) {
+      console.error("Erro ao buscar todos os clientes para exportação:", error);
+      throw error;
+    }
   }
 
   async getClient(id: string): Promise<Client | undefined> {
