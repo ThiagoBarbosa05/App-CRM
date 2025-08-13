@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -43,6 +42,7 @@ export default function DataExportManagement() {
   );
   const [exportFormat, setExportFormat] = useState<'excel' | 'csv'>('excel');
   const [isExporting, setIsExporting] = useState(false);
+  const [includeCountryCode, setIncludeCountryCode] = useState(false);
 
   // Buscar todos os clientes para exportação (sem filtros)
   const { data: clients = [], isLoading: loadingClients } = useQuery<any[]>({
@@ -89,14 +89,14 @@ export default function DataExportManagement() {
 
     return clientsList.map(client => {
       const formattedData: any = {};
-      
+
       selectedFields.forEach(fieldKey => {
         switch (fieldKey) {
           case 'name':
             formattedData['Nome'] = client.name || '';
             break;
           case 'phone':
-            formattedData['Telefone'] = client.phone || '';
+            formattedData['Telefone'] = client.phone ? (includeCountryCode && !client.phone.startsWith('+55') ? `+55${client.phone}` : client.phone) : '';
             break;
           case 'cpf':
             formattedData['CPF'] = client.cpf || '';
@@ -133,7 +133,7 @@ export default function DataExportManagement() {
             break;
         }
       });
-      
+
       return formattedData;
     });
   };
@@ -229,11 +229,10 @@ export default function DataExportManagement() {
 
             {/* Formato de Exportação */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Formato de Exportação</Label>
+              <Label className="text-base font-medium">Formato de Exportação</Label>
               <RadioGroup 
                 value={exportFormat} 
-                onValueChange={(value) => setExportFormat(value as 'excel' | 'csv')}
-                className="flex gap-6"
+                onValueChange={(value: 'excel' | 'csv') => setExportFormat(value)}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="excel" id="excel" />
@@ -244,6 +243,21 @@ export default function DataExportManagement() {
                   <Label htmlFor="csv">CSV (.csv)</Label>
                 </div>
               </RadioGroup>
+            </div>
+
+            {/* Opções Adicionais */}
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Opções Adicionais</Label>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="countryCode"
+                  checked={includeCountryCode}
+                  onCheckedChange={setIncludeCountryCode}
+                />
+                <Label htmlFor="countryCode" className="text-sm">
+                  Incluir código do país (+55) nos telefones
+                </Label>
+              </div>
             </div>
 
             {/* Seleção de Campos */}
