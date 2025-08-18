@@ -84,34 +84,16 @@ export default function Dashboard() {
       
       // Calcular dias até o aniversário para cada cliente
       return data.map((client: any) => {
-        if (!client.birthday) return { ...client, daysUntil: 0 };
+        if (!client.nextBirthday) return { ...client, daysUntil: 365 };
         
         const today = new Date();
-        let birthday: Date;
+        today.setHours(0, 0, 0, 0); // Normalizar para início do dia
         
-        // Parse different date formats
-        if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          birthday = new Date(client.birthday);
-        } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-          const [day, month, year] = client.birthday.split('/');
-          birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        } else {
-          return { ...client, daysUntil: 0 };
-        }
+        const nextBirthday = new Date(client.nextBirthday);
+        nextBirthday.setHours(0, 0, 0, 0); // Normalizar para início do dia
         
-        const thisYearBirthday = new Date(
-          today.getFullYear(),
-          birthday.getMonth(),
-          birthday.getDate()
-        );
-        
-        // Se o aniversário já passou este ano, considere o do próximo ano
-        if (thisYearBirthday < today) {
-          thisYearBirthday.setFullYear(today.getFullYear() + 1);
-        }
-        
-        const diffTime = thisYearBirthday.getTime() - today.getTime();
-        const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffTime = nextBirthday.getTime() - today.getTime();
+        const daysUntil = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         
         return { ...client, daysUntil };
       });
