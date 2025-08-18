@@ -1090,4 +1090,3 @@ export const insertClientDebtSchema = createInsertSchema(clientDebts).omit({
   id: true,
   createdAt: true,
 });
-

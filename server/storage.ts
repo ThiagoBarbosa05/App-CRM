@@ -38,6 +38,8 @@ import {
   type InsertClientRegistrationWeeklyResult,
   type LearningImage,
   type InsertLearningImage,
+  type ClientDebt,
+  type InsertClientDebt,
   clients,
   deals,
   companies,
@@ -74,6 +76,7 @@ import {
   trainings,
   InsertTrainingAttachment,
   trainingAttachments,
+  clientDebts,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -3001,14 +3004,14 @@ export class DatabaseStorage implements IStorage {
   async getClientDebts(responsibleId?: string): Promise<any[]> {
     const query = db
       .select({
-        id: clientDebtsTable.id,
-        clientId: clientDebtsTable.clientId,
-        amount: clientDebtsTable.amount,
-        description: clientDebtsTable.description,
-        dueDate: clientDebtsTable.dueDate,
-        status: clientDebtsTable.status,
-        createdAt: clientDebtsTable.createdAt,
-        createdBy: clientDebtsTable.createdBy,
+        id: clientDebts.id,
+        clientId: clientDebts.clientId,
+        amount: clientDebts.amount,
+        description: clientDebts.description,
+        dueDate: clientDebts.dueDate,
+        status: clientDebts.status,
+        createdAt: clientDebts.createdAt,
+        createdBy: clientDebts.createdBy,
         client: {
           id: clients.id,
           name: clients.name,
@@ -3016,8 +3019,8 @@ export class DatabaseStorage implements IStorage {
           email: clients.email,
         },
       })
-      .from(clientDebtsTable)
-      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id));
+      .from(clientDebts)
+      .innerJoin(clients, eq(clientDebts.clientId, clients.id));
 
     if (responsibleId) {
       return await query.where(eq(clients.responsavelId, responsibleId));
@@ -3027,7 +3030,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClientDebt(insertDebt: InsertClientDebt): Promise<ClientDebt> {
-    const [debt] = await db.insert(clientDebtsTable).values(insertDebt).returning();
+    const [debt] = await db.insert(clientDebts).values(insertDebt).returning();
     return debt;
   }
 
@@ -3036,15 +3039,15 @@ export class DatabaseStorage implements IStorage {
     updates: Partial<InsertClientDebt>,
   ): Promise<ClientDebt | null> {
     const [debt] = await db
-      .update(clientDebtsTable)
+      .update(clientDebts)
       .set(updates)
-      .where(eq(clientDebtsTable.id, id))
+      .where(eq(clientDebts.id, id))
       .returning();
     return debt || null;
   }
 
   async deleteClientDebt(id: string): Promise<void> {
-    await db.delete(clientDebtsTable).where(eq(clientDebtsTable.id, id));
+    await db.delete(clientDebts).where(eq(clientDebts.id, id));
   }
 
   async getDashboardStats(userId: string): Promise<any> {
@@ -3058,21 +3061,21 @@ export class DatabaseStorage implements IStorage {
     const activeDealsCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(deals)
-      .where(and(eq(deals.responsavelId, userId), ne(deals.stage, "fechamento")));
+      .where(and(eq(deals.assignedTo, userId), ne(deals.stageId, "fechamento")));
 
     // Buscar dívidas pendentes
     const pendingDebtsCount = await db
       .select({ count: sql<number>`count(*)` })
-      .from(clientDebtsTable)
-      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id))
-      .where(and(eq(clients.responsavelId, userId), eq(clientDebtsTable.status, "pending")));
+      .from(clientDebts)
+      .innerJoin(clients, eq(clientDebts.clientId, clients.id))
+      .where(and(eq(clients.responsavelId, userId), eq(clientDebts.status, "pending")));
 
     // Buscar dívidas vencidas
     const overdueDebtsCount = await db
       .select({ count: sql<number>`count(*)` })
-      .from(clientDebtsTable)
-      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id))
-      .where(and(eq(clients.responsavelId, userId), eq(clientDebtsTable.status, "pending"), sql`${clientDebtsTable.dueDate} < CURRENT_DATE`));
+      .from(clientDebts)
+      .innerJoin(clients, eq(clientDebts.clientId, clients.id))
+      .where(and(eq(clients.responsavelId, userId), eq(clientDebts.status, "pending"), sql`${clientDebts.dueDate} < CURRENT_DATE`));
 
     return {
       totalClients: clientsCount[0]?.count || 0,
