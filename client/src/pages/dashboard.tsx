@@ -191,21 +191,21 @@ export default function Dashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5" />
-                    Dívidas dos Clientes
+                    Dívidas Pendentes dos Clientes
                   </CardTitle>
                   <CardDescription>
-                    Gerencie as dívidas dos seus clientes
+                    Dívidas que ainda não foram quitadas
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {clientDebts.length === 0 ? (
+                  {pendingDebts.length === 0 ? (
                     <div className="text-center py-8">
                       <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                      <p className="text-gray-500">Nenhuma dívida cadastrada</p>
+                      <p className="text-gray-500">Nenhuma dívida pendente</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {clientDebts.map((debt) => (
+                      {pendingDebts.map((debt) => (
                         <div
                           key={debt.id}
                           className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
