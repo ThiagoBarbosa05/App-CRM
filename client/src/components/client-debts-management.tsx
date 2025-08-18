@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +97,7 @@ export default function ClientDebtsManagement() {
 
   // Estado para busca de clientes
   const [clientSearch, setClientSearch] = useState("");
+  const clientSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Criar dívida
   const createDebtMutation = useMutation({
@@ -298,10 +299,13 @@ export default function ClientDebtsManagement() {
                     <SelectContent>
                       <div className="p-2">
                         <Input
+                          ref={clientSearchInputRef}
                           placeholder="Buscar por nome, CPF ou telefone..."
                           value={clientSearch}
                           onChange={(e) => setClientSearch(e.target.value)}
                           className="mb-2"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                       {filteredClients.length === 0 ? (
