@@ -134,7 +134,7 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const { data: trainingDocument } = useQuery<Training[]>({
+  const { data: trainingDocument, isLoading: isLoadingDocuments } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=document"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=document");
@@ -256,19 +256,15 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const updateTrainingOrder = async (trainingId: string, newOrder: number) => {
+  const updateTrainingOrder = async (trainingId: string, newPosition: number, type: string) => {
     try {
-      const response = await fetch(`/api/trainings/${trainingId}/order`, {
+      await fetch(`/api/trainings/${trainingId}/order`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ displayOrder: newOrder }),
+        body: JSON.stringify({ position: newPosition, type }),
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar ordem");
-      }
 
       // Invalidar queries para atualizar a lista
       queryClient.invalidateQueries({
@@ -283,7 +279,7 @@ export default function LearningImagesManagement() {
 
       toast({
         title: "Ordem atualizada",
-        description: "A ordem do documento foi atualizada com sucesso.",
+        description: "A posição do item foi atualizada com sucesso.",
       });
     } catch (error) {
       console.error("Erro ao atualizar ordem:", error);
@@ -296,6 +292,8 @@ export default function LearningImagesManagement() {
   };
 
   const formRef = useRef<HTMLDivElement>(null);
+
+  const documentsTrainings = trainingDocument; // Alias for clarity
 
   return (
     <div>
@@ -493,7 +491,11 @@ export default function LearningImagesManagement() {
                                   <Button
                                     variant="ghost"
                                     className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => updateTrainingOrder(training.id, (training.displayOrder || 0) - 1)}
+                                    onClick={() => {
+                                      const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
+                                      const newPosition = Math.max(1, currentIndex);
+                                      updateTrainingOrder(training.id, newPosition, 'document');
+                                    }}
                                   >
                                     <ArrowUp className="mr-2" />
                                     Mover para cima
@@ -503,7 +505,11 @@ export default function LearningImagesManagement() {
                                   <Button
                                     variant="ghost"
                                     className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => updateTrainingOrder(training.id, (training.displayOrder || 0) + 1)}
+                                    onClick={() => {
+                                      const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
+                                      const newPosition = Math.min((documentsTrainings?.length || 0), currentIndex + 2);
+                                      updateTrainingOrder(training.id, newPosition, 'document');
+                                    }}
                                   >
                                     <ArrowDown className="mr-2" />
                                     Mover para baixo
@@ -513,9 +519,14 @@ export default function LearningImagesManagement() {
                             </DropdownMenu>
                           </div>
                           <div className="flex justify-between items-center mt-4">
-                            <Badge variant={"outline"}>
-                              {training.category}
-                            </Badge>
+                            <div className="flex gap-2">
+                              <Badge variant={"outline"}>
+                                {training.category}
+                              </Badge>
+                              <Badge variant={"secondary"}>
+                                {(documentsTrainings?.findIndex(d => d.id === training.id) || 0) + 1}º
+                              </Badge>
+                            </div>
                             <a
                               href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
                               className="border flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
@@ -587,7 +598,11 @@ export default function LearningImagesManagement() {
                             <Button
                               variant="ghost"
                               className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => updateTrainingOrder(script.id, (script.displayOrder || 0) - 1)}
+                              onClick={() => {
+                                const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
+                                const newPosition = Math.max(1, currentIndex);
+                                updateTrainingOrder(script.id, newPosition, 'script');
+                              }}
                             >
                               <ArrowUp className="mr-2" />
                               Mover para cima
@@ -597,7 +612,11 @@ export default function LearningImagesManagement() {
                             <Button
                               variant="ghost"
                               className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => updateTrainingOrder(script.id, (script.displayOrder || 0) + 1)}
+                              onClick={() => {
+                                const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
+                                const newPosition = Math.min((scripts?.length || 0), currentIndex + 2);
+                                updateTrainingOrder(script.id, newPosition, 'script');
+                              }}
                             >
                               <ArrowDown className="mr-2" />
                               Mover para baixo

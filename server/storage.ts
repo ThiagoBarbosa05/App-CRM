@@ -117,7 +117,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
 
   // Clients
-  getClients(userId?: string, userRole?: string): Promise<Client[]>;
+  getClients(): Promise<Client[]>;
   getAllClientsForExport(): Promise<Client[]>;
   getClient(id: string): Promise<Client | undefined>;
   getClientByCpf(cpf: string): Promise<Client | undefined>;
@@ -132,7 +132,7 @@ export interface IStorage {
   getUniqueMarkers(): Promise<string[]>;
 
   // Companies
-  getCompanies(userId?: string, userRole?: string): Promise<Company[]>;
+  getCompanies(): Promise<Company[]>;
   getCompany(id: string): Promise<Company | undefined>;
   getCompanyByCnpj(cnpj: string): Promise<Company | undefined>;
   getCompanyByPhone(phone: string): Promise<Company | undefined>;
@@ -464,18 +464,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client methods
-
-  // async getClients(userId?: string, userRole?: string): Promise<Client[]> {
-  //   let query = db.select().from(clients);
-
-  //   // Se for vendedor, só mostra clientes onde ele é responsável
-  //   if (userRole === "vendedor" && userId) {
-  //     query = query.where(eq(clients.responsavelId, userId)) as typeof query;
-  //   }
-
-  //   const result = await query.orderBy(clients.createdAt);
-  //   return result.reverse(); // Most recent first
-  // }
 
   async getClients(
     userId?: string,
@@ -1160,94 +1148,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Birthday utility methods
-  // async getUpcomingBirthdays(days: number = 7): Promise<Client[]> {
-  //   const today = new Date();
-  //   const upcomingClients: Client[] = [];
-
-  //   const allClients = await db
-  //     .select()
-  //     .from(clients)
-  //     .where(isNotNull(clients.birthday));
-
-  //   console.log(
-  //     `Verificando aniversários próximos para ${allClients.length} clientes nos próximos ${days} dias`,
-  //   );
-
-  //   for (const client of allClients) {
-  //     if (client.birthday) {
-  //       let birthday: Date;
-
-  //       // Parse different date formats
-  //       if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
-  //         // Format: YYYY-MM-DD
-  //         birthday = new Date(client.birthday);
-  //       } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-  //         // Format: DD/MM/YYYY
-  //         const [day, month, year] = client.birthday.split("/");
-  //         birthday = new Date(
-  //           parseInt(year),
-  //           parseInt(month) - 1,
-  //           parseInt(day),
-  //         );
-  //       } else {
-  //         console.log(
-  //           `Formato de data inválido para cliente ${client.name}: ${client.birthday}`,
-  //         );
-  //         continue;
-  //       }
-
-  //       if (isNaN(birthday.getTime())) {
-  //         console.log(
-  //           `Data inválida para cliente ${client.name}: ${client.birthday}`,
-  //         );
-  //         continue;
-  //       }
-
-  //       const thisYearBirthday = new Date(
-  //         today.getFullYear(),
-  //         birthday.getMonth(),
-  //         birthday.getDate(),
-  //       );
-
-  //       // Se o aniversário já passou este ano, considere o do próximo ano
-  //       if (thisYearBirthday < today) {
-  //         thisYearBirthday.setFullYear(today.getFullYear() + 1);
-  //       }
-
-  //       const diffTime = thisYearBirthday.getTime() - today.getTime();
-  //       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  //       console.log(
-  //         `Cliente ${client.name}: aniversário em ${diffDays} dias (${client.birthday})`,
-  //       );
-
-  //       if (diffDays <= days && diffDays >= 0) {
-  //         upcomingClients.push(client);
-  //       }
-  //     }
-  //   }
-
-  //   return upcomingClients.sort((a, b) => {
-  //     const aBirthday = new Date(a.birthday!);
-  //     const bBirthday = new Date(b.birthday!);
-  //     const aThisYear = new Date(
-  //       today.getFullYear(),
-  //       aBirthday.getMonth(),
-  //       aBirthday.getDate(),
-  //     );
-  //     const bThisYear = new Date(
-  //       today.getFullYear(),
-  //       bBirthday.getMonth(),
-  //       bBirthday.getDate(),
-  //     );
-
-  //     if (aThisYear < today) aThisYear.setFullYear(today.getFullYear() + 1);
-  //     if (bThisYear < today) bThisYear.setFullYear(today.getFullYear() + 1);
-
-  //     return aThisYear.getTime() - bThisYear.getTime();
-  //   });
-  // }
-
   async getUpcomingBirthdays(days: number = 7): Promise<any[]> {
     const today = new Date();
     const upcomingClients: any[] = [];
@@ -2901,15 +2801,48 @@ export class DatabaseStorage implements IStorage {
     await db.delete(trainings).where(eq(trainings.id, id));
   }
 
-  async updateTrainingOrder(id: string, displayOrder: number) {
-    const [updatedTraining] = await db
+  async updateTrainingOrder(trainingId: string, newOrder: number) {
+    const [training] = await db
       .update(trainings)
-      .set({ displayOrder })
-      .where(eq(trainings.id, id))
+      .set({ displayOrder: newOrder })
+      .where(eq(trainings.id, trainingId))
       .returning();
 
-    return updatedTraining;
+    return training;
   }
+
+  async reorderTrainings(trainingId: string, newPosition: number, type: string) {
+    // Get all trainings of the same type
+    const allTrainings = await db
+      .select()
+      .from(trainings)
+      .where(eq(trainings.type, type))
+      .orderBy(asc(trainings.displayOrder), asc(trainings.createdAt));
+
+    // Find the training to move
+    const trainingIndex = allTrainings.findIndex(t => t.id === trainingId);
+    if (trainingIndex === -1) return null;
+
+    // Remove the training from its current position
+    const trainingToMove = allTrainings.splice(trainingIndex, 1)[0];
+
+    // Insert it at the new position (convert from 1-based to 0-based index)
+    const targetIndex = Math.max(0, Math.min(newPosition - 1, allTrainings.length));
+    allTrainings.splice(targetIndex, 0, trainingToMove);
+
+    // Update all trainings with new sequential order
+    const updatePromises = allTrainings.map((training, index) =>
+      db
+        .update(trainings)
+        .set({ displayOrder: index + 1 })
+        .where(eq(trainings.id, training.id))
+    );
+
+    await Promise.all(updatePromises);
+
+    return trainingToMove;
+  }
+
 
   async createTrainingAttachments(data: InsertTrainingAttachment) {
     const [trainingAttachment] = await db

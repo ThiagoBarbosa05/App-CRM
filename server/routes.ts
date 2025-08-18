@@ -2086,13 +2086,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/trainings/:id/order", async (req, res) => {
     try {
       const { id } = req.params;
-      const { displayOrder } = req.body;
+      const { position, type } = req.body;
       
-      if (typeof displayOrder !== 'number') {
-        return res.status(400).json({ message: "displayOrder deve ser um número" });
+      if (typeof position !== 'number' || typeof type !== 'string') {
+        return res.status(400).json({ message: "position (número) e type (string) são obrigatórios" });
       }
 
-      const training = await storage.updateTrainingOrder(id, displayOrder);
+      const training = await storage.reorderTrainings(id, position, type);
+      if (!training) {
+        return res.status(404).json({ message: "Treinamento não encontrado" });
+      }
+
       res.json(training);
     } catch (error) {
       console.error("Erro ao atualizar ordem do treinamento:", error);
