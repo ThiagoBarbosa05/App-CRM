@@ -28,6 +28,9 @@ import {
   Upload,
   Image,
   File,
+  ArrowUp,
+  ArrowDown,
+  MoreVertical,
 } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -534,6 +537,38 @@ ATENDIMENTO AO CLIENTE
   // Função para verificar se o usuário é administrador
   const isAdmin = user?.role === "admin";
 
+  // Função para mover treinamentos
+  const moveTraining = async (trainingId: string, direction: 'up' | 'down', type: string) => {
+    try {
+      const response = await fetch(`/api/trainings/${trainingId}/order`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ direction, type }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update training order');
+      }
+
+      // Invalidar queries para atualizar a lista
+      // As queries já estão sendo invalidadas automaticamente pelo React Query
+      toast({
+        title: "Ordem atualizada",
+        description: `Item movido para ${direction === 'up' ? 'cima' : 'baixo'} com sucesso.`,
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar ordem:", error);
+      toast({
+        title: "Erro ao atualizar ordem",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     const colors = {
       vendas: "bg-green-100 text-green-800",
@@ -645,13 +680,36 @@ ATENDIMENTO AO CLIENTE
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trainingVideos &&
-                  trainingVideos.map((video) => (
+                  trainingVideos.map((video, index) => (
                     <div
-                      onClick={() => setSelectedVideo(video)}
-                      className="w-full bg-white cursor-pointer transition-transform ease-in duration-100 hover:scale-105 flex flex-col border overflow-hidden border-gray-200 rounded-lg shadow-lg min-h-96"
+                      className="w-full bg-white transition-transform ease-in duration-100 hover:scale-105 flex flex-col border overflow-hidden border-gray-200 rounded-lg shadow-lg min-h-96 relative"
                       key={video.id}
                     >
-                      <div className="">
+                      {isAdmin && (
+                        <div className="absolute top-2 right-2 z-10">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="bg-white/90 hover:bg-white">
+                                <MoreVertical className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => moveTraining(video.id, 'up', 'video')}>
+                                <ArrowUp className="mr-2 size-4" />
+                                Mover para cima
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => moveTraining(video.id, 'down', 'video')}>
+                                <ArrowDown className="mr-2 size-4" />
+                                Mover para baixo
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                      <div 
+                        onClick={() => setSelectedVideo(video)}
+                        className="cursor-pointer flex-1"
+                      >
                         <iframe
                           className="w-full h-[192px]"
                           src={
@@ -664,7 +722,10 @@ ATENDIMENTO AO CLIENTE
                           allowFullScreen
                         />
                       </div>
-                      <div className="p-4 flex-1 space-y-5">
+                      <div 
+                        onClick={() => setSelectedVideo(video)}
+                        className="p-4 flex-1 space-y-5 cursor-pointer"
+                      >
                         <div>
                           <p className="text-lg font-medium">{video.title}</p>
                           <p className="text-sm leading-none">
@@ -722,6 +783,25 @@ ATENDIMENTO AO CLIENTE
                             <Badge variant="outline" className="px-3 py-1">
                               {training.category}
                             </Badge>
+                            {isAdmin && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <MoreVertical className="size-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => moveTraining(training.id, 'up', 'document')}>
+                                    <ArrowUp className="mr-2 size-4" />
+                                    Mover para cima
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => moveTraining(training.id, 'down', 'document')}>
+                                    <ArrowDown className="mr-2 size-4" />
+                                    Mover para baixo
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -772,18 +852,38 @@ ATENDIMENTO AO CLIENTE
 
           <TabsContent value="scripts" className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scripts?.map((script) => (
+              {scripts?.map((script, index) => (
                 <div
                   key={script.id}
                   className="bg-white flex flex-col items-start p-5 rounded-md shadow-md"
                 >
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-4 w-full">
                     <FileText className="flex-shrink-0" />
 
                     <div className="flex-1">
                       <h4 className="text-xl font-medium">{script.title}</h4>
                       <p className="text-sm">{script.description}</p>
                     </div>
+
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => moveTraining(script.id, 'up', 'script')}>
+                            <ArrowUp className="mr-2 size-4" />
+                            Mover para cima
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => moveTraining(script.id, 'down', 'script')}>
+                            <ArrowDown className="mr-2 size-4" />
+                            Mover para baixo
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                   <div
                     style={{
