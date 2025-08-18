@@ -30,8 +30,16 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
         const response = await fetch("/api/markers");
         if (!response.ok) throw new Error("Erro ao buscar marcadores");
         const markers = await response.json();
-        // Retorna apenas os nomes dos marcadores
-        return markers.map((marker: any) => marker.name);
+        console.log("Marcadores recebidos da API:", markers);
+        
+        // Filtra apenas marcadores do tipo 'marcador' e retorna os nomes
+        const markerNames = markers
+          .filter((marker: any) => marker.type === 'marcador')
+          .map((marker: any) => marker.name)
+          .filter((name: string) => name && typeof name === 'string');
+        
+        console.log("Nomes dos marcadores processados:", markerNames);
+        return markerNames;
       } catch (error) {
         console.error("Erro ao buscar marcadores:", error);
         return [];
