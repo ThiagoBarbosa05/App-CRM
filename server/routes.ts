@@ -388,10 +388,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Verificar se o usuário é admin (apenas admins podem exportar todos os dados)
       const userRole = req.headers["x-user-role"] as string;
-      
+
       if (userRole !== "admin" && userRole !== "administrador") {
-        return res.status(403).json({ 
-          message: "Acesso negado. Apenas administradores podem exportar todos os dados." 
+        return res.status(403).json({
+          message: "Acesso negado. Apenas administradores podem exportar todos os dados."
         });
       }
 
@@ -2112,6 +2112,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao fazer upload" });
     }
   });
+
+  // Client Debts Routes
+  app.get("/api/client-debts", async (req, res) => {
+    try {
+      const { responsibleId } = req.query;
+      const debts = await storage.getClientDebts(responsibleId as string);
+      res.json(debts);
+    } catch (error) {
+      console.error("Error fetching client debts:", error);
+      res.status(500).json({ error: "Failed to fetch client debts" });
+    }
+  });
+
+  app.post("/api/client-debts", async (req, res) => {
+    try {
+      const debt = await storage.createClientDebt({
+        id: nanoid(), // Use nanoid for ID generation
+        clientId: req.body.clientId,
+        amount: req.body.amount,
+        description: req.body.description,
+        dueDate: new Date(req.body.dueDate),
+        status: req.body.status || "pending",
+        createdAt: new Date(),
+        createdBy: req.body.createdBy || "system", // Assuming createdBy is provided or defaults to 'system'
+      });
+      res.json(debt);
+    } catch (error) {
+      console.error("Error creating client debt:", error);
+      res.status(500).json({ error: "Failed to create client debt" });
+    }
+  });
+
+  app.put("/api/client-debts/:id", async (req, res) => {
+    try {
+      const debt = await storage.updateClientDebt(req.params.id, req.body);
+      res.json(debt);
+    } catch (error) {
+      console.error("Error updating client debt:", error);
+      res.status(500).json({ error: "Failed to update client debt" });
+    }
+  });
+
+  app.delete("/api/client-debts/:id", async (req, res) => {
+    try {
+      await storage.deleteClientDebt(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting client debt:", error);
+      res.status(500).json({ error: "Failed to delete client debt" });
+    }
+  });
+
+  // Dashboard Stats Route
+  app.get("/api/dashboard/stats/:userId", async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats(req.params.userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

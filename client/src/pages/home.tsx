@@ -2,8 +2,8 @@ import { useEffect } from "react";
 
 export default function Home() {
   useEffect(() => {
-    // Redirecionar automaticamente para a página de clientes
-    window.location.href = "/clientes";
+    // Redirecionar automaticamente para a página de dashboard
+    window.location.href = "/dashboard";
   }, []);
 
   return (

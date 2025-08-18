@@ -125,6 +125,21 @@ export default function Sidebar() {
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent dark:scrollbar-thumb-muted">
           <div className="mobile-responsive px-4 sm:px-6">
             <nav className="space-y-2">
+              <Link href="/dashboard">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/dashboard"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <BarChart3 className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Dashboard</span>
+                </button>
+              </Link>
+
               <Link href="/clientes">
                 <button
                   onClick={closeMobileMenu}

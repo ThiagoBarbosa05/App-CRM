@@ -1061,3 +1061,26 @@ export interface ClientCashbackBalanceWithClient extends ClientCashbackBalance {
   firstCashbackDate?: Date | null;
   nextExpiryDate?: Date | null;
 }
+
+// Client Debts Table
+export const clientDebts = pgTable("client_debts", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id")
+    .notNull()
+    .references(() => clients.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  status: text("status", { enum: ["pending", "paid", "overdue"] })
+    .notNull()
+    .default("pending"), // pending, paid, overdue
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: varchar("created_by")
+    .notNull()
+    .references(() => users.id),
+});
+
+export type ClientDebt = typeof clientDebts.$inferSelect;
+export type InsertClientDebt = typeof clientDebts.$inferInsert;

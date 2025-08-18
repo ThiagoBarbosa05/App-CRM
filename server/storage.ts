@@ -74,6 +74,9 @@ import {
   trainings,
   InsertTrainingAttachment,
   trainingAttachments,
+  clientDebtsTable,
+  type ClientDebt,
+  type InsertClientDebt,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -89,6 +92,7 @@ import {
   or,
   isNull,
   ilike,
+  ne,
 } from "drizzle-orm";
 
 export interface ClientFilters {
@@ -393,6 +397,18 @@ export interface IStorage {
     userRole?: string,
     daysThreshold?: number,
   ): Promise<any[]>;
+
+  // Client Debts methods
+  getClientDebts(responsibleId?: string): Promise<any[]>;
+  createClientDebt(insertDebt: InsertClientDebt): Promise<ClientDebt>;
+  updateClientDebt(
+    id: string,
+    updates: Partial<InsertClientDebt>,
+  ): Promise<ClientDebt | null>;
+  deleteClientDebt(id: string): Promise<void>;
+
+  // Dashboard Statistics
+  getDashboardStats(userId: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -494,8 +510,8 @@ export class DatabaseStorage implements IStorage {
     if (filters.origem) {
       conditions.push(eq(clients.origem, filters.origem));
     }
-    if (filters.markers && filters.markers !== 'all') {
-      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+    if (filters.markers) {
+      conditions.push(sql`'${filters.markers}' = ANY(${clients.markers})`);
     }
 
     // Filtro de busca geral (case-insensitive)
@@ -2982,6 +2998,91 @@ export class DatabaseStorage implements IStorage {
     return clientsWithLastInteraction
       .filter((client) => client.needsContact)
       .sort((a, b) => b.daysSinceCreated - a.daysSinceCreated);
+  }
+
+  // Client Debts methods
+  async getClientDebts(responsibleId?: string): Promise<any[]> {
+    const query = db
+      .select({
+        id: clientDebtsTable.id,
+        clientId: clientDebtsTable.clientId,
+        amount: clientDebtsTable.amount,
+        description: clientDebtsTable.description,
+        dueDate: clientDebtsTable.dueDate,
+        status: clientDebtsTable.status,
+        createdAt: clientDebtsTable.createdAt,
+        createdBy: clientDebtsTable.createdBy,
+        client: {
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email,
+        },
+      })
+      .from(clientDebtsTable)
+      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id));
+
+    if (responsibleId) {
+      return await query.where(eq(clients.responsavelId, responsibleId));
+    }
+
+    return await query;
+  }
+
+  async createClientDebt(insertDebt: InsertClientDebt): Promise<ClientDebt> {
+    const [debt] = await db.insert(clientDebtsTable).values(insertDebt).returning();
+    return debt;
+  }
+
+  async updateClientDebt(
+    id: string,
+    updates: Partial<InsertClientDebt>,
+  ): Promise<ClientDebt | null> {
+    const [debt] = await db
+      .update(clientDebtsTable)
+      .set(updates)
+      .where(eq(clientDebtsTable.id, id))
+      .returning();
+    return debt || null;
+  }
+
+  async deleteClientDebt(id: string): Promise<void> {
+    await db.delete(clientDebtsTable).where(eq(clientDebtsTable.id, id));
+  }
+
+  async getDashboardStats(userId: string): Promise<any> {
+    // Buscar clientes do vendedor
+    const clientsCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(clients)
+      .where(eq(clients.responsavelId, userId));
+
+    // Buscar deals ativos
+    const activeDealsCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(deals)
+      .where(and(eq(deals.responsavelId, userId), ne(deals.stage, "fechamento")));
+
+    // Buscar dívidas pendentes
+    const pendingDebtsCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(clientDebtsTable)
+      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id))
+      .where(and(eq(clients.responsavelId, userId), eq(clientDebtsTable.status, "pending")));
+
+    // Buscar dívidas vencidas
+    const overdueDebtsCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(clientDebtsTable)
+      .innerJoin(clients, eq(clientDebtsTable.clientId, clients.id))
+      .where(and(eq(clients.responsavelId, userId), eq(clientDebtsTable.status, "pending"), sql`${clientDebtsTable.dueDate} < CURRENT_DATE`));
+
+    return {
+      totalClients: clientsCount[0]?.count || 0,
+      activeDeals: activeDealsCount[0]?.count || 0,
+      pendingDebts: pendingDebtsCount[0]?.count || 0,
+      overdueDebts: overdueDebtsCount[0]?.count || 0,
+    };
   }
 }
 
