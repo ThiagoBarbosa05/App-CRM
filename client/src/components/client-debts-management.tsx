@@ -251,6 +251,14 @@ export default function ClientDebtsManagement() {
     return "Pendente";
   };
 
+  const getOverdueDays = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = today.getTime() - due.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   // Usar clientes filtrados do servidor
   const filteredClients = clients;
 
@@ -471,6 +479,12 @@ export default function ClientDebtsManagement() {
                       <Calendar className="h-3 w-3" />
                       Vencimento: {formatDate(debt.dueDate)}
                     </span>
+                    {debt.status === "pending" && new Date(debt.dueDate) < new Date() && (
+                      <span className="flex items-center gap-1 text-red-600 font-medium">
+                        <AlertTriangle className="h-3 w-3" />
+                        {getOverdueDays(debt.dueDate)} dias em atraso
+                      </span>
+                    )}
                     <span className="flex items-center gap-1">
                       <Phone className="h-3 w-3" />
                       {debt.client.phone}

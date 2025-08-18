@@ -97,6 +97,14 @@ export default function Dashboard() {
     return "Pendente";
   };
 
+  const getOverdueDays = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = today.getTime() - due.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   const pendingDebts = clientDebts.filter(debt => debt.status === "pending");
   const overdueDebts = clientDebts.filter(debt => 
     debt.status === "pending" && new Date(debt.dueDate) < new Date()
@@ -221,6 +229,12 @@ export default function Dashboard() {
                             <div className="flex items-center gap-4 text-sm text-gray-500">
                               <span>Valor: {formatCurrency(parseFloat(debt.amount))}</span>
                               <span>Vencimento: {formatDate(debt.dueDate)}</span>
+                              {new Date(debt.dueDate) < new Date() && (
+                                <span className="text-red-600 font-medium flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {getOverdueDays(debt.dueDate)} dias em atraso
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
