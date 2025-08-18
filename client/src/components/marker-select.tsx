@@ -38,7 +38,7 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
         console.log("📊 Total de itens recebidos:", markers.length);
         
         // Mostrar todos os tipos recebidos
-        const types = [...new Set(markers.map((m: any) => m.type))];
+        const types = Array.from(new Set(markers.map((m: any) => m.type)));
         console.log("🏷️ Tipos encontrados:", types);
         
         // Filtra apenas marcadores do tipo 'marcador' e retorna os nomes
@@ -81,9 +81,18 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
     onChange(currentValue.filter(marker => marker !== markerToRemove));
   };
 
-  const filteredMarkers = availableMarkers.filter((marker: string) =>
-    marker && typeof marker === 'string' && marker.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Debug do filtro
+  console.log("🔍 Debug filtro - availableMarkers:", availableMarkers);
+  console.log("🔍 Debug filtro - searchTerm:", searchTerm);
+  
+  const filteredMarkers = availableMarkers.filter((marker: string) => {
+    const isValid = marker && typeof marker === 'string';
+    const matchesSearch = searchTerm === "" || marker.toLowerCase().includes(searchTerm.toLowerCase());
+    console.log(`🔍 Filtro marcador "${marker}": válido=${isValid}, busca="${searchTerm}", match=${matchesSearch}`);
+    return isValid && matchesSearch;
+  });
+  
+  console.log("🎯 Marcadores filtrados final:", filteredMarkers);
 
   if (isError) {
     return (
