@@ -653,30 +653,41 @@ ATENDIMENTO AO CLIENTE
                 {trainingDocument &&
                   trainingDocument.map((training) => (
                     <div
-                      className="bg-white w-full min-h-56 p-5 shadow-lg rounded-md"
+                      className="bg-white w-full shadow-lg rounded-md overflow-hidden"
                       key={training.id}
                     >
-                      <div className="h-full flex flex-col justify-between">
-                        <div className="flex gap-4">
-                          <File className="size-10 text-red-500 flex-shrink-0" />
+                      {/* Exibir o documento como imagem */}
+                      <div className="w-full h-64 bg-gray-100">
+                        <iframe
+                          src={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
+                          className="w-full h-full border-0"
+                          title={training.title}
+                        />
+                      </div>
+                      
+                      {/* Informações do documento */}
+                      <div className="p-4">
+                        <div className="flex items-start gap-3 mb-3">
+                          <File className="size-6 text-red-500 flex-shrink-0 mt-1" />
                           <div className="flex-1">
-                            <p className="text-xl font-medium">
+                            <h3 className="text-lg font-medium text-gray-900 mb-1">
                               {training.title}
-                            </p>
-                            <p className="text-sm text-gray-500 pt-1">
+                            </h3>
+                            <p className="text-sm text-gray-600">
                               {training.description}
                             </p>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center mt-4">
-                          <Badge variant={"outline"}>{training.category}</Badge>
+                        
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline">{training.category}</Badge>
                           <a
                             href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
-                            className="border flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <BookOpen className="size-4 mr-1" />
+                            <BookOpen className="size-4" />
                             Abrir
                           </a>
                         </div>
