@@ -2755,7 +2755,11 @@ export class DatabaseStorage implements IStorage {
         eq(trainings.id, trainingAttachments.trainingId),
       )
       .where(type ? eq(trainings.type, type) : undefined)
-      .orderBy(asc(trainings.displayOrder), asc(trainings.createdAt));
+      .orderBy(
+        sql`CASE WHEN ${trainings.displayOrder} IS NULL THEN 1 ELSE 0 END`,
+        asc(trainings.displayOrder),
+        asc(trainings.createdAt)
+      );
 
     const trainingWithAttachments = trainingsList.map((training) => ({
       id: training.id,

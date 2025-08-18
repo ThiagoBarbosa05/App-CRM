@@ -487,13 +487,16 @@ ATENDIMENTO AO CLIENTE
       const response = await fetch("/api/trainings?type=document");
       if (!response.ok) throw new Error("Failed to fetch training documents");
       const documents = await response.json();
-      // Sort by displayOrder, then by createdAt
+      // Sort by displayOrder (null values go to end), then by createdAt
       return documents.sort((a: Training, b: Training) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+        // If both have displayOrder, sort by it
+        if (a.displayOrder !== null && b.displayOrder !== null) {
           return a.displayOrder - b.displayOrder;
         }
-        if (a.displayOrder !== undefined) return -1;
-        if (b.displayOrder !== undefined) return 1;
+        // Items with displayOrder come first
+        if (a.displayOrder !== null && b.displayOrder === null) return -1;
+        if (a.displayOrder === null && b.displayOrder !== null) return 1;
+        // If both are null, sort by creation date
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
