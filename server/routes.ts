@@ -2127,15 +2127,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/client-debts", async (req, res) => {
     try {
+      // Get user ID from headers or fallback to first user
+      const userIdFromHeader = req.headers["x-user-id"] as string;
+      let createdById = userIdFromHeader;
+      
+      if (!createdById) {
+        const users = await storage.getUsers();
+        createdById = users.length > 0 ? users[0].id : null;
+      }
+      
+      if (!createdById) {
+        return res.status(400).json({ error: "No users found in system" });
+      }
+
       const debt = await storage.createClientDebt({
-        id: nanoid(), // Use nanoid for ID generation
+        id: nanoid(),
         clientId: req.body.clientId,
         amount: req.body.amount,
         description: req.body.description,
         dueDate: new Date(req.body.dueDate),
         status: req.body.status || "pending",
         createdAt: new Date(),
-        createdBy: req.body.createdBy || "system", // Assuming createdBy is provided or defaults to 'system'
+        createdBy: createdById,
       });
       res.json(debt);
     } catch (error) {
