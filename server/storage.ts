@@ -74,9 +74,6 @@ import {
   trainings,
   InsertTrainingAttachment,
   trainingAttachments,
-  clientDebtsTable,
-  type ClientDebt,
-  type InsertClientDebt,
 } from "@shared/schema";
 import { db } from "./db";
 import {
