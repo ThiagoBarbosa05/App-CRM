@@ -95,6 +95,9 @@ export default function ClientDebtsManagement() {
     },
   });
 
+  // Estado para busca de clientes
+  const [clientSearch, setClientSearch] = useState("");
+
   // Criar dívida
   const createDebtMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -211,6 +214,14 @@ export default function ClientDebtsManagement() {
     return "Pendente";
   };
 
+  // Filtrar clientes para o select
+  const filteredClients = clients.filter((client) => {
+    const searchLower = clientSearch.toLowerCase();
+    return client.name.toLowerCase().includes(searchLower) ||
+           client.phone.toLowerCase().includes(searchLower) ||
+           (client.email && client.email.toLowerCase().includes(searchLower));
+  });
+
   // Filtrar dívidas
   const filteredDebts = debts.filter((debt) => {
     const matchesSearch = debt.client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -285,11 +296,28 @@ export default function ClientDebtsManagement() {
                       <SelectValue placeholder="Selecione um cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
+                      <div className="p-2">
+                        <Input
+                          placeholder="Buscar por nome, CPF ou telefone..."
+                          value={clientSearch}
+                          onChange={(e) => setClientSearch(e.target.value)}
+                          className="mb-2"
+                        />
+                      </div>
+                      {filteredClients.length === 0 ? (
+                        <div className="p-2 text-sm text-gray-500">
+                          Nenhum cliente encontrado
+                        </div>
+                      ) : (
+                        filteredClients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{client.name}</span>
+                              <span className="text-xs text-gray-500">{client.phone}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
