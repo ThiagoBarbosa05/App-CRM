@@ -272,11 +272,15 @@ export default function ClientDebtsManagement() {
             if (!open) {
               setIsAddDialogOpen(false);
               setEditingDebt(null);
+              setClientSearch("");
               resetForm();
             }
           }}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Button onClick={() => {
+                setIsAddDialogOpen(true);
+                setClientSearch("");
+              }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Dívida
               </Button>
@@ -303,15 +307,10 @@ export default function ClientDebtsManagement() {
                           value={clientSearch}
                           onChange={(e) => setClientSearch(e.target.value)}
                           className="mb-2"
-                          onFocus={(e) => {
-                            try {
-                              e.target?.focus();
-                            } catch (error) {
-                              // Ignore focus errors
-                            }
-                          }}
                           onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          onFocus={() => {}}
+                          tabIndex={-1}
                         />
                       </div>
                       {filteredClients.length === 0 ? (
