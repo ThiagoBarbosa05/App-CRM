@@ -93,6 +93,7 @@ import {
   isNull,
   ilike,
   ne,
+  asc,
 } from "drizzle-orm";
 
 export interface ClientFilters {
@@ -2828,28 +2829,51 @@ export class DatabaseStorage implements IStorage {
     return training;
   }
 
-  async getTrainings(query?: string) {
+  async getTrainings(type?: string) {
     const trainingsList = await db
       .select({
         id: trainings.id,
         title: trainings.title,
         description: trainings.description,
-        category: trainings.category,
         type: trainings.type,
-        level: trainings.level,
-        attachmentUrl: trainingAttachments.url,
+        duration: trainings.duration,
         content: trainings.content,
+        category: trainings.category,
+        level: trainings.level,
+        displayOrder: trainings.displayOrder,
         createdAt: trainings.createdAt,
+        training_attachments: {
+          id: trainingAttachments.id,
+          url: trainingAttachments.url,
+          fileType: trainingAttachments.fileType,
+          name: trainingAttachments.name,
+        },
       })
       .from(trainings)
       .leftJoin(
         trainingAttachments,
         eq(trainings.id, trainingAttachments.trainingId),
       )
-      .where(query ? eq(trainings.type, query) : undefined)
-      .orderBy(desc(trainings.createdAt));
+      .where(type ? eq(trainings.type, type) : undefined)
+      .orderBy(asc(trainings.displayOrder), asc(trainings.createdAt));
 
-    return trainingsList;
+    const trainingWithAttachments = trainingsList.map((training) => ({
+      id: training.id,
+      title: training.title,
+      description: training.description,
+      type: training.type,
+      duration: training.duration,
+      content: training.content,
+      category: training.category,
+      level: training.level,
+      displayOrder: training.displayOrder,
+      createdAt: training.createdAt,
+      attachmentUrl: training.training_attachments?.url || null,
+      attachmentFileType: training.training_attachments?.fileType || null,
+      attachmentName: training.training_attachments?.name || null,
+    }));
+
+    return trainingWithAttachments;
   }
 
   async getTraining(trainingId: string) {
@@ -2873,11 +2897,18 @@ export class DatabaseStorage implements IStorage {
     return training;
   }
 
-  async deleteTraining(trainingId: string) {
-    const result = await db
-      .delete(trainings)
-      .where(eq(trainings.id, trainingId));
-    return result;
+  async deleteTraining(id: string) {
+    await db.delete(trainings).where(eq(trainings.id, id));
+  }
+
+  async updateTrainingOrder(id: string, displayOrder: number) {
+    const [updatedTraining] = await db
+      .update(trainings)
+      .set({ displayOrder })
+      .where(eq(trainings.id, id))
+      .returning();
+
+    return updatedTraining;
   }
 
   async createTrainingAttachments(data: InsertTrainingAttachment) {

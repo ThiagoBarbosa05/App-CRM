@@ -33,6 +33,8 @@ import {
   Menu,
   EllipsisVertical,
   FileText,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { CreateTrainingForm } from "./create-training-form";
@@ -67,12 +69,16 @@ export interface Training {
   id: string;
   title: string;
   description: string;
-  category: string;
   type: string;
-  level: string | null;
-  content: string | null;
-  attachmentUrl: string | null;
+  duration?: string;
+  content?: string;
+  category: string;
+  level?: string;
+  displayOrder?: number;
   createdAt: Date;
+  attachmentUrl?: string;
+  attachmentFileType?: string;
+  attachmentName?: string;
 }
 
 interface TrainingDocument {
@@ -96,6 +102,7 @@ interface LearningImage {
 export default function LearningImagesManagement() {
   const [openCreateTrainingModal, setOpenCreateTrainingModal] = useState(false);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  const [editingScript, setEditingScript] = useState<Training | null>(null);
 
   const [trainingToDelete, setTrainingToDelete] = useState("");
 
@@ -105,7 +112,7 @@ export default function LearningImagesManagement() {
   const [trainingEditFile, setTrainingEditFile] = useState<string | null>("");
   const [showEditor, setShowEditor] = useState(false);
   const [openScriptForm, setOpenScriptForm] = useState(false);
-  const [scriptToEdit, setScriptToEdit] = useState<Training | null>(null);
+
 
   const [content, setContent] = useState("");
 
@@ -213,6 +220,80 @@ export default function LearningImagesManagement() {
       });
     },
   });
+
+  const deleteScriptMutation = useMutation({
+    mutationFn: async (trainingId: string) => {
+      const response = await fetch(`/api/trainings/${trainingId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao deletar script");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=script"],
+      });
+
+      toast({
+        title: "Script deletado",
+        description: "O script foi deletado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      console.error("Erro ao deletar script:", error);
+      toast({
+        title: "Erro ao deletar script",
+        description: "Ocorreu um erro ao deletar o script. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTrainingOrder = async (trainingId: string, newOrder: number) => {
+    try {
+      const response = await fetch(`/api/trainings/${trainingId}/order`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ displayOrder: newOrder }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar ordem");
+      }
+
+      // Invalidar queries para atualizar a lista
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=document"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=video"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/trainings?type=script"],
+      });
+
+      toast({
+        title: "Ordem atualizada",
+        description: "A ordem do documento foi atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar ordem:", error);
+      toast({
+        title: "Erro ao atualizar ordem",
+        description: "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -408,6 +489,26 @@ export default function LearningImagesManagement() {
                                       : "Deletar"}
                                   </Button>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem className="p-0">
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start hover:bg-gray-100"
+                                    onClick={() => updateTrainingOrder(training.id, (training.displayOrder || 0) - 1)}
+                                  >
+                                    <ArrowUp className="mr-2" />
+                                    Mover para cima
+                                  </Button>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="p-0">
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start hover:bg-gray-100"
+                                    onClick={() => updateTrainingOrder(training.id, (training.displayOrder || 0) + 1)}
+                                  >
+                                    <ArrowDown className="mr-2" />
+                                    Mover para baixo
+                                  </Button>
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -458,6 +559,65 @@ export default function LearningImagesManagement() {
                         <h4 className="text-xl font-medium">{script.title}</h4>
                         <p className="text-sm">{script.description}</p>
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-gray-300"
+                            size={"icon"}
+                          >
+                            <EllipsisVertical className="size-4 text-gray-600" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" align="end">
+                          <DropdownMenuItem className="p-0">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start hover:bg-gray-100"
+                              onClick={() => {
+                                setOpenScriptForm(true);
+                                setEditingScript(script);
+                              }}
+                            >
+                              <Pencil className="mr-2" />
+                              Editar
+                            </Button>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="p-0">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start hover:bg-gray-100"
+                              onClick={() => updateTrainingOrder(script.id, (script.displayOrder || 0) - 1)}
+                            >
+                              <ArrowUp className="mr-2" />
+                              Mover para cima
+                            </Button>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="p-0">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start hover:bg-gray-100"
+                              onClick={() => updateTrainingOrder(script.id, (script.displayOrder || 0) + 1)}
+                            >
+                              <ArrowDown className="mr-2" />
+                              Mover para baixo
+                            </Button>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="p-0">
+                            <Button
+                              variant="ghost"
+                              className="w-full text-red-500 justify-start hover:text-red-500 hover:bg-gray-100"
+                              disabled={deleteScriptMutation.isPending}
+                              onClick={() => deleteScriptMutation.mutate(script.id)}
+                            >
+                              <Trash2 className="mr-2" />
+                              {deleteScriptMutation.isPending
+                                ? "Deletando..."
+                                : "Deletar"}
+                            </Button>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <div
                       style={{
@@ -483,7 +643,7 @@ export default function LearningImagesManagement() {
                               block: "start",
                             });
                           }, 100);
-                          setScriptToEdit(script);
+                          setEditingScript(script);
                           setShowEditor(true);
                         }}
                         variant={"outline"}
@@ -532,7 +692,7 @@ export default function LearningImagesManagement() {
                   type="button"
                   onClick={() => {
                     setShowEditor(true);
-                    setScriptToEdit(null);
+                    setEditingScript(null);
                     setTimeout(() => {
                       formRef.current?.scrollIntoView({
                         behavior: "smooth",
@@ -548,7 +708,7 @@ export default function LearningImagesManagement() {
               {showEditor && (
                 <div ref={formRef}>
                   <ScriptForm
-                    scriptToEdit={scriptToEdit}
+                    scriptToEdit={editingScript}
                     onOpenChange={setShowEditor}
                   />
                 </div>

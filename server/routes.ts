@@ -2083,6 +2083,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/trainings/:id/order", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { displayOrder } = req.body;
+      
+      if (typeof displayOrder !== 'number') {
+        return res.status(400).json({ message: "displayOrder deve ser um número" });
+      }
+
+      const training = await storage.updateTrainingOrder(id, displayOrder);
+      res.json(training);
+    } catch (error) {
+      console.error("Erro ao atualizar ordem do treinamento:", error);
+      res.status(500).json({ message: "Erro ao atualizar ordem do treinamento" });
+    }
+  });
+
   // Upload
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {

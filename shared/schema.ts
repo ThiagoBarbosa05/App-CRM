@@ -149,6 +149,7 @@ export const trainings = pgTable("trainings", {
   content: text("content"),
   category: text("category").notNull(),
   level: text("level"),
+  displayOrder: integer("display_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
