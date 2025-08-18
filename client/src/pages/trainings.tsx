@@ -657,7 +657,7 @@ ATENDIMENTO AO CLIENTE
                       key={training.id}
                     >
                       {/* Exibir o documento como imagem */}
-                      <div className="w-full h-[800px] bg-gray-100">
+                      <div className="w-full h-[800px] bg-gray-100 flex items-center justify-center">
                         <iframe
                           src={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
                           className="w-full h-full border-0"
