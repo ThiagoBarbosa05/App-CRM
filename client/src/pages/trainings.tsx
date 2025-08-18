@@ -648,52 +648,88 @@ ATENDIMENTO AO CLIENTE
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6 w-full">
-            <div className="flex flex-col gap-4 items-start">
-              <section className="grid w-full grid-cols-1 gap-4">
+            <div className="flex flex-col gap-6">
+              {/* Cabeçalho da seção */}
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-gray-900">Documentos e Manuais</h2>
+                <p className="text-gray-600">Material de apoio e documentação técnica</p>
+              </div>
+
+              {/* Lista de documentos */}
+              <section className="space-y-8">
                 {trainingDocument &&
-                  trainingDocument.map((training) => (
+                  trainingDocument.map((training, index) => (
                     <div
-                      className="bg-white w-full shadow-lg rounded-md overflow-hidden"
+                      className="bg-white w-full shadow-lg rounded-lg overflow-hidden border border-gray-200"
                       key={training.id}
                     >
-                      {/* Exibir o documento como imagem */}
-                      <div className="w-full h-[800px] bg-gray-100 flex items-center justify-center">
-                        <iframe
-                          src={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
-                          className="w-full h-full border-0"
-                          title={training.title}
-                        />
-                      </div>
-                      
-                      {/* Informações do documento */}
-                      <div className="p-4">
-                        <div className="flex items-start gap-3 mb-3">
-                          <File className="size-6 text-red-500 flex-shrink-0 mt-1" />
-                          <div className="flex-1">
-                            <h3 className="text-lg font-medium text-gray-900 mb-1">
-                              {training.title}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {training.description}
-                            </p>
+                      {/* Cabeçalho do documento */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-white p-3 rounded-full shadow-sm">
+                              <File className="size-8 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900">
+                                {training.title}
+                              </h3>
+                              <p className="text-gray-600 mt-1">
+                                {training.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary" className="px-3 py-1">
+                              Documento #{index + 1}
+                            </Badge>
+                            <Badge variant="outline" className="px-3 py-1">
+                              {training.category}
+                            </Badge>
                           </div>
                         </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <Badge variant="outline">{training.category}</Badge>
+                      </div>
+
+                      {/* Visualização do documento */}
+                      <div className="p-6">
+                        <div className="bg-gray-50 rounded-lg overflow-hidden border-2 border-dashed border-gray-200">
+                          <div className="w-full h-[700px] bg-white flex items-center justify-center">
+                            <iframe
+                              src={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
+                              className="w-full h-full border-0"
+                              title={training.title}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Ações do documento */}
+                        <div className="mt-4 flex justify-center">
                           <a
                             href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <BookOpen className="size-4" />
-                            Abrir
+                            <BookOpen className="size-5" />
+                            Abrir em Nova Aba
                           </a>
                         </div>
                       </div>
                     </div>
                   ))}
+
+                {/* Mensagem quando não há documentos */}
+                {(!trainingDocument || trainingDocument.length === 0) && (
+                  <div className="text-center py-12">
+                    <File className="size-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Nenhum documento encontrado
+                    </h3>
+                    <p className="text-gray-500">
+                      Os documentos de treinamento aparecerão aqui quando forem adicionados.
+                    </p>
+                  </div>
+                )}
               </section>
             </div>
           </TabsContent>
