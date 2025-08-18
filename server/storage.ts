@@ -3020,7 +3020,8 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .from(clientDebts)
-      .innerJoin(clients, eq(clientDebts.clientId, clients.id));
+      .innerJoin(clients, eq(clientDebts.clientId, clients.id))
+      .orderBy(clientDebts.createdAt);
 
     if (responsibleId) {
       return await query.where(eq(clients.responsavelId, responsibleId));
