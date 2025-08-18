@@ -297,13 +297,19 @@ export default function ClientDebtsManagement() {
                       <SelectValue placeholder="Selecione um cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <div className="p-2">
+                      <div className="p-2" onMouseDown={(e) => e.stopPropagation()}>
                         <Input
-                          ref={clientSearchInputRef}
                           placeholder="Buscar por nome, CPF ou telefone..."
                           value={clientSearch}
                           onChange={(e) => setClientSearch(e.target.value)}
                           className="mb-2"
+                          onFocus={(e) => {
+                            try {
+                              e.target?.focus();
+                            } catch (error) {
+                              // Ignore focus errors
+                            }
+                          }}
                           onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => e.stopPropagation()}
                         />
