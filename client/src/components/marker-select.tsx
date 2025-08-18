@@ -27,21 +27,36 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
     queryKey: ["/api/markers"],
     queryFn: async () => {
       try {
+        console.log("🔄 Iniciando busca por marcadores...");
         const response = await fetch("/api/markers");
-        if (!response.ok) throw new Error("Erro ao buscar marcadores");
+        console.log("📡 Response status:", response.status, response.statusText);
+        
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+        
         const markers = await response.json();
-        console.log("Marcadores recebidos da API:", markers);
+        console.log("📦 Marcadores recebidos da API:", markers);
+        console.log("📊 Total de itens recebidos:", markers.length);
+        
+        // Mostrar todos os tipos recebidos
+        const types = [...new Set(markers.map((m: any) => m.type))];
+        console.log("🏷️ Tipos encontrados:", types);
         
         // Filtra apenas marcadores do tipo 'marcador' e retorna os nomes
-        const markerNames = markers
-          .filter((marker: any) => marker && marker.type === 'marcador')
+        const markersOnly = markers.filter((marker: any) => {
+          console.log(`🔍 Verificando item: ${marker.name} (tipo: ${marker.type})`);
+          return marker && marker.type === 'marcador';
+        });
+        
+        console.log("✅ Marcadores filtrados por tipo:", markersOnly);
+        
+        const markerNames = markersOnly
           .map((marker: any) => marker.name)
           .filter((name: string) => name && typeof name === 'string' && name.trim().length > 0);
         
-        console.log("Nomes dos marcadores processados:", markerNames);
+        console.log("🎯 Nomes dos marcadores finais:", markerNames);
         return markerNames;
       } catch (error) {
-        console.error("Erro ao buscar marcadores:", error);
+        console.error("❌ Erro ao buscar marcadores:", error);
         return [];
       }
     },
@@ -110,13 +125,15 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
           </div>
           <div className="max-h-48 overflow-y-auto">
             {/* Debug info */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="text-xs text-gray-500 p-2 border-b">
-                Debug: {availableMarkers.length} marcadores carregados
-                {isLoading && " (carregando...)"}
-                {isError && " (erro)"}
-              </div>
-            )}
+            <div className="text-xs text-gray-500 p-2 border-b bg-yellow-50">
+              <div>🐛 DEBUG: {availableMarkers.length} marcadores carregados</div>
+              <div>📊 Estado: {isLoading ? "carregando..." : isError ? "erro" : "sucesso"}</div>
+              <div>🔍 Filtrados: {filteredMarkers.length}</div>
+              <div>🔤 Busca: "{searchTerm}"</div>
+              {availableMarkers.length > 0 && (
+                <div className="mt-1">📝 Lista: {availableMarkers.slice(0, 3).join(", ")}{availableMarkers.length > 3 ? "..." : ""}</div>
+              )}
+            </div>
             
             {filteredMarkers.length === 0 ? (
               <div className="text-center py-4">
