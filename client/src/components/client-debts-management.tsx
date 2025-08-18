@@ -85,6 +85,13 @@ export default function ClientDebtsManagement() {
     },
   });
 
+  // Estado para busca de clientes
+  const [clientSearch, setClientSearch] = useState("");
+  const clientSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Use a busca com debounce para as queries
+  const searchTerm = clientSearch.length >= 2 ? clientSearch : "";
+
   // Buscar clientes com pesquisa
   const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients", searchTerm],
@@ -99,19 +106,6 @@ export default function ClientDebtsManagement() {
     },
     enabled: searchTerm.length === 0 || searchTerm.length >= 2, // Só busca se tiver 2+ chars
   });
-
-  // Estado para busca de clientes com debounce
-  const [clientSearch, setClientSearch] = useState("");
-  const clientSearchInputRef = useRef<HTMLInputElement>(null);
-  
-  // Debounce da busca para evitar muitas requests
-  const debouncedClientSearch = useMemo(() => {
-    const timer = setTimeout(() => clientSearch, 300);
-    return () => clearTimeout(timer);
-  }, [clientSearch]);
-
-  // Use a busca com debounce para as queries
-  const searchTerm = clientSearch.length >= 2 ? clientSearch : "";
 
   // Criar dívida
   const createDebtMutation = useMutation({
