@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,19 +85,33 @@ export default function ClientDebtsManagement() {
     },
   });
 
-  // Buscar clientes
-  const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+  // Buscar clientes com pesquisa
+  const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
+    queryKey: ["/api/clients", searchTerm],
     queryFn: async () => {
-      const response = await fetch("/api/clients");
+      let url = "/api/clients";
+      if (searchTerm.trim()) {
+        url += `?search=${encodeURIComponent(searchTerm.trim())}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
     },
+    enabled: searchTerm.length === 0 || searchTerm.length >= 2, // Só busca se tiver 2+ chars
   });
 
-  // Estado para busca de clientes
+  // Estado para busca de clientes com debounce
   const [clientSearch, setClientSearch] = useState("");
   const clientSearchInputRef = useRef<HTMLInputElement>(null);
+  
+  // Debounce da busca para evitar muitas requests
+  const debouncedClientSearch = useMemo(() => {
+    const timer = setTimeout(() => clientSearch, 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch]);
+
+  // Use a busca com debounce para as queries
+  const searchTerm = clientSearch.length >= 2 ? clientSearch : "";
 
   // Criar dívida
   const createDebtMutation = useMutation({
@@ -215,13 +229,8 @@ export default function ClientDebtsManagement() {
     return "Pendente";
   };
 
-  // Filtrar clientes para o select
-  const filteredClients = clients.filter((client) => {
-    const searchLower = clientSearch.toLowerCase();
-    return client.name.toLowerCase().includes(searchLower) ||
-           client.phone.toLowerCase().includes(searchLower) ||
-           (client.email && client.email.toLowerCase().includes(searchLower));
-  });
+  // Usar clientes filtrados do servidor
+  const filteredClients = clients;
 
   // Filtrar dívidas
   const filteredDebts = debts.filter((debt) => {
@@ -313,9 +322,17 @@ export default function ClientDebtsManagement() {
                           tabIndex={-1}
                         />
                       </div>
-                      {filteredClients.length === 0 ? (
+                      {clientsLoading ? (
+                        <div className="p-2 text-sm text-gray-500">
+                          Carregando...
+                        </div>
+                      ) : filteredClients.length === 0 && clientSearch.length >= 2 ? (
                         <div className="p-2 text-sm text-gray-500">
                           Nenhum cliente encontrado
+                        </div>
+                      ) : clientSearch.length > 0 && clientSearch.length < 2 ? (
+                        <div className="p-2 text-sm text-gray-500">
+                          Digite pelo menos 2 caracteres para buscar
                         </div>
                       ) : (
                         filteredClients.map((client) => (
