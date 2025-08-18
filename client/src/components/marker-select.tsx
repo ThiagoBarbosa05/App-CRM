@@ -40,21 +40,26 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
   });
 
   const handleMarkerToggle = (marker: string) => {
-    const isSelected = value.includes(marker);
+    if (!marker || typeof marker !== 'string') return;
+    
+    const currentValue = Array.isArray(value) ? value : [];
+    const isSelected = currentValue.includes(marker);
+    
     if (isSelected) {
-      onChange(value.filter(m => m !== marker));
+      onChange(currentValue.filter(m => m !== marker));
     } else {
-      onChange([...value, marker]);
+      onChange([...currentValue, marker]);
     }
     setOpen(false);
   };
 
   const handleRemoveMarker = (markerToRemove: string) => {
-    onChange(value.filter(marker => marker !== markerToRemove));
+    const currentValue = Array.isArray(value) ? value : [];
+    onChange(currentValue.filter(marker => marker !== markerToRemove));
   };
 
   const filteredMarkers = availableMarkers.filter((marker: string) =>
-    marker.toLowerCase().includes(searchTerm.toLowerCase())
+    marker && typeof marker === 'string' && marker.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isError) {
@@ -82,7 +87,7 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
             disabled={isLoading}
           >
             {isLoading ? "Carregando..." : 
-             value.length > 0 ? `${value.length} marcador(es) selecionado(s)` : placeholder}
+             value && Array.isArray(value) && value.length > 0 ? `${value.length} marcador(es) selecionado(s)` : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
@@ -116,11 +121,11 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                     <Check
                       className={cn(
                         "h-4 w-4",
-                        value.includes(marker) ? "opacity-100" : "opacity-0"
+                        value && Array.isArray(value) && value.includes(marker) ? "opacity-100" : "opacity-0"
                       )}
                     />
                     <span className="flex-1">{marker}</span>
-                    {value.includes(marker) && (
+                    {value && Array.isArray(value) && value.includes(marker) && (
                       <span className="text-xs text-green-600">Selecionado</span>
                     )}
                   </DropdownMenuItem>
@@ -141,7 +146,7 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {value.length > 0 && (
+      {value && Array.isArray(value) && value.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {value.map((marker) => (
             <Badge
