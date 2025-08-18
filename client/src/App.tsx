@@ -103,7 +103,7 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route path="/admin-metas"component={() => (
+      <Route path="/admin-metas" component={() => (
           <MainLayout>
             <AdminGoals />
           </MainLayout>
@@ -135,11 +135,6 @@ function Router() {
       <Route path="/cashback" component={() => (
           <MainLayout>
             <Cashback />
-          </MainLayout>
-        )} />
-      <Route path="/acompanhamento" component={() => (
-          <MainLayout>
-            <Acompanhamento />
           </MainLayout>
         )} />
       <Route component={NotFound} />
