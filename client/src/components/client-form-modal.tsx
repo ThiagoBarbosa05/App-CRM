@@ -33,7 +33,6 @@ import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import MarkerSelect from "./marker-select";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ClientFormModalProps {
@@ -97,6 +96,11 @@ export default function ClientFormModal({
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
     enabled: user?.role === "admin",
+  }) as { data: any[] };
+
+  // Buscar marcadores das configurações
+  const { data: markers = [] } = useQuery({
+    queryKey: ["/api/markers"],
   }) as { data: any[] };
 
   // Função para converter data brasileira para ISO
@@ -537,12 +541,64 @@ export default function ClientFormModal({
                   <FormItem className="md:col-span-2">
                     <FormLabel>Marcadores</FormLabel>
                     <FormControl>
-                      <MarkerSelect
-                        value={field.value || []}
-                        onChange={field.onChange}
-                        placeholder="Selecionar marcadores..."
-                      />
+                      <Select
+                        onValueChange={(value) => {
+                          // Para permitir múltiplos marcadores, vamos apenas adicionar ao array
+                          const currentMarkers = field.value || [];
+                          if (!currentMarkers.includes(value)) {
+                            field.onChange([...currentMarkers, value]);
+                          }
+                        }}
+                        value=""
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione marcadores..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {markers
+                            .filter((marker: any) => marker.type === 'marcador')
+                            .length === 0 ? (
+                            <div className="p-2 text-sm text-gray-500 text-center">
+                              Nenhum marcador encontrado. Crie marcadores na
+                              página Configurações.
+                            </div>
+                          ) : (
+                            markers
+                              .filter((marker: any) => marker.type === 'marcador')
+                              .map((marker: any) => (
+                                <SelectItem key={marker.id} value={marker.name}>
+                                  {marker.name}
+                                </SelectItem>
+                              ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
+                    {/* Mostrar marcadores selecionados */}
+                    {field.value && field.value.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {field.value.map((marker: string, index: number) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {marker}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => {
+                                const newMarkers = field.value.filter(
+                                  (m: string) => m !== marker
+                                );
+                                field.onChange(newMarkers);
+                              }}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
