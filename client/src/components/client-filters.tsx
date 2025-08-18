@@ -92,8 +92,8 @@ export default function ClientFilters({
     setIsOpen(false);
   };
 
-  const hasActiveFilters = Object.values(currentFilters).some(
-    (value) => value !== "",
+  const hasActiveFilters = Object.entries(currentFilters).some(
+    ([key, value]) => value !== "" && value !== "all"
   );
 
   return (
@@ -245,7 +245,9 @@ export default function ClientFilters({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os marcadores</SelectItem>
-                  {(markers as any[]).map((marker: any) => (
+                  {(markers as any[])
+                    .filter((marker: any) => marker.type === 'marcador')
+                    .map((marker: any) => (
                     <SelectItem key={marker.id} value={marker.name}>
                       <div className="flex items-center gap-2">
                         <div

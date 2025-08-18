@@ -494,8 +494,8 @@ export class DatabaseStorage implements IStorage {
     if (filters.origem) {
       conditions.push(eq(clients.origem, filters.origem));
     }
-    if (filters.markers) {
-      conditions.push(sql`'${filters.markers}' = ANY(${clients.markers})`);
+    if (filters.markers && filters.markers !== 'all') {
+      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
     }
 
     // Filtro de busca geral (case-insensitive)
