@@ -300,11 +300,18 @@ export default function Dashboard() {
                             </div>
                             <div>
                               <h3 className="font-medium">{client.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {client.daysUntil === 0 ? 'Hoje!' : 
-                                 client.daysUntil === 1 ? 'Amanhã' : 
-                                 `Em ${client.daysUntil} dias`}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-gray-600">
+                                  {client.daysUntil === 0 ? 'Hoje!' : 
+                                   client.daysUntil === 1 ? 'Amanhã' : 
+                                   `Em ${client.daysUntil} dias`}
+                                </p>
+                                <div className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                                  {client.daysUntil === 0 ? 'Hoje' : 
+                                   client.daysUntil === 1 ? '1 dia' : 
+                                   `${client.daysUntil} dias`}
+                                </div>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
