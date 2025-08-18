@@ -181,6 +181,34 @@ export default function ClientDebtsManagement() {
     },
   });
 
+  // Marcar dívida como paga
+  const payDebtMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/client-debts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid" }),
+      });
+      if (!response.ok) throw new Error("Failed to mark debt as paid");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/client-debts"] });
+      toast({ title: "Dívida marcada como paga!" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao marcar dívida como paga",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const markDebtAsPaid = (debtId: string) => {
+    payDebtMutation.mutate(debtId);
+  };
+
   const resetForm = () => {
     setFormData({
       clientId: "",
@@ -450,6 +478,16 @@ export default function ClientDebtsManagement() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {debt.status === "pending" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => markDebtAsPaid(debt.id)}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
