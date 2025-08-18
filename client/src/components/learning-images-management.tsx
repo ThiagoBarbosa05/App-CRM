@@ -267,7 +267,8 @@ export default function LearningImagesManagement() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update training order');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update training order');
       }
 
       // Invalidar queries para atualizar a lista
@@ -289,7 +290,7 @@ export default function LearningImagesManagement() {
       console.error("Erro ao atualizar ordem:", error);
       toast({
         title: "Erro ao atualizar ordem",
-        description: "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -495,10 +496,7 @@ export default function LearningImagesManagement() {
                                   <Button
                                     variant="ghost"
                                     className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => {
-                                      const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
-                                      moveTraining(training.id, 'up', 'document');
-                                    }}
+                                    onClick={() => moveTraining(training.id, 'up', 'document')}
                                   >
                                     <ArrowUp className="mr-2" />
                                     Mover para cima
@@ -508,10 +506,7 @@ export default function LearningImagesManagement() {
                                   <Button
                                     variant="ghost"
                                     className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => {
-                                      const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
-                                      moveTraining(training.id, 'down', 'document');
-                                    }}
+                                    onClick={() => moveTraining(training.id, 'down', 'document')}
                                   >
                                     <ArrowDown className="mr-2" />
                                     Mover para baixo
@@ -600,10 +595,7 @@ export default function LearningImagesManagement() {
                             <Button
                               variant="ghost"
                               className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => {
-                                const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
-                                moveTraining(script.id, 'up', 'script');
-                              }}
+                              onClick={() => moveTraining(script.id, 'up', 'script')}
                             >
                               <ArrowUp className="mr-2" />
                               Mover para cima
@@ -613,10 +605,7 @@ export default function LearningImagesManagement() {
                             <Button
                               variant="ghost"
                               className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => {
-                                const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
-                                moveTraining(script.id, 'down', 'script');
-                              }}
+                              onClick={() => moveTraining(script.id, 'down', 'script')}
                             >
                               <ArrowDown className="mr-2" />
                               Mover para baixo

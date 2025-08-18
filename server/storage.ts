@@ -2815,7 +2815,7 @@ export class DatabaseStorage implements IStorage {
     return training;
   }
 
-  async reorderTrainings(trainingId: string, newPosition: number, type: string) {
+  async reorderTrainings(trainingId: string, direction: 'up' | 'down', type: string) {
     // Get all trainings of the same type ordered by current position
     const allTrainings = await db
       .select()
@@ -2826,30 +2826,48 @@ export class DatabaseStorage implements IStorage {
         asc(trainings.createdAt)
       );
 
+    // Initialize displayOrder for trainings that don't have it
+    for (let i = 0; i < allTrainings.length; i++) {
+      if (allTrainings[i].displayOrder === null) {
+        await db
+          .update(trainings)
+          .set({ displayOrder: i + 1 })
+          .where(eq(trainings.id, allTrainings[i].id));
+        allTrainings[i].displayOrder = i + 1;
+      }
+    }
+
     // Find the training to move
-    const trainingIndex = allTrainings.findIndex(t => t.id === trainingId);
-    if (trainingIndex === -1) return null;
+    const currentIndex = allTrainings.findIndex(t => t.id === trainingId);
+    if (currentIndex === -1) return null;
 
-    // Remove the training from its current position
-    const trainingToMove = allTrainings.splice(trainingIndex, 1)[0];
-
-    // Ensure newPosition is within bounds (1-based)
-    const targetIndex = Math.max(0, Math.min(newPosition - 1, allTrainings.length));
+    let swapIndex = -1;
     
-    // Insert at new position
-    allTrainings.splice(targetIndex, 0, trainingToMove);
+    if (direction === 'up' && currentIndex > 0) {
+      swapIndex = currentIndex - 1;
+    } else if (direction === 'down' && currentIndex < allTrainings.length - 1) {
+      swapIndex = currentIndex + 1;
+    }
 
-    // Update all trainings with new sequential order starting from 1
-    const updatePromises = allTrainings.map((training, index) =>
-      db
-        .update(trainings)
-        .set({ displayOrder: index + 1 })
-        .where(eq(trainings.id, training.id))
-    );
+    if (swapIndex === -1) {
+      return allTrainings[currentIndex]; // No movement possible
+    }
 
-    await Promise.all(updatePromises);
+    // Swap the displayOrder values
+    const currentOrder = allTrainings[currentIndex].displayOrder!;
+    const swapOrder = allTrainings[swapIndex].displayOrder!;
 
-    return trainingToMove;
+    await db
+      .update(trainings)
+      .set({ displayOrder: swapOrder })
+      .where(eq(trainings.id, trainingId));
+
+    await db
+      .update(trainings)
+      .set({ displayOrder: currentOrder })
+      .where(eq(trainings.id, allTrainings[swapIndex].id));
+
+    return allTrainings[currentIndex];
   }
 
 
