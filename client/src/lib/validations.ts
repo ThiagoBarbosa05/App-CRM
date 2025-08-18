@@ -13,10 +13,10 @@ export const clientValidationSchema = z.object({
   neighborhood: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
-  markers: z.array(z.string()).optional(),
+  markers: z.array(z.string()).default([]),
   responsavelId: z.string().optional(),
-  categoria: z.string().min(1, "Categoria é obrigatória"),
-  origem: z.string().min(1, "Origem é obrigatória"),
+  categoria: z.string().optional().or(z.literal("")),
+  origem: z.string().optional().or(z.literal("")),
 });
 
 export const dealValidationSchema = z.object({

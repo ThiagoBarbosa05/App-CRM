@@ -151,6 +151,7 @@ export default function ClientFormModal({
       categoria: client?.categoria || "",
       origem: client?.origem || "",
     },
+    mode: "onChange",
   });
 
   const createClientMutation = useMutation({
