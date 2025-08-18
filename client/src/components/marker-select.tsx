@@ -34,9 +34,9 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
         
         // Filtra apenas marcadores do tipo 'marcador' e retorna os nomes
         const markerNames = markers
-          .filter((marker: any) => marker.type === 'marcador')
+          .filter((marker: any) => marker && marker.type === 'marcador')
           .map((marker: any) => marker.name)
-          .filter((name: string) => name && typeof name === 'string');
+          .filter((name: string) => name && typeof name === 'string' && name.trim().length > 0);
         
         console.log("Nomes dos marcadores processados:", markerNames);
         return markerNames;
@@ -109,14 +109,27 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
+            {/* Debug info */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-gray-500 p-2 border-b">
+                Debug: {availableMarkers.length} marcadores carregados
+                {isLoading && " (carregando...)"}
+                {isError && " (erro)"}
+              </div>
+            )}
+            
             {filteredMarkers.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-2">
-                  {searchTerm ? "Nenhum marcador encontrado." : "Nenhum marcador disponível."}
+                  {isLoading ? "Carregando marcadores..." : 
+                   searchTerm ? "Nenhum marcador encontrado." : 
+                   availableMarkers.length === 0 ? "Nenhum marcador disponível." : "Nenhum resultado para a busca."}
                 </p>
-                <p className="text-xs text-gray-400">
-                  Crie marcadores na página de Configurações para utilizá-los aqui.
-                </p>
+                {!isLoading && availableMarkers.length === 0 && (
+                  <p className="text-xs text-gray-400">
+                    Crie marcadores na página de Configurações para utilizá-los aqui.
+                  </p>
+                )}
               </div>
             ) : (
               <>
