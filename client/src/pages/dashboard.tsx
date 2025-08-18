@@ -80,7 +80,41 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await fetch(`/api/upcoming-birthdays?responsibleId=${user?.id}`);
       if (!response.ok) throw new Error('Failed to fetch birthdays');
-      return response.json();
+      const data = await response.json();
+      
+      // Calcular dias até o aniversário para cada cliente
+      return data.map((client: any) => {
+        if (!client.birthday) return { ...client, daysUntil: 0 };
+        
+        const today = new Date();
+        let birthday: Date;
+        
+        // Parse different date formats
+        if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          birthday = new Date(client.birthday);
+        } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          const [day, month, year] = client.birthday.split('/');
+          birthday = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          return { ...client, daysUntil: 0 };
+        }
+        
+        const thisYearBirthday = new Date(
+          today.getFullYear(),
+          birthday.getMonth(),
+          birthday.getDate()
+        );
+        
+        // Se o aniversário já passou este ano, considere o do próximo ano
+        if (thisYearBirthday < today) {
+          thisYearBirthday.setFullYear(today.getFullYear() + 1);
+        }
+        
+        const diffTime = thisYearBirthday.getTime() - today.getTime();
+        const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return { ...client, daysUntil };
+      });
     },
     enabled: !!user,
   });
