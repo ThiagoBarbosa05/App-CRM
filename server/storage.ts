@@ -2816,12 +2816,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async reorderTrainings(trainingId: string, newPosition: number, type: string) {
-    // Get all trainings of the same type
+    // Get all trainings of the same type ordered by current position
     const allTrainings = await db
       .select()
       .from(trainings)
       .where(eq(trainings.type, type))
-      .orderBy(asc(trainings.displayOrder), asc(trainings.createdAt));
+      .orderBy(
+        sql`CASE WHEN ${trainings.displayOrder} IS NULL THEN 999999 ELSE ${trainings.displayOrder} END`,
+        asc(trainings.createdAt)
+      );
 
     // Find the training to move
     const trainingIndex = allTrainings.findIndex(t => t.id === trainingId);
@@ -2830,11 +2833,13 @@ export class DatabaseStorage implements IStorage {
     // Remove the training from its current position
     const trainingToMove = allTrainings.splice(trainingIndex, 1)[0];
 
-    // Insert it at the new position (convert from 1-based to 0-based index)
+    // Ensure newPosition is within bounds (1-based)
     const targetIndex = Math.max(0, Math.min(newPosition - 1, allTrainings.length));
+    
+    // Insert at new position
     allTrainings.splice(targetIndex, 0, trainingToMove);
 
-    // Update all trainings with new sequential order
+    // Update all trainings with new sequential order starting from 1
     const updatePromises = allTrainings.map((training, index) =>
       db
         .update(trainings)

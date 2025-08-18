@@ -469,13 +469,16 @@ ATENDIMENTO AO CLIENTE
       const response = await fetch("/api/trainings?type=video");
       if (!response.ok) throw new Error("Failed to fetch training videos");
       const videos = await response.json();
-      // Sort by displayOrder, then by createdAt
+      // Sort by displayOrder, treating null as high number, then by createdAt
       return videos.sort((a: Training, b: Training) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-          return a.displayOrder - b.displayOrder;
+        const orderA = a.displayOrder ?? 999999;
+        const orderB = b.displayOrder ?? 999999;
+        
+        if (orderA !== orderB) {
+          return orderA - orderB;
         }
-        if (a.displayOrder !== undefined) return -1;
-        if (b.displayOrder !== undefined) return 1;
+        
+        // If same order (or both null), sort by creation date
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
@@ -487,16 +490,16 @@ ATENDIMENTO AO CLIENTE
       const response = await fetch("/api/trainings?type=document");
       if (!response.ok) throw new Error("Failed to fetch training documents");
       const documents = await response.json();
-      // Sort by displayOrder (null values go to end), then by createdAt
+      // Sort by displayOrder, treating null as high number, then by createdAt
       return documents.sort((a: Training, b: Training) => {
-        // If both have displayOrder, sort by it
-        if (a.displayOrder !== null && b.displayOrder !== null) {
-          return a.displayOrder - b.displayOrder;
+        const orderA = a.displayOrder ?? 999999;
+        const orderB = b.displayOrder ?? 999999;
+        
+        if (orderA !== orderB) {
+          return orderA - orderB;
         }
-        // Items with displayOrder come first
-        if (a.displayOrder !== null && b.displayOrder === null) return -1;
-        if (a.displayOrder === null && b.displayOrder !== null) return 1;
-        // If both are null, sort by creation date
+        
+        // If same order (or both null), sort by creation date
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
@@ -510,13 +513,16 @@ ATENDIMENTO AO CLIENTE
       if (!response.ok) throw new Error("Failed to fetch training videos");
 
       const scripts = await response.json();
-      // Sort by displayOrder, then by createdAt
+      // Sort by displayOrder, treating null as high number, then by createdAt
       return scripts.sort((a: Training, b: Training) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-          return a.displayOrder - b.displayOrder;
+        const orderA = a.displayOrder ?? 999999;
+        const orderB = b.displayOrder ?? 999999;
+        
+        if (orderA !== orderB) {
+          return orderA - orderB;
         }
-        if (a.displayOrder !== undefined) return -1;
-        if (b.displayOrder !== undefined) return 1;
+        
+        // If same order (or both null), sort by creation date
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },

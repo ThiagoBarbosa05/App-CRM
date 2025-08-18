@@ -256,15 +256,19 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const updateTrainingOrder = async (trainingId: string, newPosition: number, type: string) => {
+  const moveTraining = async (trainingId: string, direction: 'up' | 'down', type: string) => {
     try {
-      await fetch(`/api/trainings/${trainingId}/order`, {
-        method: "PUT",
+      const response = await fetch(`/api/trainings/${trainingId}/order`, {
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ position: newPosition, type }),
+        body: JSON.stringify({ direction, type }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update training order');
+      }
 
       // Invalidar queries para atualizar a lista
       queryClient.invalidateQueries({
@@ -279,7 +283,7 @@ export default function LearningImagesManagement() {
 
       toast({
         title: "Ordem atualizada",
-        description: "A posição do item foi atualizada com sucesso.",
+        description: `Item movido para ${direction === 'up' ? 'cima' : 'baixo'} com sucesso.`,
       });
     } catch (error) {
       console.error("Erro ao atualizar ordem:", error);
@@ -493,8 +497,7 @@ export default function LearningImagesManagement() {
                                     className="w-full justify-start hover:bg-gray-100"
                                     onClick={() => {
                                       const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
-                                      const newPosition = Math.max(1, currentIndex);
-                                      updateTrainingOrder(training.id, newPosition, 'document');
+                                      moveTraining(training.id, 'up', 'document');
                                     }}
                                   >
                                     <ArrowUp className="mr-2" />
@@ -507,8 +510,7 @@ export default function LearningImagesManagement() {
                                     className="w-full justify-start hover:bg-gray-100"
                                     onClick={() => {
                                       const currentIndex = documentsTrainings?.findIndex(d => d.id === training.id) || 0;
-                                      const newPosition = Math.min((documentsTrainings?.length || 0), currentIndex + 2);
-                                      updateTrainingOrder(training.id, newPosition, 'document');
+                                      moveTraining(training.id, 'down', 'document');
                                     }}
                                   >
                                     <ArrowDown className="mr-2" />
@@ -600,8 +602,7 @@ export default function LearningImagesManagement() {
                               className="w-full justify-start hover:bg-gray-100"
                               onClick={() => {
                                 const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
-                                const newPosition = Math.max(1, currentIndex);
-                                updateTrainingOrder(script.id, newPosition, 'script');
+                                moveTraining(script.id, 'up', 'script');
                               }}
                             >
                               <ArrowUp className="mr-2" />
@@ -614,8 +615,7 @@ export default function LearningImagesManagement() {
                               className="w-full justify-start hover:bg-gray-100"
                               onClick={() => {
                                 const currentIndex = scripts?.findIndex(s => s.id === script.id) || 0;
-                                const newPosition = Math.min((scripts?.length || 0), currentIndex + 2);
-                                updateTrainingOrder(script.id, newPosition, 'script');
+                                moveTraining(script.id, 'down', 'script');
                               }}
                             >
                               <ArrowDown className="mr-2" />

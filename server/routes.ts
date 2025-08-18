@@ -2086,10 +2086,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/trainings/:id/order", async (req, res) => {
     try {
       const { id } = req.params;
-      const { position, type } = req.body;
-      
+      const { position, type, direction } = req.body;
+
+      // Handle direction-based movement (up/down)
+      if (direction && type) {
+        const allTrainings = await db
+          .select()
+          .from(trainings)
+          .where(eq(trainings.type, type))
+          .orderBy(
+            sql`CASE WHEN ${trainings.displayOrder} IS NULL THEN 999999 ELSE ${trainings.displayOrder} END`,
+            asc(trainings.createdAt)
+          );
+
+        const currentIndex = allTrainings.findIndex(t => t.id === id);
+        if (currentIndex === -1) {
+          return res.status(404).json({ message: "Treinamento não encontrado" });
+        }
+
+        let newPosition;
+        if (direction === 'up' && currentIndex > 0) {
+          newPosition = currentIndex; // Move up (reduce position by 1)
+        } else if (direction === 'down' && currentIndex < allTrainings.length - 1) {
+          newPosition = currentIndex + 2; // Move down (increase position by 1)
+        } else {
+          return res.json({ message: "Movimento não possível" });
+        }
+
+        const training = await storage.reorderTrainings(id, newPosition, type);
+        return res.json(training);
+      }
+
+      // Handle direct position setting
       if (typeof position !== 'number' || typeof type !== 'string') {
-        return res.status(400).json({ message: "position (número) e type (string) são obrigatórios" });
+        return res.status(400).json({ 
+          message: "position (número) e type (string) são obrigatórios, ou direction e type" 
+        });
       }
 
       const training = await storage.reorderTrainings(id, position, type);
@@ -2151,12 +2183,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user ID from headers or fallback to first user
       const userIdFromHeader = req.headers["x-user-id"] as string;
       let createdById = userIdFromHeader;
-      
+
       if (!createdById) {
         const users = await storage.getUsers();
         createdById = users.length > 0 ? users[0].id : null;
       }
-      
+
       if (!createdById) {
         return res.status(400).json({ error: "No users found in system" });
       }
