@@ -11,6 +11,7 @@ import {
     ClipboardList,
     Gift,
     GitBranch,
+    LayoutDashboard,
     LogOut,
     Menu,
     Settings,
@@ -75,6 +76,20 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
 
             {/* Navigation */}
             <nav className="flex flex-col gap-1 mt-5">
+                <Link href="/dashboard">
+                    <button
+                        onClick={closeMobileMenu}
+                        className={cn(
+                            "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                            location === "/dashboard"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                        )}
+                    >
+                        <LayoutDashboard className="size-4 mr-3" />
+                        <span className="mobile-text">Dashboard</span>
+                    </button>
+                </Link>
                 <Link href="/clientes">
                     <button
                         onClick={closeMobileMenu}
@@ -91,18 +106,18 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                 </Link>
                 <Link href="/acompanhamento">
                     <button
-                      onClick={closeMobileMenu}
-                      className={cn(
-                        "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                        location === "/acompanhamento"
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                      )}
+                        onClick={closeMobileMenu}
+                        className={cn(
+                            "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                            location === "/acompanhamento"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                        )}
                     >
-                      <ClipboardList className="mr-3 h-4 w-4" />
-                      <span className="mobile-text">Acompanhamento</span>
+                        <ClipboardList className="mr-3 h-4 w-4" />
+                        <span className="mobile-text">Acompanhamento</span>
                     </button>
-                  </Link>
+                </Link>
 
                 <Link href="/empresas">
                     <button
