@@ -468,7 +468,16 @@ ATENDIMENTO AO CLIENTE
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=video");
       if (!response.ok) throw new Error("Failed to fetch training videos");
-      return response.json();
+      const videos = await response.json();
+      // Sort by displayOrder, then by createdAt
+      return videos.sort((a: Training, b: Training) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+          return a.displayOrder - b.displayOrder;
+        }
+        if (a.displayOrder !== undefined) return -1;
+        if (b.displayOrder !== undefined) return 1;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     },
   });
 
@@ -477,7 +486,16 @@ ATENDIMENTO AO CLIENTE
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=document");
       if (!response.ok) throw new Error("Failed to fetch training documents");
-      return response.json();
+      const documents = await response.json();
+      // Sort by displayOrder, then by createdAt
+      return documents.sort((a: Training, b: Training) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+          return a.displayOrder - b.displayOrder;
+        }
+        if (a.displayOrder !== undefined) return -1;
+        if (b.displayOrder !== undefined) return 1;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     },
   });
 
@@ -488,7 +506,16 @@ ATENDIMENTO AO CLIENTE
 
       if (!response.ok) throw new Error("Failed to fetch training videos");
 
-      return response.json();
+      const scripts = await response.json();
+      // Sort by displayOrder, then by createdAt
+      return scripts.sort((a: Training, b: Training) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+          return a.displayOrder - b.displayOrder;
+        }
+        if (a.displayOrder !== undefined) return -1;
+        if (b.displayOrder !== undefined) return 1;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     },
   });
 
