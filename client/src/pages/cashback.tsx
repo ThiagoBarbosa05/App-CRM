@@ -373,7 +373,16 @@ export default function Cashback() {
 
   const previewValues = () => {
     const grossValue = parseFloat(saleForm.grossValue) || 0;
-    return calculateSaleValues(grossValue, selectedClientBalance);
+    const result = calculateSaleValues(grossValue, selectedClientBalance);
+    
+    // Buscar configuração ativa para obter a taxa real
+    const activeSetting = settings.find((s: any) => s.isActive === "true");
+    const actualRate = activeSetting ? parseFloat(activeSetting.percentageRate) : 0;
+    
+    return {
+      ...result,
+      actualRate
+    };
   };
 
   // Recarregar clientes quando a busca mudar
@@ -861,7 +870,7 @@ export default function Cashback() {
                                 </div>
                                 
                                 <div className="flex justify-between text-blue-600">
-                                  <span>Novo Cashback Gerado (5%):</span>
+                                  <span>Novo Cashback Gerado ({previewValues().actualRate?.toFixed(1) || 0}%):</span>
                                   <span>+{formatCurrency(previewValues().cashbackGenerated)}</span>
                                 </div>
                               </>
