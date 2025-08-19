@@ -45,7 +45,6 @@ interface InteractionFormModalProps {
 }
 
 const interactionTypes = [
-  { value: "call", label: "Ligação", icon: Phone },
   { value: "telemarketing", label: "Telemarketing", icon: Phone },
   { value: "email", label: "E-mail", icon: Mail },
   { value: "meeting", label: "Reunião", icon: Users },
@@ -267,7 +266,7 @@ export default function InteractionFormModal({
                 )}
               />
 
-              {(form.watch("type") === "call" || form.watch("type") === "telemarketing") && (
+              {form.watch("type") === "telemarketing" && (
                 <FormField
                   control={form.control}
                   name="callResult"
