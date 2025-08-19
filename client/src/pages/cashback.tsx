@@ -838,11 +838,7 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {(() => {
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        return sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo).length;
-                      })()}
+                      {thirtyDaysReport.salesCount || 0}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -857,13 +853,7 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {(() => {
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
-                        const total = recentSales.reduce((sum, sale) => sum + sale.grossValue, 0);
-                        return formatCurrency(total);
-                      })()}
+                      {formatCurrency(thirtyDaysReport.totalSales || 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -878,13 +868,7 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">
-                      {(() => {
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
-                        const total = recentSales.reduce((sum, sale) => sum + sale.cashbackUsed, 0);
-                        return formatCurrency(total);
-                      })()}
+                      {formatCurrency(thirtyDaysReport.totalCashbackUsed || 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -899,13 +883,7 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-600">
-                      {(() => {
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
-                        const total = recentSales.reduce((sum, sale) => sum + sale.cashbackGenerated, 0);
-                        return formatCurrency(total);
-                      })()}
+                      {formatCurrency(thirtyDaysReport.totalCashbackGenerated || 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
