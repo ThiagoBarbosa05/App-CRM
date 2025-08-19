@@ -427,6 +427,9 @@ export interface IStorage {
     cashbackGenerated: number;
     userId?: string;
   }): Promise<any>;
+
+  // Método para zerar todos os dados de cashback
+  resetAllCashbackData(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3157,7 +3160,7 @@ export class DatabaseStorage implements IStorage {
     if (isNaN(saleDate.getTime())) {
       throw new Error('Data inválida fornecida');
     }
-    
+
     const [sale] = await this.db
       .insert(sales)
       .values({
@@ -3198,7 +3201,7 @@ export class DatabaseStorage implements IStorage {
       if (sale.cashbackGenerated > 0) {
         // Buscar configuração ativa para obter a taxa correta
         const cashbackData = await this.calculateCashback(sale.netValue);
-        
+
         await this.createCashbackTransaction({
           clientId: sale.clientId,
           dealId: null,
@@ -3215,6 +3218,49 @@ export class DatabaseStorage implements IStorage {
 
 
     return sale;
+  }
+
+  async resetAllCashbackData() {
+    try {
+      // Deletar em ordem para evitar conflitos de chave estrangeira
+
+      // 1. Deletar histórico de uso de cashback
+      const deletedUsage = await this.db
+        .delete(cashbackUsage)
+        .returning();
+
+      // 2. Deletar saldos de cashback dos clientes
+      const deletedBalances = await this.db
+        .delete(clientCashbackBalance)
+        .returning();
+
+      // 3. Deletar transações de cashback
+      const deletedTransactions = await this.db
+        .delete(cashbackTransactions)
+        .returning();
+
+      // 4. Deletar vendas
+      const deletedSales = await this.db
+        .delete(sales)
+        .returning();
+
+      console.log("Dados de cashback zerados:");
+      console.log(`- ${deletedUsage.length} registros de uso de cashback`);
+      console.log(`- ${deletedBalances.length} saldos de clientes`);
+      console.log(`- ${deletedTransactions.length} transações de cashback`);
+      console.log(`- ${deletedSales.length} vendas`);
+
+      return {
+        deletedUsage: deletedUsage.length,
+        deletedBalances: deletedBalances.length,
+        deletedTransactions: deletedTransactions.length,
+        deletedSales: deletedSales.length,
+        totalDeleted: deletedUsage.length + deletedBalances.length + deletedTransactions.length + deletedSales.length
+      };
+    } catch (error) {
+      console.error("Erro ao zerar dados de cashback:", error);
+      throw error;
+    }
   }
 }
 
