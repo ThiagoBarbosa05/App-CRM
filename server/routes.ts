@@ -996,7 +996,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cashback-balances/:clientId", async (req, res) => {
     try {
       const { clientId } = req.params;
-      const balance = await storage.getCashbackBalance(clientId);
+      const clientBalance = await storage.getClientCashbackBalance(clientId);
+      const balance = clientBalance ? parseFloat(clientBalance.currentBalance) : 0;
       res.json({ balance });
     } catch (error) {
       console.error("Erro ao buscar saldo de cashback:", error);
@@ -1092,7 +1093,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Buscar saldo atual de cashback do cliente
-      const currentBalance = await storage.getCashbackBalance(clientId);
+      const clientBalance = await storage.getClientCashbackBalance(clientId);
+      const currentBalance = clientBalance ? parseFloat(clientBalance.currentBalance) : 0;
 
       // Calcular valores da venda
       const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
@@ -1111,9 +1113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId
       });
 
-      // Atualizar saldo de cashback do cliente
-      const newBalance = currentBalance - cashbackUsed + cashbackGenerated;
-      await storage.updateCashbackBalance(clientId, newBalance);
+      // O saldo de cashback será atualizado automaticamente pelo createSale
 
       res.status(201).json(sale);
     } catch (error) {
