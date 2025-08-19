@@ -343,11 +343,14 @@ export default function Cashback() {
         setIsDialogOpen(false);
         
         // Recarregar todos os dados relacionados
-        loadSales();
-        queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+        await loadSales();
+        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+        
+        // Forçar refetch dos relatórios
+        await queryClient.refetchQueries({ queryKey: ["/api/cashback-reports/30-days"] });
       } else {
         const error = await response.json();
         throw new Error(error.message || 'Erro ao registrar venda');
