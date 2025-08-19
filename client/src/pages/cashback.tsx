@@ -180,6 +180,11 @@ export default function Cashback() {
     queryKey: ["/api/users"],
   });
 
+  // Buscar relatórios dos últimos 30 dias
+  const { data: reports30Days = null } = useQuery<any>({
+    queryKey: ["/api/cashback-reports/30-days"],
+  });
+
   // Funções para vendas
   const loadClients = async () => {
     try {
@@ -1308,11 +1313,91 @@ export default function Cashback() {
             </TabsContent>
 
             <TabsContent value="reports" className="space-y-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Relatório dos Últimos 30 Dias</h3>
+                <p className="text-sm text-muted-foreground">
+                  Dados de {reports30Days?.periodStart ? new Date(reports30Days.periodStart).toLocaleDateString('pt-BR') : ''} até {new Date().toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Total Distribuído
+                      Vendas do Período
+                    </CardTitle>
+                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {reports30Days?.totalSales || 0}
+                    </div>
+                    <div className="text-sm text-green-600 font-medium">
+                      {formatCurrency(reports30Days?.totalSalesValue || 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Total em vendas brutas
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Cashback Gerado
+                    </CardTitle>
+                    <Gift className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatCurrency(reports30Days?.totalCashbackGenerated || 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cashback gerado no período
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Cashback Resgatado
+                    </CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                      {formatCurrency(reports30Days?.totalCashbackRedeemed || 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Resgatado pelos clientes
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Cashback Utilizado
+                    </CardTitle>
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {formatCurrency(reports30Days?.totalCashbackUsedInSales || 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Usado como desconto em vendas
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Distribuído (Histórico)
                     </CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
@@ -1321,7 +1406,7 @@ export default function Cashback() {
                       {formatCurrency(totalCashback)}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Em cashback acumulado
+                      Total histórico distribuído
                     </p>
                   </CardContent>
                 </Card>
@@ -1329,29 +1414,7 @@ export default function Cashback() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Total Resgatado
-                    </CardTitle>
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {formatCurrency(
-                        allUsage.reduce((sum: number, item: any) => {
-                          const usage = item.cashback_usage || item;
-                          return sum + parseFloat(usage.usedAmount || 0);
-                        }, 0),
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Em resgates realizados
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Saldo Pendente
+                      Saldo Disponível
                     </CardTitle>
                     <Gift className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
@@ -1366,7 +1429,7 @@ export default function Cashback() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Disponível para resgate
+                      Saldo atual dos clientes
                     </p>
                   </CardContent>
                 </Card>
@@ -1374,7 +1437,7 @@ export default function Cashback() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Transações
+                      Total de Transações
                     </CardTitle>
                     <Calculator className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
@@ -1383,7 +1446,27 @@ export default function Cashback() {
                       {transactions.length}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Total de transações
+                      Transações históricas
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Taxa de Conversão
+                    </CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {reports30Days?.totalCashbackGenerated && reports30Days?.totalSalesValue 
+                        ? ((reports30Days.totalCashbackGenerated / reports30Days.totalSalesValue) * 100).toFixed(1)
+                        : '0.0'
+                      }%
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cashback/Vendas (30 dias)
                     </p>
                   </CardContent>
                 </Card>
