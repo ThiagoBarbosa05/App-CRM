@@ -45,7 +45,7 @@ interface InteractionFormModalProps {
 }
 
 const interactionTypes = [
-  { value: "telemarketing", label: "Telemarketing", icon: Phone },
+  { value: "telemarketing", label: "Ligação", icon: Phone },
   { value: "email", label: "E-mail", icon: Mail },
   { value: "meeting", label: "Reunião", icon: Users },
   { value: "whatsapp", label: "WhatsApp", icon: MessageSquare },

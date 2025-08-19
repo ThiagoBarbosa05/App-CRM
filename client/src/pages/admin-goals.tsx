@@ -839,7 +839,7 @@ export default function AdminGoals() {
               </TabsTrigger>
               <TabsTrigger value="metas-telemarketing">
                 <Phone className="h-4 w-4 mr-2" />
-                Metas de Telemarketing
+                Metas de Ligação
               </TabsTrigger>
               <TabsTrigger value="metas-cadastros">
                 <Users className="h-4 w-4 mr-2" />
@@ -996,10 +996,10 @@ export default function AdminGoals() {
                     <div>
                       <CardTitle className="flex text-sm sm:text-2xl items-center gap-2">
                         <Phone className="size-4 sm:size-5" />
-                        Metas de Telemarketing por Usuário
+                        Metas de Ligação por Usuário
                       </CardTitle>
                       <CardDescription className="text-xs sm:text-base">
-                        Gestão de metas baseadas em resultados de telemarketing
+                        Gestão de metas baseadas em resultados de ligação
                       </CardDescription>
                     </div>
                     <Button
@@ -1014,7 +1014,7 @@ export default function AdminGoals() {
                       className="bg-purple-600 text-white hover:bg-purple-700"
                     >
                       <Phone className="mr-2 h-4 w-4" />
-                      Nova Meta Telemarketing
+                      Nova Meta de Ligação
                     </Button>
                   </div>
                 </CardHeader>
@@ -1023,10 +1023,10 @@ export default function AdminGoals() {
                     <div className="text-center py-8 text-gray-500">
                       <Phone className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium">
-                        Nenhuma meta de telemarketing cadastrada
+                        Nenhuma meta de ligação cadastrada
                       </p>
                       <p className="text-sm">
-                        Comece definindo metas de telemarketing para os usuários
+                        Comece definindo metas de ligação para os usuários
                       </p>
                     </div>
                   ) : (
@@ -1514,8 +1514,8 @@ export default function AdminGoals() {
           <DialogHeader>
             <DialogTitle>
               {editingTelemarketingGoal
-                ? "Editar Meta de Telemarketing"
-                : "Nova Meta de Telemarketing"}
+                ? "Editar Meta de Ligação"
+                : "Nova Meta de Ligação"}
             </DialogTitle>
           </DialogHeader>
 

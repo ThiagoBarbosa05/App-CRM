@@ -449,10 +449,10 @@ export default function Metas() {
                     <Phone className="h-8 w-8 text-purple-600" />
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">
-                        Metas de Telemarketing
+                        Metas de Ligação
                       </h2>
                       <p className="text-gray-600">
-                        Acompanhe as metas de telemarketing em{" "}
+                        Acompanhe as metas de ligação em{" "}
                         {format(
                           new Date(selectedYear, selectedMonth - 1),
                           "MMMM 'de' yyyy",
@@ -496,7 +496,7 @@ export default function Metas() {
                                 className="bg-white border-purple-300 text-purple-700"
                               >
                                 <Phone className="h-3 w-3 mr-1" />
-                                Telemarketing
+                                Ligação
                               </Badge>
                             </div>
                             <CardDescription className="text-purple-700">
