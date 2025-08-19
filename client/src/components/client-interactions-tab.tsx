@@ -140,8 +140,15 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
       ) : (
         <div className="space-y-4">
           {interactions.map((interaction: ClientInteractionWithUser) => {
-            const typeConfig = interactionTypeConfig[interaction.type as keyof typeof interactionTypeConfig];
-            const statusConfig_ = statusConfig[interaction.status as keyof typeof statusConfig];
+            const typeConfig = interactionTypeConfig[interaction.type as keyof typeof interactionTypeConfig] || {
+              label: "Outro", 
+              icon: Clock, 
+              color: "bg-gray-100 text-gray-800"
+            };
+            const statusConfig_ = statusConfig[interaction.status as keyof typeof statusConfig] || {
+              label: "Desconhecido",
+              color: "bg-gray-100 text-gray-800"
+            };
             const IconComponent = typeConfig.icon;
 
             return (
