@@ -1147,11 +1147,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientBalance = await storage.getClientCashbackBalance(clientId);
       const currentBalance = clientBalance ? parseFloat(clientBalance.currentBalance) : 0;
 
+      // Buscar configuração ativa de cashback
+      const settings = await storage.getCashbackSettings();
+      const activeSetting = settings.find((s: any) => s.isActive === "true");
+      
       // Calcular valores da venda
       const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
       const cashbackUsed = Math.min(currentBalance, maxCashbackUsage);
       const netValue = grossValue - cashbackUsed;
-      const cashbackGenerated = netValue * 0.05; // 5% do valor líquido
+      
+      // Calcular cashback usando a configuração ativa
+      let cashbackGenerated = 0;
+      if (activeSetting) {
+        const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
+        if (grossValue >= minimumPurchase) {
+          const rate = parseFloat(activeSetting.percentageRate) / 100;
+          cashbackGenerated = grossValue * rate;
+          
+          // Aplicar limite máximo se definido
+          if (activeSetting.maximumCashback) {
+            const maxCashback = parseFloat(activeSetting.maximumCashback);
+            cashbackGenerated = Math.min(cashbackGenerated, maxCashback);
+          }
+        }
+      }
 
       // Registrar a venda
       const sale = await storage.createSale({
