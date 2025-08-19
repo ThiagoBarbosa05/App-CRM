@@ -2316,34 +2316,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para zerar dados de cashback (apenas administradores)
-  app.delete("/api/cashback/reset-all", async (req, res) => {
-    try {
-      // Verificar se o usuário é administrador
-      const userRole = req.headers["x-user-role"] as string;
-
-      if (userRole !== "admin" && userRole !== "administrador") {
-        return res.status(403).json({
-          message: "Acesso negado. Apenas administradores podem zerar os dados de cashback."
-        });
-      }
-
-      // Zerar todos os dados de cashback
-      const result = await storage.resetAllCashbackData();
-      
-      res.json({
-        message: "Todos os dados de cashback foram zerados com sucesso",
-        deletedRecords: result
-      });
-    } catch (error) {
-      console.error("Erro ao zerar dados de cashback:", error);
-      res.status(500).json({ 
-        message: "Erro ao zerar dados de cashback",
-        error: error instanceof Error ? error.message : "Erro desconhecido"
-      });
-    }
-  });
-
 
   const httpServer = createServer(app);
   return httpServer;

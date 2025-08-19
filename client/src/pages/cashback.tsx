@@ -36,11 +36,6 @@ import {
   Plus,
   Receipt,
   Percent,
-  Settings,
-  Eye,
-  Download,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -73,7 +68,6 @@ import {
 } from "@/components/ui/table";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
-import CashbackSettingsManagement from "@/components/cashback-settings-management";
 
 // Interfaces
 interface Client {
@@ -122,7 +116,7 @@ export default function Cashback() {
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deletingBalance, setDeletingBalance] = useState<any>(null);
-
+  
   // Estados para vendas
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -137,16 +131,12 @@ export default function Cashback() {
     date: new Date().toISOString().split('T')[0],
     grossValue: ''
   });
-
+  
   const { toast } = useToast();
   const { user } = useAuth();
 
   // Verificar se o usuário é administrador
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
-
-  // Estados para configurações e reset
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // useEffect para carregar dados de vendas
   useEffect(() => {
@@ -203,7 +193,7 @@ export default function Cashback() {
         params.append('search', debouncedClientSearch);
       }
       params.append('pageSize', '50'); // Limitar a 50 resultados
-
+      
       const response = await fetch(`/api/clients?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
@@ -248,26 +238,26 @@ export default function Cashback() {
     // Aplicar cashback existente (máximo 50% do valor bruto)
     const maxCashbackUsage = grossValue * 0.5;
     const cashbackUsed = Math.min(clientBalance, maxCashbackUsage);
-
+    
     // Valor líquido após aplicação do cashback
     const netValue = grossValue - cashbackUsed;
-
+    
     // Buscar configuração ativa de cashback
     const activeSetting = settings.find((s: any) => s.isActive === "true");
     let cashbackRate = 0;
-
+    
     if (activeSetting) {
       const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
-
+      
       // Verificar se o valor líquido atende ao mínimo
       if (netValue >= minimumPurchase) {
         cashbackRate = parseFloat(activeSetting.percentageRate) / 100;
       }
     }
-
+    
     // Gerar novo cashback baseado na configuração
     let cashbackGenerated = netValue * cashbackRate;
-
+    
     // Aplicar limite máximo se definido
     if (activeSetting && activeSetting.maximumCashback) {
       const maxCashback = parseFloat(activeSetting.maximumCashback);
@@ -284,7 +274,7 @@ export default function Cashback() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!saleForm.clientId || !saleForm.date || !saleForm.grossValue) {
       toast({
         title: "Erro",
@@ -342,7 +332,7 @@ export default function Cashback() {
           title: "Sucesso",
           description: "Venda registrada com sucesso!"
         });
-
+        
         setSaleForm({
           clientId: '',
           date: new Date().toISOString().split('T')[0],
@@ -351,7 +341,7 @@ export default function Cashback() {
         setSelectedClientBalance(0);
         setSelectedClientName('');
         setIsDialogOpen(false);
-
+        
         // Recarregar todos os dados relacionados
         await loadSales();
         queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
@@ -433,45 +423,13 @@ export default function Cashback() {
     },
   });
 
-  // Mutation para resetar todos os dados de cashback
-  const resetCashbackMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/cashback/reset-all", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-role": user?.role || "",
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao zerar dados de cashback");
-      }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Dados zerados com sucesso",
-        description: `${data.deletedRecords.totalDeleted} registros foram removidos.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-usage"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
-      setIsResetModalOpen(false);
-    },
-    onError: (error: any) => {
-      console.error("Erro ao zerar dados:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível zerar os dados de cashback.",
-        variant: "destructive",
-      });
-    },
-  });
+  const formatCurrency = (value: string | number) => {
+    const numericValue = typeof value === "string" ? parseFloat(value) : value;
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(numericValue);
+  };
 
   // Calcular estatísticas
   const totalCashback = transactions.reduce((sum: number, item: any) => {
@@ -524,34 +482,16 @@ export default function Cashback() {
   return (
     <div className="flex">
       <div className="flex-1 overflow-auto">
-        <div className=" space-y-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-start gap-3">
-              <Gift className="h-8 w-8 shrink-0 text-green-600" />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  Sistema de Cashback
-                </h1>
-                <p className="text-gray-600 text-sm sm:text-base">
-                  Gerencie programa de cashback e recompensas para clientes
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {(user?.role === "admin" || user?.role === "administrador") && (
-                <Button 
-                  variant="destructive" 
-                  onClick={() => setIsResetModalOpen(true)}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Zerar Dados
-                </Button>
-              )}
-              <Button onClick={() => setIsSettingsOpen(true)}>
-                <Settings className="h-4 w-4 mr-2" />
-                Configurações
-              </Button>
+        <div className="  space-y-6">
+          <div className="flex items-start gap-3 mb-6">
+            <Gift className="h-8 w-8 shrink-0 text-green-600" />
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Sistema de Cashback
+              </h1>
+              <p className="text-gray-600 text-sm sm:text-base">
+                Gerencie programa de cashback e recompensas para clientes
+              </p>
             </div>
           </div>
 
@@ -733,7 +673,7 @@ export default function Cashback() {
                     Gerencie vendas e cashback automaticamente
                   </p>
                 </div>
-
+                
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
@@ -745,7 +685,7 @@ export default function Cashback() {
                     <DialogHeader>
                       <DialogTitle>Registrar Nova Venda</DialogTitle>
                     </DialogHeader>
-
+                    
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -834,24 +774,24 @@ export default function Cashback() {
                                 {formatCurrency(selectedClientBalance)}
                               </Badge>
                             </div>
-
+                            
                             {saleForm.grossValue && (
                               <>
                                 <div className="flex justify-between">
                                   <span>Valor Bruto:</span>
                                   <span>{formatCurrency(parseFloat(saleForm.grossValue))}</span>
                                 </div>
-
+                                
                                 <div className="flex justify-between text-green-600">
                                   <span>Cashback Aplicado:</span>
                                   <span>-{formatCurrency(previewValues().cashbackUsed)}</span>
                                 </div>
-
+                                
                                 <div className="flex justify-between font-semibold">
                                   <span>Valor Líquido a Pagar:</span>
                                   <span>{formatCurrency(previewValues().netValue)}</span>
                                 </div>
-
+                                
                                 <div className="flex justify-between text-blue-600">
                                   <span>Novo Cashback Gerado (5%):</span>
                                   <span>+{formatCurrency(previewValues().cashbackGenerated)}</span>
@@ -1589,42 +1529,44 @@ export default function Cashback() {
         onOpenChange={setUsageModalOpen}
       />
 
-      <CashbackSettingsManagement
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-      />
-
-      {/* Modal de confirmação para zerar dados */}
-      <AlertDialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={!!deletingBalance}
+        onOpenChange={() => setDeletingBalance(null)}
+      >
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="h-5 w-5" />
-              Zerar Todos os Dados de Cashback
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p className="font-medium text-red-800">
-                ⚠️ Esta ação é irreversível e irá remover:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Todas as transações de cashback</li>
-                <li>Todos os saldos de cashback dos clientes</li>
-                <li>Todo o histórico de uso de cashback</li>
-                <li>Todas as vendas registradas</li>
-              </ul>
-              <p className="text-sm text-gray-600 mt-3">
-                As configurações de cashback serão mantidas.
-              </p>
+            <AlertDialogTitle>Excluir Saldo de Cashback</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o saldo de cashback de{" "}
+              <strong>{deletingBalance?.client?.name}</strong>?
+              <br />
+              <br />
+              <strong>Saldo atual:</strong>{" "}
+              {deletingBalance &&
+                formatCurrency(deletingBalance.currentBalance || 0)}
+              <br />
+              <strong>Total acumulado:</strong>{" "}
+              {deletingBalance &&
+                formatCurrency(deletingBalance.totalEarned || 0)}
+              <br />
+              <br />
+              Esta ação irá remover permanentemente todo o histórico de cashback
+              deste cliente e não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => resetCashbackMutation.mutate()}
-              disabled={resetCashbackMutation.isPending}
+              onClick={() =>
+                deletingBalance &&
+                deleteBalanceMutation.mutate(deletingBalance.id)
+              }
               className="bg-red-600 hover:bg-red-700"
+              disabled={deleteBalanceMutation.isPending}
             >
-              {resetCashbackMutation.isPending ? "Zerando..." : "Sim, Zerar Dados"}
+              {deleteBalanceMutation.isPending
+                ? "Excluindo..."
+                : "Excluir Saldo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
