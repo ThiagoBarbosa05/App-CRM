@@ -1173,6 +1173,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/sales/:id', async (req, res) => {
+    try {
+      // Verificar se o usuário é administrador
+      const userRole = req.headers["x-user-role"] as string;
+
+      if (userRole !== "admin" && userRole !== "administrador") {
+        return res.status(403).json({
+          message: "Acesso negado. Apenas administradores podem excluir vendas.",
+        });
+      }
+
+      const { id } = req.params;
+      const success = await storage.deleteSale(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Venda não encontrada" });
+      }
+      
+      res.json({ message: "Venda excluída com sucesso" });
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error);
+      res.status(500).json({ message: 'Erro ao excluir venda' });
+    }
+  });
+
   // Sectors routes
   app.get("/api/sectors", async (req, res) => {
     try {

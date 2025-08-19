@@ -98,6 +98,7 @@ import {
   ne,
   asc,
   lte,
+  like,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -417,7 +418,7 @@ export interface IStorage {
   getDashboardStats(userId: string): Promise<any>;
 
   // Sales Methods
-  getSales(): Promise<any[]>;
+  getSales(): Promise<Sale[]>;
   createSale(saleData: {
     clientId: string;
     date: string;
@@ -427,6 +428,7 @@ export interface IStorage {
     cashbackGenerated: number;
     userId?: string;
   }): Promise<any>;
+  deleteSale(saleId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3123,8 +3125,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sales Methods
-  async getSales(): Promise<any[]> {
-    const result = await this.db
+  async getSales(): Promise<Sale[]> {
+    const salesData = await this.db
       .select({
         id: sales.id,
         clientId: sales.clientId,
@@ -3134,13 +3136,19 @@ export class DatabaseStorage implements IStorage {
         cashbackUsed: sales.cashbackUsed,
         netValue: sales.netValue,
         cashbackGenerated: sales.cashbackGenerated,
-        createdAt: sales.createdAt
+        createdAt: sales.createdAt,
       })
       .from(sales)
       .leftJoin(clients, eq(sales.clientId, clients.id))
       .orderBy(desc(sales.createdAt));
 
-    return result;
+    return salesData.map(sale => ({
+      ...sale,
+      grossValue: parseFloat(sale.grossValue),
+      cashbackUsed: parseFloat(sale.cashbackUsed),
+      netValue: parseFloat(sale.netValue),
+      cashbackGenerated: parseFloat(sale.cashbackGenerated),
+    }));
   }
 
   async createSale(saleData: {
@@ -3157,7 +3165,7 @@ export class DatabaseStorage implements IStorage {
     if (isNaN(saleDate.getTime())) {
       throw new Error('Data inválida fornecida');
     }
-    
+
     const [sale] = await this.db
       .insert(sales)
       .values({
@@ -3198,7 +3206,7 @@ export class DatabaseStorage implements IStorage {
       if (sale.cashbackGenerated > 0) {
         // Buscar configuração ativa para obter a taxa correta
         const cashbackData = await this.calculateCashback(sale.netValue);
-        
+
         await this.createCashbackTransaction({
           clientId: sale.clientId,
           dealId: null,
@@ -3215,6 +3223,62 @@ export class DatabaseStorage implements IStorage {
 
 
     return sale;
+  }
+
+  async deleteSale(saleId: string): Promise<boolean> {
+    try {
+      // Buscar dados da venda antes de excluir
+      const [sale] = await this.db
+        .select()
+        .from(sales)
+        .where(eq(sales.id, saleId));
+
+      if (!sale) {
+        return false;
+      }
+
+      // Reverter transações de cashback relacionadas à venda
+      if (sale.cashbackUsed > 0) {
+        // Encontrar e reverter o uso de cashback
+        const [usageRecord] = await this.db
+          .select()
+          .from(cashbackUsage)
+          .where(like(cashbackUsage.description, `%${saleId}%`));
+
+        if (usageRecord) {
+          await this.db
+            .delete(cashbackUsage)
+            .where(eq(cashbackUsage.id, usageRecord.id));
+        }
+      }
+
+      if (sale.cashbackGenerated > 0) {
+        // Encontrar e reverter a transação de cashback gerada
+        const [transactionRecord] = await this.db
+          .select()
+          .from(cashbackTransactions)
+          .where(like(cashbackTransactions.notes, `%${saleId}%`));
+
+        if (transactionRecord) {
+          await this.db
+            .delete(cashbackTransactions)
+            .where(eq(cashbackTransactions.id, transactionRecord.id));
+        }
+      }
+
+      // Excluir a venda
+      const result = await this.db
+        .delete(sales)
+        .where(eq(sales.id, saleId));
+
+      // Atualizar saldo de cashback do cliente
+      await this.updateClientCashbackBalance(sale.clientId);
+
+      return result.rowCount !== null && result.rowCount > 0;
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error);
+      throw error;
+    }
   }
 }
 

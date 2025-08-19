@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, DollarSign, Receipt, Percent } from "lucide-react";
+import { Plus, DollarSign, Receipt, Percent, Trash2 } from "lucide-react";
 
 interface Client {
   id: string;
@@ -50,6 +50,7 @@ export default function Vendas() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedClientBalance, setSelectedClientBalance] = useState<number>(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     date: new Date().toISOString().split('T')[0],
@@ -199,6 +200,43 @@ export default function Vendas() {
   const previewValues = () => {
     const grossValue = parseFloat(saleForm.grossValue) || 0;
     return calculateSaleValues(grossValue, selectedClientBalance);
+  };
+
+  const handleDeleteSale = async (saleId: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    setDeletingId(saleId);
+
+    try {
+      const response = await fetch(`/api/sales/${saleId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': user?.role || ''
+        }
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Sucesso",
+          description: "Venda excluída com sucesso!"
+        });
+        loadSales(); // Recarregar a lista de vendas
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao excluir venda');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao excluir venda",
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -402,12 +440,18 @@ export default function Vendas() {
                   <TableHead>Cashback Usado</TableHead>
                   <TableHead>Valor Líquido</TableHead>
                   <TableHead>Cashback Gerado</TableHead>
+                  {(user?.role === "admin" || user?.role === "administrador") && (
+                    <TableHead className="w-[100px]">Ações</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sales.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell 
+                      colSpan={(user?.role === "admin" || user?.role === "administrador") ? 7 : 6} 
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhuma venda registrada ainda.
                     </TableCell>
                   </TableRow>
@@ -428,6 +472,23 @@ export default function Vendas() {
                       <TableCell className="text-blue-600">
                         {formatCurrency(sale.cashbackGenerated)}
                       </TableCell>
+                      {(user?.role === "admin" || user?.role === "administrador") && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteSale(sale.id)}
+                            disabled={deletingId === sale.id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            {deletingId === sale.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
