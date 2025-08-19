@@ -437,11 +437,22 @@ export default function Cashback() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao excluir venda");
+        // Tentar parsear como JSON, se falhar usar texto simples
+        try {
+          const error = await response.json();
+          throw new Error(error.message || "Erro ao excluir venda");
+        } catch {
+          throw new Error("Erro ao excluir venda");
+        }
       }
 
-      return response.json();
+      // Para DELETE bem-sucedido, não é necessário retornar JSON
+      // Se a resposta for vazia, retornar objeto simples
+      try {
+        return await response.json();
+      } catch {
+        return { success: true };
+      }
     },
     onSuccess: () => {
       toast({
@@ -467,6 +478,9 @@ export default function Cashback() {
   });
 
   const handleDeleteSale = (saleId: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.")) {
+      return;
+    }
     setDeletingSaleId(saleId);
     deleteSaleMutation.mutate(saleId);
   };
