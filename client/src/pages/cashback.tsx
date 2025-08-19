@@ -128,6 +128,7 @@ export default function Cashback() {
   const [clientSearchQuery, setClientSearchQuery] = useState<string>("");
   const [debouncedClientSearch, setDebouncedClientSearch] = useState<string>("");
   const [selectedClientName, setSelectedClientName] = useState<string>("");
+  const [useCashback, setUseCashback] = useState<boolean>(true); // Controla se deve usar cashback
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     date: new Date().toISOString().split('T')[0],
@@ -238,10 +239,13 @@ export default function Cashback() {
     }
   };
 
-  const calculateSaleValues = (grossValue: number, clientBalance: number) => {
-    // Aplicar cashback existente (máximo 50% do valor bruto)
-    const maxCashbackUsage = grossValue * 0.5;
-    const cashbackUsed = Math.min(clientBalance, maxCashbackUsage);
+  const calculateSaleValues = (grossValue: number, clientBalance: number, shouldUseCashback: boolean = true) => {
+    // Aplicar cashback existente apenas se o vendedor escolher usar
+    let cashbackUsed = 0;
+    if (shouldUseCashback && clientBalance > 0) {
+      const maxCashbackUsage = grossValue * 0.5;
+      cashbackUsed = Math.min(clientBalance, maxCashbackUsage);
+    }
     
     // Valor líquido após aplicação do cashback
     const netValue = grossValue - cashbackUsed;
@@ -322,7 +326,8 @@ export default function Cashback() {
         grossValue: grossValue,
         notes: saleForm.notes,
         invoiceNumber: saleForm.invoiceNumber,
-        userId: user?.id
+        userId: user?.id,
+        useCashback: useCashback
       };
 
       const response = await fetch('/api/sales', {
@@ -346,6 +351,7 @@ export default function Cashback() {
         });
         setSelectedClientBalance(0);
         setSelectedClientName('');
+        setUseCashback(true);
         setIsDialogOpen(false);
         
         // Recarregar todos os dados relacionados
@@ -379,7 +385,7 @@ export default function Cashback() {
 
   const previewValues = () => {
     const grossValue = parseFloat(saleForm.grossValue) || 0;
-    const result = calculateSaleValues(grossValue, selectedClientBalance);
+    const result = calculateSaleValues(grossValue, selectedClientBalance, useCashback);
     
     // Buscar configuração ativa para obter a taxa real
     const activeSetting = settings.find((s: any) => s.isActive === "true");
@@ -845,6 +851,27 @@ export default function Cashback() {
                         />
                       </div>
 
+                      {/* Opção para usar cashback */}
+                      {saleForm.clientId && selectedClientBalance > 0 && (
+                        <div className="flex items-center space-x-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <input
+                            type="checkbox"
+                            id="useCashback"
+                            checked={useCashback}
+                            onChange={(e) => setUseCashback(e.target.checked)}
+                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="useCashback" className="text-sm font-medium text-green-700 cursor-pointer">
+                              Usar saldo de cashback disponível ({formatCurrency(selectedClientBalance)})
+                            </Label>
+                            <p className="text-xs text-green-600">
+                              {useCashback ? 'O cashback será aplicado automaticamente' : 'O cashback não será usado nesta venda'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label htmlFor="invoiceNumber">Nº Nota</Label>
                         <Input
@@ -875,9 +902,16 @@ export default function Cashback() {
                           <CardContent className="space-y-3">
                             <div className="flex justify-between">
                               <span>Saldo de Cashback Disponível:</span>
-                              <Badge variant="secondary">
-                                {formatCurrency(selectedClientBalance)}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">
+                                  {formatCurrency(selectedClientBalance)}
+                                </Badge>
+                                {selectedClientBalance > 0 && (
+                                  <Badge variant={useCashback ? "default" : "outline"} className={useCashback ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}>
+                                    {useCashback ? "Será usado" : "Não será usado"}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             
                             {saleForm.grossValue && (
@@ -887,9 +921,14 @@ export default function Cashback() {
                                   <span>{formatCurrency(parseFloat(saleForm.grossValue))}</span>
                                 </div>
                                 
-                                <div className="flex justify-between text-green-600">
+                                <div className={`flex justify-between ${useCashback && previewValues().cashbackUsed > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                                   <span>Cashback Aplicado:</span>
-                                  <span>-{formatCurrency(previewValues().cashbackUsed)}</span>
+                                  <span>
+                                    {useCashback && previewValues().cashbackUsed > 0 
+                                      ? `-${formatCurrency(previewValues().cashbackUsed)}`
+                                      : formatCurrency(0)
+                                    }
+                                  </span>
                                 </div>
                                 
                                 <div className="flex justify-between font-semibold">
@@ -915,6 +954,7 @@ export default function Cashback() {
                             setIsDialogOpen(false);
                             setClientSearchQuery("");
                             setSelectedClientName("");
+                            setUseCashback(true);
                             setSaleForm({
                               clientId: '',
                               date: new Date().toISOString().split('T')[0],

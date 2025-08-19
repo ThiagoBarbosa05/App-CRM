@@ -1140,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/sales', async (req, res) => {
     try {
-      const { clientId, date, grossValue, notes, invoiceNumber, userId } = req.body;
+      const { clientId, date, grossValue, notes, invoiceNumber, userId, useCashback = true } = req.body;
 
       if (!clientId || !date || !grossValue) {
         return res.status(400).json({ message: 'Campos obrigatórios: clientId, date, grossValue' });
@@ -1155,8 +1155,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const activeSetting = settings.find((s: any) => s.isActive === "true");
       
       // Calcular valores da venda
-      const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
-      const cashbackUsed = Math.min(currentBalance, maxCashbackUsage);
+      let cashbackUsed = 0;
+      if (useCashback && currentBalance > 0) {
+        const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
+        cashbackUsed = Math.min(currentBalance, maxCashbackUsage);
+      }
       const netValue = grossValue - cashbackUsed;
       
       // Calcular cashback usando a configuração ativa
