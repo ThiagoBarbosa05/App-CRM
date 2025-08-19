@@ -213,7 +213,6 @@ export default function Vendas() {
   }
 
   return (
-    <MainLayout>
       <div className="p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -437,6 +436,5 @@ export default function Vendas() {
           </CardContent>
         </Card>
       </div>
-    </MainLayout>
   );
 }
