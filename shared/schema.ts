@@ -1105,6 +1105,8 @@ export const sales = pgTable('sales', {
   cashbackUsed: decimal("cashback_used", { precision: 12, scale: 2 }).notNull().default("0.00"),
   netValue: decimal("net_value", { precision: 12, scale: 2 }).notNull(),
   cashbackGenerated: decimal("cashback_generated", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  notes: text("notes"),
+  invoiceNumber: varchar("invoice_number", { length: 50 }),
   userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

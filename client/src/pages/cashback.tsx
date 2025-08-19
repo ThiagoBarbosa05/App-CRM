@@ -98,6 +98,8 @@ interface SaleForm {
   clientId: string;
   date: string;
   grossValue: string;
+  notes: string;
+  invoiceNumber: string;
 }
 
 // Função para formatar valores em moeda brasileira
@@ -129,7 +131,9 @@ export default function Cashback() {
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     date: new Date().toISOString().split('T')[0],
-    grossValue: ''
+    grossValue: '',
+    notes: '',
+    invoiceNumber: ''
   });
   
   const { toast } = useToast();
@@ -316,6 +320,8 @@ export default function Cashback() {
         clientId: saleForm.clientId,
         date: saleForm.date,
         grossValue: grossValue,
+        notes: saleForm.notes,
+        invoiceNumber: saleForm.invoiceNumber,
         userId: user?.id
       };
 
@@ -839,6 +845,28 @@ export default function Cashback() {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <Label htmlFor="invoiceNumber">Nº Nota</Label>
+                        <Input
+                          id="invoiceNumber"
+                          type="text"
+                          placeholder="Ex: 123456"
+                          value={saleForm.invoiceNumber}
+                          onChange={(e) => setSaleForm(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Observações da Venda</Label>
+                        <Input
+                          id="notes"
+                          type="text"
+                          placeholder="Adicione observações sobre a venda..."
+                          value={saleForm.notes}
+                          onChange={(e) => setSaleForm(prev => ({ ...prev, notes: e.target.value }))}
+                        />
+                      </div>
+
                       {saleForm.clientId && (
                         <Card>
                           <CardHeader>
@@ -890,7 +918,9 @@ export default function Cashback() {
                             setSaleForm({
                               clientId: '',
                               date: new Date().toISOString().split('T')[0],
-                              grossValue: ''
+                              grossValue: '',
+                              notes: '',
+                              invoiceNumber: ''
                             });
                             setSelectedClientBalance(0);
                           }}

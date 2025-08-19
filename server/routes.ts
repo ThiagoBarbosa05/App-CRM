@@ -1140,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/sales', async (req, res) => {
     try {
-      const { clientId, date, grossValue, userId } = req.body;
+      const { clientId, date, grossValue, notes, invoiceNumber, userId } = req.body;
 
       if (!clientId || !date || !grossValue) {
         return res.status(400).json({ message: 'Campos obrigatórios: clientId, date, grossValue' });
@@ -1183,6 +1183,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cashbackUsed,
         netValue,
         cashbackGenerated,
+        notes,
+        invoiceNumber,
         userId
       });
 

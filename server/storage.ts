@@ -3158,6 +3158,8 @@ export class DatabaseStorage implements IStorage {
     cashbackUsed: number;
     netValue: number;
     cashbackGenerated: number;
+    notes?: string;
+    invoiceNumber?: string;
     userId?: string;
   }): Promise<any> {
     // Validar e converter a data
@@ -3176,6 +3178,8 @@ export class DatabaseStorage implements IStorage {
         cashbackUsed: saleData.cashbackUsed.toString(),
         netValue: saleData.netValue.toString(),
         cashbackGenerated: saleData.cashbackGenerated.toString(),
+        notes: saleData.notes || null,
+        invoiceNumber: saleData.invoiceNumber || null,
         userId: saleData.userId || null,
         createdAt: new Date(),
         updatedAt: new Date()
