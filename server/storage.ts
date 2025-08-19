@@ -94,6 +94,7 @@ import {
   ilike,
   ne,
   asc,
+  lte,
 } from "drizzle-orm";
 
 export interface ClientFilters {
@@ -2474,7 +2475,7 @@ export class DatabaseStorage implements IStorage {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    const interactions = await db
+    const stats = await db
       .select({
         userId: clientInteractions.userId,
         userName: users.name,
@@ -2488,7 +2489,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(clientInteractions.type, "telemarketing"),
           gte(clientInteractions.date, startDate),
-          lt(clientInteractions.date, endDate),
+          lte(clientInteractions.date, endDate),
           isNotNull(clientInteractions.callResult),
         ),
       )
@@ -2502,7 +2503,7 @@ export class DatabaseStorage implements IStorage {
     // Agrupar por usuário e somar os resultados
     const statsByUser: { [key: string]: any } = {};
 
-    interactions.forEach((interaction) => {
+    stats.forEach((interaction) => {
       const userId = interaction.userId;
       if (!statsByUser[userId]) {
         statsByUser[userId] = {
@@ -2520,7 +2521,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (interaction.callResult) {
-        statsByUser[userId][interaction.callResult] = interaction.count;
+        // Ensure the key exists before assigning
+        if (statsByUser[userId][interaction.callResult] !== undefined) {
+          statsByUser[userId][interaction.callResult] = interaction.count;
+        } else {
+          statsByUser[userId]["OUTROS"] = interaction.count;
+        }
         statsByUser[userId].total += interaction.count;
       }
     });
@@ -2861,7 +2867,7 @@ export class DatabaseStorage implements IStorage {
     if (currentIndex === -1) return null;
 
     let swapIndex = -1;
-    
+
     if (direction === 'up' && currentIndex > 0) {
       swapIndex = currentIndex - 1;
     } else if (direction === 'down' && currentIndex < allTrainings.length - 1) {

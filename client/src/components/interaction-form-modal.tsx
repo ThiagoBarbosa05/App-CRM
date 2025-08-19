@@ -105,6 +105,16 @@ export default function InteractionFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
+
+      // Invalidate telemarketing stats if it's a telemarketing interaction
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-stats/${currentMonth}/${currentYear}`],
+      });
+
       toast({
         title: "Interação criada",
         description: "Interação foi adicionada com sucesso.",
@@ -132,11 +142,22 @@ export default function InteractionFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
+
+      // Invalidate telemarketing stats if it's a telemarketing interaction
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-stats/${currentMonth}/${currentYear}`],
+      });
+
       toast({
         title: "Interação atualizada",
-        description: "Interação foi atualizada com sucesso.",
+        description: "A interação foi atualizada com sucesso.",
       });
       onOpenChange(false);
+      form.reset();
     },
     onError: (error: any) => {
       toast({
