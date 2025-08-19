@@ -9,8 +9,6 @@ import { Client } from "@shared/schema";
 import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign, Wallet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
-import SaleFormModal from "./sale-form-modal";
-import CashbackUsageModal from "./cashback-usage-modal";
 import { useQuery } from "@tanstack/react-query";
 // Função para formatar moeda
 const formatCurrency = (value: string | number) => {
@@ -29,9 +27,6 @@ interface ClientDetailsCardProps {
 }
 
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
-  const [saleModalOpen, setSaleModalOpen] = useState(false);
-  const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
-  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
 
   if (!client) return null;
 
@@ -350,20 +345,8 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         </Tabs>
       </DialogContent>
 
-      <SaleFormModal
-        client={client}
-        open={saleModalOpen}
-        onOpenChange={setSaleModalOpen}
-      />
-      
-      <CashbackUsageModal
-        client={client}
-        open={cashbackUsageModalOpen}
-        onOpenChange={setCashbackUsageModalOpen}
-      />
-
       {/* Modal de Saldo de Cashback */}
-      <Dialog open={balanceModalOpen} onOpenChange={setBalanceModalOpen}>
+      <Dialog open={false} onOpenChange={() => {}}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -404,22 +387,10 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             </div>
 
             <div className="flex gap-2 pt-4">
-              {cashbackBalance && parseFloat((cashbackBalance as any).currentBalance || '0') > 0 && (
-                <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => {
-                    setBalanceModalOpen(false);
-                    setCashbackUsageModalOpen(true);
-                  }}
-                >
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Resgatar
-                </Button>
-              )}
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setBalanceModalOpen(false)}
+                onClick={() => {}}
               >
                 Fechar
               </Button>
