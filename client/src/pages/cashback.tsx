@@ -75,6 +75,7 @@ interface Client {
   name: string;
   email: string;
   phone: string;
+  cpf: string;
 }
 
 interface CashbackBalance {
@@ -122,6 +123,7 @@ export default function Cashback() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedClientBalance, setSelectedClientBalance] = useState<number>(0);
+  const [clientSearchQuery, setClientSearchQuery] = useState<string>("");
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     date: new Date().toISOString().split('T')[0],
@@ -308,6 +310,18 @@ export default function Cashback() {
     const grossValue = parseFloat(saleForm.grossValue) || 0;
     return calculateSaleValues(grossValue, selectedClientBalance);
   };
+
+  // Função para filtrar clientes por nome, CPF ou telefone
+  const filteredClients = clients.filter((client) => {
+    if (!clientSearchQuery.trim()) return true;
+    
+    const query = clientSearchQuery.toLowerCase();
+    const matchesName = client.name?.toLowerCase().includes(query);
+    const matchesCpf = client.cpf?.toLowerCase().includes(query);
+    const matchesPhone = client.phone?.toLowerCase().includes(query);
+    
+    return matchesName || matchesCpf || matchesPhone;
+  });
 
   // Mutation para excluir saldo de cashback
   const deleteBalanceMutation = useMutation({
@@ -616,21 +630,43 @@ export default function Cashback() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="client">Cliente *</Label>
-                          <Select
-                            value={saleForm.clientId}
-                            onValueChange={handleClientChange}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {clients.map((client) => (
-                                <SelectItem key={client.id} value={client.id}>
-                                  {client.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <Input
+                                placeholder="Buscar por nome, CPF ou telefone..."
+                                value={clientSearchQuery}
+                                onChange={(e) => setClientSearchQuery(e.target.value)}
+                                className="pl-10"
+                              />
+                            </div>
+                            <Select
+                              value={saleForm.clientId}
+                              onValueChange={handleClientChange}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o cliente" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60">
+                                {filteredClients.length === 0 ? (
+                                  <div className="py-4 text-center text-sm text-gray-500">
+                                    Nenhum cliente encontrado
+                                  </div>
+                                ) : (
+                                  filteredClients.map((client) => (
+                                    <SelectItem key={client.id} value={client.id}>
+                                      <div className="flex flex-col items-start">
+                                        <span className="font-medium">{client.name}</span>
+                                        <span className="text-xs text-gray-500">
+                                          {client.cpf} • {client.phone}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
 
                         <div className="space-y-2">
@@ -703,7 +739,10 @@ export default function Cashback() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
+                          onClick={() => {
+                            setIsDialogOpen(false);
+                            setClientSearchQuery("");
+                          }}
                         >
                           Cancelar
                         </Button>
