@@ -3152,17 +3152,23 @@ export class DatabaseStorage implements IStorage {
     cashbackGenerated: number;
     userId?: string;
   }): Promise<any> {
+    // Validar e converter a data
+    const saleDate = new Date(saleData.date);
+    if (isNaN(saleDate.getTime())) {
+      throw new Error('Data inválida fornecida');
+    }
+    
     const [sale] = await this.db
       .insert(sales)
       .values({
         id: nanoid(),
         clientId: saleData.clientId,
-        date: saleData.date,
-        grossValue: saleData.grossValue,
-        cashbackUsed: saleData.cashbackUsed,
-        netValue: saleData.netValue,
-        cashbackGenerated: saleData.cashbackGenerated,
-        userId: saleData.userId,
+        date: saleDate,
+        grossValue: saleData.grossValue.toString(),
+        cashbackUsed: saleData.cashbackUsed.toString(),
+        netValue: saleData.netValue.toString(),
+        cashbackGenerated: saleData.cashbackGenerated.toString(),
+        userId: saleData.userId || null,
         createdAt: new Date(),
         updatedAt: new Date()
       })
@@ -3170,25 +3176,21 @@ export class DatabaseStorage implements IStorage {
 
     // Aplicar cashback existente e gerar novo cashback
     if (sale) {
-      // 1. AplicAR CASHBACK EXISTENTE (se houver)
+      // 1. APLICAR CASHBACK EXISTENTE (se houver)
       if (sale.cashbackUsed > 0) {
         // Buscar saldo do cliente
         const clientBalance = await this.getClientCashbackBalance(sale.clientId);
         if (clientBalance) {
-          const currentBalance = parseFloat(clientBalance.currentBalance);
-          const newBalance = currentBalance - sale.cashbackUsed;
-
           // Criar registro de uso de cashback
           await this.createCashbackUsage({
             clientId: sale.clientId,
-            saleId: sale.id,
             usedAmount: sale.cashbackUsed.toString(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            description: `Uso de cashback na venda ${sale.id}`,
+            authorizedBy: sale.userId || null
           });
 
           // Atualizar saldo do cliente
-          await this.updateClientCashbackBalance(sale.clientId); // Re-calcula o saldo
+          await this.updateClientCashbackBalance(sale.clientId);
         }
       }
 
@@ -3196,15 +3198,12 @@ export class DatabaseStorage implements IStorage {
       if (sale.cashbackGenerated > 0) {
         await this.createCashbackTransaction({
           clientId: sale.clientId,
-          dealId: null, // Venda direta, não associada a um deal específico
-          saleId: sale.id, // Associar com a venda
+          dealId: null,
           cashbackAmount: sale.cashbackGenerated.toString(),
           status: "approved",
-          processedBy: sale.userId || null, // Usuário que realizou a venda
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          processedBy: sale.userId || null,
+          notes: `Cashback gerado pela venda ${sale.id}`
         });
-        // O updateClientCashbackBalance será chamado dentro do createCashbackTransaction
       }
     }
 
