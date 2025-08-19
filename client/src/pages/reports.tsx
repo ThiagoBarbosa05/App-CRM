@@ -311,9 +311,6 @@ export default function Reports() {
     enabled: !!user,
   });
 
-  const totalClients = clients.length;
-  const totalCompanies = companies.length;
-
   return (
     <div className="flex">
       <div className="flex-1 overflow-auto">
