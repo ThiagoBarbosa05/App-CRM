@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { X, Calendar, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote } from "lucide-react";
 import { z } from "zod";
 
@@ -76,13 +77,14 @@ export default function InteractionFormModal({
   interaction 
 }: InteractionFormModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(interactionFormSchema),
     defaultValues: {
       clientId,
-      userId: "b314722c-8fd6-4592-a9de-9ee551ec35be", // Using admin user ID
+      userId: user?.id || "", // Use authenticated user's ID
       type: interaction?.type || "note",
       subject: interaction?.subject || "",
       description: interaction?.description || "",
