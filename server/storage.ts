@@ -1896,64 +1896,39 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string,
   ): Promise<CashbackTransactionWithClient[]> {
-    let transactionsQuery = this.db.select().from(cashbackTransactions);
+    // Sempre fazer join com clientes para mostrar o nome
+    let transactionsQuery = this.db.select({
+      id: cashbackTransactions.id,
+      clientId: cashbackTransactions.clientId,
+      dealId: cashbackTransactions.dealId,
+      purchaseAmount: cashbackTransactions.purchaseAmount,
+      cashbackAmount: cashbackTransactions.cashbackAmount,
+      cashbackRate: cashbackTransactions.cashbackRate,
+      status: cashbackTransactions.status,
+      expiresAt: cashbackTransactions.expiresAt,
+      processedBy: cashbackTransactions.processedBy,
+      settingId: cashbackTransactions.settingId,
+      notes: cashbackTransactions.notes,
+      createdAt: cashbackTransactions.createdAt,
+      updatedAt: cashbackTransactions.updatedAt,
+      clients: {
+        id: clients.id,
+        name: clients.name,
+        email: clients.email
+      }
+    }).from(cashbackTransactions)
+    .leftJoin(clients, eq(clients.id, cashbackTransactions.clientId));
 
     // Se for vendedor, filtrar apenas transações de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
-      transactionsQuery = transactionsQuery
-        .leftJoin(clients, eq(clients.id, cashbackTransactions.clientId))
-        .where(eq(clients.responsavelId, userId)) as typeof transactionsQuery;
+      transactionsQuery = transactionsQuery.where(eq(clients.responsavelId, userId));
     }
 
     const transactions = await transactionsQuery.orderBy(
       cashbackTransactions.createdAt,
     );
 
-    const transactionsWithDetails: CashbackTransactionWithClient[] = [];
-
-    for (const transaction of transactions) {
-      const [client] = await this.db
-        .select()
-        .from(clients)
-        .where(eq(clients.id, transaction.clientId));
-
-      let deal = undefined;
-      if (transaction.dealId) {
-        const [dealResult] = await this.db
-          .select()
-          .from(deals)
-          .where(eq(deals.id, transaction.dealId));
-        deal = dealResult;
-      }
-
-      let setting = undefined;
-      if (transaction.settingId) {
-        const [settingResult] = await this.db
-          .select()
-          .from(cashbackSettings)
-          .where(eq(cashbackSettings.id, transaction.settingId));
-        setting = settingResult;
-      }
-
-      let processedByUser = undefined;
-      if (transaction.processedBy) {
-        const [userResult] = await this.db
-          .select()
-          .from(users)
-          .where(eq(users.id, transaction.processedBy));
-        processedByUser = userResult;
-      }
-
-      transactionsWithDetails.push({
-        ...transaction,
-        client,
-        deal,
-        setting,
-        processedByUser,
-      });
-    }
-
-    return transactionsWithDetails;
+    return transactions;
   }
 
   async createCashbackTransaction(
