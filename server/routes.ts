@@ -928,9 +928,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/calculate-cashback", async (req, res) => {
     try {
-      const { purchaseAmount } = req.body;
+      const { purchaseAmount, netAmount } = req.body;
+      
+      // Use netAmount if provided, otherwise fall back to purchaseAmount
+      const valueForCalculation = netAmount || purchaseAmount;
 
-      if (!purchaseAmount || purchaseAmount <= 0) {
+      if (!valueForCalculation || valueForCalculation <= 0) {
         return res.status(400).json({ message: "Valor de compra inválido" });
       }
 
@@ -952,7 +955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? parseFloat(activeSetting.maximumCashback)
         : null;
 
-      if (purchaseAmount < minPurchase) {
+      if (valueForCalculation < minPurchase) {
         return res.json({
           cashbackAmount: 0,
           rate: 0,
@@ -960,7 +963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      let cashbackAmount = (purchaseAmount * rate) / 100;
+      let cashbackAmount = (valueForCalculation * rate) / 100;
 
       if (maxCashback && cashbackAmount > maxCashback) {
         cashbackAmount = maxCashback;
@@ -1160,9 +1163,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let cashbackGenerated = 0;
       if (activeSetting) {
         const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
-        if (grossValue >= minimumPurchase) {
+        if (netValue >= minimumPurchase) {
           const rate = parseFloat(activeSetting.percentageRate) / 100;
-          cashbackGenerated = grossValue * rate;
+          cashbackGenerated = netValue * rate;
           
           // Aplicar limite máximo se definido
           if (activeSetting.maximumCashback) {
