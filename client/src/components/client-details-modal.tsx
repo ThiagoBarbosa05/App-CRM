@@ -39,8 +39,6 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { type Client, ClientCashbackBalance } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import SaleFormModal from "./sale-form-modal";
-import CashbackUsageModal from "./cashback-usage-modal";
 import ClientInteractionsTab from "./client-interactions-tab";
 
 interface ClientDetailsModalProps {
@@ -56,9 +54,6 @@ export default function ClientDetailsModal({
   onClose,
   onEdit,
 }: ClientDetailsModalProps) {
-  const [saleModalOpen, setSaleModalOpen] = useState(false);
-  const [cashbackUsageModalOpen, setCashbackUsageModalOpen] = useState(false);
-  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
 
   // Query para buscar saldo de cashback - deve estar sempre no topo, antes de qualquer return
   const { data: cashbackBalance } = useQuery<ClientCashbackBalance>({
@@ -159,58 +154,6 @@ export default function ClientDetailsModal({
           </TabsList>
 
           <TabsContent value="info" className="space-y-6 mt-6">
-            {/* Ações de Cashback */}
-            <Card className="border-2 border-wine-200 bg-wine-50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-wine-700">
-                  <DollarSign className="h-5 w-5" />
-                  Ações de Cashback
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button
-                    onClick={() => setSaleModalOpen(true)}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white h-12"
-                  >
-                    <DollarSign className="h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Lançar Venda</div>
-                      <div className="text-xs opacity-90">Registrar compra</div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setBalanceModalOpen(true)}
-                    className="flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 h-12"
-                  >
-                    <Gift className="h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Ver Saldo</div>
-                      <div className="text-xs">Consultar detalhes</div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setCashbackUsageModalOpen(true)}
-                    disabled={
-                      !cashbackBalance?.currentBalance ||
-                      parseFloat(cashbackBalance.currentBalance.toString()) <= 0
-                    }
-                    className="flex items-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:text-gray-400 disabled:border-gray-200 h-12"
-                  >
-                    <Wallet className="h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Resgatar</div>
-                      <div className="text-xs">Usar cashback</div>
-                    </div>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Informações Básicas */}
             <Card>
               <CardHeader>
@@ -473,20 +416,8 @@ export default function ClientDetailsModal({
         </Tabs>
       </DialogContent>
 
-      <SaleFormModal
-        client={client}
-        open={saleModalOpen}
-        onOpenChange={setSaleModalOpen}
-      />
-
-      <CashbackUsageModal
-        client={client}
-        open={cashbackUsageModalOpen}
-        onOpenChange={setCashbackUsageModalOpen}
-      />
-
       {/* Modal de Saldo de Cashback */}
-      <Dialog open={balanceModalOpen} onOpenChange={setBalanceModalOpen}>
+      <Dialog open={false} onOpenChange={() => {}}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -546,24 +477,10 @@ export default function ClientDetailsModal({
             </div>
 
             <div className="flex gap-2 pt-4">
-              {cashbackBalance &&
-                parseFloat(cashbackBalance.currentBalance?.toString() || "0") >
-                  0 && (
-                  <Button
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => {
-                      setBalanceModalOpen(false);
-                      setCashbackUsageModalOpen(true);
-                    }}
-                  >
-                    <Wallet className="h-4 w-4 mr-2" />
-                    Resgatar
-                  </Button>
-                )}
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setBalanceModalOpen(false)}
+                onClick={() => {}}
               >
                 Fechar
               </Button>
