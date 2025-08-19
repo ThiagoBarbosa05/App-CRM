@@ -423,6 +423,54 @@ export default function Cashback() {
     },
   });
 
+  // Estados para exclusão de vendas
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+
+  // Mutation para excluir venda
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (saleId: string) => {
+      const response = await fetch(`/api/sales/${saleId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao excluir venda");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Venda excluída",
+        description: "A venda foi removida com sucesso.",
+      });
+      // Recarregar dados relacionados
+      loadSales();
+      queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+      setDeletingSaleId(null);
+    },
+    onError: (error: any) => {
+      console.error("Erro ao excluir venda:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a venda.",
+        variant: "destructive",
+      });
+      setDeletingSaleId(null);
+    },
+  });
+
+  const handleDeleteSale = (saleId: string) => {
+    setDeletingSaleId(saleId);
+    deleteSaleMutation.mutate(saleId);
+  };
+
   const formatCurrency = (value: string | number) => {
     const numericValue = typeof value === "string" ? parseFloat(value) : value;
     return new Intl.NumberFormat("pt-BR", {
@@ -922,12 +970,15 @@ export default function Cashback() {
                         <TableHead>Cashback Usado</TableHead>
                         <TableHead>Valor Líquido</TableHead>
                         <TableHead>Cashback Gerado</TableHead>
+                        {isAdmin && (
+                          <TableHead className="w-[100px]">Ações</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sales.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
                             Nenhuma venda registrada ainda.
                           </TableCell>
                         </TableRow>
@@ -948,6 +999,24 @@ export default function Cashback() {
                             <TableCell className="text-blue-600">
                               {formatCurrency(sale.cashbackGenerated)}
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteSale(sale.id)}
+                                  disabled={deletingSaleId === sale.id}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Excluir venda (apenas administradores)"
+                                >
+                                  {deletingSaleId === sale.id ? (
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))
                       )}
