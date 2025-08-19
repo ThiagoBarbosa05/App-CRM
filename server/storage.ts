@@ -3238,24 +3238,50 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Reverter transações de cashback relacionadas à venda
-      if (sale.cashbackUsed > 0) {
+      if (parseFloat(sale.cashbackUsed) > 0) {
         // Encontrar e reverter o uso de cashback
-        const [usageRecord] = await this.db
+        const usageRecords = await this.db
           .select()
           .from(cashbackUsage)
           .where(like(cashbackUsage.description, `%${saleId}%`));
 
-        if (usageRecord) {
+        for (const usageRecord of usageRecords) {
           await this.db
             .delete(cashbackUsage)
             .where(eq(cashbackUsage.id, usageRecord.id));
         }
       }
 
-      if (sale.cashbackGenerated > 0) {
+      if (parseFloat(sale.cashbackGenerated) > 0) {
         // Encontrar e reverter a transação de cashback gerada
-        const [transactionRecord] = await this.db
+        const transactionRecords = await this.db
           .select()
+          .from(cashbackTransactions)
+          .where(like(cashbackTransactions.notes, `%${saleId}%`));
+
+        for (const transactionRecord of transactionRecords) {
+          await this.db
+            .delete(cashbackTransactions)
+            .where(eq(cashbackTransactions.id, transactionRecord.id));
+        }
+      }
+
+      // Excluir a venda
+      await this.db
+        .delete(sales)
+        .where(eq(sales.id, saleId));
+
+      // Atualizar saldos de cashback do cliente se necessário
+      if (parseFloat(sale.cashbackUsed) > 0 || parseFloat(sale.cashbackGenerated) > 0) {
+        await this.updateClientCashbackBalance(sale.clientId);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error);
+      throw error;
+    }
+  }()
           .from(cashbackTransactions)
           .where(like(cashbackTransactions.notes, `%${saleId}%`));
 

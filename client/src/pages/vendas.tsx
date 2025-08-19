@@ -213,6 +213,7 @@ export default function Vendas() {
       const response = await fetch(`/api/sales/${saleId}`, {
         method: 'DELETE',
         headers: {
+          'Content-Type': 'application/json',
           'x-user-role': user?.role || ''
         }
       });
