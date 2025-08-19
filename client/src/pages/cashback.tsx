@@ -237,13 +237,33 @@ export default function Cashback() {
     // Valor líquido após aplicação do cashback
     const netValue = grossValue - cashbackUsed;
     
-    // Gerar novo cashback (5% do valor líquido)
-    const cashbackGenerated = netValue * 0.05;
+    // Buscar configuração ativa de cashback
+    const activeSetting = settings.find((s: any) => s.isActive === "true");
+    let cashbackRate = 0;
+    
+    if (activeSetting) {
+      const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
+      
+      // Verificar se o valor líquido atende ao mínimo
+      if (netValue >= minimumPurchase) {
+        cashbackRate = parseFloat(activeSetting.percentageRate) / 100;
+      }
+    }
+    
+    // Gerar novo cashback baseado na configuração
+    let cashbackGenerated = netValue * cashbackRate;
+    
+    // Aplicar limite máximo se definido
+    if (activeSetting && activeSetting.maximumCashback) {
+      const maxCashback = parseFloat(activeSetting.maximumCashback);
+      cashbackGenerated = Math.min(cashbackGenerated, maxCashback);
+    }
 
     return {
       cashbackUsed,
       netValue,
-      cashbackGenerated
+      cashbackGenerated,
+      cashbackRate: cashbackRate * 100 // Retornar em percentual para exibição
     };
   };
 
@@ -272,6 +292,21 @@ export default function Cashback() {
     setLoading(true);
 
     try {
+      // Primeiro calcular o cashback usando a API
+      const cashbackResponse = await fetch('/api/calculate-cashback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ purchaseAmount: grossValue })
+      });
+
+      if (!cashbackResponse.ok) {
+        throw new Error('Erro ao calcular cashback');
+      }
+
+      const cashbackData = await cashbackResponse.json();
+
       const saleData = {
         clientId: saleForm.clientId,
         date: saleForm.date,
@@ -749,7 +784,7 @@ export default function Cashback() {
                                 </div>
                                 
                                 <div className="flex justify-between text-blue-600">
-                                  <span>Novo Cashback Gerado (5%):</span>
+                                  <span>Novo Cashback Gerado ({previewValues().cashbackRate.toFixed(1)}%):</span>
                                   <span>+{formatCurrency(previewValues().cashbackGenerated)}</span>
                                 </div>
                               </>

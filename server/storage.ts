@@ -3196,12 +3196,18 @@ export class DatabaseStorage implements IStorage {
 
       // 2. GERAR NOVO CASHBACK (se aplicável)
       if (sale.cashbackGenerated > 0) {
+        // Buscar configuração ativa para obter a taxa correta
+        const cashbackData = await this.calculateCashback(sale.netValue);
+        
         await this.createCashbackTransaction({
           clientId: sale.clientId,
           dealId: null,
+          purchaseAmount: sale.netValue.toString(),
           cashbackAmount: sale.cashbackGenerated.toString(),
+          cashbackRate: cashbackData.rate.toString(),
           status: "approved",
           processedBy: sale.userId || null,
+          settingId: cashbackData.setting?.id || null,
           notes: `Cashback gerado pela venda ${sale.id}`
         });
       }
