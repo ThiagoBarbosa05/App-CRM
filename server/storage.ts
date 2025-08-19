@@ -99,7 +99,7 @@ import {
   asc,
   lte,
 } from "drizzle-orm";
-import { generateId } from "../utils/generateId"; // Assumindo que generateId está em ../utils/generateId
+import { nanoid } from "nanoid";
 
 export interface ClientFilters {
   search?: string;
@@ -3155,7 +3155,7 @@ export class DatabaseStorage implements IStorage {
     const [sale] = await this.db
       .insert(sales)
       .values({
-        id: generateId(),
+        id: nanoid(),
         clientId: saleData.clientId,
         date: saleData.date,
         grossValue: saleData.grossValue,

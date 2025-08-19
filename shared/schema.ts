@@ -1110,5 +1110,11 @@ export const sales = pgTable('sales', {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type InsertSale = z.infer<typeof createInsertSchema(sales)>;
+export const insertSaleSchema = createInsertSchema(sales).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Sale = typeof sales.$inferSelect;

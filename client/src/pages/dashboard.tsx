@@ -110,7 +110,7 @@ export default function Dashboard() {
 
       // Ordenar por dias até aniversário e limitar a 15 resultados
       return clientsWithDays
-        .sort((a, b) => a.daysUntil - b.daysUntil)
+        .sort((a: any, b: any) => a.daysUntil - b.daysUntil)
         .slice(0, 15);
     },
     enabled: !!user,
