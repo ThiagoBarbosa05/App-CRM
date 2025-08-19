@@ -255,8 +255,8 @@ export default function Cashback() {
       }
     }
     
-    // Gerar novo cashback baseado no valor bruto (não líquido) para manter consistência
-    let cashbackGenerated = grossValue * cashbackRate;
+    // Gerar novo cashback baseado no valor líquido após desconto do cashback usado
+    let cashbackGenerated = netValue * cashbackRate;
     
     // Aplicar limite máximo se definido
     if (activeSetting && activeSetting.maximumCashback) {
