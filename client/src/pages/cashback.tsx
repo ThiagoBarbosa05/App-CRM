@@ -344,13 +344,10 @@ export default function Cashback() {
         
         // Recarregar todos os dados relacionados
         await loadSales();
-        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-        
-        // Forçar refetch dos relatórios
-        await queryClient.refetchQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       } else {
         const error = await response.json();
         throw new Error(error.message || 'Erro ao registrar venda');
@@ -796,7 +793,7 @@ export default function Cashback() {
                                 </div>
                                 
                                 <div className="flex justify-between text-blue-600">
-                                  <span>Novo Cashback Gerado ({previewValues().cashbackRate.toFixed(1)}%):</span>
+                                  <span>Novo Cashback Gerado (5%):</span>
                                   <span>+{formatCurrency(previewValues().cashbackGenerated)}</span>
                                 </div>
                               </>
