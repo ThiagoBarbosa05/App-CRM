@@ -771,7 +771,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/upcoming-birthdays", async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 7;
-      const upcomingBirthdays = await storage.getUpcomingBirthdays(days);
+      const userId = req.headers["x-user-id"] as string;
+      const userRole = req.headers["x-user-role"] as string;
+      const responsibleId = req.query.responsibleId as string;
+      
+      // Se um responsibleId específico for passado, usar esse
+      // Se não, e o usuário não for admin, filtrar pelos clientes do usuário atual
+      let filterByResponsible = responsibleId;
+      if (!filterByResponsible && userRole !== "admin" && userRole !== "administrador") {
+        filterByResponsible = userId;
+      }
+      
+      const upcomingBirthdays = await storage.getUpcomingBirthdays(days, filterByResponsible);
       res.json(upcomingBirthdays);
     } catch (error) {
       console.error("Erro ao buscar aniversários próximos:", error);

@@ -295,6 +295,25 @@ export default function Reports() {
     {} as Record<string, number>,
   );
 
+  // Use useQuery hook to fetch upcoming birthdays, filtering by user if not admin
+  const { data: upcomingBirthdaysFiltered = [] } = useQuery<Client[]>({
+    queryKey: ["/api/upcoming-birthdays", 30, user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch("/api/upcoming-birthdays?days=30", {
+        headers: {
+          'x-user-id': user?.id || '',
+          'x-user-role': user?.role || '',
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const totalClients = clients.length;
+  const totalCompanies = companies.length;
+
   return (
     <div className="flex">
       <div className="flex-1 overflow-auto">
@@ -355,7 +374,7 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-amber-600">
-                  {upcomingBirthdays.length}
+                  {upcomingBirthdaysFiltered.length}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   nos próximos 30 dias
@@ -393,13 +412,13 @@ export default function Reports() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {upcomingBirthdays.length === 0 ? (
+              {upcomingBirthdaysFiltered.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">
                   Nenhum aniversário nos próximos 30 dias
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {upcomingBirthdays.map((client) => (
+                  {upcomingBirthdaysFiltered.map((client) => (
                     <div
                       key={client.id}
                       className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg"
@@ -438,16 +457,32 @@ export default function Reports() {
                       </div>
                       <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:block text-right">
                         <div className="text-sm font-medium text-gray-900">
-                          {format(client.nextBirthday, "dd/MM", {
+                          {format(parseISO(client.birthday!), "dd/MM", {
                             locale: ptBR,
                           })}
                         </div>
                         <div className="text-xs text-gray-600">
-                          {client.daysUntil === 0
-                            ? "Hoje"
-                            : client.daysUntil === 1
-                              ? "Amanhã"
-                              : `Em ${client.daysUntil} dias`}
+                          {(() => {
+                            const today = startOfDay(new Date());
+                            const birthday = parseISO(client.birthday!);
+                            const currentYear = new Date().getFullYear();
+                            const thisYearBirthday = new Date(
+                              currentYear,
+                              birthday.getMonth(),
+                              birthday.getDate(),
+                            );
+                            const nextBirthday =
+                              thisYearBirthday < today
+                                ? new Date(currentYear + 1, birthday.getMonth(), birthday.getDate())
+                                : thisYearBirthday;
+                            const daysUntil = Math.ceil(
+                              (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+                            );
+
+                            if (daysUntil === 0) return "Hoje";
+                            if (daysUntil === 1) return "Amanhã";
+                            return `Em ${daysUntil} dias`;
+                          })()}
                         </div>
                       </div>
                     </div>

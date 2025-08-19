@@ -1148,17 +1148,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Birthday utility methods
-  async getUpcomingBirthdays(days: number = 7): Promise<any[]> {
+  async getUpcomingBirthdays(days: number = 7, responsibleId?: string): Promise<any[]> {
     const today = new Date();
     const upcomingClients: any[] = [];
 
-    const allClients = await db
-      .select()
+    let query = db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        phone: clients.phone,
+        email: clients.email,
+        birthday: clients.birthday,
+        responsavelId: clients.responsavelId,
+        responsavelName: users.name,
+      })
       .from(clients)
+      .leftJoin(users, eq(clients.responsavelId, users.id))
       .where(isNotNull(clients.birthday));
 
+    // Se responsibleId for fornecido, filtrar por ele
+    if (responsibleId) {
+      query = query.where(and(
+        isNotNull(clients.birthday),
+        eq(clients.responsavelId, responsibleId)
+      ));
+    }
+
+    const allClients = await query;
+
     console.log(
-      `Buscando todos os ${allClients.length} clientes com data de aniversário cadastrada.`,
+      `Buscando ${responsibleId ? 'clientes do responsável ' + responsibleId : 'todos os clientes'} com data de aniversário cadastrada: ${allClients.length} encontrados.`,
     );
 
     for (const client of allClients) {

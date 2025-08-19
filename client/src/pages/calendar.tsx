@@ -53,9 +53,19 @@ export default function CalendarPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
-    queryKey: ["/api/upcoming-birthdays", "all"],
+    queryKey: ["/api/upcoming-birthdays", "all", user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/upcoming-birthdays`);
+      // Admin vê todos os clientes, outros só os seus
+      const url = (user?.role === "admin" || user?.role === "administrador") 
+        ? `/api/upcoming-birthdays?days=365`
+        : `/api/upcoming-birthdays?days=365`;
+        
+      const response = await fetch(url, {
+        headers: {
+          'x-user-id': user?.id || '',
+          'x-user-role': user?.role || '',
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch all birthdays");
       return response.json();
     },
@@ -63,12 +73,18 @@ export default function CalendarPage() {
   });
 
   const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: ["/api/upcoming-birthdays", 30],
+    queryKey: ["/api/upcoming-birthdays", 30, user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch("/api/upcoming-birthdays?days=30");
+      const response = await fetch("/api/upcoming-birthdays?days=30", {
+        headers: {
+          'x-user-id': user?.id || '',
+          'x-user-role': user?.role || '',
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");
       return response.json();
     },
+    enabled: !!user,
   });
 
   // Query para buscar usuários (para mostrar o responsável)

@@ -34,7 +34,18 @@ export default function VendorDashboard() {
   });
 
   const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: ["/api/upcoming-birthdays"],
+    queryKey: ["/api/upcoming-birthdays", user?.id, user?.role],
+    queryFn: async () => {
+      const response = await fetch("/api/upcoming-birthdays", {
+        headers: {
+          'x-user-id': user?.id || '',
+          'x-user-role': user?.role || '',
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch birthdays');
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   // Filtrar aniversários apenas dos clientes do vendedor

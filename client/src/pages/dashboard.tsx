@@ -76,9 +76,19 @@ export default function Dashboard() {
 
   // Buscar próximos aniversários
   const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: [`/api/upcoming-birthdays`, user?.id],
+    queryKey: [`/api/upcoming-birthdays`, user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/upcoming-birthdays?responsibleId=${user?.id}`);
+      // Admin vê todos, outros usuários só veem os seus
+      const url = (user?.role === "admin" || user?.role === "administrador") 
+        ? `/api/upcoming-birthdays`
+        : `/api/upcoming-birthdays?responsibleId=${user?.id}`;
+        
+      const response = await fetch(url, {
+        headers: {
+          'x-user-id': user?.id || '',
+          'x-user-role': user?.role || '',
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch birthdays');
       const data = await response.json();
       
