@@ -1199,7 +1199,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cashbackGenerated,
         notes,
         invoiceNumber,
-        userId
+        userId,
+        useCashback
       });
 
       // O saldo de cashback será atualizado automaticamente pelo createSale
