@@ -339,11 +339,15 @@ export default function Cashback() {
           grossValue: ''
         });
         setSelectedClientBalance(0);
+        setSelectedClientName('');
         setIsDialogOpen(false);
+        
+        // Recarregar todos os dados relacionados
         loadSales();
-        // Atualizar dados de cashback
         queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
         queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       } else {
         const error = await response.json();
         throw new Error(error.message || 'Erro ao registrar venda');
@@ -833,7 +837,13 @@ export default function Cashback() {
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{thirtyDaysReport.salesCount || 0}</div>
+                    <div className="text-2xl font-bold">
+                      {(() => {
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        return sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo).length;
+                      })()}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
                     </p>
@@ -847,7 +857,13 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(thirtyDaysReport.totalSales || 0)}
+                      {(() => {
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
+                        const total = recentSales.reduce((sum, sale) => sum + sale.grossValue, 0);
+                        return formatCurrency(total);
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -862,7 +878,13 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(thirtyDaysReport.totalCashbackUsed || 0)}
+                      {(() => {
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
+                        const total = recentSales.reduce((sum, sale) => sum + sale.cashbackUsed, 0);
+                        return formatCurrency(total);
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -877,7 +899,13 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(thirtyDaysReport.totalCashbackGenerated || 0)}
+                      {(() => {
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
+                        const total = recentSales.reduce((sum, sale) => sum + sale.cashbackGenerated, 0);
+                        return formatCurrency(total);
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
