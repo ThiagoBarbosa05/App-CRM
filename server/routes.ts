@@ -1000,8 +1000,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientId } = req.params;
       const clientBalance = await storage.getClientCashbackBalance(clientId);
-      const balance = clientBalance ? parseFloat(clientBalance.currentBalance) : 0;
-      res.json({ balance });
+      
+      if (clientBalance) {
+        res.json(clientBalance);
+      } else {
+        // Se não existe registro, criar um com saldo zero
+        await storage.updateClientCashbackBalance(clientId);
+        const newBalance = await storage.getClientCashbackBalance(clientId);
+        res.json(newBalance || { currentBalance: "0.00" });
+      }
     } catch (error) {
       console.error("Erro ao buscar saldo de cashback:", error);
       res.status(500).json({ message: "Erro ao buscar saldo de cashback" });

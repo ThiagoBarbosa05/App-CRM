@@ -3190,7 +3190,7 @@ export class DatabaseStorage implements IStorage {
     // Aplicar cashback existente e gerar novo cashback
     if (sale) {
       // 1. APLICAR CASHBACK EXISTENTE (apenas se useCashback for true e houver valor usado)
-      if (saleData.useCashback === true && sale.cashbackUsed > 0) {
+      if (saleData.useCashback === true && parseFloat(sale.cashbackUsed) > 0) {
         // Buscar saldo do cliente
         const clientBalance = await this.getClientCashbackBalance(sale.clientId);
         if (clientBalance) {
@@ -3208,7 +3208,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // 2. GERAR NOVO CASHBACK (se aplicável)
-      if (sale.cashbackGenerated > 0) {
+      if (parseFloat(sale.cashbackGenerated) > 0) {
         // Buscar configuração ativa para obter a taxa correta
         const cashbackData = await this.calculateCashback(sale.netValue);
 
