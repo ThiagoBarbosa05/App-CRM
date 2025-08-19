@@ -16,6 +16,7 @@ import {
   LogOut,
   Gift,
   ClipboardList,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -308,6 +309,21 @@ export default function Sidebar() {
                 >
                   <Gift className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Cashback</span>
+                </button>
+              </Link>
+
+              <Link href="/vendas">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    location === "/vendas"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <Receipt className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Vendas</span>
                 </button>
               </Link>
 

@@ -18,6 +18,7 @@ import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
+import Vendas from "./pages/vendas";
 import Configurations from "@/pages/configurations";
 import { MainLayout } from "./layouts/main-layout";
 import Acompanhamento from "./pages/acompanhamento";
@@ -132,11 +133,22 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route path="/cashback" component={() => (
+      <Route
+        path="/cashback"
+        component={() => (
           <MainLayout>
             <Cashback />
           </MainLayout>
-        )} />
+        )}
+      />
+      <Route
+        path="/vendas"
+        component={() => (
+          <MainLayout>
+            <Vendas />
+          </MainLayout>
+        )}
+      />
       <Route component={NotFound} />
     </Switch>
   );

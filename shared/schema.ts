@@ -7,6 +7,7 @@ import {
   timestamp,
   integer,
   boolean,
+  real,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1091,3 +1092,23 @@ export const insertClientDebtSchema = createInsertSchema(clientDebts).omit({
   id: true,
   createdAt: true,
 });
+
+export const sales = pgTable('sales', {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id")
+    .references(() => clients.id)
+    .notNull(),
+  date: timestamp("date").notNull(),
+  grossValue: decimal("gross_value", { precision: 12, scale: 2 }).notNull(),
+  cashbackUsed: decimal("cashback_used", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  netValue: decimal("net_value", { precision: 12, scale: 2 }).notNull(),
+  cashbackGenerated: decimal("cashback_generated", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  userId: varchar("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type InsertSale = z.infer<typeof createInsertSchema(sales)>;
+export type Sale = typeof sales.$inferSelect;

@@ -774,14 +774,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.headers["x-user-id"] as string;
       const userRole = req.headers["x-user-role"] as string;
       const responsibleId = req.query.responsibleId as string;
-      
+
       // Se um responsibleId específico for passado, usar esse
       // Se não, e o usuário não for admin, filtrar pelos clientes do usuário atual
       let filterByResponsible = responsibleId;
       if (!filterByResponsible && userRole !== "admin" && userRole !== "administrador") {
         filterByResponsible = userId;
       }
-      
+
       const upcomingBirthdays = await storage.getUpcomingBirthdays(days, filterByResponsible);
       res.json(upcomingBirthdays);
     } catch (error) {
@@ -996,11 +996,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cashback-balances/:clientId", async (req, res) => {
     try {
       const { clientId } = req.params;
-      const balance = await storage.getClientCashbackBalance(clientId);
-      res.json(balance);
+      const balance = await storage.getCashbackBalance(clientId);
+      res.json({ balance });
     } catch (error) {
       console.error("Erro ao buscar saldo de cashback:", error);
-      res.status(500).json({ error: "Erro interno do servidor" });
+      res.status(500).json({ message: "Erro ao buscar saldo de cashback" });
     }
   });
 
@@ -1072,16 +1072,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sales routes (redirect to cashback transactions)
-  app.post("/api/sales", async (req, res) => {
+  // Sales routes
+  app.get('/api/sales', async (req, res) => {
     try {
-      // Redirect sale creation to cashback transaction
-      res
-        .status(200)
-        .json({ message: "Use /api/cashback-transactions para criar vendas" });
+      const sales = await storage.getSales();
+      res.json(sales);
     } catch (error) {
-      console.error("Erro:", error);
-      res.status(500).json({ error: "Erro interno do servidor" });
+      console.error('Erro ao buscar vendas:', error);
+      res.status(500).json({ message: 'Erro ao buscar vendas' });
+    }
+  });
+
+  app.post('/api/sales', async (req, res) => {
+    try {
+      const { clientId, date, grossValue, userId } = req.body;
+
+      if (!clientId || !date || !grossValue) {
+        return res.status(400).json({ message: 'Campos obrigatórios: clientId, date, grossValue' });
+      }
+
+      // Buscar saldo atual de cashback do cliente
+      const currentBalance = await storage.getCashbackBalance(clientId);
+
+      // Calcular valores da venda
+      const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
+      const cashbackUsed = Math.min(currentBalance, maxCashbackUsage);
+      const netValue = grossValue - cashbackUsed;
+      const cashbackGenerated = netValue * 0.05; // 5% do valor líquido
+
+      // Registrar a venda
+      const sale = await storage.createSale({
+        clientId,
+        date,
+        grossValue,
+        cashbackUsed,
+        netValue,
+        cashbackGenerated,
+        userId
+      });
+
+      // Atualizar saldo de cashback do cliente
+      const newBalance = currentBalance - cashbackUsed + cashbackGenerated;
+      await storage.updateCashbackBalance(clientId, newBalance);
+
+      res.status(201).json(sale);
+    } catch (error) {
+      console.error('Erro ao criar venda:', error);
+      res.status(500).json({ message: 'Erro ao criar venda' });
     }
   });
 
@@ -2100,14 +2137,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { direction, type } = req.body;
 
       if (!direction || !type) {
-        return res.status(400).json({ 
-          message: "direction ('up' ou 'down') e type são obrigatórios" 
+        return res.status(400).json({
+          message: "direction ('up' ou 'down') e type são obrigatórios"
         });
       }
 
       if (direction !== 'up' && direction !== 'down') {
-        return res.status(400).json({ 
-          message: "direction deve ser 'up' ou 'down'" 
+        return res.status(400).json({
+          message: "direction deve ser 'up' ou 'down'"
         });
       }
 
