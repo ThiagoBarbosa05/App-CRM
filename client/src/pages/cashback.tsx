@@ -124,6 +124,8 @@ export default function Cashback() {
   const [loading, setLoading] = useState(false);
   const [selectedClientBalance, setSelectedClientBalance] = useState<number>(0);
   const [clientSearchQuery, setClientSearchQuery] = useState<string>("");
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState<string>("");
+  const [selectedClientName, setSelectedClientName] = useState<string>("");
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     date: new Date().toISOString().split('T')[0],
@@ -141,6 +143,17 @@ export default function Cashback() {
     loadClients();
     loadSales();
   }, []);
+
+  // useEffect para debounce da busca de clientes
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedClientSearch(clientSearchQuery);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [clientSearchQuery]);
 
   // Buscar transações de cashback
   const { data: transactions = [] } = useQuery<any[]>({
@@ -170,7 +183,13 @@ export default function Cashback() {
   // Funções para vendas
   const loadClients = async () => {
     try {
-      const response = await fetch('/api/clients');
+      const params = new URLSearchParams();
+      if (debouncedClientSearch.trim()) {
+        params.append('search', debouncedClientSearch);
+      }
+      params.append('pageSize', '50'); // Limitar a 50 resultados
+      
+      const response = await fetch(`/api/clients?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setClients(data);
@@ -303,6 +322,8 @@ export default function Cashback() {
 
   const handleClientChange = (clientId: string) => {
     setSaleForm(prev => ({ ...prev, clientId }));
+    const selectedClient = clients.find(c => c.id === clientId);
+    setSelectedClientName(selectedClient?.name || '');
     loadClientBalance(clientId);
   };
 
@@ -311,17 +332,12 @@ export default function Cashback() {
     return calculateSaleValues(grossValue, selectedClientBalance);
   };
 
-  // Função para filtrar clientes por nome, CPF ou telefone
-  const filteredClients = clients.filter((client) => {
-    if (!clientSearchQuery.trim()) return true;
-    
-    const query = clientSearchQuery.toLowerCase();
-    const matchesName = client.name?.toLowerCase().includes(query);
-    const matchesCpf = client.cpf?.toLowerCase().includes(query);
-    const matchesPhone = client.phone?.toLowerCase().includes(query);
-    
-    return matchesName || matchesCpf || matchesPhone;
-  });
+  // Recarregar clientes quando a busca mudar
+  useEffect(() => {
+    if (isDialogOpen) {
+      loadClients();
+    }
+  }, [debouncedClientSearch, isDialogOpen]);
 
   // Mutation para excluir saldo de cashback
   const deleteBalanceMutation = useMutation({
@@ -640,32 +656,39 @@ export default function Cashback() {
                                 className="pl-10"
                               />
                             </div>
-                            <Select
-                              value={saleForm.clientId}
-                              onValueChange={handleClientChange}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o cliente" />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-60">
-                                {filteredClients.length === 0 ? (
-                                  <div className="py-4 text-center text-sm text-gray-500">
-                                    Nenhum cliente encontrado
+                            {clientSearchQuery.trim() && clients.length > 0 && (
+                              <div className="border rounded-md max-h-48 overflow-y-auto">
+                                {clients.map((client) => (
+                                  <div
+                                    key={client.id}
+                                    className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
+                                      saleForm.clientId === client.id ? 'bg-blue-50 border-blue-200' : ''
+                                    }`}
+                                    onClick={() => {
+                                      handleClientChange(client.id);
+                                      setClientSearchQuery(client.name);
+                                    }}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-gray-900">{client.name}</span>
+                                      <span className="text-sm text-gray-500">
+                                        {client.cpf} • {client.phone}
+                                      </span>
+                                    </div>
                                   </div>
-                                ) : (
-                                  filteredClients.map((client) => (
-                                    <SelectItem key={client.id} value={client.id}>
-                                      <div className="flex flex-col items-start">
-                                        <span className="font-medium">{client.name}</span>
-                                        <span className="text-xs text-gray-500">
-                                          {client.cpf} • {client.phone}
-                                        </span>
-                                      </div>
-                                    </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
+                                ))}
+                              </div>
+                            )}
+                            {clientSearchQuery.trim() && clients.length === 0 && (
+                              <div className="border rounded-md p-4 text-center text-sm text-gray-500">
+                                Nenhum cliente encontrado
+                              </div>
+                            )}
+                            {saleForm.clientId && selectedClientName && (
+                              <div className="text-sm text-gray-600">
+                                <strong>Cliente selecionado:</strong> {selectedClientName}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -742,6 +765,13 @@ export default function Cashback() {
                           onClick={() => {
                             setIsDialogOpen(false);
                             setClientSearchQuery("");
+                            setSelectedClientName("");
+                            setSaleForm({
+                              clientId: '',
+                              date: new Date().toISOString().split('T')[0],
+                              grossValue: ''
+                            });
+                            setSelectedClientBalance(0);
                           }}
                         >
                           Cancelar
