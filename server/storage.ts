@@ -3143,30 +3143,6 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getSalesByPeriod(startDate: Date, endDate: Date): Promise<any[]> {
-    const result = await this.db
-      .select({
-        id: sales.id,
-        clientId: sales.clientId,
-        clientName: clients.name,
-        date: sales.date,
-        grossValue: sales.grossValue,
-        cashbackUsed: sales.cashbackUsed,
-        netValue: sales.netValue,
-        cashbackGenerated: sales.cashbackGenerated,
-        createdAt: sales.createdAt
-      })
-      .from(sales)
-      .leftJoin(clients, eq(sales.clientId, clients.id))
-      .where(and(
-        gte(sales.createdAt, startDate),
-        lte(sales.createdAt, endDate)
-      ))
-      .orderBy(desc(sales.createdAt));
-
-    return result;
-  }
-
   async createSale(saleData: {
     clientId: string;
     date: string;
