@@ -2264,13 +2264,25 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string,
   ): Promise<CashbackUsage[]> {
-    let usageQuery = this.db.select().from(cashbackUsage);
+    // Sempre fazer join com clientes para mostrar o nome
+    let usageQuery = this.db.select({
+      id: cashbackUsage.id,
+      clientId: cashbackUsage.clientId,
+      usedAmount: cashbackUsage.usedAmount,
+      description: cashbackUsage.description,
+      authorizedBy: cashbackUsage.authorizedBy,
+      createdAt: cashbackUsage.createdAt,
+      clients: {
+        id: clients.id,
+        name: clients.name,
+        email: clients.email
+      }
+    }).from(cashbackUsage)
+    .leftJoin(clients, eq(clients.id, cashbackUsage.clientId));
 
     // Se for vendedor, filtrar apenas uso de cashback de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
-      usageQuery = usageQuery
-        .leftJoin(clients, eq(clients.id, cashbackUsage.clientId))
-        .where(eq(clients.responsavelId, userId)) as typeof usageQuery;
+      usageQuery = usageQuery.where(eq(clients.responsavelId, userId));
     }
 
     const usage = await usageQuery.orderBy(cashbackUsage.createdAt);
