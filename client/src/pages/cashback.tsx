@@ -433,6 +433,8 @@ export default function Cashback() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
+          "x-user-role": user?.role || "",
+          "x-user-email": user?.email || "",
         },
       });
 
@@ -459,11 +461,15 @@ export default function Cashback() {
         title: "Venda excluída",
         description: "A venda foi removida com sucesso.",
       });
-      // Recarregar dados relacionados
+      // Recarregar dados relacionados - forçar refetch
       loadSales();
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+      // Forçar refetch imediato dos dados críticos
+      queryClient.refetchQueries({ queryKey: ["/api/sales"] });
+      queryClient.refetchQueries({ queryKey: ["/api/cashback-reports/30-days"] });
       setDeletingSaleId(null);
     },
     onError: (error: any) => {

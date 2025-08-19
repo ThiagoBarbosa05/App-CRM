@@ -3234,11 +3234,15 @@ export class DatabaseStorage implements IStorage {
         .where(eq(sales.id, saleId));
 
       if (!sale) {
+        console.log('Venda não encontrada:', saleId);
         return false;
       }
 
+      console.log('Excluindo venda:', saleId, 'Cliente:', sale.clientId);
+
       // Reverter transações de cashback relacionadas à venda
-      if (parseFloat(sale.cashbackUsed) > 0) {
+      if (sale.cashbackUsed && parseFloat(sale.cashbackUsed) > 0) {
+        console.log('Removendo uso de cashback para venda:', saleId);
         // Encontrar e reverter o uso de cashback
         const usageRecords = await this.db
           .select()
@@ -3252,7 +3256,8 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      if (parseFloat(sale.cashbackGenerated) > 0) {
+      if (sale.cashbackGenerated && parseFloat(sale.cashbackGenerated) > 0) {
+        console.log('Removendo cashback gerado para venda:', saleId);
         // Encontrar e reverter a transação de cashback gerada
         const transactionRecords = await this.db
           .select()
@@ -3267,43 +3272,25 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Excluir a venda
-      await this.db
-        .delete(sales)
-        .where(eq(sales.id, saleId));
-
-      // Atualizar saldos de cashback do cliente se necessário
-      if (parseFloat(sale.cashbackUsed) > 0 || parseFloat(sale.cashbackGenerated) > 0) {
-        await this.updateClientCashbackBalance(sale.clientId);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao excluir venda:', error);
-      throw error;
-    }
-  }()
-          .from(cashbackTransactions)
-          .where(like(cashbackTransactions.notes, `%${saleId}%`));
-
-        if (transactionRecord) {
-          await this.db
-            .delete(cashbackTransactions)
-            .where(eq(cashbackTransactions.id, transactionRecord.id));
-        }
-      }
-
-      // Excluir a venda
+      console.log('Removendo venda do banco de dados:', saleId);
       const result = await this.db
         .delete(sales)
         .where(eq(sales.id, saleId));
 
-      // Atualizar saldo de cashback do cliente
-      await this.updateClientCashbackBalance(sale.clientId);
+      console.log('Resultado da exclusão:', result);
 
-      return result.rowCount !== null && result.rowCount > 0;
+      // Atualizar saldos de cashback do cliente se necessário
+      if ((sale.cashbackUsed && parseFloat(sale.cashbackUsed) > 0) || 
+          (sale.cashbackGenerated && parseFloat(sale.cashbackGenerated) > 0)) {
+        console.log('Atualizando saldo de cashback do cliente:', sale.clientId);
+        await this.updateClientCashbackBalance(sale.clientId);
+      }
+
+      console.log('Venda excluída com sucesso:', saleId);
+      return true;
     } catch (error) {
       console.error('Erro ao excluir venda:', error);
-      throw error;
+      return false;
     }
   }
 }
