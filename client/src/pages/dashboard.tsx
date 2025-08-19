@@ -93,7 +93,7 @@ export default function Dashboard() {
       const data = await response.json();
       
       // Calcular dias até o aniversário para cada cliente
-      return data.map((client: any) => {
+      const clientsWithDays = data.map((client: any) => {
         if (!client.nextBirthday) return { ...client, daysUntil: 365 };
         
         const today = new Date();
@@ -107,6 +107,11 @@ export default function Dashboard() {
         
         return { ...client, daysUntil };
       });
+
+      // Ordenar por dias até aniversário e limitar a 15 resultados
+      return clientsWithDays
+        .sort((a, b) => a.daysUntil - b.daysUntil)
+        .slice(0, 15);
     },
     enabled: !!user,
   });
@@ -304,14 +309,14 @@ export default function Dashboard() {
                     Próximos Aniversários
                   </CardTitle>
                   <CardDescription>
-                    Clientes que fazem aniversário nos próximos 30 dias
+                    Os próximos 15 aniversariantes
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {upcomingBirthdays.length === 0 ? (
                     <div className="text-center py-8">
                       <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">Nenhum aniversário nos próximos 30 dias</p>
+                      <p className="text-gray-500">Nenhum aniversário próximo</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
