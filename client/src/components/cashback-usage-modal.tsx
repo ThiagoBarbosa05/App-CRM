@@ -85,7 +85,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
       return;
     }
 
-    const currentBalance = balance ? parseFloat(balance.currentBalance.toString()) : 0;
+    const currentBalance = balance && typeof balance === 'object' ? (balance.balance || 0) : 0;
     const requestedAmount = parseFloat(usedAmount);
 
     if (requestedAmount > currentBalance) {
@@ -117,7 +117,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
 
   if (!client) return null;
 
-  const currentBalance = balance ? parseFloat(balance.currentBalance.toString()) : 0;
+  const currentBalance = balance && typeof balance === 'object' ? (balance.balance || 0) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
