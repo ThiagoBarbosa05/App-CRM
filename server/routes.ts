@@ -1156,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calcular valores da venda
       let cashbackUsed = 0;
-      if (useCashback && currentBalance > 0) {
+      if (useCashback === true && currentBalance > 0) {
         const maxCashbackUsage = grossValue * 0.5; // Máximo 50% do valor bruto
         cashbackUsed = Math.min(currentBalance, maxCashbackUsage);
       }

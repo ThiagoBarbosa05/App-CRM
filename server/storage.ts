@@ -3161,6 +3161,7 @@ export class DatabaseStorage implements IStorage {
     notes?: string;
     invoiceNumber?: string;
     userId?: string;
+    useCashback?: boolean;
   }): Promise<any> {
     // Validar e converter a data
     const saleDate = new Date(saleData.date);
@@ -3188,8 +3189,8 @@ export class DatabaseStorage implements IStorage {
 
     // Aplicar cashback existente e gerar novo cashback
     if (sale) {
-      // 1. APLICAR CASHBACK EXISTENTE (se houver)
-      if (sale.cashbackUsed > 0) {
+      // 1. APLICAR CASHBACK EXISTENTE (apenas se useCashback for true e houver valor usado)
+      if (saleData.useCashback === true && sale.cashbackUsed > 0) {
         // Buscar saldo do cliente
         const clientBalance = await this.getClientCashbackBalance(sale.clientId);
         if (clientBalance) {
