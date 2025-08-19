@@ -309,7 +309,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <Button
                       variant="outline"
                       onClick={() => setCashbackUsageModalOpen(true)}
-                      disabled={!(cashbackBalance as any)?.currentBalance || parseFloat((cashbackBalance as any).currentBalance as string) <= 0}
+                      disabled={!(cashbackBalance as any)?.balance || parseFloat((cashbackBalance as any).balance as string) <= 0}
                       className="flex items-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:text-gray-400 disabled:border-gray-200 h-12"
                     >
                       <Wallet className="h-5 w-5" />
@@ -335,7 +335,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <div>
                       <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
                       <p className="text-2xl font-bold text-green-700">
-                        {cashbackBalance ? formatCurrency((cashbackBalance as any).currentBalance || 0) : formatCurrency(0)}
+                        {cashbackBalance ? formatCurrency((cashbackBalance as any).balance || 0) : formatCurrency(0)}
                       </p>
                     </div>
                     <Gift className="h-8 w-8 text-green-600" />
@@ -432,7 +432,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               <div className="bg-green-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {cashbackBalance ? formatCurrency((cashbackBalance as any).currentBalance || 0) : formatCurrency(0)}
+                  {cashbackBalance ? formatCurrency((cashbackBalance as any).balance || 0) : formatCurrency(0)}
                 </p>
               </div>
               
