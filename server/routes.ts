@@ -1084,6 +1084,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Relatórios de cashback dos últimos 30 dias
+  app.get('/api/cashback-reports/30-days', async (req, res) => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      // Buscar vendas dos últimos 30 dias
+      const sales = await storage.getSales();
+      const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
+      
+      // Buscar transações de cashback dos últimos 30 dias
+      const transactions = await storage.getCashbackTransactions();
+      const recentTransactions = transactions.filter(
+        (item: any) => {
+          const transaction = item.cashback_transactions || item;
+          return new Date(transaction.createdAt) >= thirtyDaysAgo && transaction.status === 'approved';
+        }
+      );
+      
+      // Buscar resgates dos últimos 30 dias
+      const allUsage = await storage.getAllCashbackUsage();
+      const recentUsage = allUsage.filter(
+        (item: any) => {
+          const usage = item.cashback_usage || item;
+          return new Date(usage.createdAt) >= thirtyDaysAgo;
+        }
+      );
+      
+      // Calcular totais
+      const totalSales = recentSales.reduce((sum, sale) => sum + parseFloat(sale.grossValue), 0);
+      const totalCashbackGenerated = recentSales.reduce((sum, sale) => sum + parseFloat(sale.cashbackGenerated), 0);
+      const totalCashbackUsed = recentSales.reduce((sum, sale) => sum + parseFloat(sale.cashbackUsed), 0);
+      const totalCashbackRedeemed = recentUsage.reduce((sum, item) => {
+        const usage = item.cashback_usage || item;
+        return sum + parseFloat(usage.usedAmount || 0);
+      }, 0);
+      
+      res.json({
+        totalSales,
+        totalCashbackGenerated,
+        totalCashbackUsed,
+        totalCashbackRedeemed,
+        salesCount: recentSales.length,
+        period: '30 days'
+      });
+    } catch (error) {
+      console.error('Erro ao buscar relatórios de cashback:', error);
+      res.status(500).json({ message: 'Erro ao buscar relatórios de cashback' });
+    }
+  });
+
   app.post('/api/sales', async (req, res) => {
     try {
       const { clientId, date, grossValue, userId } = req.body;

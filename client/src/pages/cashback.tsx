@@ -180,6 +180,11 @@ export default function Cashback() {
     queryKey: ["/api/users"],
   });
 
+  // Buscar relatórios dos últimos 30 dias
+  const { data: thirtyDaysReport = {} } = useQuery<any>({
+    queryKey: ["/api/cashback-reports/30-days"],
+  });
+
   // Funções para vendas
   const loadClients = async () => {
     try {
@@ -820,51 +825,63 @@ export default function Cashback() {
                 </Dialog>
               </div>
 
-              {/* Estatísticas de Vendas */}
+              {/* Estatísticas de Vendas - Últimos 30 dias */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+                    <CardTitle className="text-sm font-medium">Total de Vendas (30 dias)</CardTitle>
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{sales.length}</div>
+                    <div className="text-2xl font-bold">{thirtyDaysReport.salesCount || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Últimos 30 dias
+                    </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Valor Total Bruto</CardTitle>
+                    <CardTitle className="text-sm font-medium">Valor Total Bruto (30 dias)</CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(sales.reduce((sum, sale) => sum + sale.grossValue, 0))}
+                      {formatCurrency(thirtyDaysReport.totalSales || 0)}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Últimos 30 dias
+                    </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Cashback Utilizado</CardTitle>
+                    <CardTitle className="text-sm font-medium">Cashback Utilizado (30 dias)</CardTitle>
                     <Percent className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(sales.reduce((sum, sale) => sum + sale.cashbackUsed, 0))}
+                      {formatCurrency(thirtyDaysReport.totalCashbackUsed || 0)}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Últimos 30 dias
+                    </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Cashback Gerado</CardTitle>
+                    <CardTitle className="text-sm font-medium">Cashback Gerado (30 dias)</CardTitle>
                     <Percent className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(sales.reduce((sum, sale) => sum + sale.cashbackGenerated, 0))}
+                      {formatCurrency(thirtyDaysReport.totalCashbackGenerated || 0)}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Últimos 30 dias
+                    </p>
                   </CardContent>
                 </Card>
               </div>
