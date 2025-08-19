@@ -79,7 +79,9 @@ interface Client {
 }
 
 interface CashbackBalance {
-  balance: number;
+  currentBalance: string;
+  totalEarned: string;
+  totalUsed: string;
 }
 
 interface Sale {
@@ -230,8 +232,8 @@ export default function Cashback() {
     try {
       const response = await fetch(`/api/cashback-balances/${clientId}`);
       if (response.ok) {
-        const data: CashbackBalance = await response.json();
-        setSelectedClientBalance(data.balance || 0);
+        const data: any = await response.json();
+        setSelectedClientBalance(parseFloat(data.currentBalance) || 0);
       }
     } catch (error) {
       console.error('Erro ao carregar saldo de cashback:', error);
