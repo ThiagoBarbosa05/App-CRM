@@ -434,9 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = insertClientSchema.parse(processedData);
-      console.log("Dados validados:", JSON.stringify(validatedData, null, 2));
       const client = await storage.createClient(validatedData);
-      console.log("Cliente criado com sucesso:", client.id);
       res.status(201).json(client);
     } catch (error) {
       console.error("Erro na criação do cliente:", error);
@@ -445,6 +443,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro de validação Zod:", validationError.toString());
         return res.status(400).json({ message: validationError.toString() });
       }
+      
+      // Verificar se é erro de telefone duplicado (abordagem simples)
+      if (error && error.toString().includes("clients_phone_unique")) {
+        return res.status(400).json({ 
+          message: "Este número de telefone já está cadastrado para outro cliente." 
+        });
+      }
+      
       res.status(500).json({ message: "Erro ao criar cliente" });
     }
   });
@@ -480,6 +486,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
+      
+      // Verificar se é erro de telefone duplicado (abordagem simples)
+      if (error && error.toString().includes("clients_phone_unique")) {
+        return res.status(400).json({ 
+          message: "Este número de telefone já está cadastrado para outro cliente." 
+        });
+      }
+      
       res.status(500).json({ message: "Erro ao atualizar cliente" });
     }
   });
