@@ -424,6 +424,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.body.responsavelId === "" ? null : req.body.responsavelId,
         cpf: req.body.cpf === "" ? null : req.body.cpf,
         email: req.body.email === "" ? null : req.body.email,
+        categoria: req.body.categoria || "Geral",
+        origem: req.body.origem || "Website",
       };
 
       // Se não for admin e não foi especificado um responsável, usar o usuário atual
