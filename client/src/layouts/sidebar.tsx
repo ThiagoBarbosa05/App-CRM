@@ -66,7 +66,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                         <span className="leading-none font-semibold">
                             {user.name}
                         </span>
-                        <span className="text-xs text-muted-foreground truncate">
+                        <span className="text-xs text-muted-foreground w-full block truncate text-ellipsis overflow-hidden">
                             {user.email}
                         </span>
                         <Badge>{user.role}</Badge>
