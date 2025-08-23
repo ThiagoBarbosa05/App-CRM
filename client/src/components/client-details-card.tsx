@@ -101,17 +101,16 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-wine-600" />
-              {client.name}
+              <span className="text-lg font-semibold">{client.name}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="outline"
-                size="sm"
                 onClick={() => setShowFunnelSelector(true)}
-                className="flex items-center gap-2 bg-primary text-white hover:bg-primary-dark"
+                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white"
+                size="sm"
               >
                 <Plus className="h-4 w-4" />
                 Criar Negócio
@@ -274,6 +273,25 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       </div>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Ações Rápidas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ações Rápidas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    onClick={() => setShowFunnelSelector(true)}
+                    className="w-full bg-primary hover:bg-primary-dark text-white flex items-center gap-2"
+                  >
+                    <GitBranch className="h-4 w-4" />
+                    Criar Novo Negócio no Funil
+                  </Button>
+                  <p className="text-sm text-gray-600 text-center">
+                    Crie rapidamente um novo negócio para este cliente
+                  </p>
                 </CardContent>
               </Card>
 
