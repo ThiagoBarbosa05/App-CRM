@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -91,11 +92,30 @@ export default function DealFormModal({
       title: deal?.title || "",
       clientId: deal?.clientId || "",
       value: deal?.value || "",
-      stageId: deal?.stageId || funnelStages[0]?.id || "",
+      stageId: deal?.stageId || "",
       notes: deal?.notes || "",
       funnelId: deal?.funnelId || funnelId || "",
     },
   });
+
+  // Atualizar o formulário quando os dados mudarem
+  React.useEffect(() => {
+    if (deal) {
+      form.reset({
+        title: deal.title || "",
+        clientId: deal.clientId || "",
+        value: deal.value || "",
+        stageId: deal.stageId || funnelStages[0]?.id || "",
+        notes: deal.notes || "",
+        funnelId: deal.funnelId || funnelId || "",
+      });
+    } else if (funnelId) {
+      form.setValue("funnelId", funnelId);
+      if (funnelStages.length > 0 && !form.getValues("stageId")) {
+        form.setValue("stageId", funnelStages[0].id);
+      }
+    }
+  }, [deal, funnelId, funnelStages, form]);
 
   const createDealMutation = useMutation({
     mutationFn: async (data: any) => {

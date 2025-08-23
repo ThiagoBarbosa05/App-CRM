@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Client } from "@shared/schema";
-import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign, Wallet } from "lucide-react";
+import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign, Wallet, Plus, GitBranch } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
+import DealFormModal from "./deal-form-modal";
 import { useQuery } from "@tanstack/react-query";
 // Função para formatar moeda
 const formatCurrency = (value: string | number) => {
@@ -27,6 +29,9 @@ interface ClientDetailsCardProps {
 }
 
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
+  const [showCreateDealModal, setShowCreateDealModal] = useState(false);
+  const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
+  const [showFunnelSelector, setShowFunnelSelector] = useState(false);
 
   if (!client) return null;
 
@@ -81,6 +86,17 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     queryKey: ["/api/users"],
   });
 
+  // Query para buscar funis disponíveis
+  const { data: funnels = [] } = useQuery({
+    queryKey: ["/api/funnels"],
+  });
+
+  const handleCreateDeal = (funnelId: string) => {
+    setSelectedFunnelId(funnelId);
+    setShowFunnelSelector(false);
+    setShowCreateDealModal(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
@@ -91,6 +107,15 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
               {client.name}
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFunnelSelector(true)}
+                className="flex items-center gap-2 bg-primary text-white hover:bg-primary-dark"
+              >
+                <Plus className="h-4 w-4" />
+                Criar Negócio
+              </Button>
               {onEdit && (
                 <Button
                   variant="outline"
@@ -345,59 +370,84 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         </Tabs>
       </DialogContent>
 
-      {/* Modal de Saldo de Cashback */}
-      <Dialog open={false} onOpenChange={() => {}}>
+      {/* Modal de Seleção de Funil */}
+      <Dialog open={showFunnelSelector} onOpenChange={setShowFunnelSelector}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-blue-600" />
-              Saldo de Cashback
+              <GitBranch className="h-5 w-5 text-primary" />
+              Selecionar Funil
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="text-center">
               <p className="text-lg font-medium text-gray-900">{client.name}</p>
-              <p className="text-sm text-gray-500">CPF: {formatCPF(client.cpf)}</p>
+              <p className="text-sm text-gray-500">Escolha o funil para criar o negócio</p>
             </div>
             
             <Separator />
             
-            <div className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-gray-600 mb-1">Saldo Atual</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {cashbackBalance ? formatCurrency((cashbackBalance as any).balance || 0) : formatCurrency(0)}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">Total Ganho</p>
-                  <p className="font-medium text-blue-600">
-                    {cashbackBalance ? formatCurrency((cashbackBalance as any).totalEarned || 0) : formatCurrency(0)}
-                  </p>
+            <div className="space-y-3">
+              {Array.isArray(funnels) && funnels.length > 0 ? (
+                funnels.map((funnel: any) => (
+                  <Button
+                    key={funnel.id}
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4"
+                    onClick={() => handleCreateDeal(funnel.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <GitBranch className="h-4 w-4 text-primary" />
+                      <div className="text-left">
+                        <p className="font-medium">{funnel.name}</p>
+                        {funnel.description && (
+                          <p className="text-sm text-gray-500">{funnel.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </Button>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-500">Nenhum funil disponível</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">Total Usado</p>
-                  <p className="font-medium text-red-600">
-                    {cashbackBalance ? formatCurrency((cashbackBalance as any).totalUsed || 0) : formatCurrency(0)}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => {}}
+                onClick={() => setShowFunnelSelector(false)}
               >
-                Fechar
+                Cancelar
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Criação de Negócio */}
+      {showCreateDealModal && (
+        <DealFormModal
+          open={showCreateDealModal}
+          onOpenChange={(open) => {
+            setShowCreateDealModal(open);
+            if (!open) {
+              setSelectedFunnelId("");
+            }
+          }}
+          funnelId={selectedFunnelId}
+          deal={{
+            title: client.name,
+            clientId: client.id,
+            funnelId: selectedFunnelId,
+            stageId: "",
+            value: "",
+            notes: "",
+          } as any}
+        />
+      )}
     </Dialog>
   );
 }
