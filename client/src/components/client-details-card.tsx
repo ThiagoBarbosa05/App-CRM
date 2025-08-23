@@ -122,8 +122,9 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             <div className="flex justify-center w-full">
               <Button
                 onClick={() => setShowFunnelSelector(true)}
-                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-6"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
                 size="sm"
+                data-testid="button-criar-negocio"
               >
                 <Plus className="h-4 w-4" />
                 Criar Negócio no Funil
