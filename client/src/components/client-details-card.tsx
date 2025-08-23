@@ -101,20 +101,12 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-wine-600" />
-              <span className="text-lg font-semibold">{client.name}</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() => setShowFunnelSelector(true)}
-                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white"
-                size="sm"
-              >
-                <Plus className="h-4 w-4" />
-                Criar Negócio
-              </Button>
+          <DialogTitle className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-wine-600" />
+                <span className="text-lg font-semibold">{client.name}</span>
+              </div>
               {onEdit && (
                 <Button
                   variant="outline"
@@ -126,6 +118,16 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                   Editar
                 </Button>
               )}
+            </div>
+            <div className="flex justify-center w-full">
+              <Button
+                onClick={() => setShowFunnelSelector(true)}
+                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-6"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                Criar Negócio no Funil
+              </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
