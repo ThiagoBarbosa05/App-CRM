@@ -171,6 +171,24 @@ export const trainingRelations = relations(trainings, ({ many }) => ({
   attachments: many(trainingAttachments),
 }));
 
+// Tabela de relação entre empresas e produtos (carta de vinhos)
+export const companyProducts = pgTable("company_products", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id")
+    .references(() => companies.id, { onDelete: "cascade" })
+    .notNull(),
+  productId: varchar("product_id")
+    .references(() => products.id, { onDelete: "cascade" })
+    .notNull(),
+  isActive: text("is_active").notNull().default("true"),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+  addedBy: varchar("added_by")
+    .references(() => users.id)
+    .notNull(),
+});
+
 // Relações entre tabelas
 export const usersRelations = relations(users, ({ many }) => ({
   createdFunnels: many(salesFunnels),
@@ -725,23 +743,6 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   updatedAt: true,
 });
 
-// Tabela de relação entre empresas e produtos (carta de vinhos)
-export const companyProducts = pgTable("company_products", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  companyId: varchar("company_id")
-    .references(() => companies.id, { onDelete: "cascade" })
-    .notNull(),
-  productId: varchar("product_id")
-    .references(() => products.id, { onDelete: "cascade" })
-    .notNull(),
-  isActive: text("is_active").notNull().default("true"),
-  addedAt: timestamp("added_at").defaultNow().notNull(),
-  addedBy: varchar("added_by")
-    .references(() => users.id)
-    .notNull(),
-});
 
 export const insertCompanyProductSchema = createInsertSchema(companyProducts).omit({
   id: true,
