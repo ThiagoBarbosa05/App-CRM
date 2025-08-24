@@ -51,7 +51,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
   };
 
   // Query para buscar usuários
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
     queryKey: ['/api/users'],
   });
 
@@ -170,7 +170,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">
                         <strong>Responsável:</strong> {(() => {
-                          const user = users.find(u => u.id === client.responsavelId);
+                          const user = users.find((u: any) => u.id === client.responsavelId);
                           return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
                         })()}
                       </span>
@@ -342,14 +342,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             }
           }}
           funnelId={selectedFunnelId}
-          deal={{
-            title: client.name,
-            clientId: client.id,
-            funnelId: selectedFunnelId,
-            stageId: "",
-            value: "",
-            notes: "",
-          }}
+          deal={null}
         />
       )}
     </Dialog>
