@@ -141,6 +141,10 @@ export default function CompanyWineListModal({
         `/api/companies/${company?.id}/products/${productId}`,
         {
           method: "DELETE",
+          headers: {
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
         }
       );
 
@@ -186,6 +190,8 @@ export default function CompanyWineListModal({
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
           },
           body: JSON.stringify({ customPrice: price }),
         }
