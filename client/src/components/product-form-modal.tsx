@@ -37,7 +37,6 @@ const productSchema = z.object({
   country: z.enum(["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"]),
   volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]),
   type: z.enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"]),
-  tablePrice: z.string().min(1, "Valor tabela é obrigatório"),
   negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
 });
 
@@ -49,7 +48,6 @@ interface Product {
   country: string;
   volume: string;
   type: string;
-  tablePrice: string;
   negotiatedPrice: string;
 }
 
@@ -71,7 +69,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
       country: "BRASIL",
       volume: "750ml",
       type: "TINTO",
-      tablePrice: "",
       negotiatedPrice: "",
     },
   });
@@ -83,7 +80,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
         country: product.country as any,
         volume: product.volume as any,
         type: product.type as any,
-        tablePrice: product.tablePrice,
         negotiatedPrice: product.negotiatedPrice,
       });
     } else {
@@ -92,7 +88,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
         country: "BRASIL",
         volume: "750ml",
         type: "TINTO",
-        tablePrice: "",
         negotiatedPrice: "",
       });
     }
@@ -157,7 +152,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
     
     const processedData = {
       ...data,
-      tablePrice: convertPrice(data.tablePrice),
       negotiatedPrice: convertPrice(data.negotiatedPrice),
     };
     
@@ -292,43 +286,23 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="tablePrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor Tabela</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="0,00"
-                        value={field.value}
-                        onChange={(e) => handlePriceChange(e.target.value, field)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="negotiatedPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor Negociado</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="0,00"
-                        value={field.value}
-                        onChange={(e) => handlePriceChange(e.target.value, field)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="negotiatedPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor Negociado</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="0,00"
+                      value={field.value}
+                      onChange={(e) => handlePriceChange(e.target.value, field)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

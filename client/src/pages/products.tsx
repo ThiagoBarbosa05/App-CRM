@@ -35,7 +35,6 @@ interface Product {
   country: string;
   volume: string;
   type: string;
-  tablePrice: string;
   negotiatedPrice: string;
   createdByName: string;
   createdAt: string;
@@ -187,7 +186,6 @@ export default function Products() {
                   <TableHead>País</TableHead>
                   <TableHead>Volume</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Valor Tabela</TableHead>
                   <TableHead>Valor Negociado</TableHead>
                   <TableHead>Criado por</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -196,13 +194,13 @@ export default function Products() {
               <TableBody>
                 {isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       {searchQuery ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
                     </TableCell>
                   </TableRow>
@@ -225,18 +223,12 @@ export default function Products() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        R$ {parseFloat(product.tablePrice).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </TableCell>
-                      <TableCell>
                         R$ {parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
                       </TableCell>
-                      <TableCell>{product.createdByName}</TableCell>
+                      <TableCell>{product.createdByName || "Sistema"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button

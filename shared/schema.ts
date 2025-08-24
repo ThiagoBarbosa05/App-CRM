@@ -1170,7 +1170,6 @@ export const products = pgTable("products", {
   type: text("type", { 
     enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] 
   }).notNull(),
-  tablePrice: decimal("table_price", { precision: 10, scale: 2 }).notNull(),
   negotiatedPrice: decimal("negotiated_price", { precision: 10, scale: 2 }).notNull(),
   createdBy: varchar("created_by")
     .references(() => users.id)
