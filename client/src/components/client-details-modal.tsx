@@ -65,8 +65,14 @@ export default function ClientDetailsModal({
   });
 
   // Query para buscar funis específicos do cliente
-  const { data: funnels = [] } = useQuery({
+  const { data: clientFunnels = [] } = useQuery({
     queryKey: [`/api/clients/${client?.id}/funnels`],
+    enabled: !!client?.id && isOpen,
+  });
+
+  // Query para buscar todos os funis disponíveis
+  const { data: allFunnels = [] } = useQuery({
+    queryKey: ['/api/funnels'],
     enabled: !!client?.id && isOpen,
   });
 
@@ -434,21 +440,57 @@ export default function ClientDetailsModal({
           </TabsContent>
 
           <TabsContent value="negocio" className="space-y-6 mt-6">
+            {/* Funis onde o cliente já tem negócios */}
+            {Array.isArray(clientFunnels) && clientFunnels.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Funis com Negócios Existentes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {clientFunnels.map((funnel: any) => (
+                      <Button 
+                        key={funnel.id}
+                        variant="default" 
+                        className="w-full justify-start h-auto p-4"
+                        onClick={() => handleCreateDeal(funnel.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <User className="h-4 w-4" />
+                          <div className="text-left">
+                            <p className="font-medium">{funnel.name}</p>
+                            {funnel.description && (
+                              <p className="text-sm text-white/80">{funnel.description}</p>
+                            )}
+                            <p className="text-xs text-white/60">Adicionar novo negócio</p>
+                          </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Todos os funis disponíveis para criar novos negócios */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Funis Disponíveis
+                  Criar Novo Negócio
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center space-y-4">
                   <p className="text-lg font-medium text-gray-900">{client.name}</p>
-                  <p className="text-sm text-gray-500">Escolha o funil para criar o negócio</p>
+                  <p className="text-sm text-gray-500">Escolha o funil para criar um novo negócio</p>
                   
                   <div className="space-y-3">
-                    {Array.isArray(funnels) && funnels.length > 0 ? (
-                      funnels.map((funnel: any) => (
+                    {Array.isArray(allFunnels) && allFunnels.length > 0 ? (
+                      allFunnels.map((funnel: any) => (
                         <Button 
                           key={funnel.id}
                           variant="outline" 
