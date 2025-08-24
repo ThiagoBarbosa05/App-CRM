@@ -3492,7 +3492,7 @@ export class DatabaseStorage implements IStorage {
           companyCity: companies.city,
           companyState: companies.state,
           responsibleName: users.name,
-          customPrice: companyProducts.customPrice,
+          customPrice: companyProducts.customNegotiatedPrice,
           addedAt: companyProducts.createdAt,
           sectorName: sectors.name
         })
