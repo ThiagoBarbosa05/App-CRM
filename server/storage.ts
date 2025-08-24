@@ -80,26 +80,27 @@ import {
   sales, // Importação do schema de vendas
   type Sale, // Importação do tipo de venda
   type InsertSale, // Importação do tipo de inserção de venda
-  products as productsTable,
+  products,
+  companyProducts,
+  type InsertCompanyProduct,
+  type CompanyProduct,
 } from "@shared/schema";
 import { db } from "./db";
 import {
   and,
+  asc,
+  count,
   desc,
   eq,
   gte,
-  gt,
-  lt,
-  isNotNull,
-  sql,
-  inArray,
-  or,
-  isNull,
   ilike,
-  ne,
-  asc,
   lte,
-  like,
+  or,
+  sql,
+  isNotNull,
+  isNull,
+  inArray,
+  notInArray,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -439,6 +440,12 @@ export interface IStorage {
   createProduct(productData: any);
   updateProduct(id: string, productData: any);
   deleteProduct(id: string);
+
+  // Company Products Management
+  getCompanyProducts(companyId: string);
+  addProductToCompany(data: InsertCompanyProduct);
+  removeProductFromCompany(companyId: string, productId: string);
+  getAvailableProductsForCompany(companyId: string);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3286,7 +3293,7 @@ export class DatabaseStorage implements IStorage {
       console.log('Resultado da exclusão:', result);
 
       // Atualizar saldos de cashback do cliente se necessário
-      if ((sale.cashbackUsed && parseFloat(sale.cashbackUsed) > 0) || 
+      if ((sale.cashbackUsed && parseFloat(sale.cashbackUsed) > 0) ||
           (sale.cashbackGenerated && parseFloat(sale.cashbackGenerated) > 0)) {
         console.log('Atualizando saldo de cashback do cliente:', sale.clientId);
         await this.updateClientCashbackBalance(sale.clientId);
@@ -3325,21 +3332,21 @@ export class DatabaseStorage implements IStorage {
     try {
       const products = await this.db
         .select({
-          id: productsTable.id,
-          name: productsTable.name,
-          country: productsTable.country,
-          volume: productsTable.volume,
-          type: productsTable.type,
-          tablePrice: productsTable.tablePrice,
-          negotiatedPrice: productsTable.negotiatedPrice,
-          createdBy: productsTable.createdBy,
-          createdAt: productsTable.createdAt,
-          updatedAt: productsTable.updatedAt,
+          id: products.id,
+          name: products.name,
+          country: products.country,
+          volume: products.volume,
+          type: products.type,
+          tablePrice: products.tablePrice,
+          negotiatedPrice: products.negotiatedPrice,
+          createdBy: products.createdBy,
+          createdAt: products.createdAt,
+          updatedAt: products.updatedAt,
           createdByName: users.name,
         })
-        .from(productsTable)
-        .leftJoin(users, eq(productsTable.createdBy, users.id))
-        .orderBy(desc(productsTable.createdAt));
+        .from(products)
+        .leftJoin(users, eq(products.createdBy, users.id))
+        .orderBy(desc(products.createdAt));
 
       return products;
     } catch (error) {
@@ -3351,7 +3358,7 @@ export class DatabaseStorage implements IStorage {
   async createProduct(productData: any) {
     try {
       const [product] = await this.db
-        .insert(productsTable)
+        .insert(products)
         .values(productData)
         .returning();
       return product;
@@ -3364,9 +3371,9 @@ export class DatabaseStorage implements IStorage {
   async updateProduct(id: string, productData: any) {
     try {
       const [product] = await this.db
-        .update(productsTable)
+        .update(products)
         .set({ ...productData, updatedAt: new Date() })
-        .where(eq(productsTable.id, id))
+        .where(eq(products.id, id))
         .returning();
       return product;
     } catch (error) {
@@ -3375,16 +3382,100 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteProduct(id: string) {
+  async deleteProduct(id: string): Promise<boolean> {
     try {
-      await this.db
-        .delete(productsTable)
-        .where(eq(productsTable.id, id));
-      return true;
+      const result = await this.db.delete(products).where(eq(products.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error("Error deleting product:", error);
-      throw error;
+      return false;
     }
+  }
+
+  // Company Products Management
+  async getCompanyProducts(companyId: string) {
+    return await this.db
+      .select({
+        id: companyProducts.id,
+        companyId: companyProducts.companyId,
+        productId: companyProducts.productId,
+        isActive: companyProducts.isActive,
+        addedAt: companyProducts.addedAt,
+        product: {
+          id: products.id,
+          name: products.name,
+          country: products.country,
+          volume: products.volume,
+          type: products.type,
+          tablePrice: products.tablePrice,
+          negotiatedPrice: products.negotiatedPrice,
+        },
+      })
+      .from(companyProducts)
+      .leftJoin(products, eq(companyProducts.productId, products.id))
+      .where(and(
+        eq(companyProducts.companyId, companyId),
+        eq(companyProducts.isActive, "true")
+      ))
+      .orderBy(asc(products.name));
+  }
+
+  async addProductToCompany(data: InsertCompanyProduct) {
+    // Verificar se o produto já está vinculado à empresa
+    const existing = await this.db
+      .select()
+      .from(companyProducts)
+      .where(and(
+        eq(companyProducts.companyId, data.companyId),
+        eq(companyProducts.productId, data.productId)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Se existe mas está inativo, reativar
+      if (existing[0].isActive === "false") {
+        return await this.db
+          .update(companyProducts)
+          .set({
+            isActive: "true",
+            addedAt: new Date(),
+            addedBy: data.addedBy
+          })
+          .where(eq(companyProducts.id, existing[0].id))
+          .returning();
+      }
+      throw new Error("Produto já vinculado a esta empresa");
+    }
+
+    return await this.db.insert(companyProducts).values(data).returning();
+  }
+
+  async removeProductFromCompany(companyId: string, productId: string) {
+    return await this.db
+      .update(companyProducts)
+      .set({ isActive: "false" })
+      .where(and(
+        eq(companyProducts.companyId, companyId),
+        eq(companyProducts.productId, productId)
+      ))
+      .returning();
+  }
+
+  async getAvailableProductsForCompany(companyId: string) {
+    // Buscar produtos que não estão vinculados à empresa ou estão inativos
+    const linkedProducts = this.db
+      .select({ productId: companyProducts.productId })
+      .from(companyProducts)
+      .where(and(
+        eq(companyProducts.companyId, companyId),
+        eq(companyProducts.isActive, "true")
+      ));
+
+    return await this.db
+      .select()
+      .from(products)
+      .where(notInArray(products.id, linkedProducts))
+      .orderBy(asc(products.name));
   }
 }
 

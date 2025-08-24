@@ -225,6 +225,22 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
     references: [users.id],
   }),
   deals: many(deals),
+  companyProducts: many(companyProducts),
+}));
+
+export const companyProductsRelations = relations(companyProducts, ({ one }) => ({
+  company: one(companies, {
+    fields: [companyProducts.companyId],
+    references: [companies.id],
+  }),
+  product: one(products, {
+    fields: [companyProducts.productId],
+    references: [products.id],
+  }),
+  addedByUser: one(users, {
+    fields: [companyProducts.addedBy],
+    references: [users.id],
+  }),
 }));
 
 export const dealsRelations = relations(deals, ({ one }) => ({
@@ -708,6 +724,32 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   createdAt: true,
   updatedAt: true,
 });
+
+// Tabela de relação entre empresas e produtos (carta de vinhos)
+export const companyProducts = pgTable("company_products", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id")
+    .references(() => companies.id, { onDelete: "cascade" })
+    .notNull(),
+  productId: varchar("product_id")
+    .references(() => products.id, { onDelete: "cascade" })
+    .notNull(),
+  isActive: text("is_active").notNull().default("true"),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+  addedBy: varchar("added_by")
+    .references(() => users.id)
+    .notNull(),
+});
+
+export const insertCompanyProductSchema = createInsertSchema(companyProducts).omit({
+  id: true,
+  addedAt: true,
+});
+
+export type InsertCompanyProduct = z.infer<typeof insertCompanyProductSchema>;
+export type CompanyProduct = typeof companyProducts.$inferSelect;
 
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;

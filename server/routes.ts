@@ -2475,6 +2475,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company Products routes (carta de vinhos)
+  app.get("/api/companies/:companyId/products", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const products = await storage.getCompanyProducts(companyId);
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching company products:", error);
+      res.status(500).json({ message: "Erro ao buscar carta de vinhos" });
+    }
+  });
+
+  app.get("/api/companies/:companyId/available-products", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const products = await storage.getAvailableProductsForCompany(companyId);
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching available products:", error);
+      res.status(500).json({ message: "Erro ao buscar produtos disponíveis" });
+    }
+  });
+
+  app.post("/api/companies/:companyId/products", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const { productId } = req.body;
+      const userId = req.headers["x-user-id"] as string;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const companyProduct = await storage.addProductToCompany({
+        companyId,
+        productId,
+        addedBy: userId,
+        isActive: "true",
+      });
+
+      res.status(201).json(companyProduct);
+    } catch (error) {
+      console.error("Error adding product to company:", error);
+      if (error.message === "Produto já vinculado a esta empresa") {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Erro ao adicionar produto à carta" });
+    }
+  });
+
+  app.delete("/api/companies/:companyId/products/:productId", async (req, res) => {
+    try {
+      const { companyId, productId } = req.params;
+      await storage.removeProductFromCompany(companyId, productId);
+      res.json({ message: "Produto removido da carta com sucesso" });
+    } catch (error) {
+      console.error("Error removing product from company:", error);
+      res.status(500).json({ message: "Erro ao remover produto da carta" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

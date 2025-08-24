@@ -26,10 +26,12 @@ import {
   Calendar,
   Edit,
   Tag,
+  Wine,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Company, Sector } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import CompanyWineListModal from "./company-wine-list-modal";
 
 interface CompanyDetailsModalProps {
   company: Company | null;
@@ -44,6 +46,8 @@ export default function CompanyDetailsModal({
   onClose,
   onEdit,
 }: CompanyDetailsModalProps) {
+  const [isWineListOpen, setIsWineListOpen] = useState(false);
+
   // Buscar setor da empresa se ela tiver um
   const { data: sector } = useQuery<Sector>({
     queryKey: ["/api/sectors", company?.sectorId],
@@ -54,6 +58,18 @@ export default function CompanyDetailsModal({
       return response.json();
     },
     enabled: isOpen && !!company?.sectorId,
+  });
+
+  // Buscar carta de vinhos da empresa para mostrar resumo
+  const { data: companyProducts = [] } = useQuery({
+    queryKey: ["/api/companies", company?.id, "products"],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const response = await fetch(`/api/companies/${company.id}/products`);
+      if (!response.ok) throw new Error("Failed to fetch company products");
+      return response.json();
+    },
+    enabled: isOpen && !!company?.id,
   });
 
   if (!company) return null;
@@ -83,6 +99,15 @@ export default function CompanyDetailsModal({
               <Badge variant={company.active ? "default" : "secondary"}>
                 {company.active ? "Ativa" : "Inativa"}
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsWineListOpen(true)}
+                className="text-wine-600 border-wine-600 hover:bg-wine-50"
+              >
+                <Wine className="h-4 w-4 mr-2" />
+                Carta de Vinhos ({companyProducts.length})
+              </Button>
               {onEdit && (
                 <Button
                   variant="outline"
@@ -273,6 +298,79 @@ export default function CompanyDetailsModal({
             </Card>
           )}
 
+          {/* Carta de Vinhos - Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Wine className="h-5 w-5 text-wine-600" />
+                Carta de Vinhos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {companyProducts.length === 0 ? (
+                <div className="text-center py-4">
+                  <Wine className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">
+                    Nenhum vinho na carta ainda
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsWineListOpen(true)}
+                    className="mt-2 text-wine-600 border-wine-600 hover:bg-wine-50"
+                  >
+                    Adicionar vinhos
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600">
+                      {companyProducts.length} vinho(s) na carta
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsWineListOpen(true)}
+                      className="text-wine-600 border-wine-600 hover:bg-wine-50"
+                    >
+                      Ver carta completa
+                    </Button>
+                  </div>
+                  
+                  {/* Mostrar até 3 produtos como preview */}
+                  <div className="space-y-2">
+                    {companyProducts.slice(0, 3).map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{item.product.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {item.product.country} - {item.product.volume}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {item.product.type}
+                        </Badge>
+                      </div>
+                    ))}
+                    
+                    {companyProducts.length > 3 && (
+                      <p className="text-xs text-gray-500 text-center">
+                        e mais {companyProducts.length - 3} vinho(s)...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Observações */}
           {company.notes && (
             <Card>
@@ -288,6 +386,13 @@ export default function CompanyDetailsModal({
             </Card>
           )}
         </div>
+
+        {/* Wine List Modal */}
+        <CompanyWineListModal
+          company={company}
+          isOpen={isWineListOpen}
+          onClose={() => setIsWineListOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );
