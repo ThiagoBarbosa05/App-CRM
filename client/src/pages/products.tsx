@@ -243,21 +243,19 @@ export default function Products() {
                           <Badge 
                             variant={product.clientCount > 0 ? "default" : "secondary"}
                             className="cursor-pointer hover:opacity-80"
-                            onClick={() => product.clientCount > 0 && handleViewClients(product)}
+                            onClick={() => handleViewClients(product)}
                           >
                             <Users className="h-3 w-3 mr-1" />
                             {product.clientCount}
                           </Badge>
-                          {product.clientCount > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewClients(product)}
-                              className="text-xs px-2 py-1 h-6"
-                            >
-                              Ver clientes
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewClients(product)}
+                            className="text-xs px-2 py-1 h-6"
+                          >
+                            Ver clientes
+                          </Button>
                         </div>
                       </TableCell>
                       <TableCell>{product.createdByName || "Sistema"}</TableCell>
