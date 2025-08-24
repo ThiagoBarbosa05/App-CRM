@@ -22,6 +22,8 @@ import Configurations from "@/pages/configurations";
 import { MainLayout } from "./layouts/main-layout";
 import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
+import { lazy } from "react";
+
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -121,6 +123,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Trainings />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/products"
+        component={() => (
+          <MainLayout>
+            <Products />
           </MainLayout>
         )}
       />

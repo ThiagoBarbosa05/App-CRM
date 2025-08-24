@@ -29,6 +29,7 @@ import {
   createDocumentTrainingSchema,
   updateDocumentTrainingSchema,
   createScriptSchema,
+  insertProductSchema,
   clientInteractions,
   clients,
   users,
@@ -2407,6 +2408,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Products routes
+  app.get("/api/products", async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ message: "Erro ao buscar produtos" });
+    }
+  });
+
+  app.post("/api/products", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const productData = {
+        ...req.body,
+        createdBy: userId,
+      };
+
+      const validatedData = insertProductSchema.parse(productData);
+      const product = await storage.createProduct(validatedData);
+      res.status(201).json(product);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error creating product:", error);
+      res.status(500).json({ message: "Erro ao criar produto" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertProductSchema.partial().parse(req.body);
+      const product = await storage.updateProduct(id, validatedData);
+      res.json(product);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error updating product:", error);
+      res.status(500).json({ message: "Erro ao atualizar produto" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteProduct(id);
+      if (!success) {
+        return res.status(404).json({ message: "Produto não encontrado" });
+      }
+      res.json({ message: "Produto excluído com sucesso" });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      res.status(500).json({ message: "Erro ao excluir produto" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -1112,7 +1112,36 @@ export const sales = pgTable('sales', {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const products = pgTable("products", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  country: text("country", { 
+    enum: ["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"] 
+  }).notNull(),
+  volume: text("volume", { 
+    enum: ["187ml", "375ml", "750ml", "1500ml"] 
+  }).notNull(),
+  type: text("type", { 
+    enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] 
+  }).notNull(),
+  tablePrice: decimal("table_price", { precision: 10, scale: 2 }).notNull(),
+  negotiatedPrice: decimal("negotiated_price", { precision: 10, scale: 2 }).notNull(),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertSaleSchema = createInsertSchema(sales).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -1120,3 +1149,5 @@ export const insertSaleSchema = createInsertSchema(sales).omit({
 
 export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Sale = typeof sales.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Product = typeof products.$inferSelect;

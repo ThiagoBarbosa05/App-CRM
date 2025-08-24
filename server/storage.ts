@@ -80,6 +80,7 @@ import {
   sales, // Importação do schema de vendas
   type Sale, // Importação do tipo de venda
   type InsertSale, // Importação do tipo de inserção de venda
+  products as productsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -432,6 +433,12 @@ export interface IStorage {
     userId?: string;
   }): Promise<any>;
   deleteSale(saleId: string): Promise<boolean>;
+
+  // Products Methods
+  getProducts();
+  createProduct(productData: any);
+  updateProduct(id: string, productData: any);
+  deleteProduct(id: string);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1898,6 +1905,10 @@ export class DatabaseStorage implements IStorage {
   async getCashbackTransactions(
     userId?: string,
     userRole?: string,
+  ): Promise<CashbackTransactionWithClient[]>;
+  async getCashbackTransactions(
+    userId?: string,
+    userRole?: string,
   ): Promise<CashbackTransactionWithClient[]> {
     // Sempre fazer join com clientes para mostrar o nome
     let transactionsQuery = this.db.select({
@@ -1941,7 +1952,7 @@ export class DatabaseStorage implements IStorage {
     if (!insertTransaction.expiresAt) {
       let expirationDays = 28; // Padrão de 28 dias
 
-      // Se há uma regra de cashback definida, usar os dias de vencimento dela
+      // Se há uma regra de cashback definida, usar os dias de validade dela
       if (insertTransaction.settingId) {
         const [setting] = await this.db
           .select()
@@ -3307,6 +3318,73 @@ export class DatabaseStorage implements IStorage {
       .orderBy(salesFunnels.name);
 
     return clientFunnels;
+  }
+
+  // Products Methods
+  async getProducts() {
+    try {
+      const products = await this.db
+        .select({
+          id: productsTable.id,
+          name: productsTable.name,
+          country: productsTable.country,
+          volume: productsTable.volume,
+          type: productsTable.type,
+          tablePrice: productsTable.tablePrice,
+          negotiatedPrice: productsTable.negotiatedPrice,
+          createdBy: productsTable.createdBy,
+          createdAt: productsTable.createdAt,
+          updatedAt: productsTable.updatedAt,
+          createdByName: users.name,
+        })
+        .from(productsTable)
+        .leftJoin(users, eq(productsTable.createdBy, users.id))
+        .orderBy(desc(productsTable.createdAt));
+
+      return products;
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      throw error;
+    }
+  }
+
+  async createProduct(productData: any) {
+    try {
+      const [product] = await this.db
+        .insert(productsTable)
+        .values(productData)
+        .returning();
+      return product;
+    } catch (error) {
+      console.error("Error creating product:", error);
+      throw error;
+    }
+  }
+
+  async updateProduct(id: string, productData: any) {
+    try {
+      const [product] = await this.db
+        .update(productsTable)
+        .set({ ...productData, updatedAt: new Date() })
+        .where(eq(productsTable.id, id))
+        .returning();
+      return product;
+    } catch (error) {
+      console.error("Error updating product:", error);
+      throw error;
+    }
+  }
+
+  async deleteProduct(id: string) {
+    try {
+      await this.db
+        .delete(productsTable)
+        .where(eq(productsTable.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      throw error;
+    }
   }
 }
 

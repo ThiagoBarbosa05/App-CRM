@@ -45,6 +45,8 @@ export default function Sidebar() {
     setIsMobileMenuOpen(false);
   };
 
+  const isActive = (href: string) => location === href;
+
   return (
     <>
       {/* Mobile menu button */}
@@ -131,7 +133,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/dashboard"
+                    isActive("/dashboard")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -146,7 +148,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/clientes"
+                    isActive("/clientes")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -161,7 +163,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/acompanhamento"
+                    isActive("/acompanhamento")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -176,7 +178,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/empresas"
+                    isActive("/empresas")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -192,7 +194,7 @@ export default function Sidebar() {
                     onClick={closeMobileMenu}
                     className={cn(
                       "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                      location === "/funil"
+                      isActive("/funil")
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
@@ -208,7 +210,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/calendario"
+                    isActive("/calendario")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -223,7 +225,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/metas"
+                    isActive("/metas")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -239,7 +241,7 @@ export default function Sidebar() {
                     onClick={closeMobileMenu}
                     className={cn(
                       "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                      location === "/relatorios"
+                      isActive("/relatorios")
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
@@ -255,7 +257,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/assistente-ia"
+                    isActive("/assistente-ia")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -270,7 +272,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/treinamentos"
+                    isActive("/treinamentos")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -286,7 +288,7 @@ export default function Sidebar() {
                     onClick={closeMobileMenu}
                     className={cn(
                       "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                      location === "/admin-metas"
+                      isActive("/admin-metas")
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
@@ -302,7 +304,7 @@ export default function Sidebar() {
                   onClick={closeMobileMenu}
                   className={cn(
                     "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                    location === "/cashback"
+                    isActive("/cashback")
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
@@ -312,7 +314,20 @@ export default function Sidebar() {
                 </button>
               </Link>
 
-              
+              <Link href="/products">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    isActive("/products")
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <Wine className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Produtos</span>
+                </button>
+              </Link>
 
               {user?.role !== "vendedor" && (
                 <Link href="/configuracoes">
@@ -320,7 +335,7 @@ export default function Sidebar() {
                     onClick={closeMobileMenu}
                     className={cn(
                       "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
-                      location === "/configuracoes"
+                      isActive("/configuracoes")
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-accent hover:text-accent-foreground",
                     )}
