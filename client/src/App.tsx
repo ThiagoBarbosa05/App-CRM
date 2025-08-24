@@ -22,6 +22,7 @@ import Configurations from "@/pages/configurations";
 import { MainLayout } from "./layouts/main-layout";
 import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
+import Products from "./pages/products";
 import { lazy } from "react";
 
 
