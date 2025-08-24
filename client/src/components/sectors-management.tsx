@@ -62,7 +62,11 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
     mutationFn: async (data: SectorFormData) => {
       const response = await fetch("/api/sectors", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-id": "test",
+          "x-user-role": "admin"
+        },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error("Failed to create sector");
@@ -90,7 +94,11 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
     mutationFn: async (data: SectorFormData) => {
       const response = await fetch(`/api/sectors/${sector!.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-id": "test",
+          "x-user-role": "admin"
+        },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error("Failed to update sector");
@@ -187,12 +195,26 @@ export default function SectorsManagement() {
 
   const { data: sectors = [], isLoading } = useQuery<Sector[]>({
     queryKey: ["/api/sectors"],
+    queryFn: async () => {
+      const response = await fetch("/api/sectors", {
+        headers: {
+          "x-user-id": "test",
+          "x-user-role": "admin"
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch sectors");
+      return response.json();
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/sectors/${id}`, {
         method: "DELETE",
+        headers: {
+          "x-user-id": "test",
+          "x-user-role": "admin"
+        },
       });
       if (!response.ok) throw new Error("Failed to delete sector");
       return response.json();
