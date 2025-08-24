@@ -34,6 +34,9 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
   const [showFunnelSelector, setShowFunnelSelector] = useState(false);
 
   if (!client) return null;
+  
+  console.log("ClientDetailsCard rendering for client:", client.name);
+  console.log("Funnels available:", funnels);
 
   const formatPhone = (phone: string) => {
     // Remove caracteres não numéricos
@@ -121,15 +124,19 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         </DialogHeader>
         
         {/* Botão para criar negócio */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-4" style={{backgroundColor: 'red', padding: '10px'}}>
           <Button
-            onClick={() => setShowFunnelSelector(true)}
+            onClick={() => {
+              console.log("Botão criar negócio clicado!");
+              setShowFunnelSelector(true);
+            }}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
             size="default"
             data-testid="button-criar-negocio"
+            style={{fontSize: '16px', fontWeight: 'bold'}}
           >
             <Plus className="h-4 w-4" />
-            Criar Negócio no Funil
+            CRIAR NEGÓCIO NO FUNIL
           </Button>
         </div>
 
