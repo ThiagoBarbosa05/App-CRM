@@ -101,37 +101,37 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-wine-600" />
-                <span className="text-lg font-semibold">{client.name}</span>
-              </div>
-              {onEdit && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onEdit(client)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
-              )}
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-wine-600" />
+              <span className="text-lg font-semibold">{client.name}</span>
             </div>
-            <div className="flex justify-center w-full">
+            {onEdit && (
               <Button
-                onClick={() => setShowFunnelSelector(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
+                variant="outline"
                 size="sm"
-                data-testid="button-criar-negocio"
+                onClick={() => onEdit(client)}
+                className="flex items-center gap-2"
               >
-                <Plus className="h-4 w-4" />
-                Criar Negócio no Funil
+                <Edit className="h-4 w-4" />
+                Editar
               </Button>
-            </div>
+            )}
           </DialogTitle>
         </DialogHeader>
+        
+        {/* Botão para criar negócio */}
+        <div className="flex justify-center mb-4">
+          <Button
+            onClick={() => setShowFunnelSelector(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
+            size="default"
+            data-testid="button-criar-negocio"
+          >
+            <Plus className="h-4 w-4" />
+            Criar Negócio no Funil
+          </Button>
+        </div>
 
         <Tabs defaultValue="info" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
