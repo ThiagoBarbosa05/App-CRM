@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Wine, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Wine, Search, Building2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ProductFormModal } from "@/components/product-form-modal";
+import { ProductClientsModal } from "@/components/product-clients-modal";
 import { queryClient } from "@/lib/queryClient";
 import {
   AlertDialog,
@@ -38,10 +39,13 @@ interface Product {
   negotiatedPrice: string;
   createdByName: string;
   createdAt: string;
+  clientCount: number;
 }
 
 export default function Products() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
+  const [selectedProductForClients, setSelectedProductForClients] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -98,6 +102,11 @@ export default function Products() {
   const handleCloseModal = useCallback(() => {
     setIsProductModalOpen(false);
     setEditingProduct(null);
+  }, []);
+
+  const handleViewClients = useCallback((product: Product) => {
+    setSelectedProductForClients(product);
+    setIsClientsModalOpen(true);
   }, []);
 
   const getCountryFlag = (country: string) => {
@@ -187,6 +196,7 @@ export default function Products() {
                   <TableHead>Volume</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Valor Negociado</TableHead>
+                  <TableHead>Clientes</TableHead>
                   <TableHead>Criado por</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -194,13 +204,13 @@ export default function Products() {
               <TableBody>
                 {isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       {searchQuery ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
                     </TableCell>
                   </TableRow>
@@ -227,6 +237,28 @@ export default function Products() {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={product.clientCount > 0 ? "default" : "secondary"}
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => product.clientCount > 0 && handleViewClients(product)}
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            {product.clientCount}
+                          </Badge>
+                          {product.clientCount > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewClients(product)}
+                              className="text-xs px-2 py-1 h-6"
+                            >
+                              Ver clientes
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{product.createdByName || "Sistema"}</TableCell>
                       <TableCell className="text-right">
@@ -279,6 +311,15 @@ export default function Products() {
         onOpenChange={handleCloseModal}
         product={editingProduct}
       />
+
+      {selectedProductForClients && (
+        <ProductClientsModal
+          open={isClientsModalOpen}
+          onOpenChange={setIsClientsModalOpen}
+          productId={selectedProductForClients.id}
+          productName={selectedProductForClients.name}
+        />
+      )}
     </div>
   );
 }

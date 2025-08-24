@@ -94,6 +94,7 @@ import {
   eq,
   gte,
   ilike,
+  lt,
   lte,
   or,
   sql,
@@ -101,6 +102,8 @@ import {
   isNull,
   inArray,
   notInArray,
+  ne,
+  gt,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -440,6 +443,8 @@ export interface IStorage {
   createProduct(productData: any);
   updateProduct(id: string, productData: any);
   deleteProduct(id: string);
+  getProductsWithClientCount();
+  getClientsWithProduct(productId: string);
 
   // Company Products Management
   getCompanyProducts(companyId: string);
@@ -2190,33 +2195,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string) {
+  async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string): Promise<CompanyProduct | null> {
     try {
-      console.log("Storage: Updating price for company", companyId, "product", productId, "to", customPrice);
-      
-      if (!companyId || !productId || !customPrice) {
-        throw new Error("Missing required parameters");
-      }
-
-      // Verificar se o registro existe primeiro
-      const existing = await this.db
-        .select()
-        .from(companyProducts)
-        .where(
-          and(
-            eq(companyProducts.companyId, companyId),
-            eq(companyProducts.productId, productId),
-            eq(companyProducts.isActive, "true")
-          )
-        )
-        .limit(1);
-
-      if (existing.length === 0) {
-        console.log("Company product not found or inactive");
-        return null;
-      }
-
-      const [result] = await this.db
+      const [updated] = await this.db
         .update(companyProducts)
         .set({ 
           customNegotiatedPrice: customPrice,
@@ -2225,15 +2206,14 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(companyProducts.companyId, companyId),
-            eq(companyProducts.productId, productId)
-          )
+            eq(companyProducts.productId, productId),
+          ),
         )
         .returning();
 
-      console.log("Storage: Price updated successfully", result);
-      return result;
+      return updated || null;
     } catch (error) {
-      console.error("Error updating company product price in storage:", error);
+      console.error("Error updating company product price:", error);
       throw error;
     }
   }
@@ -3379,12 +3359,22 @@ export class DatabaseStorage implements IStorage {
   // Products Methods
   async getProducts() {
     try {
-      const result = await this.db
-        .select()
+      const productsList = await this.db
+        .select({
+          id: products.id,
+          name: products.name,
+          country: products.country,
+          volume: products.volume,
+          type: products.type,
+          negotiatedPrice: products.negotiatedPrice,
+          createdByName: users.name,
+          createdAt: products.createdAt,
+        })
         .from(products)
+        .leftJoin(users, eq(products.createdBy, users.id))
         .orderBy(desc(products.createdAt));
 
-      return result;
+      return productsList;
     } catch (error) {
       console.error("Error fetching products:", error);
       throw error;
@@ -3427,6 +3417,85 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+
+  async getProductsWithClientCount() {
+    try {
+      const productsList = await this.db
+        .select({
+          id: products.id,
+          name: products.name,
+          country: products.country,
+          volume: products.volume,
+          type: products.type,
+          negotiatedPrice: products.negotiatedPrice,
+          createdByName: users.name,
+          createdAt: products.createdAt,
+          clientCount: sql<number>`CAST(COUNT(${companyProducts.id}) AS INTEGER)`,
+        })
+        .from(products)
+        .leftJoin(users, eq(products.createdBy, users.id))
+        .leftJoin(
+          companyProducts,
+          and(
+            eq(companyProducts.productId, products.id),
+            eq(companyProducts.isActive, "true")
+          )
+        )
+        .groupBy(
+          products.id,
+          products.name,
+          products.country,
+          products.volume,
+          products.type,
+          products.negotiatedPrice,
+          products.createdAt,
+          users.name
+        )
+        .orderBy(desc(products.createdAt));
+
+      return productsList;
+    } catch (error) {
+      console.error("Error fetching products with client count:", error);
+      throw error;
+    }
+  }
+
+  async getClientsWithProduct(productId: string) {
+    try {
+      const clientsWithProduct = await this.db
+        .select({
+          clientId: companies.id,
+          clientName: companies.nomeFantasia,
+          clientRazaoSocial: companies.razaoSocial,
+          clientCnpj: companies.cnpj,
+          clientPhone: companies.phone,
+          clientEmail: companies.email,
+          clientCity: companies.city,
+          clientState: companies.state,
+          responsibleName: users.name,
+          customPrice: companyProducts.customNegotiatedPrice,
+          addedAt: companyProducts.addedAt,
+          sectorName: sectors.name,
+        })
+        .from(companyProducts)
+        .innerJoin(companies, eq(companyProducts.companyId, companies.id))
+        .leftJoin(users, eq(companies.responsavelId, users.id))
+        .leftJoin(sectors, eq(companies.sectorId, sectors.id))
+        .where(
+          and(
+            eq(companyProducts.productId, productId),
+            eq(companyProducts.isActive, "true"),
+          ),
+        )
+        .orderBy(companies.nomeFantasia);
+
+      return clientsWithProduct;
+    } catch (error) {
+      console.error("Error fetching clients with product:", error);
+      throw error;
+    }
+  }
+
 
   // Company Products Management
   async getCompanyProducts(companyId: string) {
@@ -3522,17 +3591,30 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(products.name));
   }
 
-  async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string) {
-    return await this.db
-      .update(companyProducts)
-      .set({ 
-        customNegotiatedPrice: customPrice,
-      })
-      .where(and(
-        eq(companyProducts.companyId, companyId),
-        eq(companyProducts.productId, productId)
-      ))
-      .returning();
+  async updateCompanyProductPrice(
+    companyId: string,
+    productId: string,
+    customPrice: string,
+  ): Promise<CompanyProduct | null> {
+    try {
+      const [updated] = await this.db
+        .update(companyProducts)
+        .set({
+          customNegotiatedPrice: customPrice,
+        })
+        .where(
+          and(
+            eq(companyProducts.companyId, companyId),
+            eq(companyProducts.productId, productId),
+          ),
+        )
+        .returning();
+
+      return updated || null;
+    } catch (error) {
+      console.error("Error updating company product price:", error);
+      throw error;
+    }
   }
 }
 
