@@ -219,10 +219,13 @@ export default function Products() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-user-id': 'test',
+              'x-user-id': 'b314722c-8fd6-4592-a9de-9ee551ec35be',
               'x-user-role': 'admin'
             },
-            body: JSON.stringify(product)
+            body: JSON.stringify({
+              ...product,
+              createdBy: 'b314722c-8fd6-4592-a9de-9ee551ec35be'
+            })
           });
 
           if (response.ok) {
