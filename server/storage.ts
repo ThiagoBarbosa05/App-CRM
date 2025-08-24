@@ -417,6 +417,9 @@ export interface IStorage {
   // Dashboard Statistics
   getDashboardStats(userId: string): Promise<any>;
 
+  // Client Funnels methods
+  getClientFunnels(clientId: string): Promise<SalesFunnel[]>;
+
   // Sales Methods
   getSales(): Promise<Sale[]>;
   createSale(saleData: {
@@ -3284,6 +3287,26 @@ export class DatabaseStorage implements IStorage {
       console.error('Erro ao excluir venda:', error);
       return false;
     }
+  }
+
+  // Get funnels where client has deals
+  async getClientFunnels(clientId: string): Promise<SalesFunnel[]> {
+    const clientFunnels = await this.db
+      .selectDistinct({
+        id: salesFunnels.id,
+        name: salesFunnels.name,
+        description: salesFunnels.description,
+        isActive: salesFunnels.isActive,
+        createdBy: salesFunnels.createdBy,
+        createdAt: salesFunnels.createdAt,
+        updatedAt: salesFunnels.updatedAt,
+      })
+      .from(salesFunnels)
+      .innerJoin(deals, eq(deals.funnelId, salesFunnels.id))
+      .where(eq(deals.clientId, clientId))
+      .orderBy(salesFunnels.name);
+
+    return clientFunnels;
   }
 }
 

@@ -1517,6 +1517,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:clientId/funnels", async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const funnels = await storage.getClientFunnels(clientId);
+      res.json(funnels);
+    } catch (error) {
+      console.error("Erro ao buscar funis do cliente:", error);
+      res.status(500).json({ message: "Erro ao buscar funis do cliente" });
+    }
+  });
+
   app.post("/api/interactions", async (req, res) => {
     try {
       const interaction = await storage.createClientInteraction(req.body);

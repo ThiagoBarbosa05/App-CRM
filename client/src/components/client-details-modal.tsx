@@ -64,9 +64,10 @@ export default function ClientDetailsModal({
     enabled: !!client?.id && isOpen,
   });
 
-  // Query para buscar funis
+  // Query para buscar funis específicos do cliente
   const { data: funnels = [] } = useQuery({
-    queryKey: ['/api/funnels'],
+    queryKey: [`/api/clients/${client?.id}/funnels`],
+    enabled: !!client?.id && isOpen,
   });
 
 
