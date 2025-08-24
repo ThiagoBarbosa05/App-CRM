@@ -1,7 +1,9 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Wine, Search, Building2, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Wine, Search, Building2, Users, Download, Upload } from "lucide-react";
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +50,7 @@ export default function Products() {
   const [selectedProductForClients, setSelectedProductForClients] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data: products = [], isFetching } = useQuery({
@@ -109,6 +112,134 @@ export default function Products() {
     setIsClientsModalOpen(true);
   }, []);
 
+  const handleExportProducts = useCallback(() => {
+    // Criar dados para exportar
+    const exportData = products.map((product: Product) => ({
+      'Nome do Vinho': product.name,
+      'País': product.country,
+      'Volume': product.volume,
+      'Tipo': product.type,
+      'Valor Negociado': `R$ ${parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`,
+      'Criado Por': product.createdByName || "Sistema",
+      'Data de Criação': new Date(product.createdAt).toLocaleDateString('pt-BR')
+    }));
+
+    // Criar planilha
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+
+    // Gerar arquivo e baixar
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(data, `produtos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+    toast({
+      title: "Exportação concluída",
+      description: "Lista de produtos exportada com sucesso.",
+    });
+  }, [products, toast]);
+
+  const handleImportProducts = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log('Dados importados:', jsonData);
+        
+        // Processar e enviar dados para o backend
+        processImportedProducts(jsonData);
+        
+      } catch (error) {
+        console.error('Erro ao processar arquivo:', error);
+        toast({
+          title: "Erro na importação",
+          description: "Erro ao processar o arquivo Excel. Verifique o formato.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // Limpar input
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [toast]);
+
+  const processImportedProducts = useCallback(async (data: any[]) => {
+    try {
+      const productsToImport = data.map((row: any) => ({
+        name: row['Nome do Vinho'] || row.nome || row.name,
+        country: row['País'] || row.pais || row.country || 'BRASIL',
+        volume: row['Volume'] || row.volume || '750ml',
+        type: row['Tipo'] || row.tipo || row.type || 'TINTO',
+        negotiatedPrice: parseFloat(
+          String(row['Valor Negociado'] || row.valor || row.price || '0')
+            .replace(/[^\d,]/g, '')
+            .replace(',', '.')
+        ).toFixed(2)
+      })).filter(product => product.name); // Só incluir produtos com nome
+
+      console.log('Produtos para importar:', productsToImport);
+
+      // Importar cada produto individualmente
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const product of productsToImport) {
+        try {
+          const response = await fetch('/api/products', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': 'test',
+              'x-user-role': 'admin'
+            },
+            body: JSON.stringify(product)
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Erro ao importar produto ${product.name}:`, await response.text());
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Erro ao importar produto ${product.name}:`, error);
+        }
+      }
+
+      // Atualizar lista de produtos
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+
+      toast({
+        title: "Importação concluída",
+        description: `${successCount} produto(s) importado(s) com sucesso. ${errorCount > 0 ? `${errorCount} erro(s).` : ''}`,
+      });
+
+    } catch (error) {
+      console.error('Erro no processamento:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Erro ao processar os dados importados.",
+        variant: "destructive",
+      });
+    }
+  }, [queryClient, toast]);
+
   const getCountryFlag = (country: string) => {
     const flags: { [key: string]: string } = {
       CHILE: "🇨🇱",
@@ -151,13 +282,30 @@ export default function Products() {
               Gerencie o catálogo de vinhos e produtos
             </p>
           </div>
-          <Button
-            onClick={() => setIsProductModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleExportProducts}
+              variant="outline"
+              disabled={products.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              variant="outline"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importar
+            </Button>
+            <Button
+              onClick={() => setIsProductModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -318,6 +466,15 @@ export default function Products() {
           productName={selectedProductForClients.name}
         />
       )}
+
+      {/* Input oculto para importação de arquivo */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        style={{ display: 'none' }}
+        onChange={handleImportProducts}
+      />
     </div>
   );
 }
