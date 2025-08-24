@@ -134,6 +134,21 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                     </button>
                 </Link>
 
+                <Link href="/products">
+                    <button
+                        onClick={closeMobileMenu}
+                        className={cn(
+                            "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                            location === "/products"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                        )}
+                    >
+                        <Wine className="mr-3 h-4 w-4" />
+                        <span className="mobile-text">Produtos</span>
+                    </button>
+                </Link>
+
                 {user?.role === "admin" && (
                     <Link href="/funil">
                         <button
