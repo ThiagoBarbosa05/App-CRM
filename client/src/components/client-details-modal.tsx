@@ -139,10 +139,14 @@ export default function ClientDetailsModal({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="info" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Informações
+            </TabsTrigger>
+            <TabsTrigger value="negocio" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Criar Negócio
             </TabsTrigger>
             <TabsTrigger
               value="interactions"
@@ -150,6 +154,10 @@ export default function ClientDetailsModal({
             >
               <MessageSquare className="h-4 w-4" />
               Interações
+            </TabsTrigger>
+            <TabsTrigger value="cashback" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Cashback
             </TabsTrigger>
           </TabsList>
 
@@ -410,8 +418,90 @@ export default function ClientDetailsModal({
             </Card>
           </TabsContent>
 
+          <TabsContent value="negocio" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Criar Novo Negócio
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center space-y-4">
+                  <p className="text-lg font-medium text-gray-900">{client.name}</p>
+                  <p className="text-sm text-gray-500">Escolha o funil para criar o negócio</p>
+                  
+                  <div className="space-y-3">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start h-auto p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <User className="h-4 w-4 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">Funil Principal</p>
+                          <p className="text-sm text-gray-500">Funil principal de vendas</p>
+                        </div>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start h-auto p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <User className="h-4 w-4 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">TESTE 2</p>
+                          <p className="text-sm text-gray-500">Funil de testes</p>
+                        </div>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="interactions" className="mt-6">
             <ClientInteractionsTab client={client} />
+          </TabsContent>
+
+          <TabsContent value="cashback" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-green-600" />
+                  Saldo de Cashback
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
+                    <p className="text-2xl font-bold text-green-700">
+                      {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance?.toString() || "0") : formatCurrency(0)}
+                    </p>
+                  </div>
+                  <Gift className="h-8 w-8 text-green-600" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm font-medium text-blue-600">Total Acumulado</p>
+                    <p className="text-lg font-bold text-blue-700">
+                      {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned?.toString() || "0") : formatCurrency(0)}
+                    </p>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded-lg">
+                    <p className="text-sm font-medium text-orange-600">Total Utilizado</p>
+                    <p className="text-lg font-bold text-orange-700">
+                      {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed?.toString() || "0") : formatCurrency(0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </DialogContent>
