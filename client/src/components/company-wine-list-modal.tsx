@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Company, Product } from "@shared/schema";
 
 interface CompanyWineListModalProps {
@@ -61,6 +62,7 @@ export default function CompanyWineListModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Buscar carta de vinhos da empresa
@@ -94,7 +96,8 @@ export default function CompanyWineListModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": localStorage.getItem("user-id") || "",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
         },
         body: JSON.stringify({ productId }),
       });
