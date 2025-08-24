@@ -2573,15 +2573,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get clients that have a specific product
-  app.get("/api/products/:productId/clients", async (req, res) => {
+  // Get companies that have a specific product
+  app.get("/api/products/:productId/companies", async (req, res) => {
     try {
       const { productId } = req.params;
-      const clientsWithProduct = await storage.getClientsWithProduct(productId);
-      res.json(clientsWithProduct);
+      console.log(`API: Fetching companies for product ${productId}`);
+      const companiesWithProduct = await storage.getCompaniesWithProduct(productId);
+      console.log(`API: Found ${companiesWithProduct.length} companies for product ${productId}`);
+      res.json(companiesWithProduct);
     } catch (error) {
-      console.error("Error fetching clients with product:", error);
-      res.status(500).json({ message: "Erro ao buscar clientes com o produto" });
+      console.error("Error fetching companies with product:", error);
+      res.status(500).json({ message: "Erro ao buscar empresas com o produto" });
     }
   });
 

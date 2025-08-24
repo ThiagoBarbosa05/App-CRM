@@ -445,6 +445,7 @@ export interface IStorage {
   deleteProduct(id: string);
   getProductsWithClientCount();
   getClientsWithProduct(productId: string);
+  getCompaniesWithProduct(productId: string);
 
   // Company Products Management
   getCompanyProducts(companyId: string);
@@ -3420,7 +3421,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsWithClientCount() {
     try {
-      const productsList = await this.db
+      const result = await db
         .select({
           id: products.id,
           name: products.name,
@@ -3428,32 +3429,18 @@ export class DatabaseStorage implements IStorage {
           volume: products.volume,
           type: products.type,
           negotiatedPrice: products.negotiatedPrice,
-          createdByName: users.name,
+          createdBy: products.createdBy,
           createdAt: products.createdAt,
-          clientCount: sql<number>`CAST(COUNT(${companyProducts.id}) AS INTEGER)`,
+          createdByName: users.name,
+          clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .leftJoin(
-          companyProducts,
-          and(
-            eq(companyProducts.productId, products.id),
-            eq(companyProducts.isActive, "true")
-          )
-        )
-        .groupBy(
-          products.id,
-          products.name,
-          products.country,
-          products.volume,
-          products.type,
-          products.negotiatedPrice,
-          products.createdAt,
-          users.name
-        )
-        .orderBy(desc(products.createdAt));
+        .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
+        .groupBy(products.id, users.name)
+        .orderBy(asc(products.name));
 
-      return productsList;
+      return result;
     } catch (error) {
       console.error("Error fetching products with client count:", error);
       throw error;
@@ -3462,36 +3449,64 @@ export class DatabaseStorage implements IStorage {
 
   async getClientsWithProduct(productId: string) {
     try {
-      const clientsWithProduct = await this.db
+      const result = await db
         .select({
-          clientId: companies.id,
-          clientName: companies.nomeFantasia,
-          clientRazaoSocial: companies.razaoSocial,
-          clientCnpj: companies.cnpj,
-          clientPhone: companies.phone,
-          clientEmail: companies.email,
-          clientCity: companies.city,
-          clientState: companies.state,
+          clientId: clients.id,
+          clientName: clients.name,
+          clientRazaoSocial: clients.razaoSocial,
+          clientCnpj: clients.cnpj,
+          clientPhone: clients.phone,
+          clientEmail: clients.email,
+          clientCity: clients.city,
+          clientState: clients.state,
           responsibleName: users.name,
           customPrice: companyProducts.customNegotiatedPrice,
-          addedAt: companyProducts.addedAt,
-          sectorName: sectors.name,
+          addedAt: companyProducts.createdAt,
+          sectorName: sectors.name
+        })
+        .from(companyProducts)
+        .innerJoin(clients, eq(companyProducts.companyId, clients.id))
+        .leftJoin(users, eq(clients.responsavelId, users.id))
+        .leftJoin(sectors, eq(clients.sectorId, sectors.id))
+        .where(eq(companyProducts.productId, productId))
+        .orderBy(asc(clients.name));
+
+      console.log(`Found ${result.length} clients for product ${productId}`);
+      return result;
+    } catch (error) {
+      console.error("Error fetching clients with product:", error);
+      throw error;
+    }
+  }
+
+  async getCompaniesWithProduct(productId: string) {
+    try {
+      const result = await db
+        .select({
+          companyId: companies.id,
+          companyName: companies.name,
+          companyRazaoSocial: companies.razaoSocial,
+          companyCnpj: companies.cnpj,
+          companyPhone: companies.phone,
+          companyEmail: companies.email,
+          companyCity: companies.city,
+          companyState: companies.state,
+          responsibleName: users.name,
+          customPrice: companyProducts.customPrice,
+          addedAt: companyProducts.createdAt,
+          sectorName: sectors.name
         })
         .from(companyProducts)
         .innerJoin(companies, eq(companyProducts.companyId, companies.id))
         .leftJoin(users, eq(companies.responsavelId, users.id))
         .leftJoin(sectors, eq(companies.sectorId, sectors.id))
-        .where(
-          and(
-            eq(companyProducts.productId, productId),
-            eq(companyProducts.isActive, "true"),
-          ),
-        )
-        .orderBy(companies.nomeFantasia);
+        .where(eq(companyProducts.productId, productId))
+        .orderBy(asc(companies.name));
 
-      return clientsWithProduct;
+      console.log(`Found ${result.length} companies for product ${productId}`);
+      return result;
     } catch (error) {
-      console.error("Error fetching clients with product:", error);
+      console.error("Error fetching companies with product:", error);
       throw error;
     }
   }
