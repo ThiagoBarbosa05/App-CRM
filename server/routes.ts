@@ -2587,6 +2587,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get products statistics
+  app.get("/api/products/statistics", async (req, res) => {
+    try {
+      const statistics = await storage.getProductsStatistics();
+      res.json(statistics);
+    } catch (error) {
+      console.error("Error fetching products statistics:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de produtos" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

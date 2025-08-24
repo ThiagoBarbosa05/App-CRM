@@ -1,12 +1,12 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Wine, Search, Building2, Users, Download, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, Wine, Search, Building2, Users, Download, Upload, TrendingUp, Award } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -63,6 +63,15 @@ export default function Products() {
         }
       });
       if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json();
+    },
+  });
+
+  const { data: statistics } = useQuery({
+    queryKey: ["/api/products/statistics"],
+    queryFn: async () => {
+      const response = await fetch("/api/products/statistics");
+      if (!response.ok) throw new Error("Failed to fetch statistics");
       return response.json();
     },
   });
@@ -326,6 +335,96 @@ export default function Products() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Statistics Section */}
+      {statistics && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Top Companies by Products */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-blue-600" />
+                Clientes com Mais Vinhos
+              </CardTitle>
+              <CardDescription>
+                Top 10 clientes com maior quantidade de produtos na carta de vinhos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {statistics.topCompaniesByProducts.map((company: any, index: number) => (
+                  <div key={company.companyId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        index === 1 ? 'bg-gray-100 text-gray-700' :
+                        index === 2 ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{company.companyName}</p>
+                        <p className="text-sm text-gray-600">{company.companyCity}, {company.companyState}</p>
+                        {company.responsibleName && (
+                          <p className="text-xs text-gray-500">Resp.: {company.responsibleName}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="font-bold">
+                      {company.productCount} vinhos
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Products by Companies */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-wine-600" />
+                Vinhos Mais Vinculados
+              </CardTitle>
+              <CardDescription>
+                Top 10 produtos mais presentes nas cartas de vinhos dos clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {statistics.topProductsByCompanies.map((product: any, index: number) => (
+                  <div key={product.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        index === 1 ? 'bg-gray-100 text-gray-700' :
+                        index === 2 ? 'bg-orange-100 text-orange-700' :
+                        'bg-wine-100 text-wine-700'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{product.productName}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span>{getCountryFlag(product.productCountry)} {product.productCountry}</span>
+                          <Badge variant="outline" className="text-xs">{product.productVolume}</Badge>
+                          <Badge className={`text-xs ${getTypeColor(product.productType)}`}>
+                            {product.productType}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="font-bold">
+                      {product.companyCount} clientes
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Products Table */}
       <Card>

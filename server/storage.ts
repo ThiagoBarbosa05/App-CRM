@@ -446,6 +446,7 @@ export interface IStorage {
   getProductsWithClientCount();
   getClientsWithProduct(productId: string);
   getCompaniesWithProduct(productId: string);
+  getProductsStatistics();
 
   // Company Products Management
   getCompanyProducts(companyId: string);
@@ -3628,6 +3629,71 @@ export class DatabaseStorage implements IStorage {
       return updated || null;
     } catch (error) {
       console.error("Error updating company product price:", error);
+      throw error;
+    }
+  }
+
+  async getProductsStatistics() {
+    try {
+      // Top companies by number of products in wine list
+      const topCompaniesByProducts = await this.db
+        .select({
+          companyId: companies.id,
+          companyName: companies.nomeFantasia,
+          companyRazaoSocial: companies.razaoSocial,
+          companyCnpj: companies.cnpj,
+          companyCity: companies.city,
+          companyState: companies.state,
+          responsibleName: users.name,
+          productCount: sql<number>`COUNT(${companyProducts.productId})::int`,
+        })
+        .from(companyProducts)
+        .innerJoin(companies, eq(companyProducts.companyId, companies.id))
+        .leftJoin(users, eq(companies.responsavelId, users.id))
+        .where(eq(companyProducts.isActive, "true"))
+        .groupBy(
+          companies.id,
+          companies.nomeFantasia,
+          companies.razaoSocial,
+          companies.cnpj,
+          companies.city,
+          companies.state,
+          users.name
+        )
+        .orderBy(sql`COUNT(${companyProducts.productId}) DESC`)
+        .limit(10);
+
+      // Top products by number of companies
+      const topProductsByCompanies = await this.db
+        .select({
+          productId: products.id,
+          productName: products.name,
+          productCountry: products.country,
+          productVolume: products.volume,
+          productType: products.type,
+          productPrice: products.negotiatedPrice,
+          companyCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
+        })
+        .from(companyProducts)
+        .innerJoin(products, eq(companyProducts.productId, products.id))
+        .where(eq(companyProducts.isActive, "true"))
+        .groupBy(
+          products.id,
+          products.name,
+          products.country,
+          products.volume,
+          products.type,
+          products.negotiatedPrice
+        )
+        .orderBy(sql`COUNT(${companyProducts.companyId}) DESC`)
+        .limit(10);
+
+      return {
+        topCompaniesByProducts,
+        topProductsByCompanies,
+      };
+    } catch (error) {
+      console.error("Error fetching products statistics:", error);
       throw error;
     }
   }
