@@ -137,7 +137,21 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
   });
 
   const onSubmit = (data: ProductFormData) => {
-    productMutation.mutate(data);
+    // Converter preços formatados para números
+    const convertPrice = (price: string): string => {
+      if (!price) return '0';
+      // Remove todos os pontos (separadores de milhares) e substitui vírgula por ponto decimal
+      return price.replace(/\./g, '').replace(',', '.');
+    };
+    
+    const processedData = {
+      ...data,
+      tablePrice: convertPrice(data.tablePrice),
+      negotiatedPrice: convertPrice(data.negotiatedPrice),
+    };
+    
+    console.log('Dados processados para envio:', processedData);
+    productMutation.mutate(processedData);
   };
 
   const formatCurrency = (value: string) => {
