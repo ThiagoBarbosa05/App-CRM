@@ -2540,17 +2540,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update custom negotiated price for company product
   app.put("/api/companies/:companyId/products/:productId/price", async (req, res) => {
-    const { companyId, productId } = req.params;
-    const { customPrice } = req.body;
-
     try {
+      const { companyId, productId } = req.params;
+      const { customPrice } = req.body;
+
       console.log("Atualizando preço:", { companyId, productId, customPrice });
 
-      if (!customPrice || isNaN(parseFloat(customPrice))) {
+      if (!companyId || !productId) {
+        return res.status(400).json({ message: "CompanyId e ProductId são obrigatórios" });
+      }
+
+      if (!customPrice || customPrice === "" || isNaN(parseFloat(customPrice))) {
         return res.status(400).json({ message: "Preço inválido" });
       }
 
-      const result = await storage.updateCompanyProductPrice(companyId, productId, customPrice);
+      const numericPrice = parseFloat(customPrice);
+      if (numericPrice < 0) {
+        return res.status(400).json({ message: "Preço não pode ser negativo" });
+      }
+
+      const result = await storage.updateCompanyProductPrice(companyId, productId, numericPrice.toString());
 
       if (!result) {
         return res.status(404).json({ message: "Produto não encontrado na carta da empresa" });
@@ -2560,7 +2569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Preço atualizado com sucesso", data: result });
     } catch (error) {
       console.error("Erro ao atualizar preço customizado:", error);
-      res.status(500).json({ message: "Erro ao atualizar preço" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 

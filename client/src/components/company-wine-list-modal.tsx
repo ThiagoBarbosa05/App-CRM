@@ -176,8 +176,12 @@ export default function CompanyWineListModal({
     mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
       console.log("Updating price for product", productId, "to", price);
       
+      if (!company?.id || !productId || !price) {
+        throw new Error("Dados incompletos para atualização");
+      }
+
       const response = await fetch(
-        `/api/companies/${company?.id}/products/${productId}/price`,
+        `/api/companies/${company.id}/products/${productId}/price`,
         {
           method: "PUT",
           headers: {
@@ -188,9 +192,20 @@ export default function CompanyWineListModal({
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        throw new Error(errorData.message || "Erro ao atualizar preço");
+        let errorMessage = "Erro ao atualizar preço";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          // Se não conseguir fazer parse do JSON, usar mensagem padrão
+          console.error("Error parsing response:", parseError);
+          if (response.status === 404) {
+            errorMessage = "Produto não encontrado na carta da empresa";
+          } else if (response.status >= 500) {
+            errorMessage = "Erro interno do servidor";
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

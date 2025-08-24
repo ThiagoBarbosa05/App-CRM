@@ -2194,6 +2194,10 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Storage: Updating price for company", companyId, "product", productId, "to", customPrice);
       
+      if (!companyId || !productId || !customPrice) {
+        throw new Error("Missing required parameters");
+      }
+
       // Verificar se o registro existe primeiro
       const existing = await this.db
         .select()
@@ -2201,13 +2205,14 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(companyProducts.companyId, companyId),
-            eq(companyProducts.productId, productId)
+            eq(companyProducts.productId, productId),
+            eq(companyProducts.isActive, "true")
           )
         )
         .limit(1);
 
       if (existing.length === 0) {
-        console.log("Company product not found");
+        console.log("Company product not found or inactive");
         return null;
       }
 
@@ -2228,7 +2233,7 @@ export class DatabaseStorage implements IStorage {
       console.log("Storage: Price updated successfully", result);
       return result;
     } catch (error) {
-      console.error("Error updating company product price:", error);
+      console.error("Error updating company product price in storage:", error);
       throw error;
     }
   }
