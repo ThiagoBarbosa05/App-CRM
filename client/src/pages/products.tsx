@@ -67,14 +67,20 @@ export default function Products() {
     },
   });
 
-  const { data: statistics } = useQuery({
+  const { data: statistics, error: statisticsError } = useQuery({
     queryKey: ["/api/products/statistics"],
     queryFn: async () => {
       const response = await fetch("/api/products/statistics");
       if (!response.ok) throw new Error("Failed to fetch statistics");
       return response.json();
     },
+    retry: 3,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Debug log para verificar se os dados estão chegando
+  console.log("Statistics data:", statistics);
+  console.log("Statistics error:", statisticsError);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -337,7 +343,15 @@ export default function Products() {
       </Card>
 
       {/* Statistics Section */}
-      {statistics && (
+      {statisticsError && (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-red-600">Erro ao carregar estatísticas: {statisticsError.message}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {statistics && statistics.topCompaniesByProducts && statistics.topProductsByCompanies && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Top Companies by Products */}
           <Card>
@@ -352,30 +366,34 @@ export default function Products() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {statistics.topCompaniesByProducts.map((company: any, index: number) => (
-                  <div key={company.companyId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                        index === 1 ? 'bg-gray-100 text-gray-700' :
-                        index === 2 ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {index + 1}
+                {statistics.topCompaniesByProducts.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Nenhum dado disponível</p>
+                ) : (
+                  statistics.topCompaniesByProducts.map((company: any, index: number) => (
+                    <div key={company.companyId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{company.companyName}</p>
+                          <p className="text-sm text-gray-600">{company.companyCity}, {company.companyState}</p>
+                          {company.responsibleName && (
+                            <p className="text-xs text-gray-500">Resp.: {company.responsibleName}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{company.companyName}</p>
-                        <p className="text-sm text-gray-600">{company.companyCity}, {company.companyState}</p>
-                        {company.responsibleName && (
-                          <p className="text-xs text-gray-500">Resp.: {company.responsibleName}</p>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="font-bold">
+                        {company.productCount} vinhos
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="font-bold">
-                      {company.productCount} vinhos
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -393,37 +411,49 @@ export default function Products() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {statistics.topProductsByCompanies.map((product: any, index: number) => (
-                  <div key={product.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                        index === 1 ? 'bg-gray-100 text-gray-700' :
-                        index === 2 ? 'bg-orange-100 text-orange-700' :
-                        'bg-wine-100 text-wine-700'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{product.productName}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>{getCountryFlag(product.productCountry)} {product.productCountry}</span>
-                          <Badge variant="outline" className="text-xs">{product.productVolume}</Badge>
-                          <Badge className={`text-xs ${getTypeColor(product.productType)}`}>
-                            {product.productType}
-                          </Badge>
+                {statistics.topProductsByCompanies.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Nenhum dado disponível</p>
+                ) : (
+                  statistics.topProductsByCompanies.map((product: any, index: number) => (
+                    <div key={product.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-wine-100 text-wine-700'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{product.productName}</p>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>{getCountryFlag(product.productCountry)} {product.productCountry}</span>
+                            <Badge variant="outline" className="text-xs">{product.productVolume}</Badge>
+                            <Badge className={`text-xs ${getTypeColor(product.productType)}`}>
+                              {product.productType}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
+                      <Badge variant="secondary" className="font-bold">
+                        {product.companyCount} clientes
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="font-bold">
-                      {product.companyCount} clientes
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {!statistics && !statisticsError && !isFetching && (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-500">Carregando estatísticas...</p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Products Table */}

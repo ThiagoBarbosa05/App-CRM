@@ -2590,7 +2590,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get products statistics
   app.get("/api/products/statistics", async (req, res) => {
     try {
+      console.log("Fetching products statistics...");
       const statistics = await storage.getProductsStatistics();
+      console.log("Statistics fetched:", {
+        topCompaniesByProductsCount: statistics.topCompaniesByProducts?.length || 0,
+        topProductsByCompaniesCount: statistics.topProductsByCompanies?.length || 0
+      });
       res.json(statistics);
     } catch (error) {
       console.error("Error fetching products statistics:", error);
