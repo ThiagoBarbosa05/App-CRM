@@ -3394,30 +3394,38 @@ export class DatabaseStorage implements IStorage {
 
   // Company Products Management
   async getCompanyProducts(companyId: string) {
-    return await this.db
-      .select({
-        id: companyProducts.id,
-        companyId: companyProducts.companyId,
-        productId: companyProducts.productId,
-        isActive: companyProducts.isActive,
-        addedAt: companyProducts.addedAt,
-        product: {
-          id: products.id,
-          name: products.name,
-          country: products.country,
-          volume: products.volume,
-          type: products.type,
-          tablePrice: products.tablePrice,
-          negotiatedPrice: products.negotiatedPrice,
-        },
-      })
-      .from(companyProducts)
-      .leftJoin(products, eq(companyProducts.productId, products.id))
-      .where(and(
-        eq(companyProducts.companyId, companyId),
-        eq(companyProducts.isActive, "true")
-      ))
-      .orderBy(asc(products.name));
+    try {
+      const result = await this.db
+        .select({
+          id: companyProducts.id,
+          companyId: companyProducts.companyId,
+          productId: companyProducts.productId,
+          isActive: companyProducts.isActive,
+          addedAt: companyProducts.addedAt,
+          product: {
+            id: products.id,
+            name: products.name,
+            country: products.country,
+            volume: products.volume,
+            type: products.type,
+            tablePrice: products.tablePrice,
+            negotiatedPrice: products.negotiatedPrice,
+          },
+        })
+        .from(companyProducts)
+        .innerJoin(products, eq(companyProducts.productId, products.id))
+        .where(and(
+          eq(companyProducts.companyId, companyId),
+          eq(companyProducts.isActive, "true")
+        ))
+        .orderBy(asc(products.name));
+
+      console.log(`Found ${result.length} products for company ${companyId}`);
+      return result;
+    } catch (error) {
+      console.error("Error fetching company products:", error);
+      return [];
+    }
   }
 
   async addProductToCompany(data: InsertCompanyProduct) {

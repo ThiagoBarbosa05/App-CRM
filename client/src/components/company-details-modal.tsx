@@ -307,7 +307,7 @@ export default function CompanyDetailsModal({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {companyProducts.length === 0 ? (
+              {!companyProducts || companyProducts.length === 0 ? (
                 <div className="text-center py-4">
                   <Wine className="h-8 w-8 mx-auto text-gray-300 mb-2" />
                   <p className="text-sm text-gray-500">
@@ -343,19 +343,27 @@ export default function CompanyDetailsModal({
                     {companyProducts.slice(0, 3).map((item: any) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
                       >
-                        <div>
-                          <p className="font-medium text-sm">{item.product.name}</p>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.product?.name || 'Nome não disponível'}</p>
                           <p className="text-xs text-gray-500">
-                            {item.product.country} - {item.product.volume}
+                            {item.product?.country || 'País não informado'} - {item.product?.volume || 'Volume não informado'}
                           </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-400">
+                              Tabela: R$ {parseFloat(item.product?.tablePrice || '0').toFixed(2)}
+                            </span>
+                            <span className="text-xs text-green-600">
+                              Negociado: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
+                            </span>
+                          </div>
                         </div>
                         <Badge
                           variant="outline"
-                          className="text-xs"
+                          className="text-xs ml-2"
                         >
-                          {item.product.type}
+                          {item.product?.type || 'Tipo não informado'}
                         </Badge>
                       </div>
                     ))}
