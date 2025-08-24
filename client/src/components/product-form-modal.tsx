@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 
 const productSchema = z.object({
   name: z.string().min(1, "Nome do vinho é obrigatório"),
@@ -60,6 +61,7 @@ interface ProductFormModalProps {
 
 export function ProductFormModal({ open, onOpenChange, product }: ProductFormModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditing = !!product;
 
   const form = useForm<ProductFormData>({
@@ -105,13 +107,22 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
         method,
         headers: {
           "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao salvar produto");
+        let errorMessage = "Erro ao salvar produto";
+        try {
+          const error = await response.json();
+          errorMessage = error.message || errorMessage;
+        } catch {
+          // Se a resposta não é JSON válido, usar mensagem padrão
+          errorMessage = `Erro ${response.status}: ${response.statusText || 'Falha na requisição'}`;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
