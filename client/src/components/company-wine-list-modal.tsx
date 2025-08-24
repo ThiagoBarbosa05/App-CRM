@@ -403,7 +403,7 @@ export default function CompanyWineListModal({
                             </Badge>
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-gray-400" />
                               <span>{item.product.country}</span>
@@ -411,16 +411,6 @@ export default function CompanyWineListModal({
                             <div className="flex items-center gap-1">
                               <Package className="h-3 w-3 text-gray-400" />
                               <span>{item.product.volume}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3 text-gray-400" />
-                              <span>Original: {formatPrice(item.product.negotiatedPrice)}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3 text-blue-600" />
-                              <span className="text-blue-600">
-                                Padrão: {formatPrice(item.product.negotiatedPrice)}
-                              </span>
                             </div>
                           </div>
 
