@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Client } from "@shared/schema";
 import { User, Phone, Mail, MapPin, Calendar, Tag, Edit, MessageSquare, History, Gift, DollarSign, Wallet, Plus, GitBranch } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientInteractionsTab from "./client-interactions-tab";
 import DealFormModal from "./deal-form-modal";
 import { useQuery } from "@tanstack/react-query";
+
 // Função para formatar moeda
 const formatCurrency = (value: string | number) => {
   const numericValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -31,28 +31,18 @@ interface ClientDetailsCardProps {
 export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }: ClientDetailsCardProps) {
   const [showCreateDealModal, setShowCreateDealModal] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
-  const [showFunnelSelector, setShowFunnelSelector] = useState(false);
 
   if (!client) return null;
-  
 
   const formatPhone = (phone: string) => {
-    // Remove caracteres não numéricos
     const numbers = phone.replace(/\D/g, '');
-    // Aplica máscara (11) 99999-9999
     return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
   };
 
   const formatCPF = (cpf: string | null | undefined) => {
     if (!cpf) return "Não informado";
-    // Remove caracteres não numéricos
     const numbers = cpf.replace(/\D/g, '');
-    // Aplica máscara 999.999.999-99
     return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  };
-
-  const formatAddress = () => {
-    return `${client.address}, ${client.number} - ${client.neighborhood}, ${client.city}/${client.state} - CEP: ${client.cep}`;
   };
 
   const formatBirthday = (birthday: string | null | undefined) => {
@@ -60,14 +50,14 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     return formatDate(birthday);
   };
 
-  const getMarkerColors = (markers: string[]) => {
-    const colors = ['bg-blue-100 text-blue-800', 'bg-green-100 text-green-800', 'bg-purple-100 text-purple-800', 'bg-orange-100 text-orange-800'];
-    return markers.map((_, index) => colors[index % colors.length]);
-  };
+  // Query para buscar usuários
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/users'],
+  });
 
-  const { data: interactions = [] } = useQuery({
-    queryKey: [`/api/clients/${client?.id}/interactions`],
-    enabled: !!client?.id,
+  // Query para buscar funis
+  const { data: funnels = [] } = useQuery({
+    queryKey: ['/api/funnels'],
   });
 
   // Query para buscar saldo de cashback
@@ -82,19 +72,8 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     enabled: !!client?.id,
   });
 
-  // Query para buscar usuários (para mostrar o responsável)
-  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
-    queryKey: ["/api/users"],
-  });
-
-  // Query para buscar funis disponíveis
-  const { data: funnels = [] } = useQuery({
-    queryKey: ["/api/funnels"],
-  });
-
   const handleCreateDeal = (funnelId: string) => {
     setSelectedFunnelId(funnelId);
-    setShowFunnelSelector(false);
     setShowCreateDealModal(true);
   };
 
@@ -141,9 +120,9 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             </TabsTrigger>
           </TabsList>
 
+          {/* ABA INFORMAÇÕES */}
           <TabsContent value="info" className="mt-6 overflow-y-auto max-h-[65vh]">
             <div className="space-y-6">
-              {/* Informações Básicas */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Informações Pessoais</CardTitle>
@@ -196,101 +175,25 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                         })()}
                       </span>
                     </div>
-
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Endereço */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Endereço
-                  </CardTitle>
+                  <CardTitle className="text-lg">Endereço</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-gray-700">{formatAddress()}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const address = formatAddress();
-                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-                      window.open(mapsUrl, '_blank');
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <MapPin className="h-4 w-4" />
-                    Ver no Mapa
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Classificação e Tags */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Tag className="h-5 w-5" />
-                    Classificação
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">Categoria:</p>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        {client.categoria}
-                      </Badge>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">Origem:</p>
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        {client.origem}
-                      </Badge>
-                    </div>
+                <CardContent>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+                    <span className="text-sm">
+                      {client.address}, {client.number} - {client.neighborhood}<br />
+                      {client.city}/{client.state} - CEP: {client.cep}
+                    </span>
                   </div>
-
-                  {client.markers && client.markers.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">Marcadores:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {client.markers.map((marker, index) => (
-                          <Badge 
-                            key={marker} 
-                            variant="secondary" 
-                            className={getMarkerColors(client.markers)[index]}
-                          >
-                            {marker}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
-              {/* Ações Rápidas */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Ações Rápidas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    onClick={() => setShowFunnelSelector(true)}
-                    className="w-full bg-primary hover:bg-primary-dark text-white flex items-center gap-2"
-                  >
-                    <GitBranch className="h-4 w-4" />
-                    Criar Novo Negócio no Funil
-                  </Button>
-                  <p className="text-sm text-gray-600 text-center">
-                    Crie rapidamente um novo negócio para este cliente
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Informações do Sistema */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Informações do Sistema</CardTitle>
@@ -304,6 +207,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             </div>
           </TabsContent>
 
+          {/* ABA CRIAR NEGÓCIO */}
           <TabsContent value="negocio" className="mt-6 overflow-y-auto max-h-[65vh]">
             <div className="space-y-6">
               <Card>
@@ -350,13 +254,14 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             </div>
           </TabsContent>
 
+          {/* ABA INTERAÇÕES */}
           <TabsContent value="interactions" className="mt-6 h-[65vh] overflow-hidden">
             <ClientInteractionsTab client={client} />
           </TabsContent>
 
+          {/* ABA CASHBACK */}
           <TabsContent value="cashback" className="mt-6 overflow-y-auto max-h-[65vh]">
             <div className="space-y-6">
-              {/* Saldo de Cashback */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -389,12 +294,9 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       </p>
                     </div>
                   </div>
-
-
                 </CardContent>
               </Card>
 
-              {/* Histórico de Cashback */}
               {Array.isArray(cashbackUsage) && cashbackUsage.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -429,63 +331,6 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
         </Tabs>
       </DialogContent>
 
-      {/* Modal de Seleção de Funil */}
-      <Dialog open={showFunnelSelector} onOpenChange={setShowFunnelSelector}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GitBranch className="h-5 w-5 text-primary" />
-              Selecionar Funil
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-center">
-              <p className="text-lg font-medium text-gray-900">{client.name}</p>
-              <p className="text-sm text-gray-500">Escolha o funil para criar o negócio</p>
-            </div>
-            
-            <Separator />
-            
-            <div className="space-y-3">
-              {Array.isArray(funnels) && funnels.length > 0 ? (
-                funnels.map((funnel: any) => (
-                  <Button
-                    key={funnel.id}
-                    variant="outline"
-                    className="w-full justify-start h-auto p-4"
-                    onClick={() => handleCreateDeal(funnel.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <GitBranch className="h-4 w-4 text-primary" />
-                      <div className="text-left">
-                        <p className="font-medium">{funnel.name}</p>
-                        {funnel.description && (
-                          <p className="text-sm text-gray-500">{funnel.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </Button>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">Nenhum funil disponível</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowFunnelSelector(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal de Criação de Negócio */}
       {showCreateDealModal && (
         <DealFormModal
@@ -504,7 +349,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             stageId: "",
             value: "",
             notes: "",
-          } as any}
+          }}
         />
       )}
     </Dialog>
