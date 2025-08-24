@@ -350,6 +350,10 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
             </div>
           </TabsContent>
 
+          <TabsContent value="interactions" className="mt-6 h-[65vh] overflow-hidden">
+            <ClientInteractionsTab client={client} />
+          </TabsContent>
+
           <TabsContent value="cashback" className="mt-6 overflow-y-auto max-h-[65vh]">
             <div className="space-y-6">
               {/* Saldo de Cashback */}
@@ -421,10 +425,6 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                 </Card>
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="interactions" className="mt-6 h-[65vh] overflow-hidden">
-            <ClientInteractionsTab client={client} />
           </TabsContent>
         </Tabs>
       </DialogContent>
