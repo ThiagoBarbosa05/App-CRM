@@ -49,6 +49,7 @@ interface CompanyProduct {
   id: string;
   companyId: string;
   productId: string;
+  customNegotiatedPrice?: string;
   isActive: string;
   addedAt: string;
   product: Product;
@@ -61,6 +62,8 @@ export default function CompanyWineListModal({
 }: CompanyWineListModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [customPrice, setCustomPrice] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -168,6 +171,46 @@ export default function CompanyWineListModal({
     },
   });
 
+  // Mutation para atualizar preço customizado
+  const updatePriceMutation = useMutation({
+    mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
+      const response = await fetch(
+        `/api/companies/${company?.id}/products/${productId}/price`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ customPrice: price }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar preço");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/companies", company?.id, "products"],
+      });
+      setEditingPriceId(null);
+      setCustomPrice("");
+      toast({
+        title: "Sucesso!",
+        description: "Preço atualizado com sucesso",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar preço",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredProducts = companyProducts.filter((item) =>
     item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.product.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -190,6 +233,20 @@ export default function CompanyWineListModal({
       style: "currency",
       currency: "BRL",
     }).format(parseFloat(price));
+  };
+
+  const handleEditPrice = (item: CompanyProduct) => {
+    setEditingPriceId(item.id);
+    setCustomPrice(item.customNegotiatedPrice || item.product.negotiatedPrice);
+  };
+
+  const handleSavePrice = (productId: string) => {
+    updatePriceMutation.mutate({ productId, price: customPrice });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPriceId(null);
+    setCustomPrice("");
   };
 
   if (!company) return null;
@@ -309,11 +366,64 @@ export default function CompanyWineListModal({
                               <span>Tabela: {formatPrice(item.product.tablePrice)}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3 text-green-600" />
-                              <span className="text-green-600">
-                                Negociado: {formatPrice(item.product.negotiatedPrice)}
+                              <DollarSign className="h-3 w-3 text-blue-600" />
+                              <span className="text-blue-600">
+                                Padrão: {formatPrice(item.product.negotiatedPrice)}
                               </span>
                             </div>
+                          </div>
+
+                          {/* Preço Negociado Customizado */}
+                          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-green-700">
+                                Preço para {company.nomeFantasia}:
+                              </span>
+                              {editingPriceId === item.id ? (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="text"
+                                    value={customPrice}
+                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                    placeholder="0,00"
+                                    className="w-24 h-8 text-sm"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSavePrice(item.product.id)}
+                                    disabled={updatePriceMutation.isPending}
+                                  >
+                                    Salvar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCancelEdit}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-bold text-green-700">
+                                    {formatPrice(item.customNegotiatedPrice || item.product.negotiatedPrice)}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditPrice(item)}
+                                    className="h-8 px-2"
+                                  >
+                                    Editar
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {item.customNegotiatedPrice && (
+                              <p className="text-xs text-green-600 mt-1">
+                                Preço personalizado definido
+                              </p>
+                            )}
                           </div>
 
                           <div className="mt-2 text-xs text-gray-500">

@@ -444,14 +444,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro de validação Zod:", validationError.toString());
         return res.status(400).json({ message: validationError.toString() });
       }
-      
+
       // Verificar se é erro de telefone duplicado (abordagem simples)
       if (error && error.toString().includes("clients_phone_unique")) {
         return res.status(400).json({ 
           message: "Este número de telefone já está cadastrado para outro cliente." 
         });
       }
-      
+
       res.status(500).json({ message: "Erro ao criar cliente" });
     }
   });
@@ -487,14 +487,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
-      
+
       // Verificar se é erro de telefone duplicado (abordagem simples)
       if (error && error.toString().includes("clients_phone_unique")) {
         return res.status(400).json({ 
           message: "Este número de telefone já está cadastrado para outro cliente." 
         });
       }
-      
+
       res.status(500).json({ message: "Erro ao atualizar cliente" });
     }
   });
@@ -946,7 +946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calculate-cashback", async (req, res) => {
     try {
       const { purchaseAmount, netAmount } = req.body;
-      
+
       // Use netAmount if provided, otherwise fall back to purchaseAmount
       const valueForCalculation = netAmount || purchaseAmount;
 
@@ -1017,7 +1017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { clientId } = req.params;
       const clientBalance = await storage.getClientCashbackBalance(clientId);
-      
+
       if (clientBalance) {
         res.json(clientBalance);
       } else {
@@ -1116,11 +1116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+
       // Buscar vendas dos últimos 30 dias
       const sales = await storage.getSales();
       const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
-      
+
       // Buscar transações de cashback dos últimos 30 dias
       const transactions = await storage.getCashbackTransactions();
       const recentTransactions = transactions.filter(
@@ -1129,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return new Date(transaction.createdAt) >= thirtyDaysAgo && transaction.status === 'approved';
         }
       );
-      
+
       // Buscar resgates dos últimos 30 dias
       const allUsage = await storage.getAllCashbackUsage();
       const recentUsage = allUsage.filter(
@@ -1138,7 +1138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return new Date(usage.createdAt) >= thirtyDaysAgo;
         }
       );
-      
+
       // Calcular totais
       const totalSales = recentSales.reduce((sum, sale) => sum + parseFloat(sale.grossValue), 0);
       const totalCashbackGenerated = recentSales.reduce((sum, sale) => sum + parseFloat(sale.cashbackGenerated), 0);
@@ -1147,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const usage = item.cashback_usage || item;
         return sum + parseFloat(usage.usedAmount || 0);
       }, 0);
-      
+
       res.json({
         totalSales,
         totalCashbackGenerated,
@@ -1177,7 +1177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar configuração ativa de cashback
       const settings = await storage.getCashbackSettings();
       const activeSetting = settings.find((s: any) => s.isActive === "true");
-      
+
       // Calcular valores da venda
       let cashbackUsed = 0;
       if (useCashback === true && currentBalance > 0) {
@@ -1189,7 +1189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cashbackUsed = 0;
       }
       const netValue = grossValue - cashbackUsed;
-      
+
       // Calcular cashback usando a configuração ativa
       let cashbackGenerated = 0;
       if (activeSetting) {
@@ -1197,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (netValue >= minimumPurchase) {
           const rate = parseFloat(activeSetting.percentageRate) / 100;
           cashbackGenerated = netValue * rate;
-          
+
           // Aplicar limite máximo se definido
           if (activeSetting.maximumCashback) {
             const maxCashback = parseFloat(activeSetting.maximumCashback);
@@ -1242,11 +1242,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const success = await storage.deleteSale(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Venda não encontrada" });
       }
-      
+
       res.json({ message: "Venda excluída com sucesso" });
     } catch (error) {
       console.error('Erro ao excluir venda:', error);
@@ -2422,7 +2422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products", async (req, res) => {
     try {
       const userId = req.headers["x-user-id"] as string;
-      
+
       if (!userId) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
@@ -2525,14 +2525,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove product from company wine list
   app.delete("/api/companies/:companyId/products/:productId", async (req, res) => {
+    const { companyId, productId } = req.params;
+
     try {
-      const { companyId, productId } = req.params;
       await storage.removeProductFromCompany(companyId, productId);
-      res.json({ message: "Produto removido da carta com sucesso" });
+      res.json({ message: "Product removed from company wine list" });
     } catch (error) {
       console.error("Error removing product from company:", error);
-      res.status(500).json({ message: "Erro ao remover produto da carta" });
+      res.status(500).json({ error: "Failed to remove product from company" });
+    }
+  });
+
+  // Update custom negotiated price for company product
+  app.put("/api/companies/:companyId/products/:productId/price", async (req, res) => {
+    const { companyId, productId } = req.params;
+    const { customPrice } = req.body;
+
+    try {
+      const result = await storage.updateCompanyProductPrice(companyId, productId, customPrice);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating company product price:", error);
+      res.status(500).json({ error: "Failed to update product price" });
     }
   });
 

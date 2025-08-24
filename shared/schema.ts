@@ -182,6 +182,7 @@ export const companyProducts = pgTable("company_products", {
   productId: varchar("product_id")
     .references(() => products.id, { onDelete: "cascade" })
     .notNull(),
+  customNegotiatedPrice: decimal("custom_negotiated_price", { precision: 10, scale: 2 }), // Preço negociado específico para esta empresa
   isActive: text("is_active").notNull().default("true"),
   addedAt: timestamp("added_at").defaultNow().notNull(),
   addedBy: varchar("added_by")

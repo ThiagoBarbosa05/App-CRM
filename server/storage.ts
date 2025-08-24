@@ -3400,6 +3400,7 @@ export class DatabaseStorage implements IStorage {
           id: companyProducts.id,
           companyId: companyProducts.companyId,
           productId: companyProducts.productId,
+          customNegotiatedPrice: companyProducts.customNegotiatedPrice,
           isActive: companyProducts.isActive,
           addedAt: companyProducts.addedAt,
           product: {
@@ -3484,6 +3485,19 @@ export class DatabaseStorage implements IStorage {
       .from(products)
       .where(notInArray(products.id, linkedProducts))
       .orderBy(asc(products.name));
+  }
+
+  async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string) {
+    return await this.db
+      .update(companyProducts)
+      .set({ 
+        customNegotiatedPrice: customPrice,
+      })
+      .where(and(
+        eq(companyProducts.companyId, companyId),
+        eq(companyProducts.productId, productId)
+      ))
+      .returning();
   }
 }
 

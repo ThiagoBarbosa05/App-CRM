@@ -354,8 +354,11 @@ export default function CompanyDetailsModal({
                             <span className="text-xs text-gray-400">
                               Tabela: R$ {parseFloat(item.product?.tablePrice || '0').toFixed(2)}
                             </span>
-                            <span className="text-xs text-green-600">
-                              Negociado: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
+                            <span className="text-xs text-blue-600">
+                              Padrão: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
+                            </span>
+                            <span className="text-xs text-green-600 font-semibold">
+                              Cliente: R$ {parseFloat(item.customNegotiatedPrice || item.product?.negotiatedPrice || '0').toFixed(2)}
                             </span>
                           </div>
                         </div>
