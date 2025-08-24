@@ -40,6 +40,7 @@ import { ptBR } from "date-fns/locale";
 import { type Client, ClientCashbackBalance } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import ClientInteractionsTab from "./client-interactions-tab";
+import DealFormModal from "./deal-form-modal";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -54,11 +55,18 @@ export default function ClientDetailsModal({
   onClose,
   onEdit,
 }: ClientDetailsModalProps) {
+  const [showCreateDealModal, setShowCreateDealModal] = useState(false);
+  const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
 
   // Query para buscar saldo de cashback - deve estar sempre no topo, antes de qualquer return
   const { data: cashbackBalance } = useQuery<ClientCashbackBalance>({
     queryKey: [`/api/cashback-balances/${client?.id}`],
     enabled: !!client?.id && isOpen,
+  });
+
+  // Query para buscar funis
+  const { data: funnels = [] } = useQuery({
+    queryKey: ['/api/funnels'],
   });
 
   // Função para formatar moeda
@@ -123,6 +131,11 @@ export default function ClientDetailsModal({
     }
 
     return cpf;
+  };
+
+  const handleCreateDeal = (funnelId: string) => {
+    setSelectedFunnelId(funnelId);
+    setShowCreateDealModal(true);
   };
 
   return (
@@ -432,31 +445,30 @@ export default function ClientDetailsModal({
                   <p className="text-sm text-gray-500">Escolha o funil para criar o negócio</p>
                   
                   <div className="space-y-3">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start h-auto p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <User className="h-4 w-4 text-primary" />
-                        <div className="text-left">
-                          <p className="font-medium">Funil Principal</p>
-                          <p className="text-sm text-gray-500">Funil principal de vendas</p>
-                        </div>
+                    {Array.isArray(funnels) && funnels.length > 0 ? (
+                      funnels.map((funnel: any) => (
+                        <Button 
+                          key={funnel.id}
+                          variant="outline" 
+                          className="w-full justify-start h-auto p-4"
+                          onClick={() => handleCreateDeal(funnel.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <User className="h-4 w-4 text-primary" />
+                            <div className="text-left">
+                              <p className="font-medium">{funnel.name}</p>
+                              {funnel.description && (
+                                <p className="text-sm text-gray-500">{funnel.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        </Button>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-500">Nenhum funil disponível</p>
                       </div>
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start h-auto p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <User className="h-4 w-4 text-primary" />
-                        <div className="text-left">
-                          <p className="font-medium">TESTE 2</p>
-                          <p className="text-sm text-gray-500">Funil de testes</p>
-                        </div>
-                      </div>
-                    </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -506,78 +518,27 @@ export default function ClientDetailsModal({
         </Tabs>
       </DialogContent>
 
-      {/* Modal de Saldo de Cashback */}
-      <Dialog open={false} onOpenChange={() => {}}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-blue-600" />
-              Saldo de Cashback
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-center">
-              <p className="text-lg font-medium text-gray-900">{client.name}</p>
-              <p className="text-sm text-gray-500">
-                CPF: {formatCPF(client.cpf || "")}
-              </p>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-gray-600 mb-1">
-                  Saldo Atual (Válido)
-                </p>
-                <p className="text-2xl font-bold text-green-600">
-                  {cashbackBalance
-                    ? formatCurrency(
-                        cashbackBalance.currentBalance?.toString() || "0",
-                      )
-                    : formatCurrency(0)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Apenas cashbacks válidos (não expirados)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">Total Ganho</p>
-                  <p className="font-medium text-blue-600">
-                    {cashbackBalance
-                      ? formatCurrency(
-                          cashbackBalance.totalEarned?.toString() || "0",
-                        )
-                      : formatCurrency(0)}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">Total Usado</p>
-                  <p className="font-medium text-red-600">
-                    {cashbackBalance
-                      ? formatCurrency(
-                          cashbackBalance.totalUsed?.toString() || "0",
-                        )
-                      : formatCurrency(0)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {}}
-              >
-                Fechar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de Criação de Negócio */}
+      {showCreateDealModal && client && (
+        <DealFormModal
+          open={showCreateDealModal}
+          onOpenChange={(open) => {
+            setShowCreateDealModal(open);
+            if (!open) {
+              setSelectedFunnelId("");
+            }
+          }}
+          funnelId={selectedFunnelId}
+          deal={{
+            title: client.name,
+            clientId: client.id,
+            funnelId: selectedFunnelId,
+            stageId: "",
+            value: "",
+            notes: "",
+          } as any}
+        />
+      )}
     </Dialog>
   );
 }
