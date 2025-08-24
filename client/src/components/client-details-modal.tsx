@@ -146,7 +146,7 @@ export default function ClientDetailsModal({
             </TabsTrigger>
             <TabsTrigger value="negocio" className="flex items-center gap-2">
               <User className="h-4 w-4" />
-              Criar Negócio
+              Funis
             </TabsTrigger>
             <TabsTrigger
               value="interactions"
@@ -423,7 +423,7 @@ export default function ClientDetailsModal({
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Criar Novo Negócio
+                  Funis Disponíveis
                 </CardTitle>
               </CardHeader>
               <CardContent>
