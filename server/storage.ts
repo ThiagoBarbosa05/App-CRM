@@ -3379,25 +3379,12 @@ export class DatabaseStorage implements IStorage {
   // Products Methods
   async getProducts() {
     try {
-      const products = await this.db
-        .select({
-          id: products.id,
-          name: products.name,
-          country: products.country,
-          volume: products.volume,
-          type: products.type,
-          tablePrice: products.tablePrice,
-          negotiatedPrice: products.negotiatedPrice,
-          createdBy: products.createdBy,
-          createdAt: products.createdAt,
-          updatedAt: products.updatedAt,
-          createdByName: users.name,
-        })
+      const result = await this.db
+        .select()
         .from(products)
-        .leftJoin(users, eq(products.createdBy, users.id))
         .orderBy(desc(products.createdAt));
 
-      return products;
+      return result;
     } catch (error) {
       console.error("Error fetching products:", error);
       throw error;

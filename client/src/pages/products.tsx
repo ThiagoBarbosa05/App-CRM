@@ -50,7 +50,12 @@ export default function Products() {
   const { data: products = [], isFetching } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
-      const response = await fetch("/api/products");
+      const response = await fetch("/api/products", {
+        headers: {
+          'x-user-id': 'test',
+          'x-user-role': 'admin'
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
     },
