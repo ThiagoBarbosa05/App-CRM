@@ -119,7 +119,7 @@ export default function Products() {
       'País': product.country,
       'Volume': product.volume,
       'Tipo': product.type,
-      'Valor Negociado': `R$ ${parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
+      'Valor de Tabela': `R$ ${parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}`,
@@ -186,7 +186,7 @@ export default function Products() {
         volume: row['Volume'] || row.volume || '750ml',
         type: row['Tipo'] || row.tipo || row.type || 'TINTO',
         negotiatedPrice: parseFloat(
-          String(row['Valor Negociado'] || row.valor || row.price || '0')
+          String(row['Valor de Tabela'] || row['Valor Negociado'] || row.valor || row.price || '0')
             .replace(/[^\d,]/g, '')
             .replace(',', '.')
         ).toFixed(2)
@@ -343,7 +343,7 @@ export default function Products() {
                   <TableHead>País</TableHead>
                   <TableHead>Volume</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Valor Negociado</TableHead>
+                  <TableHead>Valor de Tabela</TableHead>
                   <TableHead>Clientes</TableHead>
                   <TableHead>Criado por</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
