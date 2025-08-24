@@ -3445,7 +3445,6 @@ export class DatabaseStorage implements IStorage {
             country: products.country,
             volume: products.volume,
             type: products.type,
-            tablePrice: products.tablePrice,
             negotiatedPrice: products.negotiatedPrice,
           },
         })

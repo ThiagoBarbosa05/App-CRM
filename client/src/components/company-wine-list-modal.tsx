@@ -414,7 +414,7 @@ export default function CompanyWineListModal({
                             </div>
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3 w-3 text-gray-400" />
-                              <span>Tabela: {formatPrice(item.product.tablePrice)}</span>
+                              <span>Original: {formatPrice(item.product.negotiatedPrice)}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3 w-3 text-blue-600" />
