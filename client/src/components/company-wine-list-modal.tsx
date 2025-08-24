@@ -174,6 +174,8 @@ export default function CompanyWineListModal({
   // Mutation para atualizar preço customizado
   const updatePriceMutation = useMutation({
     mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
+      console.log("Updating price for product", productId, "to", price);
+      
       const response = await fetch(
         `/api/companies/${company?.id}/products/${productId}/price`,
         {
@@ -186,10 +188,14 @@ export default function CompanyWineListModal({
       );
 
       if (!response.ok) {
-        throw new Error("Erro ao atualizar preço");
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.message || "Erro ao atualizar preço");
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log("Price update successful:", result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -202,10 +208,11 @@ export default function CompanyWineListModal({
         description: "Preço atualizado com sucesso",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Erro",
-        description: "Erro ao atualizar preço",
+        description: error.message || "Erro ao atualizar preço",
         variant: "destructive",
       });
     },
@@ -241,7 +248,29 @@ export default function CompanyWineListModal({
   };
 
   const handleSavePrice = (productId: string) => {
-    updatePriceMutation.mutate({ productId, price: customPrice });
+    if (!customPrice || customPrice.trim() === "") {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira um preço válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Converter vírgula para ponto e validar
+    const priceValue = customPrice.replace(',', '.');
+    const numericPrice = parseFloat(priceValue);
+    
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira um preço válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePriceMutation.mutate({ productId, price: numericPrice.toString() });
   };
 
   const handleCancelEdit = () => {
@@ -384,9 +413,13 @@ export default function CompanyWineListModal({
                                   <Input
                                     type="text"
                                     value={customPrice}
-                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                    onChange={(e) => {
+                                      // Permitir apenas números, vírgula e ponto
+                                      const value = e.target.value.replace(/[^0-9.,]/g, '');
+                                      setCustomPrice(value);
+                                    }}
                                     placeholder="0,00"
-                                    className="w-24 h-8 text-sm"
+                                    className="w-28 h-8 text-sm"
                                   />
                                   <Button
                                     size="sm"

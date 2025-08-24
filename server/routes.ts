@@ -2544,11 +2544,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { customPrice } = req.body;
 
     try {
+      console.log("Atualizando preço:", { companyId, productId, customPrice });
+
+      if (!customPrice || isNaN(parseFloat(customPrice))) {
+        return res.status(400).json({ message: "Preço inválido" });
+      }
+
       const result = await storage.updateCompanyProductPrice(companyId, productId, customPrice);
-      res.json(result);
+
+      if (!result) {
+        return res.status(404).json({ message: "Produto não encontrado na carta da empresa" });
+      }
+
+      console.log("Preço atualizado com sucesso:", result);
+      res.json({ message: "Preço atualizado com sucesso", data: result });
     } catch (error) {
-      console.error("Error updating company product price:", error);
-      res.status(500).json({ error: "Failed to update product price" });
+      console.error("Erro ao atualizar preço customizado:", error);
+      res.status(500).json({ message: "Erro ao atualizar preço" });
     }
   });
 

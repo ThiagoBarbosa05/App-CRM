@@ -2192,6 +2192,25 @@ export class DatabaseStorage implements IStorage {
 
   async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string) {
     try {
+      console.log("Storage: Updating price for company", companyId, "product", productId, "to", customPrice);
+      
+      // Verificar se o registro existe primeiro
+      const existing = await this.db
+        .select()
+        .from(companyProducts)
+        .where(
+          and(
+            eq(companyProducts.companyId, companyId),
+            eq(companyProducts.productId, productId)
+          )
+        )
+        .limit(1);
+
+      if (existing.length === 0) {
+        console.log("Company product not found");
+        return null;
+      }
+
       const [result] = await this.db
         .update(companyProducts)
         .set({ 
@@ -2206,6 +2225,7 @@ export class DatabaseStorage implements IStorage {
         )
         .returning();
 
+      console.log("Storage: Price updated successfully", result);
       return result;
     } catch (error) {
       console.error("Error updating company product price:", error);
