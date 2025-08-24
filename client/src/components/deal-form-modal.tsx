@@ -43,6 +43,8 @@ interface DealFormModalProps {
   onOpenChange: (open: boolean) => void;
   deal?: DealWithClient;
   funnelId?: string;
+  initialClientId?: string;
+  initialTitle?: string;
 }
 
 const createDealSchema = z.object({
@@ -61,6 +63,8 @@ export default function DealFormModal({
   onOpenChange,
   deal,
   funnelId,
+  initialClientId,
+  initialTitle,
 }: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,8 +93,8 @@ export default function DealFormModal({
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
     defaultValues: {
-      title: deal?.title || "",
-      clientId: deal?.clientId || "",
+      title: deal?.title || initialTitle || "",
+      clientId: deal?.clientId || initialClientId || "",
       value: deal?.value || "",
       stageId: deal?.stageId || "",
       notes: deal?.notes || "",

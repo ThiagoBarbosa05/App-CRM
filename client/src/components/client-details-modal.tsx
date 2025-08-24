@@ -69,11 +69,6 @@ export default function ClientDetailsModal({
     queryKey: ['/api/funnels'],
   });
 
-  // Query para buscar estágios do funil selecionado
-  const { data: funnelStages = [] } = useQuery({
-    queryKey: [`/api/funnels/${selectedFunnelId}/stages`],
-    enabled: !!selectedFunnelId,
-  });
 
   // Função para formatar moeda
   const formatCurrency = (value: string | number) => {
@@ -535,14 +530,9 @@ export default function ClientDetailsModal({
             }
           }}
           funnelId={selectedFunnelId}
-          deal={{
-            title: client.name,
-            clientId: client.id,
-            funnelId: selectedFunnelId,
-            stageId: funnelStages && funnelStages.length > 0 ? funnelStages[0].id : "",
-            value: "",
-            notes: "",
-          } as any}
+          deal={undefined}
+          initialClientId={client.id}
+          initialTitle={client.name}
         />
       )}
     </Dialog>
