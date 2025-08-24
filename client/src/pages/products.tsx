@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Wine, Search, Building2, Users, Download, Upload, TrendingUp, Award } from "lucide-react";
 import * as XLSX from 'xlsx';
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ProductFormModal } from "@/components/product-form-modal";
 import { ProductClientsModal } from "@/components/product-clients-modal";
+import ProductImportModal from "@/components/product-import-modal";
 import { queryClient } from "@/lib/queryClient";
 import {
   AlertDialog,
@@ -47,10 +48,10 @@ interface Product {
 export default function Products() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedProductForClients, setSelectedProductForClients] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data: products = [], isFetching } = useQuery({
@@ -158,105 +159,6 @@ export default function Products() {
     });
   }, [products, toast]);
 
-  const handleImportProducts = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        console.log('Dados importados:', jsonData);
-        
-        // Processar e enviar dados para o backend
-        processImportedProducts(jsonData);
-        
-      } catch (error) {
-        console.error('Erro ao processar arquivo:', error);
-        toast({
-          title: "Erro na importação",
-          description: "Erro ao processar o arquivo Excel. Verifique o formato.",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    
-    // Limpar input
-    if (event.target) {
-      event.target.value = '';
-    }
-  }, [toast]);
-
-  const processImportedProducts = useCallback(async (data: any[]) => {
-    try {
-      const productsToImport = data.map((row: any) => ({
-        name: row['Nome do Vinho'] || row.nome || row.name,
-        country: row['País'] || row.pais || row.country || 'BRASIL',
-        volume: row['Volume'] || row.volume || '750ml',
-        type: row['Tipo'] || row.tipo || row.type || 'TINTO',
-        negotiatedPrice: parseFloat(
-          String(row['Valor de Tabela'] || row['Valor Negociado'] || row.valor || row.price || '0')
-            .replace(/[^\d,]/g, '')
-            .replace(',', '.')
-        ).toFixed(2)
-      })).filter(product => product.name); // Só incluir produtos com nome
-
-      console.log('Produtos para importar:', productsToImport);
-
-      // Importar cada produto individualmente
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const product of productsToImport) {
-        try {
-          const response = await fetch('/api/products', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-user-id': 'b314722c-8fd6-4592-a9de-9ee551ec35be',
-              'x-user-role': 'admin'
-            },
-            body: JSON.stringify({
-              ...product,
-              createdBy: 'b314722c-8fd6-4592-a9de-9ee551ec35be'
-            })
-          });
-
-          if (response.ok) {
-            successCount++;
-          } else {
-            errorCount++;
-            console.error(`Erro ao importar produto ${product.name}:`, await response.text());
-          }
-        } catch (error) {
-          errorCount++;
-          console.error(`Erro ao importar produto ${product.name}:`, error);
-        }
-      }
-
-      // Atualizar lista de produtos
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-
-      toast({
-        title: "Importação concluída",
-        description: `${successCount} produto(s) importado(s) com sucesso. ${errorCount > 0 ? `${errorCount} erro(s).` : ''}`,
-      });
-
-    } catch (error) {
-      console.error('Erro no processamento:', error);
-      toast({
-        title: "Erro na importação",
-        description: "Erro ao processar os dados importados.",
-        variant: "destructive",
-      });
-    }
-  }, [queryClient, toast]);
 
   const getCountryFlag = (country: string) => {
     const flags: { [key: string]: string } = {
@@ -310,7 +212,7 @@ export default function Products() {
               Exportar
             </Button>
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setIsImportModalOpen(true)}
               variant="outline"
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -599,13 +501,9 @@ export default function Products() {
         />
       )}
 
-      {/* Input oculto para importação de arquivo */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        style={{ display: 'none' }}
-        onChange={handleImportProducts}
+      <ProductImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
       />
     </div>
   );
