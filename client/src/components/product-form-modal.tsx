@@ -291,7 +291,7 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
               name="negotiatedPrice"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor Negociado</FormLabel>
+                  <FormLabel>Valor de Tabela</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="0,00"
