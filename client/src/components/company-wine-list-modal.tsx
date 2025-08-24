@@ -179,6 +179,7 @@ export default function CompanyWineListModal({
   const updatePriceMutation = useMutation({
     mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
       console.log("Updating price for product", productId, "to", price);
+      console.log("URL:", `/api/companies/${company.id}/products/${productId}/price`);
       
       if (!company?.id || !productId || !price) {
         throw new Error("Dados incompletos para atualização");
