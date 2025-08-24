@@ -3484,7 +3484,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select({
           companyId: companies.id,
-          companyName: companies.name,
+          companyName: companies.nomeFantasia,
           companyRazaoSocial: companies.razaoSocial,
           companyCnpj: companies.cnpj,
           companyPhone: companies.phone,
@@ -3493,7 +3493,7 @@ export class DatabaseStorage implements IStorage {
           companyState: companies.state,
           responsibleName: users.name,
           customPrice: companyProducts.customNegotiatedPrice,
-          addedAt: companyProducts.createdAt,
+          addedAt: companyProducts.addedAt,
           sectorName: sectors.name
         })
         .from(companyProducts)
@@ -3501,7 +3501,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(companies.responsavelId, users.id))
         .leftJoin(sectors, eq(companies.sectorId, sectors.id))
         .where(eq(companyProducts.productId, productId))
-        .orderBy(asc(companies.name));
+        .orderBy(asc(companies.nomeFantasia));
 
       console.log(`Found ${result.length} companies for product ${productId}`);
       return result;
