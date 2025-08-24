@@ -32,6 +32,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface Product {
   id: string;
@@ -52,6 +60,8 @@ export default function Products() {
   const [selectedProductForClients, setSelectedProductForClients] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   const { toast } = useToast();
 
   const { data: products = [], isFetching } = useQuery({
@@ -112,6 +122,19 @@ export default function Products() {
     product.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Cálculos para paginação
+  const totalProducts = filteredProducts.length;
+  const totalPages = Math.ceil(totalProducts / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Resetar página quando filtros mudarem
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
@@ -239,7 +262,7 @@ export default function Products() {
                 type="text"
                 placeholder="Buscar produtos..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -365,8 +388,11 @@ export default function Products() {
       <Card>
         <CardHeader>
           <CardTitle>
-            Lista de Produtos ({filteredProducts.length})
+            Lista de Produtos ({totalProducts}) - Página {currentPage} de {totalPages}
           </CardTitle>
+          <p className="text-sm text-gray-600">
+            Mostrando {startIndex + 1} - {Math.min(endIndex, totalProducts)} de {totalProducts} produtos
+          </p>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -390,14 +416,14 @@ export default function Products() {
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
-                ) : filteredProducts.length === 0 ? (
+                ) : totalProducts === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8">
                       {searchQuery ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product: Product) => (
+                  currentProducts.map((product: Product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
@@ -485,6 +511,55 @@ export default function Products() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {/* Páginas visíveis */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber;
+                if (totalPages <= 5) {
+                  pageNumber = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i;
+                } else {
+                  pageNumber = currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(pageNumber)}
+                      isActive={currentPage === pageNumber}
+                      className="cursor-pointer"
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       <ProductFormModal
         open={isProductModalOpen}
