@@ -446,6 +446,7 @@ export interface IStorage {
   addProductToCompany(data: InsertCompanyProduct);
   removeProductFromCompany(companyId: string, productId: string);
   getAvailableProductsForCompany(companyId: string);
+  updateCompanyProductPrice(companyId: string, productId: string, customPrice: string);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2186,6 +2187,29 @@ export class DatabaseStorage implements IStorage {
         totalUsed: totalUsed.toString(),
         currentBalance: currentBalance.toString(),
       });
+    }
+  }
+
+  async updateCompanyProductPrice(companyId: string, productId: string, customPrice: string) {
+    try {
+      const [result] = await this.db
+        .update(companyProducts)
+        .set({ 
+          customNegotiatedPrice: customPrice,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(companyProducts.companyId, companyId),
+            eq(companyProducts.productId, productId)
+          )
+        )
+        .returning();
+
+      return result;
+    } catch (error) {
+      console.error("Error updating company product price:", error);
+      throw error;
     }
   }
 
