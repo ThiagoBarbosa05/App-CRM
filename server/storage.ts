@@ -1044,8 +1044,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
-    const [deal] = await this.db.insert(deals).values(insertDeal).returning();
-    return deal;
+    try {
+      console.log("Storage: Criando deal com dados:", JSON.stringify(insertDeal, null, 2));
+      const [deal] = await this.db.insert(deals).values(insertDeal).returning();
+      console.log("Storage: Deal criado com sucesso:", deal.id);
+      return deal;
+    } catch (error) {
+      console.error("Storage: Erro ao criar deal:", error);
+      throw error;
+    }
   }
 
   async updateDeal(

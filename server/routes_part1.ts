@@ -845,21 +845,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/deals", async (req, res) => {
     try {
+      console.log("Recebendo dados para criar deal:", JSON.stringify(req.body, null, 2));
+      
       const validatedData = insertDealSchema.parse(req.body);
+      console.log("Dados validados com sucesso:", JSON.stringify(validatedData, null, 2));
 
       // Check if client or company exists
       if (validatedData.clientId) {
+        console.log("Verificando se cliente existe:", validatedData.clientId);
         const client = await storage.getClient(validatedData.clientId);
         if (!client) {
           return res.status(400).json({ message: "Cliente não encontrado" });
         }
+        console.log("Cliente encontrado:", client.name);
       }
       
       if (validatedData.companyId) {
+        console.log("Verificando se empresa existe:", validatedData.companyId);
         const company = await storage.getCompany(validatedData.companyId);
         if (!company) {
           return res.status(400).json({ message: "Empresa não encontrada" });
         }
+        console.log("Empresa encontrada:", company.nomeFantasia || company.razaoSocial);
       }
 
       // Ensure at least one of client or company is provided
@@ -867,14 +874,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cliente ou empresa é obrigatório" });
       }
 
+      console.log("Criando deal com dados:", JSON.stringify(validatedData, null, 2));
       const deal = await storage.createDeal(validatedData);
+      console.log("Deal criado com sucesso:", deal.id);
       res.status(201).json(deal);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Erro de validação Zod:", error.errors);
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
       console.error("Erro ao criar deal:", error);
+      console.error("Stack trace:", error.stack);
       res.status(500).json({ message: "Erro ao criar deal" });
     }
   });
