@@ -199,7 +199,10 @@ export default function DealFormModal({
       });
     },
     onSuccess: () => {
+      // Invalidar todos os caches relacionados a deals
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
+      
       toast({
         title: "Negócio criado",
         description: "Negócio foi adicionado com sucesso.",
@@ -229,7 +232,10 @@ export default function DealFormModal({
       return await response.json();
     },
     onSuccess: () => {
+      // Invalidar todos os caches relacionados a deals
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
+      
       toast({
         title: "Negócio atualizado",
         description: "Negócio foi atualizado com sucesso.",
