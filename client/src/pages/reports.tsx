@@ -165,11 +165,15 @@ export default function Reports() {
   };
 
   const upcomingBirthdays = getUpcomingBirthdays();
-  const totalClients = clients.length;
+  
+  // Extrair array dos dados da resposta para outras operações
+  const clientsArray = Array.isArray(clients) ? clients : clients?.data || [];
+  
+  const totalClients = clientsArray.length;
   const totalCompanies = companies.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
-  const clientsByCategory = clients.reduce(
+  const clientsByCategory = clientsArray.reduce(
     (acc, client) => {
       const category = client.categoria;
       // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
@@ -185,7 +189,7 @@ export default function Reports() {
   );
 
   // Estatísticas por origem (apenas origens válidas)
-  const clientsByOrigin = clients.reduce(
+  const clientsByOrigin = clientsArray.reduce(
     (acc, client) => {
       const origin = client.origem;
       // Só contar se a origem ainda existe nas configurações ou se não tem origem
@@ -201,7 +205,7 @@ export default function Reports() {
   );
 
   // Estatísticas por usuário responsável
-  const clientsByUser = clients.reduce(
+  const clientsByUser = clientsArray.reduce(
     (acc, client) => {
       const responsibleId = client.responsavelId;
       if (!responsibleId) {
@@ -218,7 +222,7 @@ export default function Reports() {
   );
 
   // Estatísticas por marcadores
-  const clientsByMarkers = clients.reduce(
+  const clientsByMarkers = clientsArray.reduce(
     (acc, client) => {
       const clientMarkers = client.markers || [];
       const validClientMarkers = clientMarkers.filter((markerName) =>
