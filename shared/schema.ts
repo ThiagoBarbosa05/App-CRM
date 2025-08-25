@@ -118,8 +118,9 @@ export const deals = pgTable("deals", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   clientId: varchar("client_id")
-    .references(() => clients.id)
-    .notNull(),
+    .references(() => clients.id),
+  companyId: varchar("company_id")
+    .references(() => companies.id),
   funnelId: varchar("funnel_id")
     .references(() => salesFunnels.id)
     .notNull(),
@@ -265,6 +266,10 @@ export const dealsRelations = relations(deals, ({ one }) => ({
   client: one(clients, {
     fields: [deals.clientId],
     references: [clients.id],
+  }),
+  company: one(companies, {
+    fields: [deals.companyId],
+    references: [companies.id],
   }),
   funnel: one(salesFunnels, {
     fields: [deals.funnelId],

@@ -189,12 +189,20 @@ export default function KanbanBoard() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-3">
-                        Cliente: <button 
-                          onClick={() => setSelectedClient(deal.client)}
-                          className="text-wine-600 hover:text-wine-800 underline font-medium"
-                        >
-                          {deal.client.name}
-                        </button>
+                        {deal.client ? (
+                          <>Cliente: <button 
+                            onClick={() => setSelectedClient(deal.client)}
+                            className="text-wine-600 hover:text-wine-800 underline font-medium"
+                          >
+                            {deal.client.name}
+                          </button></>
+                        ) : deal.company ? (
+                          <>Empresa: <span className="text-wine-600 font-medium">
+                            {deal.company.nomeFantasia || deal.company.razaoSocial}
+                          </span></>
+                        ) : (
+                          "Sem cliente/empresa"
+                        )}
                       </p>
                       {deal.notes && (
                         <p className="text-sm text-gray-500 mb-3 line-clamp-2">

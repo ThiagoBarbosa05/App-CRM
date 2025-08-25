@@ -47,11 +47,26 @@ interface DealFormModalProps {
 }
 
 const createDealSchema = z.object({
-  clientId: z.string().min(1, "Cliente é obrigatório"),
+  dealType: z.enum(["client", "company"], {
+    required_error: "Tipo de negócio é obrigatório",
+  }),
+  clientId: z.string().optional(),
+  companyId: z.string().optional(),
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
   value: z.string().min(1, "Valor é obrigatório"),
   notes: z.string().optional().nullable(),
+}).refine((data) => {
+  if (data.dealType === "client" && !data.clientId) {
+    return false;
+  }
+  if (data.dealType === "company" && !data.companyId) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Cliente ou empresa é obrigatório conforme o tipo selecionado",
+  path: ["clientId"],
 });
 
 type CreateDealSchema = z.infer<typeof createDealSchema>;
@@ -62,7 +77,6 @@ export default function DealFormModal({
   deal,
   funnelId,
   initialClientId,
-  initialTitle,
 }: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,6 +84,10 @@ export default function DealFormModal({
 
   const { data: clients } = useQuery({
     queryKey: ["/api/clients"],
+  });
+
+  const { data: companies } = useQuery({
+    queryKey: ["/api/companies"],
   });
 
   // Buscar etapas do funil
@@ -87,11 +105,15 @@ export default function DealFormModal({
 
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
+  const companiesList = companies || [];
+
 
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
     defaultValues: {
+      dealType: deal?.clientId ? "client" : deal?.companyId ? "company" : "client",
       clientId: deal?.clientId || initialClientId || "",
+      companyId: deal?.companyId || "",
       value: deal?.value || "",
       stageId: deal?.stageId || "",
       notes: deal?.notes || "",
@@ -99,11 +121,16 @@ export default function DealFormModal({
     },
   });
 
+  // Watch deal type to show/hide fields
+  const watchDealType = form.watch("dealType");
+
   // Atualizar o formulário quando os dados mudarem
   React.useEffect(() => {
     if (deal) {
       form.reset({
+        dealType: deal.clientId ? "client" : deal.companyId ? "company" : "client",
         clientId: deal.clientId || "",
+        companyId: deal.companyId || "",
         value: deal.value || "",
         stageId: deal.stageId || funnelStages[0]?.id || "",
         notes: deal.notes || "",
@@ -121,6 +148,8 @@ export default function DealFormModal({
     mutationFn: async (data: any) => {
       return await apiRequest("/api/deals", "POST", {
         ...data,
+        clientId: data.dealType === "client" ? data.clientId : null,
+        companyId: data.dealType === "company" ? data.companyId : null,
         assignedTo: user?.id,
         createdBy: user?.id,
       });
@@ -147,6 +176,8 @@ export default function DealFormModal({
     mutationFn: async (data: any) => {
       const response = await apiRequest(`/api/deals/${deal!.id}`, "PUT", {
         ...data,
+        clientId: data.dealType === "client" ? data.clientId : null,
+        companyId: data.dealType === "company" ? data.companyId : null,
         assignedTo: user?.id,
         createdBy: user?.id,
       });
@@ -210,37 +241,98 @@ export default function DealFormModal({
         >
 
           <div>
-            <Label>Cliente *</Label>
+            <Label>Tipo de Negócio *</Label>
             <Controller
-              name="clientId"
+              name="dealType"
               control={form.control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um cliente..." />
+                    <SelectValue placeholder="Selecione o tipo..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.isArray(clientsList) && clientsList.length > 0 ? (
-                      clientsList.map((client: Client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="Nenhum cliente encontrado" disabled>
-                        Nenhum cliente encontrado
-                      </SelectItem>
-                    )}
+                    <SelectItem value="client">Cliente</SelectItem>
+                    <SelectItem value="company">Empresa</SelectItem>
                   </SelectContent>
                 </Select>
               )}
             />
-            {form.formState.errors.clientId && (
+            {form.formState.errors.dealType && (
               <span className="text-sm text-red-500">
-                {form.formState.errors.clientId.message}
+                {form.formState.errors.dealType.message}
               </span>
             )}
           </div>
+
+          {watchDealType === "client" && (
+            <div>
+              <Label>Cliente *</Label>
+              <Controller
+                name="clientId"
+                control={form.control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um cliente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(clientsList) && clientsList.length > 0 ? (
+                        clientsList.map((client: Client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="Nenhum cliente encontrado" disabled>
+                          Nenhum cliente encontrado
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.clientId && (
+                <span className="text-sm text-red-500">
+                  {form.formState.errors.clientId.message}
+                </span>
+              )}
+            </div>
+          )}
+
+          {watchDealType === "company" && (
+            <div>
+              <Label>Empresa *</Label>
+              <Controller
+                name="companyId"
+                control={form.control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma empresa..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(companiesList) && companiesList.length > 0 ? (
+                        companiesList.map((company: any) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.nomeFantasia || company.razaoSocial}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="Nenhuma empresa encontrada" disabled>
+                          Nenhuma empresa encontrada
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.companyId && (
+                <span className="text-sm text-red-500">
+                  {form.formState.errors.companyId.message}
+                </span>
+              )}
+            </div>
+          )}
 
           <div>
             <Label>Valor (R$) *</Label>
