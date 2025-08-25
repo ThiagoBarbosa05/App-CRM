@@ -55,9 +55,9 @@ export default function KanbanBoard() {
       const userData = localStorage.getItem("user");
       if (userData) {
         const user = JSON.parse(userData);
-        return apiRequest(`/api/deals?userId=${user.id}&userRole=${user.role}`);
+        return apiRequest("GET", `/api/deals?userId=${user.id}&userRole=${user.role}`);
       }
-      return apiRequest("/api/deals");
+      return apiRequest("GET", "/api/deals");
     },
   });
 
@@ -253,15 +253,17 @@ export default function KanbanBoard() {
         />
       )}
 
-      <ClientDetailsCard
-        client={selectedClient}
-        open={!!selectedClient}
-        onOpenChange={(open) => !open && setSelectedClient(null)}
-        onEdit={(client) => {
-          setSelectedClient(null);
-          setEditingClient(client);
-        }}
-      />
+      {selectedClient && (
+        <ClientDetailsCard
+          client={selectedClient}
+          open={!!selectedClient}
+          onOpenChange={(open) => !open && setSelectedClient(null)}
+          onEdit={(client) => {
+            setSelectedClient(null);
+            setEditingClient(client);
+          }}
+        />
+      )}
 
       {editingClient && (
         <ClientFormModal
