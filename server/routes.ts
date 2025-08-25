@@ -753,6 +753,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/deals", async (req, res) => {
     try {
       const validatedData = insertDealSchema.parse(req.body);
+      
+      // If no title is provided, generate one based on client/company name
+      if (!validatedData.title) {
+        if (validatedData.clientId) {
+          const client = await storage.getClient(validatedData.clientId);
+          validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
+        } else if (validatedData.companyId) {
+          const company = await storage.getCompany(validatedData.companyId);
+          validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
+        } else {
+          validatedData.title = "Novo Negócio";
+        }
+      }
+      
       const deal = await storage.createDeal(validatedData);
       res.status(201).json(deal);
     } catch (error) {
@@ -760,6 +774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
+      console.error("Erro ao criar deal:", error);
       res.status(500).json({ message: "Erro ao criar deal" });
     }
   });
