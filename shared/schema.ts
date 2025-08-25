@@ -650,6 +650,15 @@ export const insertDealSchema = createInsertSchema(deals).omit({
   }
 );
 
+// Schema para atualizações - sem validação restritiva
+export const updateDealSchema = createInsertSchema(deals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  title: z.string().optional(),
+}).partial();
+
 export const insertBirthdayReminderSchema = createInsertSchema(
   birthdayReminders,
 ).omit({

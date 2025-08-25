@@ -5,6 +5,7 @@ import {
   insertClientSchema,
   insertCompanySchema,
   insertDealSchema,
+  updateDealSchema,
   insertUserSchema,
   insertSalesFunnelSchema,
   insertFunnelStageSchema,
@@ -904,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/deals/:id", async (req, res) => {
     try {
-      const validatedData = insertDealSchema.partial().parse(req.body);
+      const validatedData = updateDealSchema.parse(req.body);
 
       // If clientId is being updated, check if client exists
       if (validatedData.clientId) {
