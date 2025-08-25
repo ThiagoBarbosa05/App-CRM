@@ -180,14 +180,14 @@ export default function CompanyWineListModal({
   const updatePriceMutation = useMutation({
     mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
       console.log("Updating price for product", productId, "to", price);
-      console.log("URL:", `/api/companies/${company.id}/products/${productId}/price`);
+      console.log("URL:", `/api/companies/${company?.id}/products/${productId}/price`);
       
       if (!company?.id || !productId || !price) {
         throw new Error("Dados incompletos para atualização");
       }
 
       const response = await fetch(
-        `/api/companies/${company.id}/products/${productId}/price`,
+        `/api/companies/${company?.id}/products/${productId}/price`,
         {
           method: "PUT",
           headers: {
@@ -255,7 +255,7 @@ export default function CompanyWineListModal({
   );
 
   const getTypeColor = (type: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       TINTO: "bg-red-100 text-red-800",
       BRANCO: "bg-yellow-100 text-yellow-800",
       ROSE: "bg-pink-100 text-pink-800",
