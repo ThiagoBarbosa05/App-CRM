@@ -5,6 +5,7 @@ import {
   insertClientSchema,
   insertCompanySchema,
   insertDealSchema,
+  updateDealSchema,
   insertUserSchema,
   insertSalesFunnelSchema,
   insertFunnelStageSchema,
@@ -729,7 +730,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/deals/:dealId", async (req, res) => {
     try {
       const dealId = req.params.dealId;
-      const data = insertDealSchema.partial().parse(req.body);
+      const data = updateDealSchema.parse(req.body);
       let rawValue: string;
 
       if (data.value) {
