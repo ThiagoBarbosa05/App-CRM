@@ -11,6 +11,7 @@ import { Plus, Search, Download, Upload, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Clients() {
   const { user } = useAuth();
@@ -81,8 +82,7 @@ export default function Clients() {
       params.append("page", currentPage.toString());
       params.append("pageSize", itemsPerPage.toString());
 
-      const response = await fetch(`/api/clients?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to fetch clients");
+      const response = await apiRequest(`/api/clients?${params.toString()}`, "GET");
       return response.json();
     },
     enabled: !!user,
@@ -94,8 +94,7 @@ export default function Clients() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const response = await fetch("/api/users");
-      if (!response.ok) throw new Error("Failed to fetch users");
+      const response = await apiRequest("/api/users", "GET");
       return response.json();
     },
   });
