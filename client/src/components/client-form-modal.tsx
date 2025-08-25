@@ -161,7 +161,7 @@ export default function ClientFormModal({
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
       const url = `/api/clients?userId=${user?.id}&userRole=${user?.role}`;
-      const response = await apiRequest(url, "POST", data);
+      const response = await apiRequest("POST", url, data);
       return response.json();
     },
     onSuccess: () => {
@@ -185,7 +185,7 @@ export default function ClientFormModal({
   const updateClientMutation = useMutation({
     mutationFn: async (data: any) => {
       const url = `/api/clients/${client!.id}?userId=${user?.id}&userRole=${user?.role}`;
-      const response = await apiRequest(url, "PUT", data);
+      const response = await apiRequest("PUT", url, data);
       return response.json();
     },
     onSuccess: () => {
