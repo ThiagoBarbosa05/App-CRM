@@ -196,9 +196,9 @@ export default function KanbanBoard() {
                           >
                             {deal.client.name}
                           </button></>
-                        ) : deal.company ? (
+                        ) : deal.companyId ? (
                           <>Empresa: <span className="text-wine-600 font-medium">
-                            {deal.company.nomeFantasia || deal.company.razaoSocial}
+                            ID: {deal.companyId}
                           </span></>
                         ) : (
                           "Sem cliente/empresa"

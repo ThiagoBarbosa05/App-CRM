@@ -847,10 +847,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertDealSchema.parse(req.body);
 
-      // Check if client exists
-      const client = await storage.getClient(validatedData.clientId);
-      if (!client) {
-        return res.status(400).json({ message: "Cliente não encontrado" });
+      // Check if client or company exists
+      if (validatedData.clientId) {
+        const client = await storage.getClient(validatedData.clientId);
+        if (!client) {
+          return res.status(400).json({ message: "Cliente não encontrado" });
+        }
+      }
+      
+      if (validatedData.companyId) {
+        const company = await storage.getCompany(validatedData.companyId);
+        if (!company) {
+          return res.status(400).json({ message: "Empresa não encontrada" });
+        }
+      }
+
+      // Ensure at least one of client or company is provided
+      if (!validatedData.clientId && !validatedData.companyId) {
+        return res.status(400).json({ message: "Cliente ou empresa é obrigatório" });
       }
 
       const deal = await storage.createDeal(validatedData);
@@ -860,7 +874,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
-      res.status(500).json({ message: "Erro ao criar negócio" });
+      console.error("Erro ao criar deal:", error);
+      res.status(500).json({ message: "Erro ao criar deal" });
     }
   });
 
@@ -873,6 +888,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const client = await storage.getClient(validatedData.clientId);
         if (!client) {
           return res.status(400).json({ message: "Cliente não encontrado" });
+        }
+      }
+
+      // If companyId is being updated, check if company exists  
+      if (validatedData.companyId) {
+        const company = await storage.getCompany(validatedData.companyId);
+        if (!company) {
+          return res.status(400).json({ message: "Empresa não encontrada" });
         }
       }
 

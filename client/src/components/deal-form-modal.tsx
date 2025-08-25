@@ -132,13 +132,13 @@ export default function DealFormModal({
   const watchDealType = form.watch("dealType");
 
   // Filtrar listas baseado na busca
-  const filteredClients = clientsList.filter((client: Client) =>
+  const filteredClients = Array.isArray(clientsList) ? clientsList.filter((client: Client) =>
     client.name.toLowerCase().includes(clientSearch.toLowerCase())
-  );
+  ) : [];
 
-  const filteredCompanies = companiesList.filter((company: any) =>
+  const filteredCompanies = Array.isArray(companiesList) ? companiesList.filter((company: any) =>
     (company.nomeFantasia || company.razaoSocial).toLowerCase().includes(companySearch.toLowerCase())
-  );
+  ) : [];
 
   // Atualizar o formulário quando os dados mudarem
   React.useEffect(() => {
@@ -146,8 +146,13 @@ export default function DealFormModal({
       // Definir nome do cliente/empresa selecionado
       if (deal.client) {
         setSelectedClientName(deal.client.name);
-      } else if (deal.company) {
-        setSelectedCompanyName(deal.company.nomeFantasia || deal.company.razaoSocial);
+      }
+      // Buscar dados da empresa se tiver companyId
+      if (deal.companyId && companiesList.length > 0) {
+        const company = companiesList.find((c: any) => c.id === deal.companyId);
+        if (company) {
+          setSelectedCompanyName(company.nomeFantasia || company.razaoSocial);
+        }
       }
       
       form.reset({

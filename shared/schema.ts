@@ -773,6 +773,11 @@ export type Company = typeof companies.$inferSelect;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertTraining = z.infer<typeof insertTrainingSchema>;
 export type Deal = typeof deals.$inferSelect;
+
+export interface DealWithClient extends Deal {
+  client?: Client;
+  company?: Company;
+}
 export type InsertBirthdayReminder = z.infer<
   typeof insertBirthdayReminderSchema
 >;
