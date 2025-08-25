@@ -581,6 +581,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/companies/:id", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.partial().parse(req.body);
+      const company = await storage.updateCompany(req.params.id, validatedData);
+      if (!company) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json(company);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar empresa" });
+    }
+  });
+
+  app.delete("/api/companies/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteCompany(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Empresa não encontrada" });
+      }
+      res.json({ message: "Empresa excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir empresa:", error);
+      res.status(500).json({ message: "Erro ao deletar empresa" });
+    }
+  });
+
+  app.delete("/api/companies", async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "IDs das empresas são obrigatórios" });
+      }
+
+      console.log("Tentando excluir empresas com IDs:", ids);
+      const deletedCount = await storage.deleteCompanies(ids);
+      console.log("Empresas excluídas:", deletedCount);
+
+      res.json({
+        message: deletedCount + " empresa(s) excluída(s) com sucesso",
+        deletedCount,
+      });
+    } catch (error) {
+      console.error("Erro ao excluir empresas:", error);
+      res.status(500).json({ message: "Erro ao excluir empresas" });
+    }
+  });
+
   // Funnel route
   app.get("/api/funnels", async (req, res) => {
     try {
