@@ -121,7 +121,7 @@ export const deals = pgTable("deals", {
     .references(() => clients.id),
   companyId: varchar("company_id")
     .references(() => companies.id),
-  title: text("title").notNull(),
+  title: text("title"),
   funnelId: varchar("funnel_id")
     .references(() => salesFunnels.id)
     .notNull(),
@@ -637,6 +637,8 @@ export const insertDealSchema = createInsertSchema(deals).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  title: z.string().optional(),
 }).refine(
   (data) => {
     // Pelo menos um de clientId ou companyId deve estar presente
