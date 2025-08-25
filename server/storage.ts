@@ -1068,17 +1068,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDeal(id: string): Promise<boolean> {
-    console.log("Storage: Tentando excluir negócio ID:", id);
-    try {
-      const result = await this.db.delete(deals).where(eq(deals.id, id));
-      console.log("Storage: Resultado da exclusão - rowCount:", result.rowCount);
-      const success = result.rowCount !== null && result.rowCount > 0;
-      console.log("Storage: Exclusão bem-sucedida:", success);
-      return success;
-    } catch (error) {
-      console.error("Storage: Erro ao excluir negócio:", error);
-      throw error;
-    }
+    const result = await this.db.delete(deals).where(eq(deals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Birthday Reminder methods

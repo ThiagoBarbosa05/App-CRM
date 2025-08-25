@@ -83,11 +83,9 @@ export default function KanbanBoard() {
 
   const deleteDealMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log("Frontend: Enviando requisição DELETE para:", `/api/deals/${id}`);
       await apiRequest("DELETE", `/api/deals/${id}`);
     },
     onSuccess: () => {
-      console.log("Frontend: Exclusão bem-sucedida!");
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
       toast({
         title: "Negócio excluído",
@@ -95,7 +93,7 @@ export default function KanbanBoard() {
       });
     },
     onError: (error) => {
-      console.error("Frontend: Erro ao excluir negócio:", error);
+      console.error("Erro ao excluir negócio:", error);
       toast({
         title: "Erro",
         description: "Não foi possível excluir o negócio.",
@@ -228,10 +226,7 @@ export default function KanbanBoard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              console.log("Clicou para excluir negócio:", deal.id, deal.title);
-                              setDeletingDeal(deal);
-                            }}
+                            onClick={() => setDeletingDeal(deal)}
                             className="text-gray-400 hover:text-red-600 h-6 w-6 p-0"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -288,7 +283,6 @@ export default function KanbanBoard() {
             <AlertDialogAction
               onClick={() => {
                 if (deletingDeal) {
-                  console.log("Confirmou exclusão do negócio:", deletingDeal.id);
                   deleteDealMutation.mutate(deletingDeal.id);
                   setDeletingDeal(null);
                 }
