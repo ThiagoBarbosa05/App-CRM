@@ -71,8 +71,8 @@ export default function FunnelKanbanBoard({
       if (userData) {
         const user = JSON.parse(userData);
         const response = await apiRequest(
-          `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
           "GET",
+          `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
         );
 
         return await response.json();
