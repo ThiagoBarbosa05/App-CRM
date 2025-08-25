@@ -59,6 +59,8 @@ export default function ClientsTableWithSelection({
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'categoria' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -145,6 +147,39 @@ export default function ClientsTableWithSelection({
     setShowDeleteDialog(false);
   };
 
+  const handleSort = (field: 'name' | 'categoria') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Aplicar ordenação aos clientes
+  const sortedClients = [...clients].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let aValue: string;
+    let bValue: string;
+    
+    if (sortField === 'name') {
+      aValue = a.name.toLowerCase();
+      bValue = b.name.toLowerCase();
+    } else if (sortField === 'categoria') {
+      aValue = a.categoria?.toLowerCase() || '';
+      bValue = b.categoria?.toLowerCase() || '';
+    } else {
+      return 0;
+    }
+    
+    if (sortDirection === 'asc') {
+      return aValue.localeCompare(bValue);
+    } else {
+      return bValue.localeCompare(aValue);
+    }
+  });
+
   useEffect(() => {
     if (onSelectionChange) {
       const selectedClients = clients.filter((client) =>
@@ -192,7 +227,19 @@ export default function ClientsTableWithSelection({
                   />
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
-                  Cliente
+                  <button
+                    onClick={() => handleSort('name')}
+                    className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                  >
+                    Cliente
+                    {sortField === 'name' && (
+                      sortDirection === 'asc' ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )
+                    )}
+                  </button>
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
                   Contato
@@ -201,7 +248,19 @@ export default function ClientsTableWithSelection({
                   Responsável
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
-                  Categoria
+                  <button
+                    onClick={() => handleSort('categoria')}
+                    className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                  >
+                    Categoria
+                    {sortField === 'categoria' && (
+                      sortDirection === 'asc' ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )
+                    )}
+                  </button>
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
                   Marcadores
@@ -215,7 +274,7 @@ export default function ClientsTableWithSelection({
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
+              {sortedClients.map((client) => (
                 <tr
                   key={client.id}
                   className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
