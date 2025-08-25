@@ -109,18 +109,20 @@ export default function CompanyImportModal({
               company.razaoSocial ||
               company["Nome Fantasia"] ||
               "",
-            cnpj: company.CNPJ.toString() || company.cnpj.toString() || "",
+            cnpj: company.CNPJ?.toString() || company.cnpj?.toString() || "",
             inscricaoEstadual:
-              company["Inscrição Estadual"].toString() ||
-              company.inscricaoEstadual.toString() ||
+              company["Inscrição Estadual"]?.toString() ||
+              company.inscricaoEstadual?.toString() ||
               "",
             nomeComprador:
               company["Nome do Comprador"] || company.nomeComprador || "",
+            responsavelNome:
+              company["Responsável"] || company.responsavel || "",
             phone:
-              company.Telefone.toString() || company.phone.toString() || "",
+              company.Telefone?.toString() || company.phone?.toString() || "",
             email: company.Email || company.email || null,
             website: company.Website || company.website || "",
-            cep: company.CEP.toString() || company.cep.toString() || "",
+            cep: company.CEP?.toString() || company.cep?.toString() || "",
             address: company.Endereco || company.address || "",
             city: company.Cidade || company.city || "",
             state: company.Estado || company.state || "",
@@ -148,6 +150,32 @@ export default function CompanyImportModal({
           companyData.nomeFantasia = companyData.nomeFantasia.trim();
           companyData.razaoSocial = companyData.razaoSocial.trim();
           companyData.email = companyData.email?.trim() || "";
+
+          // Buscar responsavelId pelo nome se fornecido
+          if (companyData.responsavelNome?.trim()) {
+            try {
+              const usersResponse = await fetch("/api/users", {
+                headers: {
+                  'x-user-id': 'b314722c-8fd6-4592-a9de-9ee551ec35be',
+                  'x-user-role': 'admin'
+                }
+              });
+              if (usersResponse.ok) {
+                const users = await usersResponse.json();
+                const responsavel = users.find((user: any) => 
+                  user.name.toLowerCase().includes(companyData.responsavelNome.toLowerCase().trim())
+                );
+                if (responsavel) {
+                  companyData.responsavelId = responsavel.id;
+                }
+              }
+            } catch (error) {
+              console.log("Erro ao buscar responsável:", error);
+            }
+          }
+
+          // Remover campo temporário
+          delete companyData.responsavelNome;
 
           const response = await apiRequest(
             "/api/companies",
@@ -228,6 +256,7 @@ export default function CompanyImportModal({
         CNPJ: "12.345.678/0001-99",
         "Inscrição Estadual": "123456789",
         "Nome do Comprador": "João Silva",
+        "Responsável": "Michel Sa",
         Telefone: "(11) 99999-9999",
         Email: "contato@empresa.com",
         Website: "https://www.empresa.com",
@@ -324,7 +353,7 @@ export default function CompanyImportModal({
           </div>
         )}
 
-        {/* {step === "preview" && (
+        {step === "preview" && (
           <div className="space-y-4">
             <Alert>
               <CheckCircle className="h-4 w-4" />
@@ -341,6 +370,8 @@ export default function CompanyImportModal({
                     <th className="px-3 py-2 text-left">Nome Fantasia</th>
                     <th className="px-3 py-2 text-left">Razão Social</th>
                     <th className="px-3 py-2 text-left">CNPJ</th>
+                    <th className="px-3 py-2 text-left">Insc. Estadual</th>
+                    <th className="px-3 py-2 text-left">Responsável</th>
                     <th className="px-3 py-2 text-left">Telefone</th>
                     <th className="px-3 py-2 text-left">Email</th>
                   </tr>
@@ -360,6 +391,12 @@ export default function CompanyImportModal({
                       </td>
                       <td className="px-3 py-2">
                         {company.CNPJ || company.cnpj || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {company["Inscrição Estadual"] || company.inscricaoEstadual || "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {company["Responsável"] || company.responsavel || "N/A"}
                       </td>
                       <td className="px-3 py-2">
                         {company.Telefone || company.phone || "N/A"}
@@ -387,7 +424,7 @@ export default function CompanyImportModal({
               </Button>
             </div>
           </div>
-        )} */}
+        )}
 
         {/* {step === "importing" && (
           <div className="space-y-4">
