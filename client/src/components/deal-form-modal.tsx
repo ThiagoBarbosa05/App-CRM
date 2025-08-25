@@ -308,6 +308,25 @@ export default function DealFormModal({
             )}
           </div>
 
+          <div>
+            <Label>Título *</Label>
+            <Controller
+              name="title"
+              control={form.control}
+              render={({ field }) => (
+                <Input
+                  placeholder="Digite o título do negócio"
+                  {...field}
+                />
+              )}
+            />
+            {form.formState.errors.title && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.title.message}
+              </span>
+            )}
+          </div>
+
           {watchDealType === "client" && (
             <div className="relative">
               <Label>Cliente *</Label>

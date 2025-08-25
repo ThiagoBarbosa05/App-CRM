@@ -121,6 +121,7 @@ export const deals = pgTable("deals", {
     .references(() => clients.id),
   companyId: varchar("company_id")
     .references(() => companies.id),
+  title: text("title").notNull(),
   funnelId: varchar("funnel_id")
     .references(() => salesFunnels.id)
     .notNull(),

@@ -874,8 +874,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cliente ou empresa é obrigatório" });
       }
 
-      console.log("Criando deal com dados:", JSON.stringify(validatedData, null, 2));
-      const deal = await storage.createDeal(validatedData);
+      // Adicionar título padrão se não fornecido
+      const dealDataWithTitle = {
+        ...validatedData,
+        title: validatedData.title || `Negócio ${validatedData.clientId ? 'Cliente' : 'Empresa'} - ${new Date().toLocaleDateString()}`
+      };
+      
+      console.log("Criando deal com dados:", JSON.stringify(dealDataWithTitle, null, 2));
+      const deal = await storage.createDeal(dealDataWithTitle);
       console.log("Deal criado com sucesso:", deal.id);
       res.status(201).json(deal);
     } catch (error) {
