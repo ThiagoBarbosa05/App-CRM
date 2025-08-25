@@ -83,11 +83,21 @@ export default function DealFormModal({
   const { user } = useAuth();
 
   const { data: clients } = useQuery({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", clientSearch],
+    queryFn: async () => {
+      const searchParam = clientSearch ? `&search=${encodeURIComponent(clientSearch)}` : "";
+      const response = await apiRequest("GET", `/api/clients?pageSize=5000${searchParam}`);
+      return response.json();
+    },
   });
 
   const { data: companies } = useQuery({
-    queryKey: ["/api/companies"],
+    queryKey: ["/api/companies", companySearch],
+    queryFn: async () => {
+      const searchParam = companySearch ? `&search=${encodeURIComponent(companySearch)}` : "";
+      const response = await apiRequest("GET", `/api/companies?pageSize=5000${searchParam}`);
+      return response.json();
+    },
   });
 
   // Buscar etapas do funil
