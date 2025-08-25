@@ -83,16 +83,19 @@ export default function KanbanBoard() {
 
   const deleteDealMutation = useMutation({
     mutationFn: async (id: string) => {
+      console.log("Frontend: Enviando requisição DELETE para:", `/api/deals/${id}`);
       await apiRequest("DELETE", `/api/deals/${id}`);
     },
     onSuccess: () => {
+      console.log("Frontend: Exclusão bem-sucedida!");
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
       toast({
         title: "Negócio excluído",
         description: "Negócio foi removido com sucesso.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Frontend: Erro ao excluir negócio:", error);
       toast({
         title: "Erro",
         description: "Não foi possível excluir o negócio.",

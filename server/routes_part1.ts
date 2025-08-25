@@ -939,12 +939,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/deals/:id", async (req, res) => {
     try {
+      console.log("DELETE /api/deals - Tentando excluir negócio ID:", req.params.id);
       const success = await storage.deleteDeal(req.params.id);
+      console.log("DELETE /api/deals - Resultado da exclusão:", success);
       if (!success) {
+        console.log("DELETE /api/deals - Negócio não encontrado:", req.params.id);
         return res.status(404).json({ message: "Negócio não encontrado" });
       }
+      console.log("DELETE /api/deals - Exclusão realizada com sucesso");
       res.status(204).send();
     } catch (error) {
+      console.error("DELETE /api/deals - Erro ao deletar negócio:", error);
       res.status(500).json({ message: "Erro ao deletar negócio" });
     }
   });
