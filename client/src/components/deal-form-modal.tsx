@@ -190,7 +190,7 @@ export default function DealFormModal({
 
   const createDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/deals", "POST", {
+      return await apiRequest("POST", "/api/deals", {
         ...data,
         clientId: data.dealType === "client" ? data.clientId : null,
         companyId: data.dealType === "company" ? data.companyId : null,
@@ -218,7 +218,7 @@ export default function DealFormModal({
 
   const updateDealMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest(`/api/deals/${deal!.id}`, "PUT", {
+      const response = await apiRequest("PUT", `/api/deals/${deal!.id}`, {
         ...data,
         clientId: data.dealType === "client" ? data.clientId : null,
         companyId: data.dealType === "company" ? data.companyId : null,
