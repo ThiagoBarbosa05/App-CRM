@@ -885,7 +885,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dealDataWithTitle.title = `Negócio ${new Date().toLocaleDateString('pt-BR')}`;
       }
       
-      console.log("Criando deal com dados:", JSON.stringify(dealDataWithTitle, null, 2));
+      console.log("Dados ANTES de adicionar título:", JSON.stringify(validatedData, null, 2));
+      console.log("Dados DEPOIS de adicionar título:", JSON.stringify(dealDataWithTitle, null, 2));
       const deal = await storage.createDeal(dealDataWithTitle);
       console.log("Deal criado com sucesso:", deal.id);
       res.status(201).json(deal);
