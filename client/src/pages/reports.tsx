@@ -62,12 +62,19 @@ export default function Reports() {
   const { user } = useAuth();
 
   const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients", user?.id, user?.role],
+    queryKey: ["/api/clients", user?.id, user?.role, "all"],
     queryFn: async () => {
+      // Para relatórios, precisamos buscar TODOS os clientes, não apenas uma página
       const response = await fetch(
         user?.role === "admin"
-          ? "/api/clients"
-          : `/api/clients?userId=${user?.id}&userRole=${user?.role}`,
+          ? "/api/clients/export-all" // Endpoint que retorna todos os clientes
+          : `/api/clients?userId=${user?.id}&userRole=${user?.role}&pageSize=10000`, // Número alto para pegar todos
+        {
+          headers: {
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
+        }
       );
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
@@ -76,12 +83,19 @@ export default function Reports() {
   });
 
   const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ["/api/companies", user?.id, user?.role],
+    queryKey: ["/api/companies", user?.id, user?.role, "all"],
     queryFn: async () => {
+      // Para relatórios, buscar todas as empresas com um pageSize alto
       const response = await fetch(
         user?.role === "admin"
-          ? "/api/companies"
-          : `/api/companies?userId=${user?.id}&userRole=${user?.role}`,
+          ? "/api/companies?pageSize=10000"
+          : `/api/companies?userId=${user?.id}&userRole=${user?.role}&pageSize=10000`,
+        {
+          headers: {
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
+        }
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -125,8 +139,8 @@ export default function Reports() {
     const today = startOfDay(new Date());
     const next30Days = addDays(today, 30);
 
-    // Extrair array dos dados da resposta
-    const clientsArray = Array.isArray(clients) ? clients : clients?.data || [];
+    // Para a página de relatórios, clients já deve ser um array direto
+    const clientsArray = Array.isArray(clients) ? clients : [];
     
     return clientsArray
       .filter((client) => client.birthday)
@@ -166,8 +180,8 @@ export default function Reports() {
 
   const upcomingBirthdays = getUpcomingBirthdays();
   
-  // Extrair array dos dados da resposta para outras operações
-  const clientsArray = Array.isArray(clients) ? clients : clients?.data || [];
+  // Para a página de relatórios, clients já deve ser um array direto  
+  const clientsArray = Array.isArray(clients) ? clients : [];
   
   const totalClients = clientsArray.length;
   const totalCompanies = companies.length;
