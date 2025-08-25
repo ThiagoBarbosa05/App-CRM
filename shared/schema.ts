@@ -636,7 +636,16 @@ export const insertDealSchema = createInsertSchema(deals).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}).refine(
+  (data) => {
+    // Pelo menos um de clientId ou companyId deve estar presente
+    return !!(data.clientId || data.companyId);
+  },
+  {
+    message: "Cliente ou empresa é obrigatório",
+    path: ["clientId"],
+  }
+);
 
 export const insertBirthdayReminderSchema = createInsertSchema(
   birthdayReminders,
@@ -775,8 +784,8 @@ export type InsertTraining = z.infer<typeof insertTrainingSchema>;
 export type Deal = typeof deals.$inferSelect;
 
 export interface DealWithClient extends Deal {
-  client?: Client;
-  company?: Company;
+  client?: Client | null;
+  company?: Company | null;
 }
 export type InsertBirthdayReminder = z.infer<
   typeof insertBirthdayReminderSchema

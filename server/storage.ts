@@ -1007,16 +1007,32 @@ export class DatabaseStorage implements IStorage {
     }
 
     for (const deal of dealsResult) {
-      const [client] = await this.db
-        .select()
-        .from(clients)
-        .where(eq(clients.id, deal.clientId));
-      if (client) {
-        dealsWithClients.push({
-          ...deal,
-          client,
-        });
+      let client = null;
+      let company = null;
+
+      // Buscar cliente se tiver clientId
+      if (deal.clientId) {
+        const [clientResult] = await this.db
+          .select()
+          .from(clients)
+          .where(eq(clients.id, deal.clientId));
+        client = clientResult || null;
       }
+
+      // Buscar empresa se tiver companyId
+      if (deal.companyId) {
+        const [companyResult] = await this.db
+          .select()
+          .from(companies)
+          .where(eq(companies.id, deal.companyId));
+        company = companyResult || null;
+      }
+
+      dealsWithClients.push({
+        ...deal,
+        client,
+        company,
+      });
     }
 
     return dealsWithClients;

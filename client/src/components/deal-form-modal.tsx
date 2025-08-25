@@ -148,7 +148,7 @@ export default function DealFormModal({
         setSelectedClientName(deal.client.name);
       }
       // Buscar dados da empresa se tiver companyId
-      if (deal.companyId && companiesList.length > 0) {
+      if (deal.companyId && Array.isArray(companiesList) && companiesList.length > 0) {
         const company = companiesList.find((c: any) => c.id === deal.companyId);
         if (company) {
           setSelectedCompanyName(company.nomeFantasia || company.razaoSocial);
