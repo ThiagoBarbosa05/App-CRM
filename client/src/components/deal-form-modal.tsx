@@ -82,6 +82,14 @@ export default function DealFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
+  // Estados para busca - declarar primeiro
+  const [clientSearch, setClientSearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [selectedClientName, setSelectedClientName] = useState("");
+  const [selectedCompanyName, setSelectedCompanyName] = useState("");
+
   const { data: clients } = useQuery({
     queryKey: ["/api/clients", clientSearch],
     queryFn: async () => {
@@ -117,14 +125,6 @@ export default function DealFormModal({
   const clientsList = clients?.data || [];
   const companiesList = companies || [];
 
-  // Estados para busca
-  const [clientSearch, setClientSearch] = useState("");
-  const [companySearch, setCompanySearch] = useState("");
-  const [showClientDropdown, setShowClientDropdown] = useState(false);
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const [selectedClientName, setSelectedClientName] = useState("");
-  const [selectedCompanyName, setSelectedCompanyName] = useState("");
-
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
     defaultValues: {
@@ -141,14 +141,9 @@ export default function DealFormModal({
   // Watch deal type to show/hide fields
   const watchDealType = form.watch("dealType");
 
-  // Filtrar listas baseado na busca
-  const filteredClients = Array.isArray(clientsList) ? clientsList.filter((client: Client) =>
-    client.name.toLowerCase().includes(clientSearch.toLowerCase())
-  ) : [];
-
-  const filteredCompanies = Array.isArray(companiesList) ? companiesList.filter((company: any) =>
-    (company.nomeFantasia || company.razaoSocial).toLowerCase().includes(companySearch.toLowerCase())
-  ) : [];
+  // Como a busca agora é feita no backend, usar a lista diretamente
+  const filteredClients = Array.isArray(clientsList) ? clientsList : [];
+  const filteredCompanies = Array.isArray(companiesList) ? companiesList : [];
 
   // Atualizar o formulário quando os dados mudarem
   React.useEffect(() => {
