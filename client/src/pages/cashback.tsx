@@ -199,12 +199,12 @@ export default function Cashback() {
       if (debouncedClientSearch.trim()) {
         params.append('search', debouncedClientSearch);
       }
-      params.append('pageSize', '50'); // Limitar a 50 resultados
+      params.append('pageSize', '5000'); // Buscar mais clientes
       
       const response = await fetch(`/api/clients?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setClients(data);
+        setClients(data.data || []); // API retorna {data: [...]} 
       }
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
