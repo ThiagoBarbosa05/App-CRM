@@ -334,37 +334,36 @@ export default function CompanyWineListModal({
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
-                <Select
-                  value={selectedProductId}
-                  onValueChange={setSelectedProductId}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione um produto para adicionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="px-2 py-2">
-                      <Input
-                        placeholder="Digite o nome do vinho para buscar..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        className="h-8"
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-y-auto">
-                      {filteredAvailableProducts.length === 0 ? (
-                        <div className="px-2 py-6 text-center text-sm text-gray-500">
-                          {productSearchTerm ? "Nenhum vinho encontrado" : "Nenhum produto disponível"}
-                        </div>
-                      ) : (
-                        filteredAvailableProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} - {product.country} ({product.volume})
-                          </SelectItem>
-                        ))
-                      )}
-                    </div>
-                  </SelectContent>
-                </Select>
+                <div className="flex-1">
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Digite o nome do vinho para buscar..."
+                      value={productSearchTerm}
+                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                    />
+                    <Select
+                      value={selectedProductId}
+                      onValueChange={setSelectedProductId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto para adicionar" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {filteredAvailableProducts.length === 0 ? (
+                          <div className="px-2 py-6 text-center text-sm text-gray-500">
+                            {productSearchTerm ? "Nenhum vinho encontrado" : "Nenhum produto disponível"}
+                          </div>
+                        ) : (
+                          filteredAvailableProducts.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {product.country} ({product.volume})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <Button
                   onClick={() => addProductMutation.mutate(selectedProductId)}
                   disabled={!selectedProductId || addProductMutation.isPending}
