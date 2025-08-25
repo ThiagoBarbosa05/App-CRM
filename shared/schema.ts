@@ -117,7 +117,6 @@ export const deals = pgTable("deals", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
   clientId: varchar("client_id")
     .references(() => clients.id)
     .notNull(),

@@ -184,7 +184,6 @@ export default function KanbanBoard() {
                       className="kanban-card bg-white border border-gray-200 rounded-lg p-4 card-shadow"
                     >
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">{deal.title}</h4>
                         <span className="text-green-600 font-semibold text-sm">
                           {formatCurrency(parseFloat(deal.value))}
                         </span>

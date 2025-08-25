@@ -44,11 +44,9 @@ interface DealFormModalProps {
   deal?: DealWithClient;
   funnelId?: string;
   initialClientId?: string;
-  initialTitle?: string;
 }
 
 const createDealSchema = z.object({
-  title: z.string().min(1, "Título é obrigatório"),
   clientId: z.string().min(1, "Cliente é obrigatório"),
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
@@ -93,7 +91,6 @@ export default function DealFormModal({
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
     defaultValues: {
-      title: deal?.title || initialTitle || "",
       clientId: deal?.clientId || initialClientId || "",
       value: deal?.value || "",
       stageId: deal?.stageId || "",
@@ -106,7 +103,6 @@ export default function DealFormModal({
   React.useEffect(() => {
     if (deal) {
       form.reset({
-        title: deal.title || "",
         clientId: deal.clientId || "",
         value: deal.value || "",
         stageId: deal.stageId || funnelStages[0]?.id || "",
@@ -212,15 +208,6 @@ export default function DealFormModal({
           className="flex flex-col gap-4"
           action=""
         >
-          <div>
-            <Label>Título do negócio *</Label>
-            <Input placeholder="Digite o título" {...form.register("title")} />
-            {form.formState.errors.title && (
-              <span className="text-sm text-red-500">
-                {form.formState.errors.title.message}
-              </span>
-            )}
-          </div>
 
           <div>
             <Label>Cliente *</Label>

@@ -20,7 +20,6 @@ export const clientValidationSchema = z.object({
 });
 
 export const dealValidationSchema = z.object({
-  title: z.string().min(3, "Título deve ter pelo menos 3 caracteres"),
   clientId: z.string().min(1, "Cliente é obrigatório"),
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
