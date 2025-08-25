@@ -20,7 +20,12 @@ export const clientValidationSchema = z.object({
 });
 
 export const dealValidationSchema = z.object({
-  clientId: z.string().min(1, "Cliente é obrigatório"),
+  dealType: z.enum(["client", "company"], { 
+    required_error: "Tipo de negócio é obrigatório" 
+  }),
+  clientId: z.string().optional(),
+  companyId: z.string().optional(),
+  title: z.string().optional(),
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
   value: z.string().min(1, "Valor é obrigatório"),

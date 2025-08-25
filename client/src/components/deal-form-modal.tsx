@@ -309,13 +309,13 @@ export default function DealFormModal({
           </div>
 
           <div>
-            <Label>Título *</Label>
+            <Label>Título</Label>
             <Controller
               name="title"
               control={form.control}
               render={({ field }) => (
                 <Input
-                  placeholder="Digite o título do negócio"
+                  placeholder="Digite o título do negócio (opcional)"
                   {...field}
                 />
               )}
