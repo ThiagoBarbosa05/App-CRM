@@ -877,8 +877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Adicionar título padrão se não fornecido
       const dealDataWithTitle = {
         ...validatedData,
-        title: validatedData.title || `Negócio ${validatedData.clientId ? 'Cliente' : 'Empresa'} - ${new Date().toLocaleDateString()}`
+        title: validatedData.title || `Negócio ${validatedData.clientId ? 'Cliente' : 'Empresa'} - ${new Date().toLocaleDateString('pt-BR')}`
       };
+      
+      // Garantir que não há campos null problemáticos
+      if (!dealDataWithTitle.title) {
+        dealDataWithTitle.title = `Negócio ${new Date().toLocaleDateString('pt-BR')}`;
+      }
       
       console.log("Criando deal com dados:", JSON.stringify(dealDataWithTitle, null, 2));
       const deal = await storage.createDeal(dealDataWithTitle);
