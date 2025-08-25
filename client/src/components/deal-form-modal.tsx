@@ -104,7 +104,7 @@ export default function DealFormModal({
   });
 
   // Provide default empty array if clients is undefined
-  const clientsList = clients || [];
+  const clientsList = clients?.data || [];
   const companiesList = companies || [];
 
   // Estados para busca
