@@ -92,8 +92,7 @@ export default function KanbanBoard() {
         description: "Negócio foi removido com sucesso.",
       });
     },
-    onError: (error) => {
-      console.error("Erro ao excluir negócio:", error);
+    onError: () => {
       toast({
         title: "Erro",
         description: "Não foi possível excluir o negócio.",
@@ -226,7 +225,10 @@ export default function KanbanBoard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDeletingDeal(deal)}
+                            onClick={() => {
+                              console.log("Clicou para excluir negócio:", deal.id, deal.title);
+                              setDeletingDeal(deal);
+                            }}
                             className="text-gray-400 hover:text-red-600 h-6 w-6 p-0"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -283,6 +285,7 @@ export default function KanbanBoard() {
             <AlertDialogAction
               onClick={() => {
                 if (deletingDeal) {
+                  console.log("Confirmou exclusão do negócio:", deletingDeal.id);
                   deleteDealMutation.mutate(deletingDeal.id);
                   setDeletingDeal(null);
                 }

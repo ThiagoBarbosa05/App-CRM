@@ -12,22 +12,9 @@ export async function apiRequest(
   method: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const user = getUserFromStorage();
-  const headers: Record<string, string> = {};
-  
-  if (data) {
-    headers["Content-Type"] = "application/json";
-  }
-  
-  // Adicionar headers de autenticação
-  if (user) {
-    headers["x-user-id"] = user.id;
-    headers["x-user-role"] = user.role;
-  }
-
   const res = await fetch(url, {
     method,
-    headers,
+    headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

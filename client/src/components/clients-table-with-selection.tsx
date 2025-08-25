@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Trash2,
@@ -13,8 +13,6 @@ import {
   ChevronsLeft,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,15 +54,13 @@ export default function ClientsTableWithSelection({
   setCurrentPage,
   hasNextPage,
 }: ClientsTableWithSelectionProps) {
-  const { user } = useAuth();
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
-
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const { user } = useAuth();
 
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
 
@@ -111,50 +107,25 @@ export default function ClientsTableWithSelection({
     },
   });
 
-  const usersArray = Array.isArray(users) ? users : [];
-
-  // Sort clients based on current sort order
-  const sortedClients = sortOrder 
-    ? [...clients].sort((a, b) => {
-        const comparison = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
-        return sortOrder === 'asc' ? comparison : -comparison;
-      })
-    : clients;
-
-  const allCurrentPageSelected = sortedClients.length > 0 && sortedClients.every(client => 
-    selectedClientIds.includes(client.id)
-  );
-
-  const handleSort = () => {
-    if (sortOrder === null) {
-      setSortOrder('asc');
-    } else if (sortOrder === 'asc') {
-      setSortOrder('desc');
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const currentPageIds = clients.map((client) => client.id);
+      setSelectedClientIds((prev) => {
+        const newSelected = [...prev];
+        currentPageIds.forEach((id) => {
+          if (!newSelected.includes(id)) {
+            newSelected.push(id);
+          }
+        });
+        return newSelected;
+      });
     } else {
-      setSortOrder(null);
+      const currentPageIds = clients.map((client) => client.id);
+      setSelectedClientIds((prev) =>
+        prev.filter((id) => !currentPageIds.includes(id)),
+      );
     }
   };
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      const currentPageIds = sortedClients.map(client => client.id);
-      const newSelectedIds = Array.from(new Set([...selectedClientIds, ...currentPageIds]));
-      const newSelectedClients = sortedClients.filter(client => currentPageIds.includes(client.id));
-
-      setSelectedClientIds(newSelectedIds);
-      onSelectionChange(newSelectedIds, [
-        ...selectedClients.filter(client => !currentPageIds.includes(client.id)),
-        ...newSelectedClients
-      ]);
-    } else {
-      const currentPageIds = sortedClients.map(client => client.id);
-      const newSelectedIds = selectedClientIds.filter(id => !currentPageIds.includes(id));
-      const newSelectedClients = selectedClients.filter(client => !currentPageIds.includes(client.id));
-
-      setSelectedClientIds(newSelectedIds);
-      onSelectionChange(newSelectedIds, newSelectedClients);
-    }
-  }, [sortedClients, selectedClientIds, selectedClients, onSelectionChange]);
 
   const handleSelectClient = (clientId: string, checked: boolean) => {
     if (checked) {
@@ -176,12 +147,16 @@ export default function ClientsTableWithSelection({
 
   useEffect(() => {
     if (onSelectionChange) {
-      const selectedClients = sortedClients.filter((client) =>
+      const selectedClients = clients.filter((client) =>
         selectedClientIds.includes(client.id),
       );
       onSelectionChange(selectedClientIds, selectedClients);
     }
-  }, [selectedClientIds, sortedClients, onSelectionChange]);
+  }, [selectedClientIds, clients, onSelectionChange]);
+
+  const allCurrentPageSelected =
+    clients.length > 0 &&
+    clients.every((client) => selectedClientIds.includes(client.id));
 
   return (
     <div className="space-y-4">
@@ -216,11 +191,8 @@ export default function ClientsTableWithSelection({
                     onCheckedChange={handleSelectAll}
                   />
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900 cursor-pointer" onClick={handleSort}>
+                <th className="p-4 text-left font-medium text-gray-900">
                   Cliente
-                  {sortOrder === 'asc' && <ChevronUp className="inline h-4 w-4" />}
-                  {sortOrder === 'desc' && <ChevronDown className="inline h-4 w-4" />}
-                  {sortOrder === null && <ChevronUp className="inline h-4 w-4 opacity-50" />}
                 </th>
                 <th className="p-4 text-left font-medium text-gray-900">
                   Contato
@@ -243,7 +215,7 @@ export default function ClientsTableWithSelection({
               </tr>
             </thead>
             <tbody>
-              {sortedClients.map((client) => (
+              {clients.map((client) => (
                 <tr
                   key={client.id}
                   className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
@@ -307,7 +279,7 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <div className="text-sm text-gray-900">
                       {(() => {
-                        const user = usersArray.find(
+                        const user = users.find(
                           (u) => u.id === client.responsavelId,
                         );
                         return user
@@ -371,7 +343,7 @@ export default function ClientsTableWithSelection({
                   </td>
                 </tr>
               ))}
-              {sortedClients.length === 0 && (
+              {clients.length === 0 && (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-gray-500">
                     Nenhum cliente encontrado
