@@ -100,9 +100,9 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
         if (!userData.password) {
           delete userData.password;
         }
-        await apiRequest(`/api/users/${user.id}`, "PUT", userData);
+        await apiRequest("PUT", `/api/users/${user.id}`, userData);
       } else {
-        await apiRequest("/api/users", "POST", userData);
+        await apiRequest("POST", "/api/users", userData);
       }
     },
     onSuccess: () => {

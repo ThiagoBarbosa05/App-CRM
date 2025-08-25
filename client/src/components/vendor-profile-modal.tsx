@@ -93,7 +93,7 @@ export default function VendorProfileModal({ open, onOpenChange, user, onUpdate 
         updateData.password = data.newPassword;
       }
 
-      const response = await apiRequest(`/api/users/${user.id}/profile`, "PUT", updateData);
+      const response = await apiRequest("PUT", `/api/users/${user.id}/profile`, updateData);
       return response;
     },
     onSuccess: (updatedUser) => {
