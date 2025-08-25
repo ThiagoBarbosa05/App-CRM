@@ -26,6 +26,8 @@ import {
   Trash,
   Download,
   Upload,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -63,6 +65,8 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [sortField, setSortField] = useState<'nomeFantasia' | 'razaoSocial' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -196,6 +200,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       matchesCnpj &&
       matchesResponsavel
     );
+  }).sort((a: Company, b: Company) => {
+    if (!sortField) return 0;
+    
+    const aValue = a[sortField].toLowerCase();
+    const bValue = b[sortField].toLowerCase();
+    
+    if (sortDirection === 'asc') {
+      return aValue.localeCompare(bValue);
+    } else {
+      return bValue.localeCompare(aValue);
+    }
   });
 
   const handleEdit = (company: Company) => {
@@ -260,6 +275,15 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   const handleExport = () => {
     exportMutation.mutate();
+  };
+
+  const handleSort = (field: 'nomeFantasia' | 'razaoSocial') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
   return (
@@ -422,8 +446,36 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>Nome Fantasia</TableHead>
-                  <TableHead>Razão Social</TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort('nomeFantasia')}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    >
+                      Nome Fantasia
+                      {sortField === 'nomeFantasia' && (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )
+                      )}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort('razaoSocial')}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    >
+                      Razão Social
+                      {sortField === 'razaoSocial' && (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )
+                      )}
+                    </button>
+                  </TableHead>
                   <TableHead>CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Email</TableHead>
