@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
 import ClientDetailsCard from "./client-details-card";
 import ClientFormModal from "./client-form-modal";
+import DealDetailsModal from "./deal-details-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,7 @@ export default function FunnelKanbanBoard({
   const [editingClient, setEditingClient] = useState<
     DealWithClient["client"] | null
   >(null);
+  const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -198,7 +200,8 @@ export default function FunnelKanbanBoard({
                       key={deal.id}
                       draggable
                       onDragStart={() => handleDragStart(deal)}
-                      className="kanban-card bg-white border border-gray-200 rounded-lg p-4 card-shadow cursor-move hover:shadow-md transition-shadow"
+                      onClick={() => setSelectedDeal(deal)}
+                      className="kanban-card bg-white border border-gray-200 rounded-lg p-4 card-shadow cursor-pointer hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <h4 className="font-medium text-gray-900 text-sm leading-tight">
@@ -234,7 +237,10 @@ export default function FunnelKanbanBoard({
                         <p className="text-xs text-gray-600">
                           Cliente:{" "}
                           <button
-                            onClick={() => setSelectedClient(deal.client)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedClient(deal.client);
+                            }}
                             className="text-wine-600 hover:text-wine-800 underline font-medium"
                           >
                             {deal.client?.name}
@@ -301,6 +307,24 @@ export default function FunnelKanbanBoard({
           client={editingClient}
         />
       )}
+
+      <DealDetailsModal
+        deal={selectedDeal}
+        isOpen={!!selectedDeal}
+        onClose={() => setSelectedDeal(null)}
+        onEdit={(deal) => {
+          setSelectedDeal(null);
+          setEditingDeal(deal);
+        }}
+        onDelete={(deal) => {
+          setSelectedDeal(null);
+          setDeletingDeal(deal);
+        }}
+        onClientClick={(client) => {
+          setSelectedDeal(null);
+          setSelectedClient(client);
+        }}
+      />
 
       <AlertDialog
         open={!!deletingDeal}
