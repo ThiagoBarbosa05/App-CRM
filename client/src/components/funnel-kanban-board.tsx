@@ -78,8 +78,8 @@ export default function FunnelKanbanBoard({
         return await response.json();
       }
       const response = await apiRequest(
-        `/api/deals?funnelId=${funnelId}`,
         "GET",
+        `/api/deals?funnelId=${funnelId}`,
       );
       return await response.json();
     },
@@ -87,7 +87,7 @@ export default function FunnelKanbanBoard({
 
   const updateDealMutation = useMutation({
     mutationFn: async ({ id, stageId }: { id: string; stageId: string }) => {
-      await apiRequest(`/api/deals/${id}`, "PUT", { stageId });
+      await apiRequest("PUT", `/api/deals/${id}`, { stageId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });

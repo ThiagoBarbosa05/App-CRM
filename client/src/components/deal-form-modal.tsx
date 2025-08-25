@@ -95,8 +95,8 @@ export default function DealFormModal({
     queryKey: [`/api/funnels/${funnelId}/stages`, funnelId],
     queryFn: async () => {
       const response = await apiRequest(
-        `/api/funnels/${funnelId}/stages`,
         "GET",
+        `/api/funnels/${funnelId}/stages`,
       );
       return response.json();
     },

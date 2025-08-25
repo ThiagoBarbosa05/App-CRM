@@ -57,7 +57,7 @@ export default function MarkersManagement() {
 
   const createMarkerMutation = useMutation({
     mutationFn: async (data: { name: string; color: string }) => {
-      return await apiRequest("/api/markers", "POST", data);
+      return await apiRequest("POST", "/api/markers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
@@ -87,7 +87,7 @@ export default function MarkersManagement() {
       id: string;
       data: { name: string; color: string };
     }) => {
-      return await apiRequest(`/api/markers/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/markers/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markers"] });

@@ -57,7 +57,7 @@ export default function CategoriesManagement() {
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; color: string }) => {
-      return await apiRequest("/api/categories", "POST", data);
+      return await apiRequest("POST", "/api/categories", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
@@ -87,7 +87,7 @@ export default function CategoriesManagement() {
       id: string;
       data: { name: string; color: string };
     }) => {
-      return await apiRequest(`/api/categories/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/categories/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
