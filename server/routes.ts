@@ -780,6 +780,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/deals/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteDeal(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Negócio não encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao deletar negócio:", error);
+      res.status(500).json({ message: "Erro ao deletar negócio" });
+    }
+  });
+
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
