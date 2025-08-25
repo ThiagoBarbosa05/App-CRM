@@ -125,7 +125,10 @@ export default function Reports() {
     const today = startOfDay(new Date());
     const next30Days = addDays(today, 30);
 
-    return clients
+    // Extrair array dos dados da resposta
+    const clientsArray = Array.isArray(clients) ? clients : clients?.data || [];
+    
+    return clientsArray
       .filter((client) => client.birthday)
       .map((client) => {
         const birthday = parseISO(client.birthday!);
