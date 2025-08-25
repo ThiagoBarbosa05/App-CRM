@@ -326,7 +326,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page,
         pageSize,
       );
-      res.json(clients);
+      
+      // Por enquanto, retorna formato simples com estimativa baseada no tamanho da página
+      res.json({
+        data: clients,
+        currentPage: page,
+        hasNextPage: clients.length === pageSize,
+        totalPages: clients.length === pageSize ? page + 1 : page,
+        totalItems: null // Será implementado depois
+      });
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
       res.status(500).json({ message: "Erro ao buscar clientes" });

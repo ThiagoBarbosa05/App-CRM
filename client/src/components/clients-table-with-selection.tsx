@@ -419,7 +419,9 @@ export default function ClientsTableWithSelection({
       {(currentPage > 1 || hasNextPage) && (
         <div className="flex items-center flex-wrap gap-1 justify-between py-3 bg-white border-t border-gray-200">
           <div className="flex items-center text-xs sm:text-sm text-gray-700">
-            Página {currentPage}
+            <span>Mostrando {clients.length} clientes</span>
+            <span className="mx-2">•</span>
+            <span>Página {currentPage}</span>
           </div>
           <div className="flex items-center w-full gap-2">
             <Button
