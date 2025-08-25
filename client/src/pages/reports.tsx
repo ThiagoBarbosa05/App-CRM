@@ -415,7 +415,7 @@ export default function Reports() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {upcomingBirthdaysFiltered.map((client) => (
+                  {upcomingBirthdaysFiltered.slice(0, 15).map((client) => (
                     <div
                       key={client.id}
                       className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg"
