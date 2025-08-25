@@ -107,6 +107,13 @@ export default function DealFormModal({
   const clientsList = clients || [];
   const companiesList = companies || [];
 
+  // Estados para busca
+  const [clientSearch, setClientSearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [selectedClientName, setSelectedClientName] = useState("");
+  const [selectedCompanyName, setSelectedCompanyName] = useState("");
 
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
@@ -124,9 +131,25 @@ export default function DealFormModal({
   // Watch deal type to show/hide fields
   const watchDealType = form.watch("dealType");
 
+  // Filtrar listas baseado na busca
+  const filteredClients = clientsList.filter((client: Client) =>
+    client.name.toLowerCase().includes(clientSearch.toLowerCase())
+  );
+
+  const filteredCompanies = companiesList.filter((company: any) =>
+    (company.nomeFantasia || company.razaoSocial).toLowerCase().includes(companySearch.toLowerCase())
+  );
+
   // Atualizar o formulário quando os dados mudarem
   React.useEffect(() => {
     if (deal) {
+      // Definir nome do cliente/empresa selecionado
+      if (deal.client) {
+        setSelectedClientName(deal.client.name);
+      } else if (deal.company) {
+        setSelectedCompanyName(deal.company.nomeFantasia || deal.company.razaoSocial);
+      }
+      
       form.reset({
         dealType: deal.clientId ? "client" : deal.companyId ? "company" : "client",
         clientId: deal.clientId || "",
@@ -143,6 +166,22 @@ export default function DealFormModal({
       }
     }
   }, [deal, funnelId, funnelStages, form]);
+
+  // Fechar dropdowns quando clicar fora
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.relative')) {
+        setShowClientDropdown(false);
+        setShowCompanyDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const createDealMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -265,30 +304,46 @@ export default function DealFormModal({
           </div>
 
           {watchDealType === "client" && (
-            <div>
+            <div className="relative">
               <Label>Cliente *</Label>
               <Controller
                 name="clientId"
                 control={form.control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cliente..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.isArray(clientsList) && clientsList.length > 0 ? (
-                        clientsList.map((client: Client) => (
-                          <SelectItem key={client.id} value={client.id}>
+                  <div className="relative">
+                    <Input
+                      placeholder="Digite para procurar um cliente..."
+                      value={selectedClientName || clientSearch}
+                      onChange={(e) => {
+                        setClientSearch(e.target.value);
+                        setSelectedClientName("");
+                        setShowClientDropdown(true);
+                        if (!e.target.value) {
+                          field.onChange("");
+                        }
+                      }}
+                      onFocus={() => setShowClientDropdown(true)}
+                      className="w-full"
+                    />
+                    {showClientDropdown && filteredClients.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredClients.map((client: Client) => (
+                          <div
+                            key={client.id}
+                            className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              field.onChange(client.id);
+                              setSelectedClientName(client.name);
+                              setClientSearch("");
+                              setShowClientDropdown(false);
+                            }}
+                          >
                             {client.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="Nenhum cliente encontrado" disabled>
-                          Nenhum cliente encontrado
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               />
               {form.formState.errors.clientId && (
@@ -300,30 +355,46 @@ export default function DealFormModal({
           )}
 
           {watchDealType === "company" && (
-            <div>
+            <div className="relative">
               <Label>Empresa *</Label>
               <Controller
                 name="companyId"
                 control={form.control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma empresa..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.isArray(companiesList) && companiesList.length > 0 ? (
-                        companiesList.map((company: any) => (
-                          <SelectItem key={company.id} value={company.id}>
+                  <div className="relative">
+                    <Input
+                      placeholder="Digite para procurar uma empresa..."
+                      value={selectedCompanyName || companySearch}
+                      onChange={(e) => {
+                        setCompanySearch(e.target.value);
+                        setSelectedCompanyName("");
+                        setShowCompanyDropdown(true);
+                        if (!e.target.value) {
+                          field.onChange("");
+                        }
+                      }}
+                      onFocus={() => setShowCompanyDropdown(true)}
+                      className="w-full"
+                    />
+                    {showCompanyDropdown && filteredCompanies.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredCompanies.map((company: any) => (
+                          <div
+                            key={company.id}
+                            className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              field.onChange(company.id);
+                              setSelectedCompanyName(company.nomeFantasia || company.razaoSocial);
+                              setCompanySearch("");
+                              setShowCompanyDropdown(false);
+                            }}
+                          >
                             {company.nomeFantasia || company.razaoSocial}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="Nenhuma empresa encontrada" disabled>
-                          Nenhuma empresa encontrada
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               />
               {form.formState.errors.companyId && (
