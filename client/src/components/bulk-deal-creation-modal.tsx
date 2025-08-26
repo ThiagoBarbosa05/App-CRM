@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -128,7 +127,7 @@ export default function BulkDealCreationModal({
   const createBulkDealsMutation = useMutation({
     mutationFn: async (data: BulkDealSchema) => {
       console.log("Dados para criação em lote:", data);
-      
+
       if (!data.selectedCompanies || data.selectedCompanies.length === 0) {
         throw new Error("Nenhuma empresa selecionada");
       }
@@ -155,9 +154,9 @@ export default function BulkDealCreationModal({
         if (!company) {
           console.warn(`Empresa não encontrada para ID: ${companyId}`);
         }
-        
+
         const dealTitle = data.title || `Negócio - ${company?.nomeFantasia || company?.razaoSocial || 'Empresa'}`;
-        
+
         return {
           companyId,
           funnelId: data.funnelId,
@@ -174,7 +173,7 @@ export default function BulkDealCreationModal({
 
       try {
         const response = await apiRequest("POST", "/api/deals/bulk", { deals });
-        
+
         if (!response.ok) {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
@@ -187,7 +186,7 @@ export default function BulkDealCreationModal({
             throw new Error("Erro interno do servidor");
           }
         }
-        
+
         return response.json();
       } catch (error) {
         console.error("Erro na requisição:", error);
@@ -200,7 +199,7 @@ export default function BulkDealCreationModal({
     onSuccess: (result) => {
       console.log("Resultado da criação em lote:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
-      
+
       if (result.errors > 0) {
         console.warn("Erros na criação:", result.errorDetails);
         toast({
@@ -214,7 +213,7 @@ export default function BulkDealCreationModal({
           description: `${result.created} negócios foram criados com sucesso.`,
         });
       }
-      
+
       onOpenChange(false);
       form.reset();
       setSelectAll(false);
@@ -260,14 +259,14 @@ export default function BulkDealCreationModal({
                   Selecionar todas ({companies.length})
                 </Label>
               </div>
-              
+
               <div className="space-y-2">
                 {companies.map((company) => (
                   <div key={company.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={company.id}
                       checked={selectedCompanies.includes(company.id)}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         handleCompanyToggle(company.id, checked as boolean)
                       }
                     />
@@ -371,7 +370,7 @@ export default function BulkDealCreationModal({
                           <div className="flex items-center gap-2">
                             <span>{user.name}</span>
                             <span className="text-xs text-gray-500">
-                              ({user.role === "admin" ? "Admin" : 
+                              ({user.role === "admin" ? "Admin" :
                                user.role === "gerente" ? "Gerente" : "Vendedor"})
                             </span>
                           </div>
