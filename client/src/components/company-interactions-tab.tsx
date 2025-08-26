@@ -148,7 +148,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
               });
             }
           }}
-          className="bg-wine-600 hover:bg-wine-700 text-white"
+          className="bg-black hover:bg-gray-800 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
           Nova Interação
@@ -173,7 +173,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
                   variant: "destructive",
                 });
               }}
-              className="bg-wine-600 hover:bg-wine-700 text-white"
+              className="bg-black hover:bg-gray-800 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Primeira Interação
