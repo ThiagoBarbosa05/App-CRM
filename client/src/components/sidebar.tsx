@@ -188,7 +188,11 @@ export default function Sidebar() {
                 </button>
               </Link>
 
-              {(user?.role === "admin" || user?.role === "vendedor") && (
+              {(() => {
+                const shouldShowFunil = user?.role === "admin" || user?.role === "vendedor";
+                console.log("Sidebar - User:", user, "ShouldShowFunil:", shouldShowFunil);
+                return shouldShowFunil;
+              })() && (
                 <Link href="/funil">
                   <button
                     onClick={closeMobileMenu}
