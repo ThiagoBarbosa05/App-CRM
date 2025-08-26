@@ -98,8 +98,8 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
     },
   });
 
-  const formatDateTime = (date: string) => {
-    const dateObj = new Date(date);
+  const formatDateTime = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
     return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
 
@@ -282,7 +282,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
             }
           }}
           clientId={selectedClientId}
-          interaction={editingInteraction}
+          interaction={editingInteraction || undefined}
         />
       )}
     </div>
