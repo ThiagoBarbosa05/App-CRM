@@ -1163,6 +1163,9 @@ export class DatabaseStorage implements IStorage {
     for (const deal of dealsResult) {
       let client = null;
       let company = null;
+      let assignedUser = null;
+      let stage = null;
+      let funnel = null;
 
       // Buscar cliente se tiver clientId
       if (deal.clientId) {
@@ -1182,10 +1185,40 @@ export class DatabaseStorage implements IStorage {
         company = companyResult || null;
       }
 
+      // Buscar usuário responsável
+      if (deal.assignedTo) {
+        const [userResult] = await this.db
+          .select()
+          .from(users)
+          .where(eq(users.id, deal.assignedTo));
+        assignedUser = userResult || null;
+      }
+
+      // Buscar estágio
+      if (deal.stageId) {
+        const [stageResult] = await this.db
+          .select()
+          .from(funnelStages)
+          .where(eq(funnelStages.id, deal.stageId));
+        stage = stageResult || null;
+      }
+
+      // Buscar funil
+      if (deal.funnelId) {
+        const [funnelResult] = await this.db
+          .select()
+          .from(funnels)
+          .where(eq(funnels.id, deal.funnelId));
+        funnel = funnelResult || null;
+      }
+
       dealsWithClients.push({
         ...deal,
         client,
         company,
+        assignedUser,
+        stage,
+        funnel,
       });
     }
 
