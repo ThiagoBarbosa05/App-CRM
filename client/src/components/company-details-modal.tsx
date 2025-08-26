@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   Building2,
@@ -27,11 +28,15 @@ import {
   Edit,
   Tag,
   Wine,
+  MessageSquare,
+  Target,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Company, Sector } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import CompanyWineListModal from "./company-wine-list-modal";
+import CompanyInteractionsTab from "./company-interactions-tab";
+import CompanyFunnelsTab from "./company-funnels-tab";
 
 interface CompanyDetailsModalProps {
   company: Company | null;
@@ -84,14 +89,15 @@ export default function CompanyDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center flex-col sm:flex-row gap-4 justify-between">
             <div>
-              <DialogTitle className="text-xl font-bold">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Building2 className="h-5 w-5 text-wine-600" />
                 {company.nomeFantasia}
               </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
+              <DialogDescription className="text-left">
                 {company.razaoSocial}
               </DialogDescription>
             </div>
@@ -99,15 +105,6 @@ export default function CompanyDetailsModal({
               <Badge variant={company.active ? "default" : "secondary"}>
                 {company.active ? "Ativa" : "Inativa"}
               </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsWineListOpen(true)}
-                className="text-wine-600 border-wine-600 hover:bg-wine-50"
-              >
-                <Wine className="h-4 w-4 mr-2" />
-                Carta de Vinhos ({companyProducts.length})
-              </Button>
               {onEdit && (
                 <Button
                   variant="outline"
@@ -122,8 +119,25 @@ export default function CompanyDetailsModal({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Informações básicas */}
+        <Tabs defaultValue="carta" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="carta" className="flex items-center gap-2">
+              <Wine className="h-4 w-4" />
+              Carta de Vinhos
+            </TabsTrigger>
+            <TabsTrigger value="interactions" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Interações
+            </TabsTrigger>
+            <TabsTrigger value="funnels" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Funis
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="carta" className="space-y-6 mt-6">
+            <div className="space-y-6">
+              {/* Informações básicas */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -396,7 +410,17 @@ export default function CompanyDetailsModal({
               </CardContent>
             </Card>
           )}
-        </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="interactions" className="mt-6">
+            <CompanyInteractionsTab company={company} />
+          </TabsContent>
+
+          <TabsContent value="funnels" className="mt-6">
+            <CompanyFunnelsTab company={company} />
+          </TabsContent>
+        </Tabs>
 
         {/* Wine List Modal */}
         <CompanyWineListModal

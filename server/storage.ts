@@ -445,6 +445,8 @@ export interface IStorage {
 
   // Client Funnels methods
   getClientFunnels(clientId: string): Promise<SalesFunnel[]>;
+  getCompanyInteractions(companyId: string): Promise<ClientInteractionWithUser[]>;
+  getCompanyFunnels(companyId: string): Promise<SalesFunnel[]>;
 
   // Sales Methods
   getSales(): Promise<Sale[]>;
@@ -3598,6 +3600,78 @@ export class DatabaseStorage implements IStorage {
       .orderBy(salesFunnels.name);
 
     return clientFunnels;
+  }
+
+  // Get interactions for a company (through company deals and interactions)
+  async getCompanyInteractions(companyId: string): Promise<ClientInteractionWithUser[]> {
+    // First, get all deals for this company
+    const companyDeals = await this.db
+      .select({ clientId: deals.clientId })
+      .from(deals)
+      .where(eq(deals.companyId, companyId));
+
+    if (companyDeals.length === 0) {
+      return [];
+    }
+
+    // Get unique client IDs
+    const clientIds = [...new Set(companyDeals.map(deal => deal.clientId).filter(Boolean))];
+
+    if (clientIds.length === 0) {
+      return [];
+    }
+
+    // Get interactions for these clients
+    const interactions = await this.db
+      .select({
+        id: clientInteractions.id,
+        clientId: clientInteractions.clientId,
+        userId: clientInteractions.userId,
+        type: clientInteractions.type,
+        subject: clientInteractions.subject,
+        description: clientInteractions.description,
+        date: clientInteractions.date,
+        callResult: clientInteractions.callResult,
+        status: clientInteractions.status,
+        attachments: clientInteractions.attachments,
+        createdAt: clientInteractions.createdAt,
+        updatedAt: clientInteractions.updatedAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+        },
+      })
+      .from(clientInteractions)
+      .innerJoin(users, eq(clientInteractions.userId, users.id))
+      .where(inArray(clientInteractions.clientId, clientIds))
+      .orderBy(clientInteractions.date);
+
+    return interactions.map((interaction) => ({
+      ...interaction,
+      user: interaction.user as User,
+    })) as ClientInteractionWithUser[];
+  }
+
+  // Get funnels where company has deals
+  async getCompanyFunnels(companyId: string): Promise<SalesFunnel[]> {
+    const companyFunnels = await this.db
+      .select({
+        id: salesFunnels.id,
+        name: salesFunnels.name,
+        description: salesFunnels.description,
+        isActive: salesFunnels.isActive,
+        createdBy: salesFunnels.createdBy,
+        createdAt: salesFunnels.createdAt,
+        updatedAt: salesFunnels.updatedAt,
+      })
+      .from(salesFunnels)
+      .innerJoin(deals, eq(deals.funnelId, salesFunnels.id))
+      .where(eq(deals.companyId, companyId))
+      .orderBy(salesFunnels.name);
+
+    return companyFunnels;
   }
 
   // Products Methods

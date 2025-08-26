@@ -1645,6 +1645,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company interactions and funnels routes
+  app.get("/api/companies/:companyId/interactions", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const interactions = await storage.getCompanyInteractions(companyId);
+      res.json(interactions);
+    } catch (error) {
+      console.error("Erro ao buscar interações da empresa:", error);
+      res.status(500).json({ message: "Erro ao buscar interações da empresa" });
+    }
+  });
+
+  app.get("/api/companies/:companyId/funnels", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const funnels = await storage.getCompanyFunnels(companyId);
+      res.json(funnels);
+    } catch (error) {
+      console.error("Erro ao buscar funis da empresa:", error);
+      res.status(500).json({ message: "Erro ao buscar funis da empresa" });
+    }
+  });
+
   app.post("/api/interactions", async (req, res) => {
     try {
       const interaction = await storage.createClientInteraction(req.body);
