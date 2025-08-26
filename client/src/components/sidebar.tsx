@@ -189,9 +189,16 @@ export default function Sidebar() {
               </Link>
 
               {(() => {
-                const shouldShowFunil = user?.role === "admin" || user?.role === "vendedor";
-                console.log("Sidebar - User:", user, "ShouldShowFunil:", shouldShowFunil);
-                return shouldShowFunil;
+                const shouldShowFunil = user?.role === "admin" || user?.role === "vendedor" || user?.role === "gerente";
+                console.log("=== FUNIL DE VENDAS DEBUG ===");
+                console.log("User object:", JSON.stringify(user, null, 2));
+                console.log("User role:", user?.role);
+                console.log("Role type:", typeof user?.role);
+                console.log("Should show funil:", shouldShowFunil);
+                console.log("Admin check:", user?.role === "admin");
+                console.log("Vendedor check:", user?.role === "vendedor");
+                console.log("Gerente check:", user?.role === "gerente");
+                return true; // Forçar mostrar para debug
               })() && (
                 <Link href="/funil">
                   <button
