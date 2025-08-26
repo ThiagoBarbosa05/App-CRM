@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import CompanyFormModal from "./company-form-modal";
 import CompanyDetailsModal from "./company-details-modal";
 import CompanyImportModal from "./company-import-modal";
+import BulkDealCreationModal from "./bulk-deal-creation-modal";
 import { Company } from "@shared/schema";
 import { exportCompaniesToExcel } from "@/lib/excel-export";
 import {
@@ -65,6 +66,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isBulkDealModalOpen, setIsBulkDealModalOpen] = useState(false);
   const [sortField, setSortField] = useState<
     "nomeFantasia" | "razaoSocial" | null
   >(null);
@@ -339,6 +341,14 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 >
                   <Edit2 className="mr-2 h-4 w-4" />
                   Edição em Lote ({selectedCompanies.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsBulkDealModalOpen(true)}
+                  className="w-full sm:w-fit bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar Negócios em Lote ({selectedCompanies.length})
                 </Button>
                 <Button
                   variant="destructive"
@@ -667,6 +677,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       <CompanyImportModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
+      />
+
+      <BulkDealCreationModal
+        open={isBulkDealModalOpen}
+        onOpenChange={setIsBulkDealModalOpen}
+        companies={companies.filter(company => selectedCompanies.includes(company.id))}
       />
     </div>
   );

@@ -149,30 +149,21 @@ export default function BulkDealCreationModal({
         throw new Error("Usuário não autenticado");
       }
 
-      const deals = data.selectedCompanies.map((companyId, index) => {
-        const company = companies.find(c => c.id === companyId);
-        if (!company) {
-          console.warn(`Empresa não encontrada para ID: ${companyId}`);
-        }
+      // Preparar dados no formato que o backend espera
+      const bulkData = {
+        companies: data.selectedCompanies,
+        funnelId: data.funnelId,
+        stageId: data.stageId,
+        value: data.value.replace(/[^\d,]/g, "").replace(",", "."),
+        assignedTo: data.assignedTo,
+        notes: data.notes || "",
+        title: data.title || "",
+      };
 
-        const dealTitle = data.title || `Negócio - ${company?.nomeFantasia || company?.razaoSocial || 'Empresa'}`;
-
-        return {
-          companyId,
-          funnelId: data.funnelId,
-          stageId: data.stageId,
-          value: data.value.replace(/[^\d,]/g, "").replace(",", "."),
-          notes: data.notes || "",
-          title: dealTitle,
-          assignedTo: data.assignedTo,
-          createdBy: user.id,
-        };
-      });
-
-      console.log("Deals preparados para envio:", deals);
+      console.log("Dados preparados para envio:", bulkData);
 
       try {
-        const response = await apiRequest("POST", "/api/deals/bulk", { deals });
+        const response = await apiRequest("POST", "/api/deals/bulk", bulkData);
 
         if (!response.ok) {
           const contentType = response.headers.get("content-type");

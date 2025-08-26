@@ -826,6 +826,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk deal creation
+  app.post("/api/deals/bulk", async (req, res) => {
+    try {
+      const { companies, funnelId, stageId, value, assignedTo, notes, title } = req.body;
+      
+      if (!companies || !Array.isArray(companies) || companies.length === 0) {
+        return res.status(400).json({ message: "Empresas são obrigatórias" });
+      }
+
+      const deals = [];
+      const errors = [];
+
+      for (const companyId of companies) {
+        try {
+          const company = await storage.getCompany(companyId);
+          if (!company) {
+            errors.push(`Empresa com ID ${companyId} não encontrada`);
+            continue;
+          }
+
+          const dealTitle = title || `Negócio - ${company.nomeFantasia || company.razaoSocial}`;
+          
+          const dealData = {
+            companyId,
+            funnelId,
+            stageId,
+            value,
+            assignedTo,
+            notes,
+            title: dealTitle,
+          };
+
+          const validatedData = insertDealSchema.parse(dealData);
+          const deal = await storage.createDeal(validatedData);
+          deals.push(deal);
+        } catch (error) {
+          errors.push(`Erro ao criar negócio para empresa ${companyId}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+        }
+      }
+
+      if (deals.length === 0) {
+        return res.status(400).json({ 
+          message: "Nenhum negócio foi criado",
+          errors 
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        created: deals.length,
+        total: companies.length,
+        deals,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error("Erro na criação de negócios em lote:", error);
+      res.status(500).json({ message: "Erro ao criar negócios em lote" });
+    }
+  });
+
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
