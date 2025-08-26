@@ -188,7 +188,7 @@ export default function Sidebar() {
                 </button>
               </Link>
 
-              {user?.role === "admin" && (
+              {(user?.role === "admin" || user?.role === "vendedor") && (
                 <Link href="/funil">
                   <button
                     onClick={closeMobileMenu}
