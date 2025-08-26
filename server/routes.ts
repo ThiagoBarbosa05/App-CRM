@@ -856,6 +856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             assignedTo,
             notes,
             title: dealTitle,
+            createdBy: assignedTo, // Usar o assignedTo como createdBy
           };
 
           const validatedData = insertDealSchema.parse(dealData);
