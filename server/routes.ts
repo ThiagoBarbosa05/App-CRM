@@ -868,10 +868,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             funnelId,
             stageId,
             value,
-            assignedTo,
+            assignedTo: assignedTo || "87dddc4d-2b4a-4cdd-8b5f-d2ab72ba7aca", // Fallback para admin user
             notes,
             title: dealTitle,
-            createdBy: assignedTo, // Usar o assignedTo como createdBy
+            createdBy: assignedTo || "87dddc4d-2b4a-4cdd-8b5f-d2ab72ba7aca", // Fallback para admin user
           };
 
           const validatedData = insertDealSchema.parse(dealData);
