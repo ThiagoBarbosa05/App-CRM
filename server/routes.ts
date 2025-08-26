@@ -829,9 +829,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk deal creation
   app.post("/api/deals/bulk", async (req, res) => {
     try {
+      console.log("=== BULK DEALS - BODY COMPLETO ===", JSON.stringify(req.body, null, 2));
       const { companies, funnelId, stageId, value, assignedTo, notes, title } = req.body;
       
-      console.log("Dados recebidos para criação em lote:", {
+      console.log("=== BULK DEALS - DADOS EXTRAIDOS ===", {
         companies: companies?.length,
         funnelId,
         stageId,
