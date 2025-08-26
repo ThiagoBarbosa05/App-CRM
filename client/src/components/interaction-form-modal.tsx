@@ -107,6 +107,11 @@ export default function InteractionFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
+      
+      // Invalidate company interactions for all companies
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"], predicate: (query) => {
+        return query.queryKey.includes("interactions");
+      }});
 
       // Invalidate telemarketing stats if it's a telemarketing interaction
       const currentDate = new Date();
@@ -144,6 +149,11 @@ export default function InteractionFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
+      
+      // Invalidate company interactions for all companies
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"], predicate: (query) => {
+        return query.queryKey.includes("interactions");
+      }});
 
       // Invalidate telemarketing stats if it's a telemarketing interaction
       const currentDate = new Date();

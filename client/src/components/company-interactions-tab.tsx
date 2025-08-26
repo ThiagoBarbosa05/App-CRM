@@ -19,6 +19,7 @@ import { ptBR } from "date-fns/locale";
 import { Company, ClientInteractionWithUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import InteractionFormModal from "@/components/interaction-form-modal";
 
 interface CompanyInteractionsTabProps {
   company: Company;
@@ -66,6 +67,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
   const { toast } = useToast();
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingInteraction, setEditingInteraction] = useState<ClientInteractionWithUser | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
 
   const { data: interactions = [], isLoading } = useQuery({
     queryKey: ["/api/companies", company.id, "interactions"],
@@ -130,7 +132,22 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
           </p>
         </div>
         <Button
-          onClick={() => setShowFormModal(true)}
+          onClick={() => {
+            // Para empresas, precisamos primeiro buscar um cliente da empresa
+            // ou permitir que o usuário selecione um cliente
+            const firstDeal = interactions.length > 0 ? interactions[0] : null;
+            if (firstDeal) {
+              setSelectedClientId(firstDeal.clientId);
+              setEditingInteraction(null);
+              setShowFormModal(true);
+            } else {
+              toast({
+                title: "Atenção",
+                description: "Esta empresa não possui negócios com clientes. Adicione primeiro um negócio para criar interações.",
+                variant: "destructive",
+              });
+            }
+          }}
           className="bg-wine-600 hover:bg-wine-700 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -149,7 +166,13 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
               Comece registrando a primeira interação com esta empresa.
             </p>
             <Button
-              onClick={() => setShowFormModal(true)}
+              onClick={() => {
+                toast({
+                  title: "Atenção",
+                  description: "Esta empresa não possui negócios com clientes. Adicione primeiro um negócio para criar interações.",
+                  variant: "destructive",
+                });
+              }}
               className="bg-wine-600 hover:bg-wine-700 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -220,6 +243,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
                             variant="ghost"
                             size="sm"
                             onClick={() => {
+                              setSelectedClientId(interaction.clientId);
                               setEditingInteraction(interaction);
                               setShowFormModal(true);
                             }}
@@ -246,7 +270,21 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </div>
       )}
 
-      {/* TODO: Adicionar modal de formulário de interação */}
+      {/* Modal de formulário de interação */}
+      {selectedClientId && (
+        <InteractionFormModal
+          open={showFormModal}
+          onOpenChange={(open) => {
+            setShowFormModal(open);
+            if (!open) {
+              setEditingInteraction(null);
+              setSelectedClientId("");
+            }
+          }}
+          clientId={selectedClientId}
+          interaction={editingInteraction}
+        />
+      )}
     </div>
   );
 }
