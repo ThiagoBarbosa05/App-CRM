@@ -169,6 +169,21 @@ export default function DealCard({
           </div>
           <Progress value={getProgressByStage()} className="h-2" />
         </div>
+
+        {/* Botão Registrar Interação */}
+        {onAddInteraction && (
+          <div className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAddInteraction(deal)}
+              className="w-full bg-black hover:bg-gray-800 text-white border-black"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Registrar Interação
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
