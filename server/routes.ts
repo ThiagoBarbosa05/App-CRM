@@ -748,7 +748,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
-      const deals = await storage.getDeals();
+      const { userId, userRole, funnelId } = req.query;
+      const deals = await storage.getDealsWithClients(
+        funnelId as string,
+        userId as string,
+        userRole as string
+      );
       res.json(deals);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar deals" });
