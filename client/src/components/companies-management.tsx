@@ -324,6 +324,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               <Download className="mr-2 h-4 w-4" />
               {exportMutation.isPending ? "Gerando..." : "Exportar"}
             </Button>
+            {selectedCompanies.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                className="w-full sm:w-fit"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Excluir Selecionadas ({selectedCompanies.length})
+              </Button>
+            )}
             <Button
               onClick={() => setIsModalOpen(true)}
               className="w-full sm:w-fit"
@@ -347,17 +358,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             />
           </div>
 
-          {selectedCompanies.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteMutation.isPending}
-            >
-              <Trash className="mr-2 h-4 w-4" />
-              Excluir Selecionadas ({selectedCompanies.length})
-            </Button>
-          )}
         </div>
         <div className="grid mt-5 grid-cols-1 md:grid-cols-4 gap-4">
           <div>
