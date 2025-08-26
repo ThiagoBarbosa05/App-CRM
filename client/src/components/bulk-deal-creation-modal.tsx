@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -68,11 +69,18 @@ export default function BulkDealCreationModal({
     defaultValues: {
       selectedCompanies: [],
       value: "",
-      assignedTo: user?.id || "",
+      assignedTo: "",
       notes: "",
       title: "",
     },
   });
+
+  // Atualizar assignedTo quando o usuário for carregado
+  React.useEffect(() => {
+    if (user?.id && !form.getValues("assignedTo")) {
+      form.setValue("assignedTo", user.id);
+    }
+  }, [user?.id, form]);
 
   // Buscar funis
   const { data: funnels = [] } = useQuery({
@@ -160,6 +168,8 @@ export default function BulkDealCreationModal({
         title: data.title || "",
       };
 
+      console.log("Dados do formulário:", data);
+      console.log("Usuário logado:", user);
       console.log("Dados preparados para envio:", bulkData);
 
       try {
