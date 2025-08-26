@@ -1148,16 +1148,29 @@ export class DatabaseStorage implements IStorage {
     const dealsWithClients: DealWithClient[] = [];
     let dealsResult;
 
-    if (userRole === "vendedor" && userId) {
-      // Vendedores só veem deals que eles criaram ou foram atribuídos a eles
-      dealsResult = await this.db
-        .select()
-        .from(deals)
-        .where(or(eq(deals.createdBy, userId), eq(deals.assignedTo, userId)))
-        .orderBy(deals.createdAt);
-    } else {
-      // Admins e gerentes veem todos os deals
-      dealsResult = await this.db.select().from(deals).orderBy(deals.createdAt);
+    try {
+      const conditions = [];
+      
+      // Filtrar por funil se especificado
+      if (funnelId) {
+        conditions.push(eq(deals.funnelId, funnelId));
+      }
+      
+      // Filtrar por usuário para vendedores
+      if (userRole === "vendedor" && userId) {
+        conditions.push(or(eq(deals.createdBy, userId), eq(deals.assignedTo, userId)));
+      }
+
+      let query = this.db.select().from(deals);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      dealsResult = await query.orderBy(deals.createdAt);
+    } catch (error) {
+      console.error("Error in getDealsWithClients query:", error);
+      throw error;
     }
 
     for (const deal of dealsResult) {
