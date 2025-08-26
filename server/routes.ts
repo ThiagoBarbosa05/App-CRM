@@ -809,36 +809,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Lista de deals é obrigatória" });
       }
 
+      console.log("Iniciando criação em lote de", deals.length, "negócios");
+
       const createdDeals = [];
       const errors = [];
 
       for (let i = 0; i < deals.length; i++) {
         try {
           const dealData = deals[i];
-          const validatedData = insertDealSchema.parse(dealData);
+          console.log(`Processando deal ${i + 1}:`, dealData);
+          
+          // Validar dados obrigatórios
+          if (!dealData.funnelId || !dealData.stageId || !dealData.value) {
+            errors.push({
+              index: i,
+              error: "Campos obrigatórios: funnelId, stageId e value",
+              data: dealData
+            });
+            continue;
+          }
+
+          // Verificar se pelo menos clientId ou companyId está presente
+          if (!dealData.clientId && !dealData.companyId) {
+            errors.push({
+              index: i,
+              error: "Cliente ou empresa é obrigatório",
+              data: dealData
+            });
+            continue;
+          }
+
+          // Validar formato do valor
+          let processedValue = dealData.value;
+          if (typeof processedValue === 'string') {
+            processedValue = processedValue.replace(/[^\d,]/g, "").replace(",", ".");
+            if (isNaN(parseFloat(processedValue))) {
+              errors.push({
+                index: i,
+                error: "Valor inválido",
+                data: dealData
+              });
+              continue;
+            }
+          }
+
+          const validatedData = insertDealSchema.parse({
+            ...dealData,
+            value: processedValue
+          });
           
           // Generate title if not provided
           if (!validatedData.title) {
             if (validatedData.clientId) {
-              const client = await storage.getClient(validatedData.clientId);
-              validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
+              try {
+                const client = await storage.getClient(validatedData.clientId);
+                validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
+              } catch (clientError) {
+                validatedData.title = "Novo Negócio";
+              }
             } else if (validatedData.companyId) {
-              const company = await storage.getCompany(validatedData.companyId);
-              validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
+              try {
+                const company = await storage.getCompany(validatedData.companyId);
+                validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
+              } catch (companyError) {
+                validatedData.title = "Novo Negócio";
+              }
             } else {
               validatedData.title = "Novo Negócio";
             }
           }
           
+          console.log(`Criando deal ${i + 1} com dados validados:`, validatedData);
           const deal = await storage.createDeal(validatedData);
           createdDeals.push(deal);
+          console.log(`Deal ${i + 1} criado com sucesso:`, deal.id);
+          
         } catch (error) {
+          console.error(`Erro ao criar deal ${i + 1}:`, error);
           errors.push({
             index: i,
             error: error instanceof z.ZodError ? fromZodError(error).toString() : error.message,
+            data: dealData
           });
         }
       }
+
+      console.log(`Criação em lote finalizada: ${createdDeals.length} sucessos, ${errors.length} erros`);
 
       res.status(201).json({
         created: createdDeals.length,
@@ -848,7 +904,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Erro na criação em lote de deals:", error);
-      res.status(500).json({ message: "Erro na criação em lote de deals" });
+      res.status(500).json({ 
+        message: "Erro na criação em lote de deals",
+        error: error.message 
+      });
     }
   });
 

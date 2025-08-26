@@ -116,32 +116,60 @@ export default function BulkDealCreationModal({
 
   const createBulkDealsMutation = useMutation({
     mutationFn: async (data: BulkDealSchema) => {
-      const deals = data.selectedCompanies.map(companyId => {
+      console.log("Dados para criação em lote:", data);
+      
+      if (!data.selectedCompanies || data.selectedCompanies.length === 0) {
+        throw new Error("Nenhuma empresa selecionada");
+      }
+
+      if (!data.funnelId || !data.stageId) {
+        throw new Error("Funil e estágio são obrigatórios");
+      }
+
+      if (!data.value || data.value.trim() === "0,00") {
+        throw new Error("Valor deve ser maior que zero");
+      }
+
+      const deals = data.selectedCompanies.map((companyId, index) => {
         const company = companies.find(c => c.id === companyId);
-        const dealTitle = data.title || `Negócio - ${company?.nomeFantasia || company?.razaoSocial}`;
+        if (!company) {
+          console.warn(`Empresa não encontrada para ID: ${companyId}`);
+        }
+        
+        const dealTitle = data.title || `Negócio - ${company?.nomeFantasia || company?.razaoSocial || 'Empresa'}`;
         
         return {
           companyId,
           funnelId: data.funnelId,
           stageId: data.stageId,
           value: data.value.replace(/[^\d,]/g, "").replace(",", "."),
-          notes: data.notes,
+          notes: data.notes || "",
           title: dealTitle,
           assignedTo: user?.id,
           createdBy: user?.id,
         };
       });
 
+      console.log("Deals preparados para envio:", deals);
+
       const response = await apiRequest("POST", "/api/deals/bulk", { deals });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro na criação dos negócios");
+      }
+      
       return response.json();
     },
     onSuccess: (result) => {
+      console.log("Resultado da criação em lote:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
       
       if (result.errors > 0) {
+        console.warn("Erros na criação:", result.errorDetails);
         toast({
           title: "Negócios criados com avisos",
-          description: `${result.created} negócios criados, ${result.errors} falharam.`,
+          description: `${result.created} negócios criados, ${result.errors} falharam. Verifique o console para detalhes.`,
           variant: "destructive",
         });
       } else {
@@ -156,6 +184,7 @@ export default function BulkDealCreationModal({
       setSelectAll(false);
     },
     onError: (error: any) => {
+      console.error("Erro na criação em lote:", error);
       toast({
         title: "Erro",
         description: error.message || "Não foi possível criar os negócios.",
