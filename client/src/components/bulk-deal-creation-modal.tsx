@@ -47,6 +47,7 @@ const bulkDealSchema = z.object({
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
   value: z.string().min(1, "Valor é obrigatório"),
+  assignedTo: z.string().min(1, "Responsável é obrigatório"),
   notes: z.string().optional(),
   title: z.string().optional(),
 });
@@ -68,6 +69,7 @@ export default function BulkDealCreationModal({
     defaultValues: {
       selectedCompanies: [],
       value: "",
+      assignedTo: user?.id || "",
       notes: "",
       title: "",
     },
@@ -78,6 +80,15 @@ export default function BulkDealCreationModal({
     queryKey: ["/api/funnels"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/funnels");
+      return response.json();
+    },
+  });
+
+  // Buscar usuários
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/users");
       return response.json();
     },
   });
@@ -130,6 +141,10 @@ export default function BulkDealCreationModal({
         throw new Error("Valor deve ser maior que zero");
       }
 
+      if (!data.assignedTo) {
+        throw new Error("Responsável é obrigatório");
+      }
+
       // Validar se o usuário está autenticado
       if (!user?.id) {
         throw new Error("Usuário não autenticado");
@@ -150,7 +165,7 @@ export default function BulkDealCreationModal({
           value: data.value.replace(/[^\d,]/g, "").replace(",", "."),
           notes: data.notes || "",
           title: dealTitle,
-          assignedTo: user.id,
+          assignedTo: data.assignedTo,
           createdBy: user.id,
         };
       });
@@ -339,6 +354,40 @@ export default function BulkDealCreationModal({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* Responsável */}
+            <div>
+              <Label>Responsável *</Label>
+              <Controller
+                name="assignedTo"
+                control={form.control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o responsável..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user: any) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{user.name}</span>
+                            <span className="text-xs text-gray-500">
+                              ({user.role === "admin" ? "Admin" : 
+                               user.role === "gerente" ? "Gerente" : "Vendedor"})
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.assignedTo && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.assignedTo.message}
+                </p>
+              )}
+            </div>
+
             {/* Valor */}
             <div>
               <Label>Valor (R$) *</Label>
@@ -370,21 +419,21 @@ export default function BulkDealCreationModal({
                 </p>
               )}
             </div>
+          </div>
 
-            {/* Título (opcional) */}
-            <div>
-              <Label>Título Base (opcional)</Label>
-              <Controller
-                name="title"
-                control={form.control}
-                render={({ field }) => (
-                  <Input
-                    placeholder="Deixe vazio para usar nome da empresa"
-                    {...field}
-                  />
-                )}
-              />
-            </div>
+          {/* Título (opcional) */}
+          <div>
+            <Label>Título Base (opcional)</Label>
+            <Controller
+              name="title"
+              control={form.control}
+              render={({ field }) => (
+                <Input
+                  placeholder="Deixe vazio para usar nome da empresa"
+                  {...field}
+                />
+              )}
+            />
           </div>
 
           {/* Observações */}
