@@ -1146,32 +1146,9 @@ export class DatabaseStorage implements IStorage {
     userRole?: string
   ): Promise<DealWithClient[]> {
     const dealsWithClients: DealWithClient[] = [];
-    let dealsResult;
-
-    try {
-      const conditions = [];
-      
-      // Filtrar por funil se especificado
-      if (funnelId) {
-        conditions.push(eq(deals.funnelId, funnelId));
-      }
-      
-      // Filtrar por usuário para vendedores
-      if (userRole === "vendedor" && userId) {
-        conditions.push(or(eq(deals.createdBy, userId), eq(deals.assignedTo, userId)));
-      }
-
-      let query = this.db.select().from(deals);
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-      
-      dealsResult = await query.orderBy(deals.createdAt);
-    } catch (error) {
-      console.error("Error in getDealsWithClients query:", error);
-      throw error;
-    }
+    
+    // Usar o método getDeals que já funciona
+    const dealsResult = await this.getDeals(funnelId, userId, userRole);
 
     for (const deal of dealsResult) {
       let client = null;
@@ -1220,8 +1197,8 @@ export class DatabaseStorage implements IStorage {
       if (deal.funnelId) {
         const [funnelResult] = await this.db
           .select()
-          .from(funnels)
-          .where(eq(funnels.id, deal.funnelId));
+          .from(salesFunnels)
+          .where(eq(salesFunnels.id, deal.funnelId));
         funnel = funnelResult || null;
       }
 

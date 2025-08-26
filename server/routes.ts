@@ -756,6 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(deals);
     } catch (error) {
+      console.error("API /deals error:", error);
       res.status(500).json({ message: "Erro ao buscar deals" });
     }
   });
