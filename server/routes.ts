@@ -800,6 +800,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk deal creation route
+  app.post("/api/deals/bulk", async (req, res) => {
+    try {
+      const { deals } = req.body;
+      
+      if (!Array.isArray(deals) || deals.length === 0) {
+        return res.status(400).json({ message: "Lista de deals é obrigatória" });
+      }
+
+      const createdDeals = [];
+      const errors = [];
+
+      for (let i = 0; i < deals.length; i++) {
+        try {
+          const dealData = deals[i];
+          const validatedData = insertDealSchema.parse(dealData);
+          
+          // Generate title if not provided
+          if (!validatedData.title) {
+            if (validatedData.clientId) {
+              const client = await storage.getClient(validatedData.clientId);
+              validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
+            } else if (validatedData.companyId) {
+              const company = await storage.getCompany(validatedData.companyId);
+              validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
+            } else {
+              validatedData.title = "Novo Negócio";
+            }
+          }
+          
+          const deal = await storage.createDeal(validatedData);
+          createdDeals.push(deal);
+        } catch (error) {
+          errors.push({
+            index: i,
+            error: error instanceof z.ZodError ? fromZodError(error).toString() : error.message,
+          });
+        }
+      }
+
+      res.status(201).json({
+        created: createdDeals.length,
+        errors: errors.length,
+        deals: createdDeals,
+        errorDetails: errors,
+      });
+    } catch (error) {
+      console.error("Erro na criação em lote de deals:", error);
+      res.status(500).json({ message: "Erro na criação em lote de deals" });
+    }
+  });
+
   // User routes
   app.get("/api/users", async (req, res) => {
     try {

@@ -48,6 +48,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import BulkDealCreationModal from "./bulk-deal-creation-modal";
 
 interface CompaniesManagementProps {
   currentUser: any;
@@ -67,6 +68,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [sortField, setSortField] = useState<'nomeFantasia' | 'razaoSocial' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showBulkDealModal, setShowBulkDealModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -202,10 +204,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     );
   }).sort((a: Company, b: Company) => {
     if (!sortField) return 0;
-    
+
     const aValue = a[sortField].toLowerCase();
     const bValue = b[sortField].toLowerCase();
-    
+
     if (sortDirection === 'asc') {
       return aValue.localeCompare(bValue);
     } else {
@@ -320,6 +322,15 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             >
               <Plus className="mr-2 h-4 w-4" />
               Nova Empresa
+            </Button>
+            <Button 
+              onClick={() => setShowBulkDealModal(true)}
+              variant="outline"
+              disabled={!companies || companies.length === 0}
+              className="w-full sm:w-fit"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Criar Negócios em Lote
             </Button>
           </div>
         </div>
@@ -615,255 +626,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
       />
+
+      <BulkDealCreationModal
+        open={showBulkDealModal}
+        onOpenChange={setShowBulkDealModal}
+        companies={companies || []}
+      />
     </div>
-    // <Card>
-    //   <CardHeader>
-    //     <CardTitle>Empresas</CardTitle>
-    //     <CardDescription>
-    //       Gerencie as empresas cadastradas no sistema
-    //     </CardDescription>
-    //     <div className="space-y-4">
-    //       <div className="flex items-center justify-between">
-    //         <div className="flex items-center gap-4">
-    //           <div className="relative flex-1 max-w-sm">
-    //             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-    //             <Input
-    //               placeholder="Busca geral..."
-    //               value={searchQuery}
-    //               onChange={(e) => setSearchQuery(e.target.value)}
-    //               className="pl-8"
-    //             />
-    //           </div>
-    //           {selectedCompanies.length > 0 && (
-    //             <Button
-    //               variant="destructive"
-    //               size="sm"
-    //               onClick={handleBulkDelete}
-    //               disabled={bulkDeleteMutation.isPending}
-    //             >
-    //               <Trash className="mr-2 h-4 w-4" />
-    //               Excluir Selecionadas ({selectedCompanies.length})
-    //             </Button>
-    //           )}
-    //         </div>
-    //         <div className="flex gap-2">
-    //           <Button
-    //             variant="outline"
-    //             onClick={() => setIsImportModalOpen(true)}
-    //           >
-    //             <Upload className="mr-2 h-4 w-4" />
-    //             Importar
-    //           </Button>
-    //           <Button
-    //             variant="outline"
-    //             onClick={handleExport}
-    //             disabled={exportMutation.isPending}
-    //           >
-    //             <Download className="mr-2 h-4 w-4" />
-    //             {exportMutation.isPending ? "Gerando..." : "Exportar"}
-    //           </Button>
-    //           <Button onClick={() => setIsModalOpen(true)}>
-    //             <Plus className="mr-2 h-4 w-4" />
-    //             Nova Empresa
-    //           </Button>
-    //         </div>
-    //       </div>
-
-    //       {/* Filtros específicos */}
-    //       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-    //         <div>
-    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
-    //             Nome Fantasia
-    //           </label>
-    //           <Input
-    //             placeholder="Filtrar por Nome Fantasia..."
-    //             value={nomeFantasiaFilter}
-    //             onChange={(e) => setNomeFantasiaFilter(e.target.value)}
-    //           />
-    //         </div>
-    //         <div>
-    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
-    //             Razão Social
-    //           </label>
-    //           <Input
-    //             placeholder="Filtrar por Razão Social..."
-    //             value={razaoSocialFilter}
-    //             onChange={(e) => setRazaoSocialFilter(e.target.value)}
-    //           />
-    //         </div>
-    //         <div>
-    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
-    //             CNPJ
-    //           </label>
-    //           <Input
-    //             placeholder="Filtrar por CNPJ..."
-    //             value={cnpjFilter}
-    //             onChange={(e) => setCnpjFilter(e.target.value)}
-    //           />
-    //         </div>
-    //         <div>
-    //           <label className="text-sm font-medium text-gray-700 mb-1 block">
-    //             Responsável
-    //           </label>
-    //           <select
-    //             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-    //             value={responsavelFilter}
-    //             onChange={(e) => setResponsavelFilter(e.target.value)}
-    //           >
-    //             <option value="">Todos os responsáveis</option>
-    //             {users.map((user: any) => (
-    //               <option key={user.id} value={user.id}>
-    //                 {user.name}
-    //               </option>
-    //             ))}
-    //           </select>
-    //         </div>
-    //       </div>
-
-    //       {/* Botão de limpar filtros */}
-    //       {(nomeFantasiaFilter || razaoSocialFilter || cnpjFilter || responsavelFilter || searchQuery) && (
-    //         <div className="flex justify-end">
-    //           <Button
-    //             variant="outline"
-    //             size="sm"
-    //             onClick={() => {
-    //               setSearchQuery("");
-    //               setNomeFantasiaFilter("");
-    //               setRazaoSocialFilter("");
-    //               setCnpjFilter("");
-    //               setResponsavelFilter("");
-    //             }}
-    //           >
-    //             Limpar Filtros
-    //           </Button>
-    //         </div>
-    //       )}
-    //     </div>
-    //   </CardHeader>
-    //   <CardContent>
-    //     {isLoading ? (
-    //       <div className="text-center py-8">
-    //         <p>Carregando empresas...</p>
-    //       </div>
-    //     ) : (
-    //       <Table>
-    //         <TableHeader>
-    //           <TableRow>
-    //             <TableHead className="w-12">
-    //               <Checkbox
-    //                 checked={selectedCompanies.length === filteredCompanies.length && filteredCompanies.length > 0}
-    //                 onCheckedChange={handleSelectAll}
-    //               />
-    //             </TableHead>
-    //             <TableHead>Nome Fantasia</TableHead>
-    //             <TableHead>Razão Social</TableHead>
-    //             <TableHead>CNPJ</TableHead>
-    //             <TableHead>Telefone</TableHead>
-    //             <TableHead>Email</TableHead>
-    //             <TableHead>Responsável</TableHead>
-    //             <TableHead>Status</TableHead>
-    //             <TableHead className="text-right">Ações</TableHead>
-    //           </TableRow>
-    //         </TableHeader>
-    //         <TableBody>
-    //           {filteredCompanies.length === 0 ? (
-    //             <TableRow>
-    //               <TableCell colSpan={9} className="text-center py-8">
-    //                 <p className="text-muted-foreground">
-    //                   {searchQuery
-    //                     ? "Nenhuma empresa encontrada com os critérios de busca."
-    //                     : "Nenhuma empresa cadastrada."}
-    //                 </p>
-    //               </TableCell>
-    //             </TableRow>
-    //           ) : (
-    //             filteredCompanies.map((company: Company) => (
-    //               <TableRow key={company.id}>
-    //                 <TableCell>
-    //                   <Checkbox
-    //                     checked={selectedCompanies.includes(company.id)}
-    //                     onCheckedChange={(checked) => handleSelectCompany(company.id, checked as boolean)}
-    //                   />
-    //                 </TableCell>
-    //                 <TableCell className="font-medium">
-    //                   <button
-    //                     onClick={() => handleCompanyClick(company)}
-    //                     className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-    //                   >
-    //                     {company.nomeFantasia}
-    //                   </button>
-    //                 </TableCell>
-    //                 <TableCell>{company.razaoSocial}</TableCell>
-    //                 <TableCell>{company.cnpj || "-"}</TableCell>
-    //                 <TableCell>
-    //                   {company.phone ? (
-    //                     <div className="flex items-center gap-2">
-    //                       <span>{company.phone}</span>
-    //                       <a
-    //                         href={`https://wa.me/${company.phone.replace(/\D/g, '')}`}
-    //                         target="_blank"
-    //                         rel="noopener noreferrer"
-    //                         className="text-green-600 hover:text-green-700 transition-colors"
-    //                         title="Abrir no WhatsApp"
-    //                       >
-    //                         <FaWhatsapp className="h-4 w-4" />
-    //                       </a>
-    //                     </div>
-    //                   ) : (
-    //                     "-"
-    //                   )}
-    //                 </TableCell>
-    //                 <TableCell>{company.email || "-"}</TableCell>
-    //                 <TableCell>{getResponsavelName(company.responsavelId)}</TableCell>
-    //                 <TableCell>
-    //                   <Badge variant={company.active ? "default" : "secondary"}>
-    //                     {company.active ? "Ativa" : "Inativa"}
-    //                   </Badge>
-    //                 </TableCell>
-    //                 <TableCell className="text-right">
-    //                   <div className="flex items-center justify-end gap-2">
-    //                     <Button
-    //                       variant="ghost"
-    //                       size="sm"
-    //                       onClick={() => handleEdit(company)}
-    //                     >
-    //                       <Edit2 className="h-4 w-4" />
-    //                     </Button>
-    //                     <Button
-    //                       variant="ghost"
-    //                       size="sm"
-    //                       onClick={() => handleDelete(company.id)}
-    //                       className="text-destructive hover:text-destructive"
-    //                     >
-    //                       <Trash2 className="h-4 w-4" />
-    //                     </Button>
-    //                   </div>
-    //                 </TableCell>
-    //               </TableRow>
-    //             ))
-    //           )}
-    //         </TableBody>
-    //       </Table>
-    //     )}
-    //   </CardContent>
-
-    //   <CompanyFormModal
-    //     isOpen={isModalOpen}
-    //     onClose={handleModalClose}
-    //     company={editingCompany}
-    //   />
-
-    //   <CompanyDetailsModal
-    //     company={selectedCompany}
-    //     isOpen={isDetailsModalOpen}
-    //     onClose={handleDetailsModalClose}
-    //     onEdit={handleEditFromDetails}
-    //   />
-
-    //   <CompanyImportModal
-    //     open={isImportModalOpen}
-    //     onOpenChange={setIsImportModalOpen}
-    //   />
-    // </Card>
   );
 }
