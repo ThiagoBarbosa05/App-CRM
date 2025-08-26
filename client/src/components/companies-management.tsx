@@ -325,15 +325,31 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               {exportMutation.isPending ? "Gerando..." : "Exportar"}
             </Button>
             {selectedCompanies.length > 0 && (
-              <Button
-                variant="destructive"
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteMutation.isPending}
-                className="w-full sm:w-fit"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Excluir Selecionadas ({selectedCompanies.length})
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // TODO: Implementar edição em lote
+                    toast({
+                      title: "Funcionalidade em desenvolvimento",
+                      description: "A edição em lote será implementada em breve.",
+                    });
+                  }}
+                  className="w-full sm:w-fit"
+                >
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Edição em Lote ({selectedCompanies.length})
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteMutation.isPending}
+                  className="w-full sm:w-fit"
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  Excluir Selecionadas ({selectedCompanies.length})
+                </Button>
+              </>
             )}
             <Button
               onClick={() => setIsModalOpen(true)}
