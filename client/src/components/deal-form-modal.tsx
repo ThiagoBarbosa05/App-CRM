@@ -130,7 +130,7 @@ export default function DealFormModal({
 
   // Provide default empty array if clients is undefined
   const clientsList = clients?.data || [];
-  const companiesList = companies || [];
+  const companiesList = companies?.data || [];
 
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
