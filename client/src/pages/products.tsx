@@ -1,12 +1,28 @@
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Wine, Search, Building2, Users, Download, Upload, TrendingUp, Award } from "lucide-react";
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Wine,
+  Search,
+  Download,
+  Upload,
+  TrendingUp,
+  Award,
+  Users,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -57,26 +73,61 @@ export default function Products() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedProductForClients, setSelectedProductForClients] = useState<Product | null>(null);
+  const [selectedProductForClients, setSelectedProductForClients] =
+    useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [debouncedTypeFilter, setDebouncedTypeFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [debouncedCountryFilter, setDebouncedCountryFilter] = useState("");
+  const [volumeFilter, setVolumeFilter] = useState("");
+  const [debouncedVolumeFilter, setDebouncedVolumeFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [pageSize, setPageSize] = useState(20);
   const { toast } = useToast();
 
-  const { data: products = [], isFetching } = useQuery({
-    queryKey: ["/api/products"],
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setDebouncedTypeFilter(typeFilter);
+      setDebouncedCountryFilter(countryFilter);
+      setDebouncedVolumeFilter(volumeFilter);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery, typeFilter, countryFilter, volumeFilter]);
+
+  const { data, isFetching } = useQuery({
+    queryKey: [
+      "/api/products",
+      debouncedSearchQuery,
+      debouncedTypeFilter,
+      debouncedCountryFilter,
+      debouncedVolumeFilter,
+      currentPage,
+      pageSize,
+    ],
     queryFn: async () => {
-      const response = await fetch("/api/products", {
-        headers: {
-          'x-user-id': 'test',
-          'x-user-role': 'admin'
-        }
-      });
+      const params = new URLSearchParams();
+      if (debouncedSearchQuery) params.append("name", debouncedSearchQuery);
+      if (debouncedTypeFilter) params.append("type", debouncedTypeFilter);
+      if (debouncedCountryFilter)
+        params.append("country", debouncedCountryFilter);
+      if (debouncedVolumeFilter) params.append("volume", debouncedVolumeFilter);
+      params.append("page", currentPage.toString());
+      params.append("pageSize", pageSize.toString());
+
+      const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
     },
   });
+
+  const products = data?.data || [];
+  const totalProducts = data?.totalItems || 0;
+  const totalPages = data?.totalPages || 1;
 
   const { data: statistics, error: statisticsError } = useQuery({
     queryKey: ["/api/products/statistics"],
@@ -88,10 +139,6 @@ export default function Products() {
     retry: 3,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  // Debug log para verificar se os dados estão chegando
-  console.log("Statistics data:", statistics);
-  console.log("Statistics error:", statisticsError);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -117,25 +164,6 @@ export default function Products() {
     },
   });
 
-  const filteredProducts = products.filter((product: Product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Cálculos para paginação
-  const totalProducts = filteredProducts.length;
-  const totalPages = Math.ceil(totalProducts / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentProducts = filteredProducts.slice(startIndex, endIndex);
-
-  // Resetar página quando filtros mudarem
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  };
-
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setIsProductModalOpen(true);
@@ -152,36 +180,38 @@ export default function Products() {
   }, []);
 
   const handleExportProducts = useCallback(() => {
-    // Criar dados para exportar
     const exportData = products.map((product: Product) => ({
-      'Nome do Vinho': product.name,
-      'País': product.country,
-      'Volume': product.volume,
-      'Tipo': product.type,
-      'Valor de Tabela': `R$ ${parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
+      "Nome do Vinho": product.name,
+      País: product.country,
+      Volume: product.volume,
+      Tipo: product.type,
+      "Valor de Tabela": `R$ ${parseFloat(
+        product.negotiatedPrice
+      ).toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        maximumFractionDigits: 2,
       })}`,
-      'Criado Por': product.createdByName || "Sistema",
-      'Data de Criação': new Date(product.createdAt).toLocaleDateString('pt-BR')
+      "Criado Por": product.createdByName || "Sistema",
+      "Data de Criação": new Date(product.createdAt).toLocaleDateString(
+        "pt-BR"
+      ),
     }));
 
-    // Criar planilha
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
 
-    // Gerar arquivo e baixar
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, `produtos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const dataBlob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(dataBlob, `produtos_${new Date().toISOString().slice(0, 10)}.xlsx`);
 
     toast({
       title: "Exportação concluída",
       description: "Lista de produtos exportada com sucesso.",
     });
   }, [products, toast]);
-
 
   const getCountryFlag = (country: string) => {
     const flags: { [key: string]: string } = {
@@ -213,23 +243,22 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
         <div className="flex items-center gap-2 flex-wrap justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Wine className="h-6 w-6 text-wine-600" />
-              Produtos
+            <h2 className="text-2xl font-bold text-gray-900">
+              Catálogo de Produtos
             </h2>
             <p className="text-gray-600 mt-1">
-              Gerencie o catálogo de vinhos e produtos
+              Gerencie e explore o catálogo de vinhos e produtos.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center flex-wrap gap-3">
             <Button
               onClick={handleExportProducts}
               variant="outline"
               disabled={products.length === 0}
+              className="w-full sm:w-auto"
             >
               <Download className="h-4 w-4 mr-2" />
               Exportar
@@ -237,13 +266,14 @@ export default function Products() {
             <Button
               onClick={() => setIsImportModalOpen(true)}
               variant="outline"
+              className="w-full sm:w-auto"
             >
               <Upload className="h-4 w-4 mr-2" />
               Importar
             </Button>
             <Button
               onClick={() => setIsProductModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
@@ -252,248 +282,373 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Buscar produtos..."
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Statistics Section */}
       {statisticsError && (
-        <Card>
+        <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6 text-center">
-            <p className="text-red-600">Erro ao carregar estatísticas: {statisticsError.message}</p>
+            <p className="text-red-700 font-medium">
+              Erro ao carregar estatísticas: {statisticsError.message}
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {statistics && statistics.topCompaniesByProducts && statistics.topProductsByCompanies && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Top Companies by Products */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="h-5 w-5 text-blue-600" />
-                Clientes com Mais Vinhos
-              </CardTitle>
-              <CardDescription>
-                Top 10 clientes com maior quantidade de produtos na carta de vinhos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {statistics.topCompaniesByProducts.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">Nenhum dado disponível</p>
-                ) : (
-                  statistics.topCompaniesByProducts.map((company: any, index: number) => (
-                    <div key={company.companyId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{company.companyName}</p>
-                          <p className="text-sm text-gray-600">{company.companyCity}, {company.companyState}</p>
-                          {company.responsibleName && (
-                            <p className="text-xs text-gray-500">Resp.: {company.responsibleName}</p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="font-bold">
-                        {company.productCount} vinhos
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Top Products by Companies */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-wine-600" />
-                Vinhos Mais Vinculados
-              </CardTitle>
-              <CardDescription>
-                Top 10 produtos mais presentes nas cartas de vinhos dos clientes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {statistics.topProductsByCompanies.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">Nenhum dado disponível</p>
-                ) : (
-                  statistics.topProductsByCompanies.map((product: any, index: number) => (
-                    <div key={product.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-wine-100 text-wine-700'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{product.productName}</p>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span>{getCountryFlag(product.productCountry)} {product.productCountry}</span>
-                            <Badge variant="outline" className="text-xs">{product.productVolume}</Badge>
-                            <Badge className={`text-xs ${getTypeColor(product.productType)}`}>
-                              {product.productType}
-                            </Badge>
+      {statistics &&
+        statistics.topCompaniesByProducts &&
+        statistics.topProductsByCompanies && (
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            <Card className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Award className="h-5 w-5 text-blue-600" />
+                  Clientes com Mais Vinhos
+                </CardTitle>
+                <CardDescription>
+                  Top 10 clientes com maior variedade de produtos na carta.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {statistics.topCompaniesByProducts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">
+                      Nenhum dado disponível
+                    </p>
+                  ) : (
+                    statistics.topCompaniesByProducts.map(
+                      (company: any, index: number) => (
+                        <div
+                          key={company.companyId}
+                          className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                index === 0
+                                  ? "bg-yellow-400 text-white"
+                                  : index === 1
+                                  ? "bg-gray-400 text-white"
+                                  : index === 2
+                                  ? "bg-orange-400 text-white"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {company.companyName}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {company.companyCity}, {company.companyState}
+                              </p>
+                              {company.responsibleName && (
+                                <p className="text-xs text-gray-500">
+                                  Resp.: {company.responsibleName}
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <Badge
+                            variant="secondary"
+                            className="font-bold text-sm"
+                          >
+                            {company.productCount} vinhos
+                          </Badge>
                         </div>
-                      </div>
-                      <Badge variant="secondary" className="font-bold">
-                        {product.companyCount} clientes
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      )
+                    )
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm hover:shadow-md border-gray-200 transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <TrendingUp className="h-5 w-5 text-wine-600" />
+                  Vinhos Mais Populares
+                </CardTitle>
+                <CardDescription>
+                  Top 10 produtos mais presentes nas cartas dos clientes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {statistics.topProductsByCompanies.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">
+                      Nenhum dado disponível
+                    </p>
+                  ) : (
+                    statistics.topProductsByCompanies.map(
+                      (product: any, index: number) => (
+                        <div
+                          key={product.productId}
+                          className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                index === 0
+                                  ? "bg-yellow-400 text-white"
+                                  : index === 1
+                                  ? "bg-gray-400 text-white"
+                                  : index === 2
+                                  ? "bg-orange-400 text-white"
+                                  : "bg-wine-100 text-wine-700"
+                              }`}
+                            >
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {product.productName}
+                              </p>
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span>
+                                  {getCountryFlag(product.productCountry)}{" "}
+                                  {product.productCountry}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {product.productVolume}
+                                </Badge>
+                                <Badge
+                                  className={`text-xs ${getTypeColor(
+                                    product.productType
+                                  )}`}
+                                >
+                                  {product.productType}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="font-bold text-sm"
+                          >
+                            {product.companyCount} clientes
+                          </Badge>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
       {!statistics && !statisticsError && !isFetching && (
-        <Card>
+        <Card className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
           <CardContent className="p-6 text-center">
             <p className="text-gray-500">Carregando estatísticas...</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Products Table */}
-      <Card>
+      <Card className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle>
-            Lista de Produtos ({totalProducts}) - Página {currentPage} de {totalPages}
-          </CardTitle>
-          <p className="text-sm text-gray-600">
-            Mostrando {startIndex + 1} - {Math.min(endIndex, totalProducts)} de {totalProducts} produtos
-          </p>
+          <CardTitle>Lista de Produtos ({totalProducts})</CardTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 items-center gap-4 pt-4">
+            <div className="relative  sm:col-span-2 md:col-span-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Buscar por nome..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10  w-full"
+              />
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Todos os tipos</option>
+              <option value="ESPUMANTE">Espumante</option>
+              <option value="BRANCO">Branco</option>
+              <option value="ROSE">Rose</option>
+              <option value="TINTO">Tinto</option>
+              <option value="PÓS-REFEIÇÃO">Pós-refeição</option>
+            </select>
+
+            <select
+              value={countryFilter}
+              onChange={(e) => setCountryFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Todos os países</option>
+              <option value="CHILE">Chile</option>
+              <option value="ARGENTINA">Argentina</option>
+              <option value="URUGUAI">Uruguai</option>
+              <option value="BRASIL">Brasil</option>
+              <option value="EUA">EUA</option>
+              <option value="FRANÇA">França</option>
+              <option value="ITÁLIA">Itália</option>
+              <option value="PORTUGAL">Portugal</option>
+              <option value="ESPANHA">Espanha</option>
+              <option value="ALEMANHA">Alemanha</option>
+              <option value="OUTROS">Outros</option>
+            </select>
+            <select
+              value={volumeFilter}
+              onChange={(e) => setVolumeFilter(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Todos os volumes</option>
+              <option value="187ml">187ml</option>
+              <option value="375ml">375ml</option>
+              <option value="750ml">750ml</option>
+              <option value="1.5L">1.5L</option>
+            </select>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border border-gray-300 overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nome do Vinho</TableHead>
-                  <TableHead>País</TableHead>
-                  <TableHead>Volume</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Valor de Tabela</TableHead>
-                  <TableHead>Clientes</TableHead>
-                  <TableHead>Criado por</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                <TableRow className="border-gray-300">
+                  <TableHead className="font-semibold">Nome do Vinho</TableHead>
+                  <TableHead className="font-semibold hidden sm:table-cell">
+                    País
+                  </TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">
+                    Volume
+                  </TableHead>
+                  <TableHead className="font-semibold hidden lg:table-cell">
+                    Tipo
+                  </TableHead>
+                  <TableHead className="font-semibold">Valor</TableHead>
+                  <TableHead className="font-semibold hidden lg:table-cell">
+                    Clientes
+                  </TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">
+                    Criado por
+                  </TableHead>
+                  <TableHead className="text-right font-semibold">
+                    Ações
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      Carregando produtos...
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <p className="ml-4 text-gray-600">
+                          Carregando produtos...
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : totalProducts === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      {searchQuery ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <p className="text-lg text-gray-500">
+                        {searchQuery ||
+                        typeFilter ||
+                        countryFilter ||
+                        volumeFilter
+                          ? "Nenhum produto encontrado com os filtros aplicados."
+                          : "Nenhum produto cadastrado."}
+                      </p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  currentProducts.map((product: Product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>
+                  products.map((product: Product) => (
+                    <TableRow
+                      key={product.id}
+                      className="hover:bg-gray-50 text-xs sm:text-sm border-gray-300 transition-colors"
+                    >
+                      <TableCell className="font-medium truncate text-gray-800">
+                        {product.name}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-2">
                           <span>{getCountryFlag(product.country)}</span>
                           {product.country}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <Badge variant="outline">{product.volume}</Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <Badge className={getTypeColor(product.type)}>
                           {product.type}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        R$ {parseFloat(product.negotiatedPrice).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
+                      <TableCell className="font-semibold truncate">
+                        R${" "}
+                        {parseFloat(product.negotiatedPrice).toLocaleString(
+                          "pt-BR",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge 
-                            variant={product.clientCount > 0 ? "default" : "secondary"}
-                            className="cursor-pointer hover:opacity-80"
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="flex items-center">
+                          <Badge
+                            variant={
+                              product.clientCount > 0 ? "default" : "secondary"
+                            }
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => handleViewClients(product)}
                           >
                             <Users className="h-3 w-3 mr-1" />
                             {product.clientCount}
                           </Badge>
                           <Button
-                            variant="ghost"
+                            variant="link"
                             size="sm"
                             onClick={() => handleViewClients(product)}
-                            className="text-xs px-2 py-1 h-6"
+                            className="text-xs px-2 py-1 h-6 text-blue-600 hover:text-blue-800"
                           >
                             Ver clientes
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell>{product.createdByName || "Sistema"}</TableCell>
+                      <TableCell className="hidden md:table-cell text-gray-600">
+                        {product.createdByName || "Sistema"}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => handleEditProduct(product)}
+                            className="h-8 w-8"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:text-red-700"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+                                <AlertDialogTitle>
+                                  Excluir produto
+                                </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o produto "{product.name}"?
-                                  Esta ação não pode ser desfeita.
+                                  Tem certeza que deseja excluir o produto "
+                                  {product.name}"? Esta ação não pode ser
+                                  desfeita.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => deleteProductMutation.mutate(product.id)}
+                                  onClick={() =>
+                                    deleteProductMutation.mutate(product.id)
+                                  }
                                   className="bg-red-600 hover:bg-red-700"
                                 >
                                   Excluir
@@ -509,57 +664,72 @@ export default function Products() {
               </TableBody>
             </Table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-4 gap-4">
+              <p className="text-sm text-gray-600">
+                Mostrando {products.length} de {totalProducts} produtos
+              </p>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
+                      className={
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <PaginationItem
+                        className="hidden sm:flex"
+                        key={pageNumber}
+                      >
+                        <PaginationLink
+                          onClick={() => setCurrentPage(pageNumber)}
+                          isActive={currentPage === pageNumber}
+                          className="cursor-pointer"
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div className="flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-              
-              {/* Páginas visíveis */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNumber;
-                if (totalPages <= 5) {
-                  pageNumber = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNumber = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNumber = totalPages - 4 + i;
-                } else {
-                  pageNumber = currentPage - 2 + i;
-                }
-                
-                return (
-                  <PaginationItem key={pageNumber}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(pageNumber)}
-                      isActive={currentPage === pageNumber}
-                      className="cursor-pointer"
-                    >
-                      {pageNumber}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
 
       <ProductFormModal
         open={isProductModalOpen}

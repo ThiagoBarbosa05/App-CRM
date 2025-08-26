@@ -13,7 +13,7 @@ export default function Settings() {
   if (!user || user.role !== "admin") {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Sidebar  />
         <main className="flex-1 overflow-auto">
           <div className="p-6 flex items-center justify-center h-full">
             <Card className="w-full max-w-md">

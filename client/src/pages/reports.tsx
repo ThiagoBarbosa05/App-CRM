@@ -74,7 +74,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
@@ -95,7 +95,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -141,7 +141,7 @@ export default function Reports() {
 
     // Para a página de relatórios, clients já deve ser um array direto
     const clientsArray = Array.isArray(clients) ? clients : [];
-    
+
     return clientsArray
       .filter((client) => client.birthday)
       .map((client) => {
@@ -179,12 +179,13 @@ export default function Reports() {
   };
 
   const upcomingBirthdays = getUpcomingBirthdays();
-  
-  // Para a página de relatórios, clients já deve ser um array direto  
+
+  // Para a página de relatórios, clients e companies já devem ser arrays diretos
   const clientsArray = Array.isArray(clients) ? clients : [];
-  
+  const companiesArray = Array.isArray(companies) ? companies : [];
+
   const totalClients = clientsArray.length;
-  const totalCompanies = companies.length;
+  const totalCompanies = companiesArray.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
   const clientsByCategory = clientsArray.reduce(
@@ -257,7 +258,7 @@ export default function Reports() {
   );
 
   // Estatísticas de empresas por setor
-  const companiesBySector = companies.reduce(
+  const companiesBySector = companiesArray.reduce(
     (acc, company) => {
       const sectorId = company.sectorId;
       if (!sectorId) {
@@ -273,7 +274,7 @@ export default function Reports() {
   );
 
   // Estatísticas de empresas por usuário responsável
-  const companiesByUser = companies.reduce(
+  const companiesByUser = companiesArray.reduce(
     (acc, company) => {
       const responsibleId = company.responsavelId;
       if (!responsibleId) {
@@ -289,7 +290,7 @@ export default function Reports() {
   );
 
   // Estatísticas de empresas por estado
-  const companiesByState = companies.reduce(
+  const companiesByState = companiesArray.reduce(
     (acc, company) => {
       const state = company.state;
       if (!state) {
@@ -303,7 +304,7 @@ export default function Reports() {
   );
 
   // Estatísticas de empresas por cidade
-  const companiesByCity = companies.reduce(
+  const companiesByCity = companiesArray.reduce(
     (acc, company) => {
       const city = company.city;
       if (!city) {
@@ -322,9 +323,9 @@ export default function Reports() {
     queryFn: async () => {
       const response = await fetch("/api/upcoming-birthdays?days=30", {
         headers: {
-          'x-user-id': user?.id || '',
-          'x-user-role': user?.role || '',
-        }
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
       });
       if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");
       return response.json();
@@ -491,10 +492,15 @@ export default function Reports() {
                             );
                             const nextBirthday =
                               thisYearBirthday < today
-                                ? new Date(currentYear + 1, birthday.getMonth(), birthday.getDate())
+                                ? new Date(
+                                    currentYear + 1,
+                                    birthday.getMonth(),
+                                    birthday.getDate(),
+                                  )
                                 : thisYearBirthday;
                             const daysUntil = Math.ceil(
-                              (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+                              (nextBirthday.getTime() - today.getTime()) /
+                                (1000 * 60 * 60 * 24),
                             );
 
                             if (daysUntil === 0) return "Hoje";
