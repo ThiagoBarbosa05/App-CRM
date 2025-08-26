@@ -64,7 +64,7 @@ export default function FunnelKanbanBoard({
     DealWithClient["client"] | null
   >(null);
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -138,7 +138,7 @@ export default function FunnelKanbanBoard({
     let filteredDeals = deals.filter((deal: DealWithClient) => deal.stageId === stageId);
     
     // Aplicar filtro por responsável se selecionado
-    if (selectedUserId) {
+    if (selectedUserId && selectedUserId !== "all") {
       filteredDeals = filteredDeals.filter((deal: DealWithClient) => deal.assignedTo === selectedUserId);
     }
     
@@ -183,7 +183,7 @@ export default function FunnelKanbanBoard({
                   <SelectValue placeholder="Todos os responsáveis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os responsáveis</SelectItem>
+                  <SelectItem value="all">Todos os responsáveis</SelectItem>
                   {users.map((user: any) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}
