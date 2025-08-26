@@ -831,8 +831,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { companies, funnelId, stageId, value, assignedTo, notes, title } = req.body;
       
+      console.log("Dados recebidos para criação em lote:", {
+        companies: companies?.length,
+        funnelId,
+        stageId,
+        value,
+        assignedTo,
+        notes,
+        title
+      });
+      
       if (!companies || !Array.isArray(companies) || companies.length === 0) {
         return res.status(400).json({ message: "Empresas são obrigatórias" });
+      }
+
+      // Verificar se assignedTo está definido
+      if (!assignedTo) {
+        return res.status(400).json({ message: "Responsável é obrigatório" });
       }
 
       const deals = [];
