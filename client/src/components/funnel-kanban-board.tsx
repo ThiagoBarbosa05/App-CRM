@@ -4,7 +4,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { DealWithClient } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Plus } from "lucide-react";
+import { Edit, Trash2, Plus, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
 import ClientDetailsCard from "./client-details-card";
@@ -62,6 +64,7 @@ export default function FunnelKanbanBoard({
     DealWithClient["client"] | null
   >(null);
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   const { data: deals, isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
@@ -125,9 +128,21 @@ export default function FunnelKanbanBoard({
     },
   });
 
+  // Buscar usuários para o filtro
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+  });
+
   const getDealsForStage = (stageId: string) => {
     if (!deals || !Array.isArray(deals)) return [];
-    return deals.filter((deal: DealWithClient) => deal.stageId === stageId);
+    let filteredDeals = deals.filter((deal: DealWithClient) => deal.stageId === stageId);
+    
+    // Aplicar filtro por responsável se selecionado
+    if (selectedUserId) {
+      filteredDeals = filteredDeals.filter((deal: DealWithClient) => deal.assignedTo === selectedUserId);
+    }
+    
+    return filteredDeals;
   };
 
   const handleDragStart = (deal: DealWithClient) => {
@@ -158,7 +173,26 @@ export default function FunnelKanbanBoard({
     <>
       <div className="flex-1 overflow-auto bg-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Negócios no funil</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold">Negócios no funil</h3>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-500" />
+              <Label htmlFor="user-filter" className="text-sm text-gray-600">Filtrar por responsável:</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Todos os responsáveis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os responsáveis</SelectItem>
+                  {users.map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Negócio
