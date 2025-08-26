@@ -119,8 +119,12 @@ export default function CompanyDetailsModal({
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="carta" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="info" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="info" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Informações
+            </TabsTrigger>
             <TabsTrigger value="carta" className="flex items-center gap-2">
               <Wine className="h-4 w-4" />
               Carta de Vinhos
@@ -135,7 +139,7 @@ export default function CompanyDetailsModal({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="carta" className="space-y-6 mt-6">
+          <TabsContent value="info" className="space-y-6 mt-6">
             <div className="space-y-6">
               {/* Informações básicas */}
           <Card>
@@ -312,90 +316,6 @@ export default function CompanyDetailsModal({
             </Card>
           )}
 
-          {/* Carta de Vinhos - Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Wine className="h-5 w-5 text-wine-600" />
-                Carta de Vinhos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!companyProducts || companyProducts.length === 0 ? (
-                <div className="text-center py-4">
-                  <Wine className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                  <p className="text-sm text-gray-500">
-                    Nenhum vinho na carta ainda
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsWineListOpen(true)}
-                    className="mt-2 text-wine-600 border-wine-600 hover:bg-wine-50"
-                  >
-                    Adicionar vinhos
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      {companyProducts.length} vinho(s) na carta
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsWineListOpen(true)}
-                      className="text-wine-600 border-wine-600 hover:bg-wine-50"
-                    >
-                      Ver carta completa
-                    </Button>
-                  </div>
-                  
-                  {/* Mostrar até 3 produtos como preview */}
-                  <div className="space-y-2">
-                    {companyProducts.slice(0, 3).map((item: any) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.product?.name || 'Nome não disponível'}</p>
-                          <p className="text-xs text-gray-500">
-                            {item.product?.country || 'País não informado'} - {item.product?.volume || 'Volume não informado'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-400">
-                              Tabela: R$ {parseFloat(item.product?.tablePrice || '0').toFixed(2)}
-                            </span>
-                            <span className="text-xs text-blue-600">
-                              Padrão: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
-                            </span>
-                            <span className="text-xs text-green-600 font-semibold">
-                              Cliente: R$ {parseFloat(item.customNegotiatedPrice || item.product?.negotiatedPrice || '0').toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className="text-xs ml-2"
-                        >
-                          {item.product?.type || 'Tipo não informado'}
-                        </Badge>
-                      </div>
-                    ))}
-                    
-                    {companyProducts.length > 3 && (
-                      <p className="text-xs text-gray-500 text-center">
-                        e mais {companyProducts.length - 3} vinho(s)...
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Observações */}
           {company.notes && (
             <Card>
@@ -411,6 +331,92 @@ export default function CompanyDetailsModal({
             </Card>
           )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="carta" className="space-y-6 mt-6">
+            {/* Carta de Vinhos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Wine className="h-5 w-5 text-wine-600" />
+                  Carta de Vinhos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!companyProducts || companyProducts.length === 0 ? (
+                  <div className="text-center py-4">
+                    <Wine className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                    <p className="text-sm text-gray-500">
+                      Nenhum vinho na carta ainda
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsWineListOpen(true)}
+                      className="mt-2 text-wine-600 border-wine-600 hover:bg-wine-50"
+                    >
+                      Adicionar vinhos
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">
+                        {companyProducts.length} vinho(s) na carta
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsWineListOpen(true)}
+                        className="text-wine-600 border-wine-600 hover:bg-wine-50"
+                      >
+                        Ver carta completa
+                      </Button>
+                    </div>
+                    
+                    {/* Mostrar até 3 produtos como preview */}
+                    <div className="space-y-2">
+                      {companyProducts.slice(0, 3).map((item: any) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{item.product?.name || 'Nome não disponível'}</p>
+                            <p className="text-xs text-gray-500">
+                              {item.product?.country || 'País não informado'} - {item.product?.volume || 'Volume não informado'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-400">
+                                Tabela: R$ {parseFloat(item.product?.tablePrice || '0').toFixed(2)}
+                              </span>
+                              <span className="text-xs text-blue-600">
+                                Padrão: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
+                              </span>
+                              <span className="text-xs text-green-600 font-semibold">
+                                Cliente: R$ {parseFloat(item.customNegotiatedPrice || item.product?.negotiatedPrice || '0').toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-xs ml-2"
+                          >
+                            {item.product?.type || 'Tipo não informado'}
+                          </Badge>
+                        </div>
+                      ))}
+                      
+                      {companyProducts.length > 3 && (
+                        <p className="text-xs text-gray-500 text-center">
+                          e mais {companyProducts.length - 3} vinho(s)...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="interactions" className="mt-6">
