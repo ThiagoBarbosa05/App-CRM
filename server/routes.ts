@@ -805,8 +805,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { deals } = req.body;
       
-      if (!Array.isArray(deals) || deals.length === 0) {
-        return res.status(400).json({ message: "Lista de deals é obrigatória" });
+      if (!deals) {
+        return res.status(400).json({ message: "Campo 'deals' é obrigatório" });
+      }
+      
+      if (!Array.isArray(deals)) {
+        return res.status(400).json({ message: "Campo 'deals' deve ser um array" });
+      }
+      
+      if (deals.length === 0) {
+        return res.status(400).json({ message: "Lista de deals não pode estar vazia" });
       }
 
       console.log("Iniciando criação em lote de", deals.length, "negócios");
@@ -839,11 +847,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
+          // Validar se assignedTo e createdBy estão presentes
+          if (!dealData.assignedTo || !dealData.createdBy) {
+            errors.push({
+              index: i,
+              error: "Campos assignedTo e createdBy são obrigatórios",
+              data: dealData
+            });
+            continue;
+          }
+
           // Validar formato do valor
           let processedValue = dealData.value;
           if (typeof processedValue === 'string') {
             processedValue = processedValue.replace(/[^\d,]/g, "").replace(",", ".");
-            if (isNaN(parseFloat(processedValue))) {
+            if (processedValue === "" || isNaN(parseFloat(processedValue))) {
               errors.push({
                 index: i,
                 error: "Valor inválido",
@@ -855,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const validatedData = insertDealSchema.parse({
             ...dealData,
-            value: processedValue
+            value: processedValue.toString()
           });
           
           // Generate title if not provided
@@ -865,6 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const client = await storage.getClient(validatedData.clientId);
                 validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
               } catch (clientError) {
+                console.warn(`Erro ao buscar cliente ${validatedData.clientId}:`, clientError);
                 validatedData.title = "Novo Negócio";
               }
             } else if (validatedData.companyId) {
@@ -872,6 +891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const company = await storage.getCompany(validatedData.companyId);
                 validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
               } catch (companyError) {
+                console.warn(`Erro ao buscar empresa ${validatedData.companyId}:`, companyError);
                 validatedData.title = "Novo Negócio";
               }
             } else {
@@ -886,10 +906,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
         } catch (error) {
           console.error(`Erro ao criar deal ${i + 1}:`, error);
+          const errorMessage = error instanceof z.ZodError 
+            ? fromZodError(error).toString() 
+            : (error.message || "Erro desconhecido");
+          
           errors.push({
             index: i,
-            error: error instanceof z.ZodError ? fromZodError(error).toString() : error.message,
-            data: dealData
+            error: errorMessage,
+            data: deals[i]
           });
         }
       }
@@ -906,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro na criação em lote de deals:", error);
       res.status(500).json({ 
         message: "Erro na criação em lote de deals",
-        error: error.message 
+        error: error?.message || "Erro desconhecido"
       });
     }
   });

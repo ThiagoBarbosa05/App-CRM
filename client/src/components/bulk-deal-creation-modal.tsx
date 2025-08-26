@@ -130,6 +130,11 @@ export default function BulkDealCreationModal({
         throw new Error("Valor deve ser maior que zero");
       }
 
+      // Validar se o usuário está autenticado
+      if (!user?.id) {
+        throw new Error("Usuário não autenticado");
+      }
+
       const deals = data.selectedCompanies.map((companyId, index) => {
         const company = companies.find(c => c.id === companyId);
         if (!company) {
@@ -145,21 +150,37 @@ export default function BulkDealCreationModal({
           value: data.value.replace(/[^\d,]/g, "").replace(",", "."),
           notes: data.notes || "",
           title: dealTitle,
-          assignedTo: user?.id,
-          createdBy: user?.id,
+          assignedTo: user.id,
+          createdBy: user.id,
         };
       });
 
       console.log("Deals preparados para envio:", deals);
 
-      const response = await apiRequest("POST", "/api/deals/bulk", { deals });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro na criação dos negócios");
+      try {
+        const response = await apiRequest("POST", "/api/deals/bulk", { deals });
+        
+        if (!response.ok) {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Erro na criação dos negócios");
+          } else {
+            // Se não é JSON, provavelmente é uma página de erro HTML
+            const errorText = await response.text();
+            console.error("Resposta não-JSON do servidor:", errorText);
+            throw new Error("Erro interno do servidor");
+          }
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error("Erro na requisição:", error);
+        if (error instanceof TypeError && error.message.includes("JSON")) {
+          throw new Error("Erro de comunicação com o servidor");
+        }
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: (result) => {
       console.log("Resultado da criação em lote:", result);
