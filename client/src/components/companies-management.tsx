@@ -1,13 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -48,7 +42,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import BulkDealCreationModal from "./bulk-deal-creation-modal";
 
 interface CompaniesManagementProps {
   currentUser: any;
@@ -56,9 +49,15 @@ interface CompaniesManagementProps {
 
 export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [nomeFantasiaFilter, setNomeFantasiaFilter] = useState("");
+  const [debouncedNomeFantasiaFilter, setDebouncedNomeFantasiaFilter] =
+    useState("");
   const [razaoSocialFilter, setRazaoSocialFilter] = useState("");
+  const [debouncedRazaoSocialFilter, setDebouncedRazaoSocialFilter] =
+    useState("");
   const [cnpjFilter, setCnpjFilter] = useState("");
+  const [debouncedCnpjFilter, setDebouncedCnpjFilter] = useState("");
   const [responsavelFilter, setResponsavelFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -66,32 +65,73 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [sortField, setSortField] = useState<'nomeFantasia' | 'razaoSocial' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [showBulkDealModal, setShowBulkDealModal] = useState(false);
+  const [sortField, setSortField] = useState<
+    "nomeFantasia" | "razaoSocial" | null
+  >(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: companies = [], isLoading } = useQuery({
-    queryKey: ["/api/companies", currentUser?.id, currentUser?.role],
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setDebouncedNomeFantasiaFilter(nomeFantasiaFilter);
+      setDebouncedRazaoSocialFilter(razaoSocialFilter);
+      setDebouncedCnpjFilter(cnpjFilter);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery, nomeFantasiaFilter, razaoSocialFilter, cnpjFilter]);
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: [
+      "/api/companies",
+      currentUser?.id,
+      currentUser?.role,
+      debouncedSearchQuery,
+      debouncedNomeFantasiaFilter,
+      debouncedRazaoSocialFilter,
+      debouncedCnpjFilter,
+      responsavelFilter,
+      page,
+      pageSize,
+    ],
     queryFn: async () => {
-      const response = await fetch(
-        currentUser?.role === "admin"
-          ? "/api/companies"
-          : `/api/companies?userId=${currentUser?.id}&userRole=${currentUser?.role}`,
-      );
+      const params = new URLSearchParams();
+      if (currentUser?.id) params.append("userId", currentUser.id);
+      if (currentUser?.role) params.append("userRole", currentUser.role);
+      if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
+      if (debouncedNomeFantasiaFilter)
+        params.append("nomeFantasia", debouncedNomeFantasiaFilter);
+      if (debouncedRazaoSocialFilter)
+        params.append("razaoSocial", debouncedRazaoSocialFilter);
+      if (debouncedCnpjFilter) params.append("cnpj", debouncedCnpjFilter);
+      if (responsavelFilter) params.append("responsavelId", responsavelFilter);
+      params.append("page", page.toString());
+      params.append("pageSize", pageSize.toString());
+
+      const response = await fetch(`/api/companies?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
     },
     enabled: !!currentUser,
   });
 
-  // Buscar usuários para mostrar responsáveis
+  const companies = data?.data || [];
+  const totalItems = data?.totalItems || 0;
+  const totalPages = data?.totalPages || 1;
+
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
+    queryFn: async () => {
+      const response = await fetch("/api/users");
+      if (!response.ok) throw new Error("Failed to fetch users");
+      return response.json();
+    },
   });
 
-  // Função para buscar nome do responsável
   const getResponsavelName = (responsavelId: string | null) => {
     if (!responsavelId) return "-";
     const user = (users as any[]).find((u) => u.id === responsavelId);
@@ -153,7 +193,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      await exportCompaniesToExcel(filteredCompanies, users as any[]);
+      await exportCompaniesToExcel(companies, users as any[]);
     },
     onSuccess: () => {
       toast({
@@ -170,45 +210,13 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     },
   });
 
-  const filteredCompanies = companies.filter((company: Company) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      company.nomeFantasia.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.razaoSocial.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (company.cnpj && company.cnpj.includes(searchQuery));
-
-    const matchesNomeFantasia =
-      nomeFantasiaFilter === "" ||
-      company.nomeFantasia
-        .toLowerCase()
-        .includes(nomeFantasiaFilter.toLowerCase());
-
-    const matchesRazaoSocial =
-      razaoSocialFilter === "" ||
-      company.razaoSocial
-        .toLowerCase()
-        .includes(razaoSocialFilter.toLowerCase());
-
-    const matchesCnpj =
-      cnpjFilter === "" || (company.cnpj && company.cnpj.includes(cnpjFilter));
-
-    const matchesResponsavel =
-      responsavelFilter === "" || company.responsavelId === responsavelFilter;
-
-    return (
-      matchesSearch &&
-      matchesNomeFantasia &&
-      matchesRazaoSocial &&
-      matchesCnpj &&
-      matchesResponsavel
-    );
-  }).sort((a: Company, b: Company) => {
+  const sortedCompanies = [...companies].sort((a: Company, b: Company) => {
     if (!sortField) return 0;
 
-    const aValue = a[sortField].toLowerCase();
-    const bValue = b[sortField].toLowerCase();
+    const aValue = a[sortField]?.toLowerCase() || "";
+    const bValue = b[sortField]?.toLowerCase() || "";
 
-    if (sortDirection === 'asc') {
+    if (sortDirection === "asc") {
       return aValue.localeCompare(bValue);
     } else {
       return bValue.localeCompare(aValue);
@@ -257,7 +265,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedCompanies(
-        filteredCompanies.map((company: Company) => company.id),
+        sortedCompanies.map((company: Company) => company.id)
       );
     } else {
       setSelectedCompanies([]);
@@ -279,12 +287,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     exportMutation.mutate();
   };
 
-  const handleSort = (field: 'nomeFantasia' | 'razaoSocial') => {
+  const handleSort = (field: "nomeFantasia" | "razaoSocial") => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
@@ -323,20 +331,9 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               <Plus className="mr-2 h-4 w-4" />
               Nova Empresa
             </Button>
-            <Button 
-              onClick={() => setShowBulkDealModal(true)}
-              variant="outline"
-              disabled={!companies || companies.length === 0}
-              className="w-full sm:w-fit"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Criar Negócios em Lote
-            </Button>
           </div>
         </div>
       </div>
-
-      {/* table */}
 
       <div className="mt-5 bg-white shadow-lg p-5 rounded-lg">
         <div className="flex w-full items-center gap-4">
@@ -362,7 +359,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             </Button>
           )}
         </div>
-        {/* Filtros específicos */}
         <div className="grid mt-5 grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -416,7 +412,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           </div>
         </div>
 
-        {/* Botão de limpar filtros */}
         {(nomeFantasiaFilter ||
           razaoSocialFilter ||
           cnpjFilter ||
@@ -440,171 +435,202 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         )}
 
         <div className="mt-10">
-          {isLoading ? (
+          {isLoading || isFetching ? (
             <div className="text-center py-8">
               <p>Carregando empresas...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={
-                        selectedCompanies.length === filteredCompanies.length &&
-                        filteredCompanies.length > 0
-                      }
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => handleSort('nomeFantasia')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      Nome Fantasia
-                      {sortField === 'nomeFantasia' && (
-                        sortDirection === 'asc' ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )
-                      )}
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button
-                      onClick={() => handleSort('razaoSocial')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      Razão Social
-                      {sortField === 'razaoSocial' && (
-                        sortDirection === 'asc' ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )
-                      )}
-                    </button>
-                  </TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCompanies.length === 0 ? (
+            <>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {searchQuery
-                          ? "Nenhuma empresa encontrada com os critérios de busca."
-                          : "Nenhuma empresa cadastrada."}
-                      </p>
-                    </TableCell>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={
+                          selectedCompanies.length === sortedCompanies.length &&
+                          sortedCompanies.length > 0
+                        }
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort("nomeFantasia")}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Nome Fantasia
+                        {sortField === "nomeFantasia" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          ))}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort("razaoSocial")}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Razão Social
+                        {sortField === "razaoSocial" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          ))}
+                      </button>
+                    </TableHead>
+                    <TableHead>CNPJ</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  filteredCompanies.map((company: Company) => (
-                    <TableRow key={company.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedCompanies.includes(company.id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectCompany(company.id, checked as boolean)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <button
-                          onClick={() => handleCompanyClick(company)}
-                          className="text-blue-600 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
-                        >
-                          {company.nomeFantasia}
-                        </button>
-                      </TableCell>
-                      <TableCell>{company.razaoSocial}</TableCell>
-                      <TableCell>{company.cnpj || "-"}</TableCell>
-                      <TableCell>
-                        {company.phone ? (
-                          <div className="flex items-center gap-2">
-                            <span>{company.phone}</span>
-                            <a
-                              href={`https://wa.me/${company.phone.replace(
-                                /\D/g,
-                                "",
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-600 hover:text-green-700 transition-colors"
-                              title="Abrir no WhatsApp"
-                            >
-                              <FaWhatsapp className="h-4 w-4" />
-                            </a>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>{company.email || "-"}</TableCell>
-                      <TableCell>
-                        {getResponsavelName(company.responsavelId)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={company.active ? "default" : "secondary"}
-                        >
-                          {company.active ? "Ativa" : "Inativa"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(company)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Deseja excluir esta empresa?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir esta empresa?
-                                  Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(company.id)}
-                                >
-                                  Confirmar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {sortedCompanies.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        <p className="text-muted-foreground">
+                          {searchQuery
+                            ? "Nenhuma empresa encontrada com os critérios de busca."
+                            : "Nenhuma empresa cadastrada."}
+                        </p>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    sortedCompanies.map((company: Company) => (
+                      <TableRow key={company.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedCompanies.includes(company.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectCompany(
+                                company.id,
+                                checked as boolean
+                              )
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <button
+                            onClick={() => handleCompanyClick(company)}
+                            className="text-blue-600 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
+                          >
+                            {company.nomeFantasia}
+                          </button>
+                        </TableCell>
+                        <TableCell>{company.razaoSocial}</TableCell>
+                        <TableCell>{company.cnpj || "-"}</TableCell>
+                        <TableCell>
+                          {company.phone ? (
+                            <div className="flex items-center gap-2">
+                              <span>{company.phone}</span>
+                              <a
+                                href={`https://wa.me/${company.phone.replace(
+                                  /\D/g,
+                                  ""
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-600 hover:text-green-700 transition-colors"
+                                title="Abrir no WhatsApp"
+                              >
+                                <FaWhatsapp className="h-4 w-4" />
+                              </a>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell>{company.email || "-"}</TableCell>
+                        <TableCell>
+                          {getResponsavelName(company.responsavelId)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={company.active ? "default" : "secondary"}
+                          >
+                            {company.active ? "Ativa" : "Inativa"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(company)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Deseja excluir esta empresa?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir esta empresa?
+                                    Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(company.id)}
+                                  >
+                                    Confirmar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <div className="flex items-center flex-wrap gap-2 justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {companies.length} de {totalItems} empresas.
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm">
+                    Página {page} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -625,12 +651,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       <CompanyImportModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
-      />
-
-      <BulkDealCreationModal
-        open={showBulkDealModal}
-        onOpenChange={setShowBulkDealModal}
-        companies={companies || []}
       />
     </div>
   );

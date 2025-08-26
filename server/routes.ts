@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page,
         pageSize,
       );
-      
+
       // Por enquanto, retorna formato simples com estimativa baseada no tamanho da página
       res.json({
         data: clients,
@@ -564,12 +564,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Company routes
   app.get("/api/companies", async (req, res) => {
     try {
-      const { userId, userRole } = req.query;
-      const companies = await storage.getCompanies(
+      const { userId, userRole, search, nomeFantasia, razaoSocial, cnpj, responsavelId } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+
+      const filters = {
+        search: search as string | undefined,
+        nomeFantasia: nomeFantasia as string | undefined,
+        razaoSocial: razaoSocial as string | undefined,
+        cnpj: cnpj as string | undefined,
+        responsavelId: responsavelId as string | undefined,
+      };
+
+      const { data, total } = await storage.getCompanies(
         userId as string,
         userRole as string,
+        filters,
+        page,
+        pageSize,
       );
-      res.json(companies);
+
+      res.json({
+        data,
+        currentPage: page,
+        totalPages: Math.ceil(total / pageSize),
+        totalItems: total,
+      });
     } catch (error) {
       console.error("Erro ao buscar empresas:", error);
       res.status(500).json({ message: "Erro ao buscar empresas" });
@@ -774,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/deals", async (req, res) => {
     try {
       const validatedData = insertDealSchema.parse(req.body);
-      
+
       // If no title is provided, generate one based on client/company name
       if (!validatedData.title) {
         if (validatedData.clientId) {
@@ -787,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           validatedData.title = "Novo Negócio";
         }
       }
-      
+
       const deal = await storage.createDeal(validatedData);
       res.status(201).json(deal);
     } catch (error) {
@@ -797,141 +817,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Erro ao criar deal:", error);
       res.status(500).json({ message: "Erro ao criar deal" });
-    }
-  });
-
-  // Bulk deal creation route
-  app.post("/api/deals/bulk", async (req, res) => {
-    try {
-      const { deals } = req.body;
-      
-      if (!deals) {
-        return res.status(400).json({ message: "Campo 'deals' é obrigatório" });
-      }
-      
-      if (!Array.isArray(deals)) {
-        return res.status(400).json({ message: "Campo 'deals' deve ser um array" });
-      }
-      
-      if (deals.length === 0) {
-        return res.status(400).json({ message: "Lista de deals não pode estar vazia" });
-      }
-
-      console.log("Iniciando criação em lote de", deals.length, "negócios");
-
-      const createdDeals = [];
-      const errors = [];
-
-      for (let i = 0; i < deals.length; i++) {
-        try {
-          const dealData = deals[i];
-          console.log(`Processando deal ${i + 1}:`, dealData);
-          
-          // Validar dados obrigatórios
-          if (!dealData.funnelId || !dealData.stageId || !dealData.value) {
-            errors.push({
-              index: i,
-              error: "Campos obrigatórios: funnelId, stageId e value",
-              data: dealData
-            });
-            continue;
-          }
-
-          // Verificar se pelo menos clientId ou companyId está presente
-          if (!dealData.clientId && !dealData.companyId) {
-            errors.push({
-              index: i,
-              error: "Cliente ou empresa é obrigatório",
-              data: dealData
-            });
-            continue;
-          }
-
-          // Validar se assignedTo e createdBy estão presentes
-          if (!dealData.assignedTo || !dealData.createdBy) {
-            errors.push({
-              index: i,
-              error: "Campos assignedTo e createdBy são obrigatórios",
-              data: dealData
-            });
-            continue;
-          }
-
-          // Validar formato do valor
-          let processedValue = dealData.value;
-          if (typeof processedValue === 'string') {
-            processedValue = processedValue.replace(/[^\d,]/g, "").replace(",", ".");
-            if (processedValue === "" || isNaN(parseFloat(processedValue))) {
-              errors.push({
-                index: i,
-                error: "Valor inválido",
-                data: dealData
-              });
-              continue;
-            }
-          }
-
-          const validatedData = insertDealSchema.parse({
-            ...dealData,
-            value: processedValue.toString()
-          });
-          
-          // Generate title if not provided
-          if (!validatedData.title) {
-            if (validatedData.clientId) {
-              try {
-                const client = await storage.getClient(validatedData.clientId);
-                validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
-              } catch (clientError) {
-                console.warn(`Erro ao buscar cliente ${validatedData.clientId}:`, clientError);
-                validatedData.title = "Novo Negócio";
-              }
-            } else if (validatedData.companyId) {
-              try {
-                const company = await storage.getCompany(validatedData.companyId);
-                validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
-              } catch (companyError) {
-                console.warn(`Erro ao buscar empresa ${validatedData.companyId}:`, companyError);
-                validatedData.title = "Novo Negócio";
-              }
-            } else {
-              validatedData.title = "Novo Negócio";
-            }
-          }
-          
-          console.log(`Criando deal ${i + 1} com dados validados:`, validatedData);
-          const deal = await storage.createDeal(validatedData);
-          createdDeals.push(deal);
-          console.log(`Deal ${i + 1} criado com sucesso:`, deal.id);
-          
-        } catch (error) {
-          console.error(`Erro ao criar deal ${i + 1}:`, error);
-          const errorMessage = error instanceof z.ZodError 
-            ? fromZodError(error).toString() 
-            : (error.message || "Erro desconhecido");
-          
-          errors.push({
-            index: i,
-            error: errorMessage,
-            data: deals[i]
-          });
-        }
-      }
-
-      console.log(`Criação em lote finalizada: ${createdDeals.length} sucessos, ${errors.length} erros`);
-
-      res.status(201).json({
-        created: createdDeals.length,
-        errors: errors.length,
-        deals: createdDeals,
-        errorDetails: errors,
-      });
-    } catch (error) {
-      console.error("Erro na criação em lote de deals:", error);
-      res.status(500).json({ 
-        message: "Erro na criação em lote de deals",
-        error: error?.message || "Erro desconhecido"
-      });
     }
   });
 
@@ -2636,8 +2521,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products routes
   app.get("/api/products", async (req, res) => {
     try {
-      const products = await storage.getProductsWithClientCount();
-      res.json(products);
+      const { name, type, country, volume } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+
+      const filters = {
+        name: name as string | undefined,
+        type: type as string | undefined,
+        country: country as string | undefined,
+        volume: volume as string | undefined,
+      };
+
+      const { data, total } = await storage.getProducts(
+        filters,
+        page,
+        pageSize,
+      );
+
+      res.json({
+        data,
+        currentPage: page,
+        totalPages: Math.ceil(total / pageSize),
+        totalItems: total,
+      });
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ message: "Erro ao buscar produtos" });
