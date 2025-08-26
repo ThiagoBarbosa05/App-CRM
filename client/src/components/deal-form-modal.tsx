@@ -55,6 +55,7 @@ const createDealSchema = z.object({
   funnelId: z.string().min(1, "Funil é obrigatório"),
   stageId: z.string().min(1, "Estágio é obrigatório"),
   value: z.string().min(1, "Valor é obrigatório"),
+  assignedTo: z.string().min(1, "Responsável é obrigatório"),
   notes: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.dealType === "client" && !data.clientId) {
@@ -121,6 +122,12 @@ export default function DealFormModal({
     enabled: !!funnelId,
   });
 
+  // Buscar usuários para o dropdown de responsável
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+    enabled: open, // Só buscar quando o modal estiver aberto
+  });
+
   // Provide default empty array if clients is undefined
   const clientsList = clients?.data || [];
   const companiesList = companies || [];
@@ -133,6 +140,7 @@ export default function DealFormModal({
       companyId: deal?.companyId || "",
       value: deal?.value || "",
       stageId: deal?.stageId || "",
+      assignedTo: deal?.assignedTo || user?.id || "",
       notes: deal?.notes || "",
       funnelId: deal?.funnelId || funnelId || "",
     },
@@ -168,6 +176,7 @@ export default function DealFormModal({
         stageId: deal.stageId || funnelStages[0]?.id || "",
         notes: deal.notes || "",
         funnelId: deal.funnelId || funnelId || "",
+        assignedTo: deal.assignedTo || user?.id || "",
       });
     } else if (funnelId) {
       form.setValue("funnelId", funnelId);
@@ -199,7 +208,7 @@ export default function DealFormModal({
         ...data,
         clientId: data.dealType === "client" ? data.clientId : null,
         companyId: data.dealType === "company" ? data.companyId : null,
-        assignedTo: user?.id,
+        assignedTo: data.assignedTo,
         createdBy: user?.id,
       });
     },
@@ -230,7 +239,7 @@ export default function DealFormModal({
         ...data,
         clientId: data.dealType === "client" ? data.clientId : null,
         companyId: data.dealType === "company" ? data.companyId : null,
-        assignedTo: user?.id,
+        assignedTo: data.assignedTo,
         createdBy: user?.id,
       });
 
@@ -513,6 +522,33 @@ export default function DealFormModal({
             {form.formState.errors.stageId && (
               <span className="text-sm text-red-500">
                 {form.formState.errors.stageId.message}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <Label>Responsável *</Label>
+            <Controller
+              name="assignedTo"
+              control={form.control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o responsável..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {form.formState.errors.assignedTo && (
+              <span className="text-sm text-red-500">
+                {form.formState.errors.assignedTo.message}
               </span>
             )}
           </div>
