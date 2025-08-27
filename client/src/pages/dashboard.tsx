@@ -18,7 +18,8 @@ import {
   CreditCard,
   TrendingUp,
   Clock,
-  CheckCircle
+  CheckCircle,
+  User
 } from "lucide-react";
 import ClientDetailsCard from "@/components/client-details-card";
 
