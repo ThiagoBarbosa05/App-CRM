@@ -200,7 +200,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-gray-600">
-                    <p><strong>Cliente desde:</strong> {formatDate(client.createdAt.toString())}</p>
+                    <p><strong>Cliente desde:</strong> {client.createdAt ? formatDate(client.createdAt.toString()) : "Não informado"}</p>
                   </div>
                 </CardContent>
               </Card>
