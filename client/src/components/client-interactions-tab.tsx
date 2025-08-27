@@ -60,7 +60,7 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
 
   const deleteInteractionMutation = useMutation({
     mutationFn: async (interactionId: string) => {
-      await apiRequest(`/api/interactions/${interactionId}`, "DELETE");
+      await apiRequest("DELETE", `/api/interactions/${interactionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "interactions"] });
@@ -167,7 +167,7 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                         <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {formatDateTime(interaction.date)}
+                            {formatDateTime(interaction.date.toString())}
                           </div>
                           {interaction.callResult && interaction.type === "telemarketing" && (
                             <div className="flex items-center gap-1">
