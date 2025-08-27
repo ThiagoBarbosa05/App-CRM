@@ -43,6 +43,7 @@ interface ClientDebt {
     name: string;
     phone: string;
     email?: string;
+    responsibleName?: string;
   };
   amount: string;
   description: string;
@@ -489,6 +490,12 @@ export default function ClientDebtsManagement() {
                       <Phone className="h-3 w-3" />
                       {debt.client.phone}
                     </span>
+                    {debt.client.responsibleName && (
+                      <span className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Responsável: {debt.client.responsibleName}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

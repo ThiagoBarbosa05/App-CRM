@@ -3321,10 +3321,12 @@ export class DatabaseStorage implements IStorage {
           name: clients.name,
           phone: clients.phone,
           email: clients.email,
+          responsibleName: users.name,
         },
       })
       .from(clientDebts)
       .innerJoin(clients, eq(clientDebts.clientId, clients.id))
+      .leftJoin(users, eq(clients.responsavelId, users.id))
       .orderBy(clientDebts.createdAt);
 
     if (responsibleId) {

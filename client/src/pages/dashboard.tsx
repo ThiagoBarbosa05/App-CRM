@@ -30,6 +30,7 @@ interface ClientDebt {
     name: string;
     phone: string;
     email?: string;
+    responsibleName?: string;
   };
   amount: string;
   description: string;
@@ -263,6 +264,12 @@ export default function Dashboard() {
                             <div className="flex items-center gap-4 text-sm text-gray-500">
                               <span>Valor: {formatCurrency(parseFloat(debt.amount))}</span>
                               <span>Vencimento: {formatDate(debt.dueDate)}</span>
+                              {debt.client.responsibleName && (
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  Responsável: {debt.client.responsibleName}
+                                </span>
+                              )}
                               {new Date(debt.dueDate) < new Date() && (
                                 <span className="text-red-600 font-medium flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
