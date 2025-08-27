@@ -260,10 +260,10 @@ export default function ClientDebtsManagement() {
   };
 
   // Usar clientes filtrados do servidor
-  const filteredClients = clients;
+  const filteredClients = Array.isArray(clients) ? clients : [];
 
   // Filtrar dívidas
-  const filteredDebts = debts.filter((debt) => {
+  const filteredDebts = Array.isArray(debts) ? debts.filter((debt) => {
     const matchesSearch = debt.client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          debt.description.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -273,7 +273,7 @@ export default function ClientDebtsManagement() {
                          (statusFilter === "overdue" && debt.status === "pending" && new Date(debt.dueDate) < new Date());
     
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   return (
     <Card>
