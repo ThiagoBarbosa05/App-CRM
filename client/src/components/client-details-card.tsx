@@ -32,24 +32,6 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
   const [showCreateDealModal, setShowCreateDealModal] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
 
-  if (!client) return null;
-
-  const formatPhone = (phone: string) => {
-    const numbers = phone.replace(/\D/g, '');
-    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  };
-
-  const formatCPF = (cpf: string | null | undefined) => {
-    if (!cpf) return "Não informado";
-    const numbers = cpf.replace(/\D/g, '');
-    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  };
-
-  const formatBirthday = (birthday: string | null | undefined) => {
-    if (!birthday) return "Não informado";
-    return formatDate(birthday);
-  };
-
   // Query para buscar usuários
   const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
     queryKey: ['/api/users'],
@@ -71,6 +53,24 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
     queryKey: [`/api/cashback-usage/${client?.id}`],
     enabled: !!client?.id,
   });
+
+  if (!client) return null;
+
+  const formatPhone = (phone: string) => {
+    const numbers = phone.replace(/\D/g, '');
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+
+  const formatCPF = (cpf: string | null | undefined) => {
+    if (!cpf) return "Não informado";
+    const numbers = cpf.replace(/\D/g, '');
+    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  };
+
+  const formatBirthday = (birthday: string | null | undefined) => {
+    if (!birthday) return "Não informado";
+    return formatDate(birthday);
+  };
 
   const handleCreateDeal = (funnelId: string) => {
     setSelectedFunnelId(funnelId);
