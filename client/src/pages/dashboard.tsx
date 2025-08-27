@@ -63,11 +63,14 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Buscar dívidas dos clientes do vendedor
+  // Buscar dívidas dos clientes (admin vê todas, vendedor vê suas)
   const { data: clientDebts = [] } = useQuery<ClientDebt[]>({
-    queryKey: [`/api/client-debts`, user?.id],
+    queryKey: [`/api/client-debts`, user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/client-debts?responsibleId=${user?.id}`);
+      const url = (user?.role === "admin" || user?.role === "administrador") 
+        ? `/api/client-debts`
+        : `/api/client-debts?responsibleId=${user?.id}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch client debts');
       return response.json();
     },
