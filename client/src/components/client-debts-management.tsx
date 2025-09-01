@@ -103,7 +103,8 @@ export default function ClientDebtsManagement() {
       }
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch clients");
-      return response.json();
+      const result = await response.json();
+      return result.data || result; // Handle both {data: [...]} and [...] formats
     },
     enabled: searchTerm.length === 0 || searchTerm.length >= 2, // Só busca se tiver 2+ chars
   });
