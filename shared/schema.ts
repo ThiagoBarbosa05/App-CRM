@@ -117,10 +117,8 @@ export const deals = pgTable("deals", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  clientId: varchar("client_id")
-    .references(() => clients.id),
-  companyId: varchar("company_id")
-    .references(() => companies.id),
+  clientId: varchar("client_id").references(() => clients.id),
+  companyId: varchar("company_id").references(() => companies.id),
   title: text("title"),
   funnelId: varchar("funnel_id")
     .references(() => salesFunnels.id)
@@ -183,12 +181,31 @@ export const companyProducts = pgTable("company_products", {
   productId: varchar("product_id")
     .references(() => products.id, { onDelete: "cascade" })
     .notNull(),
-  customNegotiatedPrice: decimal("custom_negotiated_price", { precision: 10, scale: 2 }), // Preço negociado específico para esta empresa
+  customNegotiatedPrice: decimal("custom_negotiated_price", {
+    precision: 10,
+    scale: 2,
+  }), // Preço negociado específico para esta empresa
   isActive: text("is_active").notNull().default("true"),
   addedAt: timestamp("added_at").defaultNow().notNull(),
   addedBy: varchar("added_by")
     .references(() => users.id)
     .notNull(),
+});
+
+export const serviceChannels = pgTable("service_channels", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  phoneNumber: text("phone_number"),
+});
+
+export const userServiceChannel = pgTable("user_service_channel", {
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  serviceChannelId: text("service_channel_id").references(
+    () => serviceChannels.id,
+  ),
 });
 
 // Relações entre tabelas
@@ -248,20 +265,23 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
   companyProducts: many(companyProducts),
 }));
 
-export const companyProductsRelations = relations(companyProducts, ({ one }) => ({
-  company: one(companies, {
-    fields: [companyProducts.companyId],
-    references: [companies.id],
+export const companyProductsRelations = relations(
+  companyProducts,
+  ({ one }) => ({
+    company: one(companies, {
+      fields: [companyProducts.companyId],
+      references: [companies.id],
+    }),
+    product: one(products, {
+      fields: [companyProducts.productId],
+      references: [products.id],
+    }),
+    addedByUser: one(users, {
+      fields: [companyProducts.addedBy],
+      references: [users.id],
+    }),
   }),
-  product: one(products, {
-    fields: [companyProducts.productId],
-    references: [products.id],
-  }),
-  addedByUser: one(users, {
-    fields: [companyProducts.addedBy],
-    references: [users.id],
-  }),
-}));
+);
 
 export const dealsRelations = relations(deals, ({ one }) => ({
   client: one(clients, {
@@ -633,31 +653,37 @@ export const insertCompanySchema = createInsertSchema(companies).omit({
   updatedAt: true,
 });
 
-export const insertDealSchema = createInsertSchema(deals).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  title: z.string().optional(),
-}).refine(
-  (data) => {
-    // Pelo menos um de clientId ou companyId deve estar presente
-    return !!(data.clientId || data.companyId);
-  },
-  {
-    message: "Cliente ou empresa é obrigatório",
-    path: ["clientId"],
-  }
-);
+export const insertDealSchema = createInsertSchema(deals)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    title: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Pelo menos um de clientId ou companyId deve estar presente
+      return !!(data.clientId || data.companyId);
+    },
+    {
+      message: "Cliente ou empresa é obrigatório",
+      path: ["clientId"],
+    },
+  );
 
 // Schema para atualizações - sem validação restritiva
-export const updateDealSchema = createInsertSchema(deals).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  title: z.string().optional(),
-}).partial();
+export const updateDealSchema = createInsertSchema(deals)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    title: z.string().optional(),
+  })
+  .partial();
 
 export const insertBirthdayReminderSchema = createInsertSchema(
   birthdayReminders,
@@ -769,8 +795,9 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   updatedAt: true,
 });
 
-
-export const insertCompanyProductSchema = createInsertSchema(companyProducts).omit({
+export const insertCompanyProductSchema = createInsertSchema(
+  companyProducts,
+).omit({
   id: true,
   addedAt: true,
 });
@@ -1167,7 +1194,7 @@ export const insertClientDebtSchema = createInsertSchema(clientDebts).omit({
   createdAt: true,
 });
 
-export const sales = pgTable('sales', {
+export const sales = pgTable("sales", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
@@ -1176,9 +1203,13 @@ export const sales = pgTable('sales', {
     .notNull(),
   date: timestamp("date").notNull(),
   grossValue: decimal("gross_value", { precision: 12, scale: 2 }).notNull(),
-  cashbackUsed: decimal("cashback_used", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  cashbackUsed: decimal("cashback_used", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0.00"),
   netValue: decimal("net_value", { precision: 12, scale: 2 }).notNull(),
-  cashbackGenerated: decimal("cashback_generated", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  cashbackGenerated: decimal("cashback_generated", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0.00"),
   notes: text("notes"),
   invoiceNumber: varchar("invoice_number", { length: 50 }),
   userId: varchar("user_id").references(() => users.id),
@@ -1191,16 +1222,31 @@ export const products = pgTable("products", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  country: text("country", { 
-    enum: ["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"] 
+  country: text("country", {
+    enum: [
+      "CHILE",
+      "ARGENTINA",
+      "URUGUAI",
+      "BRASIL",
+      "EUA",
+      "FRANÇA",
+      "ITÁLIA",
+      "PORTUGAL",
+      "ESPANHA",
+      "ALEMANHA",
+      "OUTROS",
+    ],
   }).notNull(),
-  volume: text("volume", { 
-    enum: ["187ml", "375ml", "750ml", "1500ml"] 
+  volume: text("volume", {
+    enum: ["187ml", "375ml", "750ml", "1500ml"],
   }).notNull(),
-  type: text("type", { 
-    enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] 
+  type: text("type", {
+    enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"],
   }).notNull(),
-  negotiatedPrice: decimal("negotiated_price", { precision: 10, scale: 2 }).notNull(),
+  negotiatedPrice: decimal("negotiated_price", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
