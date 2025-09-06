@@ -34,6 +34,9 @@ import {
   clientInteractions,
   clients,
   users,
+  serviceChannels,
+  userServiceChannel,
+  userServiceChannel,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -51,6 +54,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { db } from "./db";
 import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
+import { getChannels } from "./integrations/umbler";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -82,6 +86,73 @@ const s3 = new S3Client({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Umbler Integrations
+  app.get("/api/umbler/channels", async (req, res) => {
+    try {
+      const channels = await db.select().from(serviceChannels);
+
+      res.json(channels);
+    } catch (error) {
+      console.error("Erro ao buscar canais:", error);
+      res.status(500).json({ message: "Erro ao buscar canais" });
+    }
+  });
+
+  app.post("/api/users/channel", async (req, res) => {
+    try {
+      const { userId, serviceChannelId } = req.body;
+
+      if (!userId || !serviceChannelId) {
+        return res
+          .status(400)
+          .json({ message: "ID do usuário e canal são obrigatórios" });
+      }
+
+      const [serviceAlreadyAssigned] = await db
+        .select()
+        .from(userServiceChannel)
+        .where(
+          and(
+            eq(userServiceChannel.userId, userId),
+            eq(userServiceChannel.serviceChannelId, serviceChannelId),
+          ),
+        );
+
+      if (serviceAlreadyAssigned) {
+        await db
+          .update(userServiceChannel)
+          .set({
+            serviceChannelId: serviceChannelId,
+          })
+          .where(eq(userServiceChannel.id, serviceAlreadyAssigned.id));
+        return res.status(200).json({ message: "Canal vinculado com sucesso" });
+      }
+
+      const user = await db.select().from(users).where(eq(users.id, userId));
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const channel = await db
+        .select()
+        .from(serviceChannels)
+        .where(eq(serviceChannels.id, serviceChannelId));
+      if (!channel) {
+        return res.status(404).json({ message: "Canal não encontrado" });
+      }
+
+      await db.insert(userServiceChannel).values({
+        userId,
+        serviceChannelId: serviceChannelId,
+      });
+
+      res.status(200).json({ message: "Canal vinculado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao vincular canal:", error);
+      res.status(500).json({ message: "Erro ao vincular canal" });
+    }
+  });
+
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -164,8 +235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           or(
             like(clients.name, lowercasedQuery),
             like(clients.phone, lowercasedQuery),
-            like(clients.cpf, lowercasedQuery)
-          )
+            like(clients.cpf, lowercasedQuery),
+          ),
         );
       }
 
@@ -205,45 +276,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const criticosQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, thirtyDaysAgo)));
-      const altaQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, fourteenDaysAgo), gt(clients.createdAt, thirtyDaysAgo)));
-      const mediaQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, lte(clients.createdAt, sevenDaysAgo), gt(clients.createdAt, fourteenDaysAgo)));
-      const normalQuery = db.select({ count: count() }).from(clients).where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
+      const criticosQuery = db
+        .select({ count: count() })
+        .from(clients)
+        .where(and(finalConditions, lte(clients.createdAt, thirtyDaysAgo)));
+      const altaQuery = db
+        .select({ count: count() })
+        .from(clients)
+        .where(
+          and(
+            finalConditions,
+            lte(clients.createdAt, fourteenDaysAgo),
+            gt(clients.createdAt, thirtyDaysAgo),
+          ),
+        );
+      const mediaQuery = db
+        .select({ count: count() })
+        .from(clients)
+        .where(
+          and(
+            finalConditions,
+            lte(clients.createdAt, sevenDaysAgo),
+            gt(clients.createdAt, fourteenDaysAgo),
+          ),
+        );
+      const normalQuery = db
+        .select({ count: count() })
+        .from(clients)
+        .where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
 
       // 4. Queries para estatísticas gerais
-      let totalClientsInSystemQuery = db.select({ count: count() }).from(clients);
+      let totalClientsInSystemQuery = db
+        .select({ count: count() })
+        .from(clients);
       if (userRole !== "admin" && userRole !== "administrador") {
-        totalClientsInSystemQuery = totalClientsInSystemQuery.where(eq(clients.responsavelId, userId));
+        totalClientsInSystemQuery = totalClientsInSystemQuery.where(
+          eq(clients.responsavelId, userId),
+        );
       }
-      const totalInteracoesQuery = db.select({ count: count() }).from(clientInteractions);
+      const totalInteracoesQuery = db
+        .select({ count: count() })
+        .from(clientInteractions);
 
       // --- Execução das Queries em Paralelo ---
       const [
-          clientsToContactRaw,
-          totalPendentesResult,
-          criticosResult,
-          altaResult,
-          mediaResult,
-          normalResult,
-          totalClientsResult,
-          totalInteracoesResult,
+        clientsToContactRaw,
+        totalPendentesResult,
+        criticosResult,
+        altaResult,
+        mediaResult,
+        normalResult,
+        totalClientsResult,
+        totalInteracoesResult,
       ] = await Promise.all([
-          clientsQuery,
-          totalPendentesQuery,
-          criticosQuery,
-          altaQuery,
-          mediaQuery,
-          normalQuery,
-          totalClientsInSystemQuery,
-          totalInteracoesQuery,
+        clientsQuery,
+        totalPendentesQuery,
+        criticosQuery,
+        altaQuery,
+        mediaQuery,
+        normalQuery,
+        totalClientsInSystemQuery,
+        totalInteracoesQuery,
       ]);
 
       // --- Processamento e Resposta ---
       const today = new Date();
-      const clientsToContact = clientsToContactRaw.map(client => {
-          const createdDate = new Date(client.createdAt);
-          const daysSinceCreated = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-          return { ...client, daysSinceCreated, responsavelName: client.responsavelName || "Não definido" };
+      const clientsToContact = clientsToContactRaw.map((client) => {
+        const createdDate = new Date(client.createdAt);
+        const daysSinceCreated = Math.floor(
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return {
+          ...client,
+          daysSinceCreated,
+          responsavelName: client.responsavelName || "Não definido",
+        };
       });
 
       const totalPendentes = totalPendentesResult[0].count;
@@ -256,9 +363,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         alta: altaResult[0].count,
         media: mediaResult[0].count,
         normal: normalResult[0].count,
-        produtividade: totalClientes > 0 ? Math.round(((totalClientes - totalPendentes) / totalClientes) * 100) : 100,
+        produtividade:
+          totalClientes > 0
+            ? Math.round(
+                ((totalClientes - totalPendentes) / totalClientes) * 100,
+              )
+            : 100,
         totalInteracoes,
-        mediaInteracoes: totalClientes > 0 ? (totalInteracoes / totalClientes).toFixed(1) : "0",
+        mediaInteracoes:
+          totalClientes > 0
+            ? (totalInteracoes / totalClientes).toFixed(1)
+            : "0",
       };
 
       res.json({
@@ -271,10 +386,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalItems: totalPendentes,
         },
       });
-
     } catch (error) {
       console.error("Erro ao buscar dados de acompanhamento:", error);
-      res.status(500).json({ message: "Erro ao buscar dados de acompanhamento" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar dados de acompanhamento" });
     }
   });
 
@@ -333,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentPage: page,
         hasNextPage: clients.length === pageSize,
         totalPages: clients.length === pageSize ? page + 1 : page,
-        totalItems: null // Será implementado depois
+        totalItems: null, // Será implementado depois
       });
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
@@ -401,7 +517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (userRole !== "admin" && userRole !== "administrador") {
         return res.status(403).json({
-          message: "Acesso negado. Apenas administradores podem exportar todos os dados."
+          message:
+            "Acesso negado. Apenas administradores podem exportar todos os dados.",
         });
       }
 
@@ -456,8 +573,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verificar se é erro de telefone duplicado (abordagem simples)
       if (error && error.toString().includes("clients_phone_unique")) {
-        return res.status(400).json({ 
-          message: "Este número de telefone já está cadastrado para outro cliente." 
+        return res.status(400).json({
+          message:
+            "Este número de telefone já está cadastrado para outro cliente.",
         });
       }
 
@@ -499,8 +617,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verificar se é erro de telefone duplicado (abordagem simples)
       if (error && error.toString().includes("clients_phone_unique")) {
-        return res.status(400).json({ 
-          message: "Este número de telefone já está cadastrado para outro cliente." 
+        return res.status(400).json({
+          message:
+            "Este número de telefone já está cadastrado para outro cliente.",
         });
       }
 
@@ -564,7 +683,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Company routes
   app.get("/api/companies", async (req, res) => {
     try {
-      const { userId, userRole, search, nomeFantasia, razaoSocial, cnpj, responsavelId } = req.query;
+      const {
+        userId,
+        userRole,
+        search,
+        nomeFantasia,
+        razaoSocial,
+        cnpj,
+        responsavelId,
+      } = req.query;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 20;
 
@@ -752,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deals = await storage.getDealsWithClients(
         funnelId as string,
         userId as string,
-        userRole as string
+        userRole as string,
       );
       res.json(deals);
     } catch (error) {
@@ -805,10 +932,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validatedData.title) {
         if (validatedData.clientId) {
           const client = await storage.getClient(validatedData.clientId);
-          validatedData.title = client ? `Negócio - ${client.name}` : "Novo Negócio";
+          validatedData.title = client
+            ? `Negócio - ${client.name}`
+            : "Novo Negócio";
         } else if (validatedData.companyId) {
           const company = await storage.getCompany(validatedData.companyId);
-          validatedData.title = company ? `Negócio - ${company.nomeFantasia || company.razaoSocial}` : "Novo Negócio";
+          validatedData.title = company
+            ? `Negócio - ${company.nomeFantasia || company.razaoSocial}`
+            : "Novo Negócio";
         } else {
           validatedData.title = "Novo Negócio";
         }
@@ -829,9 +960,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk deal creation
   app.post("/api/deals/bulk", async (req, res) => {
     try {
-      console.log("=== BULK DEALS - BODY COMPLETO ===", JSON.stringify(req.body, null, 2));
-      const { companies, funnelId, stageId, value, assignedTo, notes, title } = req.body;
-      
+      console.log(
+        "=== BULK DEALS - BODY COMPLETO ===",
+        JSON.stringify(req.body, null, 2),
+      );
+      const { companies, funnelId, stageId, value, assignedTo, notes, title } =
+        req.body;
+
       console.log("=== BULK DEALS - DADOS EXTRAIDOS ===", {
         companies: companies?.length,
         funnelId,
@@ -839,9 +974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         value,
         assignedTo,
         notes,
-        title
+        title,
       });
-      
+
       if (!companies || !Array.isArray(companies) || companies.length === 0) {
         return res.status(400).json({ message: "Empresas são obrigatórias" });
       }
@@ -862,8 +997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          const dealTitle = title || `Negócio - ${company.nomeFantasia || company.razaoSocial}`;
-          
+          const dealTitle =
+            title || `Negócio - ${company.nomeFantasia || company.razaoSocial}`;
+
           const dealData = {
             companyId,
             funnelId,
@@ -879,14 +1015,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const deal = await storage.createDeal(validatedData);
           deals.push(deal);
         } catch (error) {
-          errors.push(`Erro ao criar negócio para empresa ${companyId}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+          errors.push(
+            `Erro ao criar negócio para empresa ${companyId}: ${
+              error instanceof Error ? error.message : "Erro desconhecido"
+            }`,
+          );
         }
       }
 
       if (deals.length === 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Nenhum negócio foi criado",
-          errors 
+          errors,
         });
       }
 
@@ -895,7 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         created: deals.length,
         total: companies.length,
         deals,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {
       console.error("Erro na criação de negócios em lote:", error);
@@ -988,11 +1128,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se um responsibleId específico for passado, usar esse
       // Se não, e o usuário não for admin, filtrar pelos clientes do usuário atual
       let filterByResponsible = responsibleId;
-      if (!filterByResponsible && userRole !== "admin" && userRole !== "administrador") {
+      if (
+        !filterByResponsible &&
+        userRole !== "admin" &&
+        userRole !== "administrador"
+      ) {
         filterByResponsible = userId;
       }
 
-      const upcomingBirthdays = await storage.getUpcomingBirthdays(days, filterByResponsible);
+      const upcomingBirthdays = await storage.getUpcomingBirthdays(
+        days,
+        filterByResponsible,
+      );
       res.json(upcomingBirthdays);
     } catch (error) {
       console.error("Erro ao buscar aniversários próximos:", error);
@@ -1294,48 +1441,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sales routes
-  app.get('/api/sales', async (req, res) => {
+  app.get("/api/sales", async (req, res) => {
     try {
       const sales = await storage.getSales();
       res.json(sales);
     } catch (error) {
-      console.error('Erro ao buscar vendas:', error);
-      res.status(500).json({ message: 'Erro ao buscar vendas' });
+      console.error("Erro ao buscar vendas:", error);
+      res.status(500).json({ message: "Erro ao buscar vendas" });
     }
   });
 
   // Relatórios de cashback dos últimos 30 dias
-  app.get('/api/cashback-reports/30-days', async (req, res) => {
+  app.get("/api/cashback-reports/30-days", async (req, res) => {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       // Buscar vendas dos últimos 30 dias
       const sales = await storage.getSales();
-      const recentSales = sales.filter(sale => new Date(sale.date) >= thirtyDaysAgo);
+      const recentSales = sales.filter(
+        (sale) => new Date(sale.date) >= thirtyDaysAgo,
+      );
 
       // Buscar transações de cashback dos últimos 30 dias
       const transactions = await storage.getCashbackTransactions();
-      const recentTransactions = transactions.filter(
-        (item: any) => {
-          const transaction = item.cashback_transactions || item;
-          return new Date(transaction.createdAt) >= thirtyDaysAgo && transaction.status === 'approved';
-        }
-      );
+      const recentTransactions = transactions.filter((item: any) => {
+        const transaction = item.cashback_transactions || item;
+        return (
+          new Date(transaction.createdAt) >= thirtyDaysAgo &&
+          transaction.status === "approved"
+        );
+      });
 
       // Buscar resgates dos últimos 30 dias
       const allUsage = await storage.getAllCashbackUsage();
-      const recentUsage = allUsage.filter(
-        (item: any) => {
-          const usage = item.cashback_usage || item;
-          return new Date(usage.createdAt) >= thirtyDaysAgo;
-        }
-      );
+      const recentUsage = allUsage.filter((item: any) => {
+        const usage = item.cashback_usage || item;
+        return new Date(usage.createdAt) >= thirtyDaysAgo;
+      });
 
       // Calcular totais
-      const totalSales = recentSales.reduce((sum, sale) => sum + parseFloat(sale.grossValue), 0);
-      const totalCashbackGenerated = recentSales.reduce((sum, sale) => sum + parseFloat(sale.cashbackGenerated), 0);
-      const totalCashbackUsed = recentSales.reduce((sum, sale) => sum + parseFloat(sale.cashbackUsed), 0);
+      const totalSales = recentSales.reduce(
+        (sum, sale) => sum + parseFloat(sale.grossValue),
+        0,
+      );
+      const totalCashbackGenerated = recentSales.reduce(
+        (sum, sale) => sum + parseFloat(sale.cashbackGenerated),
+        0,
+      );
+      const totalCashbackUsed = recentSales.reduce(
+        (sum, sale) => sum + parseFloat(sale.cashbackUsed),
+        0,
+      );
       const totalCashbackRedeemed = recentUsage.reduce((sum, item) => {
         const usage = item.cashback_usage || item;
         return sum + parseFloat(usage.usedAmount || 0);
@@ -1347,25 +1504,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalCashbackUsed,
         totalCashbackRedeemed,
         salesCount: recentSales.length,
-        period: '30 days'
+        period: "30 days",
       });
     } catch (error) {
-      console.error('Erro ao buscar relatórios de cashback:', error);
-      res.status(500).json({ message: 'Erro ao buscar relatórios de cashback' });
+      console.error("Erro ao buscar relatórios de cashback:", error);
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar relatórios de cashback" });
     }
   });
 
-  app.post('/api/sales', async (req, res) => {
+  app.post("/api/sales", async (req, res) => {
     try {
-      const { clientId, date, grossValue, notes, invoiceNumber, userId, useCashback = true } = req.body;
+      const {
+        clientId,
+        date,
+        grossValue,
+        notes,
+        invoiceNumber,
+        userId,
+        useCashback = true,
+      } = req.body;
 
       if (!clientId || !date || !grossValue) {
-        return res.status(400).json({ message: 'Campos obrigatórios: clientId, date, grossValue' });
+        return res
+          .status(400)
+          .json({ message: "Campos obrigatórios: clientId, date, grossValue" });
       }
 
       // Buscar saldo atual de cashback do cliente
       const clientBalance = await storage.getClientCashbackBalance(clientId);
-      const currentBalance = clientBalance ? parseFloat(clientBalance.currentBalance) : 0;
+      const currentBalance = clientBalance
+        ? parseFloat(clientBalance.currentBalance)
+        : 0;
 
       // Buscar configuração ativa de cashback
       const settings = await storage.getCashbackSettings();
@@ -1386,7 +1557,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calcular cashback usando a configuração ativa
       let cashbackGenerated = 0;
       if (activeSetting) {
-        const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
+        const minimumPurchase = parseFloat(
+          activeSetting.minimumPurchase || "0",
+        );
         if (netValue >= minimumPurchase) {
           const rate = parseFloat(activeSetting.percentageRate) / 100;
           cashbackGenerated = netValue * rate;
@@ -1410,26 +1583,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes,
         invoiceNumber,
         userId,
-        useCashback
+        useCashback,
       });
 
       // O saldo de cashback será atualizado automaticamente pelo createSale
 
       res.status(201).json(sale);
     } catch (error) {
-      console.error('Erro ao criar venda:', error);
-      res.status(500).json({ message: 'Erro ao criar venda' });
+      console.error("Erro ao criar venda:", error);
+      res.status(500).json({ message: "Erro ao criar venda" });
     }
   });
 
-  app.delete('/api/sales/:id', async (req, res) => {
+  app.delete("/api/sales/:id", async (req, res) => {
     try {
       // Verificar se o usuário é administrador
       const userRole = req.headers["x-user-role"] as string;
 
       if (userRole !== "admin" && userRole !== "administrador") {
         return res.status(403).json({
-          message: "Acesso negado. Apenas administradores podem excluir vendas.",
+          message:
+            "Acesso negado. Apenas administradores podem excluir vendas.",
         });
       }
 
@@ -1442,8 +1616,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ message: "Venda excluída com sucesso" });
     } catch (error) {
-      console.error('Erro ao excluir venda:', error);
-      res.status(500).json({ message: 'Erro ao excluir venda' });
+      console.error("Erro ao excluir venda:", error);
+      res.status(500).json({ message: "Erro ao excluir venda" });
     }
   });
 
@@ -2497,13 +2671,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!direction || !type) {
         return res.status(400).json({
-          message: "direction ('up' ou 'down') e type são obrigatórios"
+          message: "direction ('up' ou 'down') e type são obrigatórios",
         });
       }
 
-      if (direction !== 'up' && direction !== 'down') {
+      if (direction !== "up" && direction !== "down") {
         return res.status(400).json({
-          message: "direction deve ser 'up' ou 'down'"
+          message: "direction deve ser 'up' ou 'down'",
         });
       }
 
@@ -2515,7 +2689,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(training);
     } catch (error) {
       console.error("Erro ao atualizar ordem do treinamento:", error);
-      res.status(500).json({ message: "Erro ao atualizar ordem do treinamento" });
+      res
+        .status(500)
+        .json({ message: "Erro ao atualizar ordem do treinamento" });
     }
   });
 
@@ -2763,64 +2939,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Remove product from company wine list
-  app.delete("/api/companies/:companyId/products/:productId", async (req, res) => {
-    const { companyId, productId } = req.params;
+  app.delete(
+    "/api/companies/:companyId/products/:productId",
+    async (req, res) => {
+      const { companyId, productId } = req.params;
 
-    try {
-      await storage.removeProductFromCompany(companyId, productId);
-      res.json({ message: "Product removed from company wine list" });
-    } catch (error) {
-      console.error("Error removing product from company:", error);
-      res.status(500).json({ error: "Failed to remove product from company" });
-    }
-  });
+      try {
+        await storage.removeProductFromCompany(companyId, productId);
+        res.json({ message: "Product removed from company wine list" });
+      } catch (error) {
+        console.error("Error removing product from company:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to remove product from company" });
+      }
+    },
+  );
 
   // Update custom negotiated price for company product
-  app.put("/api/companies/:companyId/products/:productId/price", async (req, res) => {
-    try {
-      const { companyId, productId } = req.params;
-      const { customPrice } = req.body;
+  app.put(
+    "/api/companies/:companyId/products/:productId/price",
+    async (req, res) => {
+      try {
+        const { companyId, productId } = req.params;
+        const { customPrice } = req.body;
 
-      console.log("Atualizando preço:", { companyId, productId, customPrice });
+        console.log("Atualizando preço:", {
+          companyId,
+          productId,
+          customPrice,
+        });
 
-      if (!companyId || !productId) {
-        return res.status(400).json({ message: "CompanyId e ProductId são obrigatórios" });
+        if (!companyId || !productId) {
+          return res
+            .status(400)
+            .json({ message: "CompanyId e ProductId são obrigatórios" });
+        }
+
+        if (
+          !customPrice ||
+          customPrice === "" ||
+          isNaN(parseFloat(customPrice))
+        ) {
+          return res.status(400).json({ message: "Preço inválido" });
+        }
+
+        const numericPrice = parseFloat(customPrice);
+        if (numericPrice < 0) {
+          return res
+            .status(400)
+            .json({ message: "Preço não pode ser negativo" });
+        }
+
+        const result = await storage.updateCompanyProductPrice(
+          companyId,
+          productId,
+          numericPrice.toString(),
+        );
+
+        if (!result) {
+          return res
+            .status(404)
+            .json({ message: "Produto não encontrado na carta da empresa" });
+        }
+
+        console.log("Preço atualizado com sucesso:", result);
+        res.json({ message: "Preço atualizado com sucesso", data: result });
+      } catch (error) {
+        console.error("Erro ao atualizar preço customizado:", error);
+        res.status(500).json({ message: "Erro interno do servidor" });
       }
-
-      if (!customPrice || customPrice === "" || isNaN(parseFloat(customPrice))) {
-        return res.status(400).json({ message: "Preço inválido" });
-      }
-
-      const numericPrice = parseFloat(customPrice);
-      if (numericPrice < 0) {
-        return res.status(400).json({ message: "Preço não pode ser negativo" });
-      }
-
-      const result = await storage.updateCompanyProductPrice(companyId, productId, numericPrice.toString());
-
-      if (!result) {
-        return res.status(404).json({ message: "Produto não encontrado na carta da empresa" });
-      }
-
-      console.log("Preço atualizado com sucesso:", result);
-      res.json({ message: "Preço atualizado com sucesso", data: result });
-    } catch (error) {
-      console.error("Erro ao atualizar preço customizado:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
-    }
-  });
+    },
+  );
 
   // Get companies that have a specific product
   app.get("/api/products/:productId/companies", async (req, res) => {
     try {
       const { productId } = req.params;
       console.log(`API: Fetching companies for product ${productId}`);
-      const companiesWithProduct = await storage.getCompaniesWithProduct(productId);
-      console.log(`API: Found ${companiesWithProduct.length} companies for product ${productId}`);
+      const companiesWithProduct =
+        await storage.getCompaniesWithProduct(productId);
+      console.log(
+        `API: Found ${companiesWithProduct.length} companies for product ${productId}`,
+      );
       res.json(companiesWithProduct);
     } catch (error) {
       console.error("Error fetching companies with product:", error);
-      res.status(500).json({ message: "Erro ao buscar empresas com o produto" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar empresas com o produto" });
     }
   });
 
@@ -2830,13 +3037,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Fetching products statistics...");
       const statistics = await storage.getProductsStatistics();
       console.log("Statistics fetched:", {
-        topCompaniesByProductsCount: statistics.topCompaniesByProducts?.length || 0,
-        topProductsByCompaniesCount: statistics.topProductsByCompanies?.length || 0
+        topCompaniesByProductsCount:
+          statistics.topCompaniesByProducts?.length || 0,
+        topProductsByCompaniesCount:
+          statistics.topProductsByCompanies?.length || 0,
       });
       res.json(statistics);
     } catch (error) {
       console.error("Error fetching products statistics:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de produtos" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de produtos" });
     }
   });
 
