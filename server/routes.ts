@@ -36,7 +36,6 @@ import {
   users,
   serviceChannels,
   userServiceChannel,
-  userServiceChannel,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -54,7 +53,13 @@ import {
 } from "@aws-sdk/client-s3";
 import { db } from "./db";
 import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
-import { getChannels } from "./integrations/umbler";
+import {
+  createContactSchema,
+  getChannels,
+  getChat,
+  getContactByPhone,
+  syncContact,
+} from "./integrations/umbler";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -98,6 +103,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/umbler/contacts/:phone", async (req, res) => {
+    try {
+      const { phone } = req.params as { phone: string };
+      const contact = await getContactByPhone(phone);
+
+      if (!contact) {
+        return res.status(404).json({ message: "Contato não encontrado" });
+      }
+
+      res.json(contact);
+    } catch (error) {
+      console.error("Erro ao buscar contato:", error);
+      res.status(500).json({ message: "Erro ao buscar contato" });
+    }
+  });
+
+  app.get("/api/umbler/chats", async (req, res) => {
+    try {
+      const { customerPhone, selectedChannel } = req.query as {
+        customerPhone: string;
+        selectedChannel: string;
+      };
+
+      const chats = await getChat({ customerPhone, selectedChannel });
+
+      if (!chats) {
+        return res.status(404).json({ message: "Chat não encontrado" });
+      }
+
+      res.json(chats);
+    } catch (error) {
+      console.error("Erro ao buscar chats:", error);
+      res.status(500).json({ message: "Erro ao buscar chats" });
+    }
+  });
+
   app.post("/api/users/channel", async (req, res) => {
     try {
       const { userId, serviceChannelId } = req.body;
@@ -105,51 +146,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId || !serviceChannelId) {
         return res
           .status(400)
-          .json({ message: "ID do usuário e canal são obrigatórios" });
+          .json({ message: "ID do usuário e ID do canal são obrigatórios" });
       }
 
-      const [serviceAlreadyAssigned] = await db
-        .select()
-        .from(userServiceChannel)
-        .where(
-          and(
-            eq(userServiceChannel.userId, userId),
-            eq(userServiceChannel.serviceChannelId, serviceChannelId),
-          ),
-        );
-
-      if (serviceAlreadyAssigned) {
-        await db
-          .update(userServiceChannel)
-          .set({
-            serviceChannelId: serviceChannelId,
-          })
-          .where(eq(userServiceChannel.id, serviceAlreadyAssigned.id));
-        return res.status(200).json({ message: "Canal vinculado com sucesso" });
-      }
-
-      const user = await db.select().from(users).where(eq(users.id, userId));
-      if (!user) {
+      // Verificar se o usuário e o canal existem
+      const userExists = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (userExists.length === 0) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
 
-      const channel = await db
-        .select()
+      const channelExists = await db
+        .select({ id: serviceChannels.id })
         .from(serviceChannels)
         .where(eq(serviceChannels.id, serviceChannelId));
-      if (!channel) {
-        return res.status(404).json({ message: "Canal não encontrado" });
+      if (channelExists.length === 0) {
+        return res
+          .status(404)
+          .json({ message: "Canal de serviço não encontrado" });
       }
 
-      await db.insert(userServiceChannel).values({
-        userId,
-        serviceChannelId: serviceChannelId,
-      });
+      // Verificar se já existe uma vinculação para este usuário
+      const [existingLink] = await db
+        .select()
+        .from(userServiceChannel)
+        .where(eq(userServiceChannel.userId, userId));
 
-      res.status(200).json({ message: "Canal vinculado com sucesso" });
+      if (existingLink) {
+        // Se já existe, apenas atualiza o canal
+        await db
+          .update(userServiceChannel)
+          .set({ serviceChannelId: serviceChannelId })
+          .where(eq(userServiceChannel.userId, userId));
+
+        res
+          .status(200)
+          .json({ message: "Canal do usuário atualizado com sucesso" });
+      } else {
+        // Se não existe, cria uma nova vinculação
+        await db.insert(userServiceChannel).values({
+          userId,
+          serviceChannelId,
+        });
+
+        res
+          .status(200)
+          .json({ message: "Canal vinculado ao usuário com sucesso" });
+      }
     } catch (error) {
-      console.error("Erro ao vincular canal:", error);
-      res.status(500).json({ message: "Erro ao vincular canal" });
+      console.error("Erro ao vincular/atualizar canal do usuário:", error);
+      res
+        .status(500)
+        .json({ message: "Erro interno ao processar a solicitação" });
+    }
+  });
+
+  app.post("/api/umbler/contacts/create", async (req, res) => {
+    try {
+      const validatedData = createContactSchema.parse(req.body);
+      const contact = await syncContact(validatedData);
+
+      if (!contact) {
+        return res.status(400).json({ message: "Erro ao sincronizar contato" });
+      }
+
+      res.status(200).json({ message: "Contato sincronizado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao sincronizar contato:", error);
+      res.status(500).json({ message: "Erro ao sincronizar contato" });
     }
   });
 
@@ -189,6 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: user.name,
         email: user.email,
         role: user.role,
+        serviceChannelId: user
       };
 
       console.log("Login bem-sucedido para:", userWithoutPassword);

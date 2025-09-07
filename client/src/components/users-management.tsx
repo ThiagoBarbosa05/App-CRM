@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -47,11 +47,20 @@ export default function UsersManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showLinkChannelModal, setShowLinkChannelModal] = useState(false);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [userToLinkChannel, setUserToLinkChannel] = useState<UserType | null>(
     null
   );
   const { toast } = useToast();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchTerm]);
 
   const {
     data: users = [],
@@ -62,13 +71,13 @@ export default function UsersManagement() {
   });
 
   const filteredUsers = useMemo(() => {
-    if (!searchTerm) return users;
+    if (!debouncedSearchTerm) return users;
     return (users || []).filter(
       (user: UserType) =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        user.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     );
-  }, [users, searchTerm]);
+  }, [users, debouncedSearchTerm]);
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -253,15 +262,20 @@ export default function UsersManagement() {
                   <div className="flex items-center self-end sm:self-center space-x-1">
                     <Button
                       title="Vincular Canal Umbler"
+                      className="border-none bg-green-100 hover:bg-green-200"
                       onClick={() => {
                         setUserToLinkChannel(user);
-                        setShowLinkChannelModal(true);
                       }}
-                      variant="ghost"
                       type="button"
-                      size="icon"
+                      size="sm"
+                      variant={"outline"}
                     >
                       <FaWhatsapp className="h-4 text-green-600 w-4" />
+                      <span>
+                        {user.serviceChannel
+                          ? user.serviceChannel.name
+                          : "Vincular Canal"}
+                      </span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -329,8 +343,8 @@ export default function UsersManagement() {
       {userToLinkChannel && (
         <LinkChannelModal
           user={userToLinkChannel}
-          open={showLinkChannelModal}
-          onOpenChange={setShowLinkChannelModal}
+          open={!!userToLinkChannel}
+          onOpenChange={(open) => !open && setUserToLinkChannel(null)}
         />
       )}
 

@@ -49,10 +49,7 @@ export default function Clients() {
     setCurrentPage(1);
   }, []);
 
-  const {
-    data: clientsResponse,
-    isFetching,
-  } = useQuery({
+  const { data: clientsResponse, isFetching } = useQuery({
     queryKey: [
       "/api/clients",
       user?.id,
@@ -89,12 +86,13 @@ export default function Clients() {
   });
 
   // Extrair dados da resposta
-  const clientsArray = Array.isArray(clientsResponse) 
-    ? clientsResponse 
+  const clientsArray = Array.isArray(clientsResponse)
+    ? clientsResponse
     : clientsResponse?.data || [];
   const totalPages = clientsResponse?.totalPages || null;
   const totalItems = clientsResponse?.totalItems || null;
-  const hasNextPage = clientsResponse?.hasNextPage || (clientsArray.length === itemsPerPage);
+  const hasNextPage =
+    clientsResponse?.hasNextPage || clientsArray.length === itemsPerPage;
 
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
@@ -112,7 +110,7 @@ export default function Clients() {
       setSelectedClientIds(selectedIds);
       setSelectedClients(selectedClientsData);
     },
-    [],
+    []
   );
 
   return (
@@ -213,7 +211,7 @@ export default function Clients() {
               </span>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg relative">
             <ClientsTableWithSelection
               clients={clientsArray}

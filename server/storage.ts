@@ -84,6 +84,8 @@ import {
   companyProducts,
   type InsertCompanyProduct,
   type CompanyProduct,
+  serviceChannels,
+  userServiceChannel,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -104,6 +106,7 @@ import {
   notInArray,
   ne,
   gt,
+  like,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -135,7 +138,7 @@ export interface ProductFilters {
 
 export interface IStorage {
   // Users
-  getUsers(): Promise<User[]>;
+  getUsers(): Promise<any[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -445,7 +448,9 @@ export interface IStorage {
 
   // Client Funnels methods
   getClientFunnels(clientId: string): Promise<SalesFunnel[]>;
-  getCompanyInteractions(companyId: string): Promise<ClientInteractionWithUser[]>;
+  getCompanyInteractions(
+    companyId: string
+  ): Promise<ClientInteractionWithUser[]>;
   getCompanyFunnels(companyId: string): Promise<SalesFunnel[]>;
 
   // Sales Methods
@@ -492,8 +497,31 @@ export class DatabaseStorage implements IStorage {
   private db = db;
 
   // User methods
-  async getUsers(): Promise<User[]> {
-    const result = await this.db.select().from(users).orderBy(users.createdAt);
+  async getUsers(): Promise<any[]> {
+    const result = await this.db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        password: users.password,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        serviceChannel: {
+          id: serviceChannels.id,
+          name: serviceChannels.name,
+          phoneNumber: serviceChannels.phoneNumber,
+        },
+      })
+      .from(users)
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+      .leftJoin(
+        serviceChannels,
+        eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+      )
+      .orderBy(users.createdAt);
+
     return result.reverse();
   }
 
@@ -502,11 +530,27 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<any | undefined> {
     const [user] = await this.db
-      .select()
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        password: users.password,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        serviceChannel: {
+          id: serviceChannels.id,
+          name: serviceChannels.name,
+          phoneNumber: serviceChannels.phoneNumber,
+        }
+      })
       .from(users)
-      .where(eq(users.email, email));
+      .where(eq(users.email, email))
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId));
+    
     return user || undefined;
   }
 
@@ -1148,7 +1192,7 @@ export class DatabaseStorage implements IStorage {
     userRole?: string
   ): Promise<DealWithClient[]> {
     const dealsWithClients: DealWithClient[] = [];
-    
+
     // Usar o método getDeals que já funciona
     const dealsResult = await this.getDeals(funnelId, userId, userRole);
 
@@ -3605,7 +3649,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get interactions for a company (through company deals and interactions)
-  async getCompanyInteractions(companyId: string): Promise<ClientInteractionWithUser[]> {
+  async getCompanyInteractions(
+    companyId: string
+  ): Promise<ClientInteractionWithUser[]> {
     // First, get all deals for this company
     const companyDeals = await this.db
       .select({ clientId: deals.clientId })
@@ -3617,7 +3663,9 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get unique client IDs
-    const clientIds = [...new Set(companyDeals.map(deal => deal.clientId).filter(Boolean))];
+    const clientIds = [
+      ...new Set(companyDeals.map((deal) => deal.clientId).filter(Boolean)),
+    ];
 
     if (clientIds.length === 0) {
       return [];

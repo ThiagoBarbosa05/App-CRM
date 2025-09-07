@@ -33,14 +33,20 @@ import {
   Wallet,
   MessageSquare,
   Edit,
+  RefreshCw,
+  Check,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { type Client, ClientCashbackBalance } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import ClientInteractionsTab from "./client-interactions-tab";
 import DealFormModal from "./deal-form-modal";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -58,11 +64,15 @@ export default function ClientDetailsModal({
   const [showCreateDealModal, setShowCreateDealModal] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
 
+  const { user } = useAuth();
+
   // Query para buscar saldo de cashback - deve estar sempre no topo, antes de qualquer return
   const { data: cashbackBalance } = useQuery<ClientCashbackBalance>({
     queryKey: [`/api/cashback-balances/${client?.id}`],
     enabled: !!client?.id && isOpen,
   });
+
+  console.log(user)
 
   // Query para buscar funis específicos do cliente
   const { data: clientFunnels = [] } = useQuery({
@@ -72,10 +82,72 @@ export default function ClientDetailsModal({
 
   // Query para buscar todos os funis disponíveis
   const { data: allFunnels = [] } = useQuery({
-    queryKey: ['/api/funnels'],
+    queryKey: ["/api/funnels"],
     enabled: !!client?.id && isOpen,
   });
 
+  const { data: umblerContact } = useQuery({
+    queryKey: [`/api/umbler/contacts/${client?.phone}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/umbler/contacts/${client?.phone}`);
+      if (!response.ok) throw new Error("Failed to fetch umbler contacts");
+      return response.json();
+    },
+
+    enabled: !!client?.phone && isOpen,
+  });
+
+  const { data: contactChat } = useQuery({
+    queryKey: [`/api/umbler/chats/${client?.phone}`],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${umblerContact?.channelId}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch umbler chats");
+      return response.json();
+    },
+    enabled: !!client?.phone && isOpen,
+  });
+
+  console.log("contactChat", contactChat);
+
+  const syncCustomer = useMutation({
+    mutationFn: async (customerData: {
+      phoneNumber: string;
+      name?: string;
+      email?: string;
+      organizationId: string;
+    }) => {
+      const response = await fetch(`/api/umbler/contacts/create`, {
+        method: "POST",
+        body: JSON.stringify(customerData),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update customer");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cliente sincronizado com sucesso",
+        description: "O cliente foi sincronizado com o Umbler Talk",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/umbler/contacts"],
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao sincronizar cliente",
+        description: "Não foi possível sincronizar o cliente com o Umbler Talk",
+      });
+    },
+  });
 
   // Função para formatar moeda
   const formatCurrency = (value: string | number) => {
@@ -271,6 +343,51 @@ export default function ClientDetailsModal({
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FaWhatsapp className="h-4 w-4" />
+                  WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {umblerContact ? (
+                  <Badge
+                    className="bg-green-100 border-green-200 py-1"
+                    variant="outline"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Sincronizado
+                  </Badge>
+                ) : (
+                  <Button
+                    size={"sm"}
+                    variant={"outline"}
+                    disabled={syncCustomer.isPending}
+                    onClick={() => {
+                      syncCustomer.mutate({
+                        phoneNumber: client.phone,
+                        organizationId: "aGx7Jh43-au36EGi",
+                        name: client.name,
+                        email: client.email!,
+                      });
+                    }}
+                    className="bg-green-100 border-green-200 hover:bg-green-200"
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "h-4 w-4",
+                        syncCustomer.isPending && "animate-spin",
+                      )}
+                    />
+                    {syncCustomer.isPending
+                      ? "Sincronizando..."
+                      : "Sincronizar"}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Endereço */}
             {(client.address || client.cep) && (
               <Card>
@@ -452,9 +569,9 @@ export default function ClientDetailsModal({
                 <CardContent>
                   <div className="space-y-3">
                     {clientFunnels.map((funnel: any) => (
-                      <Button 
+                      <Button
                         key={funnel.id}
-                        variant="default" 
+                        variant="default"
                         className="w-full justify-start h-auto p-4"
                         onClick={() => handleCreateDeal(funnel.id)}
                       >
@@ -463,9 +580,13 @@ export default function ClientDetailsModal({
                           <div className="text-left">
                             <p className="font-medium">{funnel.name}</p>
                             {funnel.description && (
-                              <p className="text-sm text-white/80">{funnel.description}</p>
+                              <p className="text-sm text-white/80">
+                                {funnel.description}
+                              </p>
                             )}
-                            <p className="text-xs text-white/60">Adicionar novo negócio</p>
+                            <p className="text-xs text-white/60">
+                              Adicionar novo negócio
+                            </p>
                           </div>
                         </div>
                       </Button>
@@ -485,15 +606,19 @@ export default function ClientDetailsModal({
               </CardHeader>
               <CardContent>
                 <div className="text-center space-y-4">
-                  <p className="text-lg font-medium text-gray-900">{client.name}</p>
-                  <p className="text-sm text-gray-500">Escolha o funil para criar um novo negócio</p>
-                  
+                  <p className="text-lg font-medium text-gray-900">
+                    {client.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Escolha o funil para criar um novo negócio
+                  </p>
+
                   <div className="space-y-3">
                     {Array.isArray(allFunnels) && allFunnels.length > 0 ? (
                       allFunnels.map((funnel: any) => (
-                        <Button 
+                        <Button
                           key={funnel.id}
-                          variant="outline" 
+                          variant="outline"
                           className="w-full justify-start h-auto p-4"
                           onClick={() => handleCreateDeal(funnel.id)}
                         >
@@ -502,7 +627,9 @@ export default function ClientDetailsModal({
                             <div className="text-left">
                               <p className="font-medium">{funnel.name}</p>
                               {funnel.description && (
-                                <p className="text-sm text-gray-500">{funnel.description}</p>
+                                <p className="text-sm text-gray-500">
+                                  {funnel.description}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -534,25 +661,43 @@ export default function ClientDetailsModal({
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
                   <div>
-                    <p className="text-sm font-medium text-green-600">Saldo Disponível</p>
+                    <p className="text-sm font-medium text-green-600">
+                      Saldo Disponível
+                    </p>
                     <p className="text-2xl font-bold text-green-700">
-                      {cashbackBalance ? formatCurrency(cashbackBalance.currentBalance?.toString() || "0") : formatCurrency(0)}
+                      {cashbackBalance
+                        ? formatCurrency(
+                            cashbackBalance.currentBalance?.toString() || "0",
+                          )
+                        : formatCurrency(0)}
                     </p>
                   </div>
                   <Gift className="h-8 w-8 text-green-600" />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm font-medium text-blue-600">Total Acumulado</p>
+                    <p className="text-sm font-medium text-blue-600">
+                      Total Acumulado
+                    </p>
                     <p className="text-lg font-bold text-blue-700">
-                      {cashbackBalance ? formatCurrency(cashbackBalance.totalEarned?.toString() || "0") : formatCurrency(0)}
+                      {cashbackBalance
+                        ? formatCurrency(
+                            cashbackBalance.totalEarned?.toString() || "0",
+                          )
+                        : formatCurrency(0)}
                     </p>
                   </div>
                   <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm font-medium text-orange-600">Total Utilizado</p>
+                    <p className="text-sm font-medium text-orange-600">
+                      Total Utilizado
+                    </p>
                     <p className="text-lg font-bold text-orange-700">
-                      {cashbackBalance ? formatCurrency(cashbackBalance.totalUsed?.toString() || "0") : formatCurrency(0)}
+                      {cashbackBalance
+                        ? formatCurrency(
+                            cashbackBalance.totalUsed?.toString() || "0",
+                          )
+                        : formatCurrency(0)}
                     </p>
                   </div>
                 </div>

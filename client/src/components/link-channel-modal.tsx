@@ -20,11 +20,13 @@ import { toast } from "@/hooks/use-toast";
 import { User } from "@shared/schema";
 import { FaWhatsapp } from "react-icons/fa";
 import { Button } from "./ui/button";
+import { queryClient } from "@/lib/queryClient";
+import { useEffect } from "react";
 
 interface LinkChannelModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: User;
+  user: User & { serviceChannel?: { id: string; name: string } };
 }
 
 type UmblerChannel = {
@@ -51,9 +53,16 @@ export function LinkChannelModal({
     resolver: zodResolver(userServiceChannelFormSchema),
     defaultValues: {
       userId: user.id,
-      serviceChannelId: "",
+      serviceChannelId: user.serviceChannel?.id || "",
     },
   });
+
+  useEffect(() => {
+    userServiceChannelForm.reset({
+      userId: user.id,
+      serviceChannelId: user.serviceChannel?.id || "",
+    });
+  }, [user, userServiceChannelForm]);
 
   const { data: umblerChannels, isLoading: isLoadingUmblerChannels } = useQuery<
     UmblerChannel[]
@@ -89,6 +98,7 @@ export function LinkChannelModal({
         title: "Canal vinculado com sucesso",
         description: "O canal foi vinculado com sucesso.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -155,12 +165,6 @@ export function LinkChannelModal({
               )}
             </div>
           )}
-
-          <input
-            type="hidden"
-            value={user.id}
-            {...userServiceChannelForm.register("userId")}
-          />
 
           <Button type="submit" disabled={linkChannelMutation.isPending}>
             {linkChannelMutation.isPending ? "Vinculando..." : "Vincular"}
