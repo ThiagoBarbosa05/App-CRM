@@ -30,7 +30,10 @@ interface ClientsTableProps {
   filters?: ClientFilters;
 }
 
-export default function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
+export default function ClientsTable({
+  searchQuery,
+  filters,
+}: ClientsTableProps) {
   const { toast } = useToast();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
@@ -38,18 +41,22 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   const [saleClient, setSaleClient] = useState<Client | null>(null);
 
   const { user } = useAuth();
-  
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["/api/clients", user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/clients?userId=${user?.id}&userRole=${user?.role}`);
-      if (!response.ok) throw new Error('Failed to fetch clients');
+      const response = await fetch(
+        `/api/clients?userId=${user?.id}&userRole=${user?.role}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
     },
     enabled: !!user,
   });
 
-  const { data: users = [] } = useQuery<{id: string; name: string; email: string}[]>({
+  const { data: users = [] } = useQuery<
+    { id: string; name: string; email: string }[]
+  >({
     queryKey: ["/api/users"],
   });
 
@@ -76,29 +83,41 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
 
-  const filteredClients = (clientsList as Client[]).filter((client: Client) => {
-    // Basic search query filter
-    const matchesSearch = searchQuery === "" || (
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.includes(searchQuery) ||
-      (client.cpf && client.cpf.includes(searchQuery))
-    );
+  const filteredClients =
+    (clientsList as Client[]).filter((client: Client) => {
+      // Basic search query filter
+      const matchesSearch =
+        searchQuery === "" ||
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.phone.includes(searchQuery) ||
+        (client.cpf && client.cpf.includes(searchQuery));
 
-    // Advanced filters
-    const matchesAdvancedFilters = !filters || (
-      (filters.name === "" || client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-      (filters.phone === "" || client.phone.includes(filters.phone)) &&
-      (filters.cpf === "" || (client.cpf && client.cpf.includes(filters.cpf))) &&
-      (filters.responsavelId === "" || filters.responsavelId === "all" || client.responsavelId === filters.responsavelId) &&
-      (filters.categoria === "" || client.categoria?.toLowerCase().includes(filters.categoria.toLowerCase())) &&
-      (filters.origem === "" || client.origem?.toLowerCase().includes(filters.origem.toLowerCase())) &&
-      (filters.markers === "" || client.markers?.some(marker => 
-        marker.toLowerCase().includes(filters.markers.toLowerCase())
-      ))
-    );
+      // Advanced filters
+      const matchesAdvancedFilters =
+        !filters ||
+        ((filters.name === "" ||
+          client.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+          (filters.phone === "" || client.phone.includes(filters.phone)) &&
+          (filters.cpf === "" ||
+            (client.cpf && client.cpf.includes(filters.cpf))) &&
+          (filters.responsavelId === "" ||
+            filters.responsavelId === "all" ||
+            client.responsavelId === filters.responsavelId) &&
+          (filters.categoria === "" ||
+            client.categoria
+              ?.toLowerCase()
+              .includes(filters.categoria.toLowerCase())) &&
+          (filters.origem === "" ||
+            client.origem
+              ?.toLowerCase()
+              .includes(filters.origem.toLowerCase())) &&
+          (filters.markers === "" ||
+            client.markers?.some((marker) =>
+              marker.toLowerCase().includes(filters.markers.toLowerCase())
+            )));
 
-    return matchesSearch && matchesAdvancedFilters;
-  }) || [];
+      return matchesSearch && matchesAdvancedFilters;
+    }) || [];
 
   if (isLoading) {
     return (
@@ -114,10 +133,12 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
         <div className="text-center">
           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {searchQuery ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+            {searchQuery
+              ? "Nenhum cliente encontrado"
+              : "Nenhum cliente cadastrado"}
           </h3>
           <p className="text-gray-500">
-            {searchQuery 
+            {searchQuery
               ? "Tente ajustar os termos de busca."
               : "Comece adicionando seu primeiro cliente."}
           </p>
@@ -175,14 +196,15 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                           <User className="text-primary h-4 w-4" />
                         </div>
                         <div className="ml-4">
-                          <button 
+                          <button
                             onClick={() => setSelectedClient(client)}
                             className="text-sm font-medium text-wine-600 hover:text-wine-800 underline text-left"
                           >
                             {client.name}
                           </button>
                           <div className="text-sm text-gray-500">
-                            Cliente desde {new Date(client.createdAt).getFullYear()}
+                            Cliente desde{" "}
+                            {new Date(client.createdAt).getFullYear()}
                           </div>
                         </div>
                       </div>
@@ -191,7 +213,7 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                       <div className="space-y-1">
                         {client.phone ? (
                           <div className="flex items-center gap-2">
-                            <a 
+                            <a
                               href={`tel:${client.phone}`}
                               className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                               title="Clique para ligar"
@@ -199,7 +221,10 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                               {formatPhone(client.phone)}
                             </a>
                             <a
-                              href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
+                              href={`https://wa.me/${client.phone.replace(
+                                /\D/g,
+                                ""
+                              )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-green-600 hover:text-green-700 transition-colors"
@@ -221,8 +246,14 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(() => {
-                        const user = users.find(u => u.id === client.responsavelId);
-                        return user ? user.name : (client.responsavelId ? "Usuário não encontrado" : "Não atribuído");
+                        const user = users.find(
+                          (u) => u.id === client.responsavelId
+                        );
+                        return user
+                          ? user.name
+                          : client.responsavelId
+                          ? "Usuário não encontrado"
+                          : "Não atribuído";
                       })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -238,21 +269,27 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap gap-1">
                         {client.markers && client.markers.length > 0 ? (
-                          client.markers.map((marker: string, index: number) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {marker}
-                            </span>
-                          ))
+                          client.markers.map(
+                            (marker: string, index: number) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {marker}
+                              </span>
+                            )
+                          )
                         ) : (
-                          <span className="text-gray-400 text-xs">Sem marcadores</span>
+                          <span className="text-gray-400 text-xs">
+                            Sem marcadores
+                          </span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {client.birthday ? formatDate(client.birthday) : "Não informado"}
+                      {client.birthday
+                        ? formatDate(client.birthday)
+                        : "Não informado"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button
@@ -324,12 +361,15 @@ export default function ClientsTable({ searchQuery, filters }: ClientsTableProps
         onOpenChange={(open) => !open && setSaleClient(null)}
       />
 
-      <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
+      <AlertDialog
+        open={!!deletingClient}
+        onOpenChange={(open) => !open && setDeletingClient(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o cliente "{deletingClient?.name}"? 
+              Tem certeza que deseja excluir o cliente "{deletingClient?.name}"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

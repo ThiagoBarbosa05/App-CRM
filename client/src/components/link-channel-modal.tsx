@@ -22,6 +22,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { Button } from "./ui/button";
 import { queryClient } from "@/lib/queryClient";
 import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LinkChannelModalProps {
   open: boolean;
@@ -56,6 +57,8 @@ export function LinkChannelModal({
       serviceChannelId: user.serviceChannel?.id || "",
     },
   });
+
+  const {user: userAuthenticated, updateUserAuthenticated} = useAuth();
 
   useEffect(() => {
     userServiceChannelForm.reset({
@@ -93,12 +96,17 @@ export function LinkChannelModal({
       return response.json();
     },
 
-    onSuccess: () => {
+    onSuccess: (data: { channelId: string }) => {
       toast({
         title: "Canal vinculado com sucesso",
-        description: "O canal foi vinculado com sucesso.",
+        description: "O canal foi vinculado com sucesso.",  
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      updateUserAuthenticated({
+        ...user,
+        serviceChannelId: data.channelId,
+      })
       onOpenChange(false);
     },
     onError: (error: Error) => {

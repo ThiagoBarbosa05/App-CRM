@@ -545,12 +545,16 @@ export class DatabaseStorage implements IStorage {
           id: serviceChannels.id,
           name: serviceChannels.name,
           phoneNumber: serviceChannels.phoneNumber,
-        }
+        },
       })
       .from(users)
       .where(eq(users.email, email))
-      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId));
-    
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+      .leftJoin(
+        serviceChannels,
+        eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+      );
+
     return user || undefined;
   }
 

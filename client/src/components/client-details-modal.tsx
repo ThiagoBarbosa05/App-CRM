@@ -8,14 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User,
@@ -25,16 +18,16 @@ import {
   MapPin,
   Tag,
   FileText,
-  UserCheck,
   Building,
   CreditCard,
-  DollarSign,
   Gift,
   Wallet,
   MessageSquare,
   Edit,
   RefreshCw,
   Check,
+  MessageSquareMore,
+  Send,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
@@ -47,6 +40,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { Textarea } from "./ui/textarea";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -63,53 +57,84 @@ export default function ClientDetailsModal({
 }: ClientDetailsModalProps) {
   const [showCreateDealModal, setShowCreateDealModal] = useState(false);
   const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
-
+  const [message, setMessage] = useState("");
   const { user } = useAuth();
 
-  // Query para buscar saldo de cashback - deve estar sempre no topo, antes de qualquer return
   const { data: cashbackBalance } = useQuery<ClientCashbackBalance>({
     queryKey: [`/api/cashback-balances/${client?.id}`],
     enabled: !!client?.id && isOpen,
   });
 
-  console.log(user)
-
-  // Query para buscar funis específicos do cliente
   const { data: clientFunnels = [] } = useQuery({
     queryKey: [`/api/clients/${client?.id}/funnels`],
     enabled: !!client?.id && isOpen,
   });
 
-  // Query para buscar todos os funis disponíveis
   const { data: allFunnels = [] } = useQuery({
     queryKey: ["/api/funnels"],
     enabled: !!client?.id && isOpen,
   });
 
-  const { data: umblerContact } = useQuery({
-    queryKey: [`/api/umbler/contacts/${client?.phone}`],
+  const { data: umblerContact, isLoading: isLoadingContact } = useQuery({
+    queryKey: [`/api/umbler/contacts`, client?.phone],
     queryFn: async () => {
       const response = await fetch(`/api/umbler/contacts/${client?.phone}`);
       if (!response.ok) throw new Error("Failed to fetch umbler contacts");
       return response.json();
     },
-
     enabled: !!client?.phone && isOpen,
   });
 
-  const { data: contactChat } = useQuery({
-    queryKey: [`/api/umbler/chats/${client?.phone}`],
+  const { data: contactChat, isLoading: isLoadingChats } = useQuery<{
+    items: {
+      id: string;
+      lastMessage: {
+        content: string;
+      };
+    }[];
+  }>({
+    queryKey: ["chats", client?.phone],
     queryFn: async () => {
       const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${umblerContact?.channelId}`,
+        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`
       );
       if (!response.ok) throw new Error("Failed to fetch umbler chats");
       return response.json();
     },
-    enabled: !!client?.phone && isOpen,
+    enabled: !!client?.phone && isOpen && !!umblerContact,
   });
 
-  console.log("contactChat", contactChat);
+  const createChatMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/umbler/chats", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+        body: JSON.stringify({
+          contactId: umblerContact?.id,
+          channelId: user?.serviceChannelId,
+        }),
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      queryClient.invalidateQueries({ queryKey: [client?.phone] });
+      toast({
+        title: "Chat criado com sucesso",
+        description: "O chat foi criado com o sucesso",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao criar chat",
+        description: "Não foi possível criar o chat",
+      });
+    },
+  });
 
   const syncCustomer = useMutation({
     mutationFn: async (customerData: {
@@ -127,9 +152,7 @@ export default function ClientDetailsModal({
           "x-user-role": user?.role || "",
         },
       });
-      if (!response.ok) {
-        throw new Error("Failed to update customer");
-      }
+      if (!response.ok) throw new Error("Failed to update customer");
       return response.json();
     },
     onSuccess: () => {
@@ -138,7 +161,7 @@ export default function ClientDetailsModal({
         description: "O cliente foi sincronizado com o Umbler Talk",
       });
       queryClient.invalidateQueries({
-        queryKey: ["/api/umbler/contacts"],
+        queryKey: [`/api/umbler/contacts`, client?.phone],
       });
     },
     onError: () => {
@@ -149,7 +172,49 @@ export default function ClientDetailsModal({
     },
   });
 
-  // Função para formatar moeda
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ message }: { message: string }) => {
+      const chatId = contactChat?.items[0]?.id;
+      if (!chatId) throw new Error("Chat não encontrado");
+
+      const response = await fetch("/api/umbler/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+        body: JSON.stringify({
+          chatId,
+          message,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Falha ao enviar mensagem");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mensagem enviada!",
+        description: "Sua mensagem foi enviada com sucesso.",
+      });
+      setMessage("");
+      queryClient.invalidateQueries({
+        queryKey: ["/api/clients", client?.id, "interactions"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["chats", client?.phone],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error.message || "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatCurrency = (value: string | number) => {
     const numericValue = typeof value === "string" ? parseFloat(value) : value;
     return new Intl.NumberFormat("pt-BR", {
@@ -181,35 +246,30 @@ export default function ClientDetailsModal({
   };
 
   const formatPhone = (phone: string) => {
-    // Remove caracteres não numéricos
     const cleanPhone = phone.replace(/\D/g, "");
-
     if (cleanPhone.length === 11) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        7,
+        7
       )}-${cleanPhone.slice(7)}`;
     } else if (cleanPhone.length === 10) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        6,
+        6
       )}-${cleanPhone.slice(6)}`;
     }
-
     return phone;
   };
 
   const formatCPF = (cpf: string) => {
     if (!cpf) return "Não informado";
     const cleanCPF = cpf.replace(/\D/g, "");
-
     if (cleanCPF.length === 11) {
       return `${cleanCPF.slice(0, 3)}.${cleanCPF.slice(3, 6)}.${cleanCPF.slice(
         6,
-        9,
+        9
       )}-${cleanCPF.slice(9)}`;
     }
-
     return cpf;
   };
 
@@ -255,11 +315,10 @@ export default function ClientDetailsModal({
           </TabsList>
 
           <TabsContent value="info" className="space-y-6 mt-6">
-            {/* Informações Básicas */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex flex-col sm:flex-row justify-start sm:items-center justify-between">
-                  <div className="flex  items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Informações Pessoais
                   </div>
@@ -284,27 +343,13 @@ export default function ClientDetailsModal({
                     <Phone className="h-4 w-4 text-gray-500" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-600">Telefone</p>
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={`tel:${client.phone}`}
-                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                          title="Clique para ligar"
-                        >
-                          {formatPhone(client.phone)}
-                        </a>
-                        <a
-                          href={`https://wa.me/${client.phone.replace(
-                            /\D/g,
-                            "",
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-700 transition-colors"
-                          title="Abrir no WhatsApp"
-                        >
-                          <FaWhatsapp className="h-4 w-4" />
-                        </a>
-                      </div>
+                      <a
+                        href={`tel:${client.phone}`}
+                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                        title="Clique para ligar"
+                      >
+                        {formatPhone(client.phone)}
+                      </a>
                     </div>
                   </div>
 
@@ -346,49 +391,144 @@ export default function ClientDetailsModal({
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FaWhatsapp className="h-4 w-4" />
+                  <FaWhatsapp className="h-4 w-4 text-green-600" />
                   WhatsApp
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {umblerContact ? (
-                  <Badge
-                    className="bg-green-100 border-green-200 py-1"
-                    variant="outline"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Sincronizado
-                  </Badge>
+              <CardContent className="space-y-4">
+                {isLoadingContact ? (
+                  <p className="text-sm text-gray-500">
+                    Verificando status do WhatsApp...
+                  </p>
                 ) : (
-                  <Button
-                    size={"sm"}
-                    variant={"outline"}
-                    disabled={syncCustomer.isPending}
-                    onClick={() => {
-                      syncCustomer.mutate({
-                        phoneNumber: client.phone,
-                        organizationId: "aGx7Jh43-au36EGi",
-                        name: client.name,
-                        email: client.email!,
-                      });
-                    }}
-                    className="bg-green-100 border-green-200 hover:bg-green-200"
-                  >
-                    <RefreshCw
-                      className={cn(
-                        "h-4 w-4",
-                        syncCustomer.isPending && "animate-spin",
+                  <>
+                    <div className="flex items-center gap-4">
+                      {umblerContact ? (
+                        <Badge
+                          className="bg-green-100 border-green-200 py-1 text-green-800"
+                          variant="outline"
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Sincronizado
+                        </Badge>
+                      ) : (
+                        <Button
+                          size={"sm"}
+                          variant={"outline"}
+                          disabled={syncCustomer.isPending}
+                          onClick={() => {
+                            syncCustomer.mutate({
+                              phoneNumber: client.phone,
+                              organizationId: "aGx7Jh43-au36EGi",
+                              name: client.name,
+                              email: client.email!,
+                            });
+                          }}
+                          className="bg-green-100 border-green-200 hover:bg-green-200"
+                        >
+                          <RefreshCw
+                            className={cn(
+                              "h-4 w-4 mr-2",
+                              syncCustomer.isPending && "animate-spin"
+                            )}
+                          />
+                          {syncCustomer.isPending
+                            ? "Sincronizando..."
+                            : "Sincronizar com WhatsApp"}
+                        </Button>
                       )}
-                    />
-                    {syncCustomer.isPending
-                      ? "Sincronizando..."
-                      : "Sincronizar"}
-                  </Button>
+                    </div>
+
+                    {umblerContact && (
+                      <div className="mt-4">
+                        {isLoadingChats ? (
+                          <p className="text-sm text-gray-500">
+                            Carregando conversas...
+                          </p>
+                        ) : (
+                          <>
+                            {contactChat && contactChat.items.length > 0 ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
+                                    <MessageSquareMore className="h-4 w-4" />
+                                    Última mensagem enviada:
+                                  </p>
+                                  {contactChat.items[0].lastMessage ? (
+                                    <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                                      <p className="text-sm text-gray-800 italic">
+                                        "
+                                        {
+                                          contactChat.items[0].lastMessage
+                                            .content
+                                        }
+                                        "
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">
+                                      Nenhuma mensagem enviada ainda
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="space-y-2">
+                                  <p className="text-sm text-gray-600">
+                                    Envie uma nova mensagem:
+                                  </p>
+                                  <Textarea
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    placeholder="Digite sua mensagem para o cliente..."
+                                    className="border-green-500 focus:ring-green-500"
+                                    rows={3}
+                                  />
+                                  <div className="flex justify-end items-center">
+                                    <Button
+                                      onClick={() =>
+                                        sendMessageMutation.mutate({
+                                          message,
+                                        })
+                                      }
+                                      disabled={
+                                        sendMessageMutation.isPending ||
+                                        !message
+                                      }
+                                      className="bg-green-600 text-white hover:bg-green-700 disabled:bg-opacity-70"
+                                    >
+                                      <Send className="h-4 w-4 mr-2" />
+                                      {sendMessageMutation.isPending
+                                        ? "Enviando..."
+                                        : "Enviar Mensagem"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="py-4 flex items-center justify-center">
+                                <Button
+                                  disabled={createChatMutation.isPending}
+                                  onClick={async () =>
+                                    createChatMutation.mutateAsync()
+                                  }
+                                  className="bg-green-500 text-white font-medium"
+                                >
+                                  <MessageSquareMore className="size-5 mr-2" />
+                                  {createChatMutation.isPending
+                                    ? "Criando chat..."
+                                    : "Criar chat no WhatsApp"}
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
 
-            {/* Endereço */}
             {(client.address || client.cep) && (
               <Card>
                 <CardHeader>
@@ -460,7 +600,7 @@ export default function ClientDetailsModal({
 
                         const fullAddress = addressParts.join(", ");
                         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          fullAddress,
+                          fullAddress
                         )}`;
                         window.open(mapsUrl, "_blank");
                       }}
@@ -474,7 +614,6 @@ export default function ClientDetailsModal({
               </Card>
             )}
 
-            {/* Informações Comerciais */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -525,7 +664,6 @@ export default function ClientDetailsModal({
               </CardContent>
             </Card>
 
-            {/* Informações do Sistema */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -557,7 +695,6 @@ export default function ClientDetailsModal({
           </TabsContent>
 
           <TabsContent value="negocio" className="space-y-6 mt-6">
-            {/* Funis onde o cliente já tem negócios */}
             {Array.isArray(clientFunnels) && clientFunnels.length > 0 && (
               <Card>
                 <CardHeader>
@@ -596,7 +733,6 @@ export default function ClientDetailsModal({
               </Card>
             )}
 
-            {/* Todos os funis disponíveis para criar novos negócios */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -667,7 +803,7 @@ export default function ClientDetailsModal({
                     <p className="text-2xl font-bold text-green-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.currentBalance?.toString() || "0",
+                            cashbackBalance.currentBalance?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>
@@ -683,7 +819,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-blue-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalEarned?.toString() || "0",
+                            cashbackBalance.totalEarned?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>
@@ -695,7 +831,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-orange-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalUsed?.toString() || "0",
+                            cashbackBalance.totalUsed?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>
@@ -707,7 +843,6 @@ export default function ClientDetailsModal({
         </Tabs>
       </DialogContent>
 
-      {/* Modal de Criação de Negócio */}
       {showCreateDealModal && client && (
         <DealFormModal
           open={showCreateDealModal}

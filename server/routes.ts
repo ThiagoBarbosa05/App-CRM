@@ -54,10 +54,14 @@ import {
 import { db } from "./db";
 import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
 import {
+  createChat,
   createContactSchema,
+  getBirthdayBots,
   getChannels,
   getChat,
   getContactByPhone,
+  sendMessage,
+  startBirthdayBot,
   syncContact,
 } from "./integrations/umbler";
 
@@ -181,9 +185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .set({ serviceChannelId: serviceChannelId })
           .where(eq(userServiceChannel.userId, userId));
 
-        res
-          .status(200)
-          .json({ message: "Canal do usuário atualizado com sucesso" });
+        res.status(200).json({
+          message: "Canal do usuário atualizado com sucesso",
+          channelId: serviceChannelId,
+        });
       } else {
         // Se não existe, cria uma nova vinculação
         await db.insert(userServiceChannel).values({
@@ -191,9 +196,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           serviceChannelId,
         });
 
-        res
-          .status(200)
-          .json({ message: "Canal vinculado ao usuário com sucesso" });
+        res.status(200).json({
+          message: "Canal vinculado ao usuário com sucesso",
+          channelId: serviceChannelId,
+        });
       }
     } catch (error) {
       console.error("Erro ao vincular/atualizar canal do usuário:", error);
@@ -209,13 +215,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contact = await syncContact(validatedData);
 
       if (!contact) {
-        return res.status(400).json({ message: "Erro ao sincronizar contato" });
+        const result = contact;
+        return res
+          .status(400)
+          .json({ message: "Erro ao sincronizar contato" + result });
       }
 
       res.status(200).json({ message: "Contato sincronizado com sucesso" });
     } catch (error) {
       console.error("Erro ao sincronizar contato:", error);
       res.status(500).json({ message: "Erro ao sincronizar contato" });
+    }
+  });
+
+  app.post("/api/umbler/chats", async (req, res) => {
+    try {
+      const { channelId, contactId } = req.body as {
+        contactId: string;
+        channelId: string;
+      };
+
+      const result = await createChat({ channelId, contactId });
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem" });
+    }
+  });
+
+  app.post("/api/umbler/messages", async (req, res) => {
+    try {
+      const { chatId, message } = req.body as {
+        message: string;
+        chatId: string;
+      };
+
+      const result = await sendMessage({ chatId, message });
+
+      res.status(201).json({ message: "Mensagem enviada com sucesso", result });
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem" });
+    }
+  });
+
+  app.get("/api/umbler/birthday-bots", async (req, res) => {
+    try {
+      const bots = await getBirthdayBots();
+
+      res.json({ items: bots?.items });
+    } catch (error) {
+      console.error("Erro ao buscar bots de aniversário:", error);
+      res.status(500).json({ message: "Erro ao buscar bots de aniversário" });
+    }
+  });
+
+  app.post("/api/start/birthday-bot", async (req, res) => {
+    try {
+      const { botId, chatId, triggerName } = req.body as {
+        chatId: string;
+        botId: string;
+        triggerName: string;
+      };
+
+      const result = await startBirthdayBot({
+        botId,
+        chatId,
+        triggerName,
+      });
+
+      res
+        .status(201)
+        .json({ message: "Bot de aniversário iniciado com sucesso", result });
+    } catch (error) {
+      console.error("Erro ao iniciar bot de aniversário:", error);
+      res.status(500).json({ message: "Erro ao iniciar bot de aniversário" });
     }
   });
 
@@ -255,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: user.name,
         email: user.email,
         role: user.role,
-        serviceChannelId: user
+        serviceChannelId: user.serviceChannel?.id,
       };
 
       console.log("Login bem-sucedido para:", userWithoutPassword);
@@ -302,8 +377,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           or(
             like(clients.name, lowercasedQuery),
             like(clients.phone, lowercasedQuery),
-            like(clients.cpf, lowercasedQuery),
-          ),
+            like(clients.cpf, lowercasedQuery)
+          )
         );
       }
 
@@ -354,8 +429,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             finalConditions,
             lte(clients.createdAt, fourteenDaysAgo),
-            gt(clients.createdAt, thirtyDaysAgo),
-          ),
+            gt(clients.createdAt, thirtyDaysAgo)
+          )
         );
       const mediaQuery = db
         .select({ count: count() })
@@ -364,8 +439,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             finalConditions,
             lte(clients.createdAt, sevenDaysAgo),
-            gt(clients.createdAt, fourteenDaysAgo),
-          ),
+            gt(clients.createdAt, fourteenDaysAgo)
+          )
         );
       const normalQuery = db
         .select({ count: count() })
@@ -378,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(clients);
       if (userRole !== "admin" && userRole !== "administrador") {
         totalClientsInSystemQuery = totalClientsInSystemQuery.where(
-          eq(clients.responsavelId, userId),
+          eq(clients.responsavelId, userId)
         );
       }
       const totalInteracoesQuery = db
@@ -411,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientsToContact = clientsToContactRaw.map((client) => {
         const createdDate = new Date(client.createdAt);
         const daysSinceCreated = Math.floor(
-          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
         );
         return {
           ...client,
@@ -433,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         produtividade:
           totalClientes > 0
             ? Math.round(
-                ((totalClientes - totalPendentes) / totalClientes) * 100,
+                ((totalClientes - totalPendentes) / totalClientes) * 100
               )
             : 100,
         totalInteracoes,
@@ -507,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole,
         filters,
         page,
-        pageSize,
+        pageSize
       );
 
       // Por enquanto, retorna formato simples com estimativa baseada no tamanho da página
@@ -567,7 +642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clients = await storage.getClientsWithoutRecentContact(
         userId,
         userRole,
-        days,
+        days
       );
       res.json(clients);
     } catch (error) {
@@ -601,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(
         "Dados recebidos para criação de cliente:",
-        JSON.stringify(req.body, null, 2),
+        JSON.stringify(req.body, null, 2)
       );
 
       // Pegar informações do usuário logado
@@ -775,7 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userRole as string,
         filters,
         page,
-        pageSize,
+        pageSize
       );
 
       res.json({
@@ -946,7 +1021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deals = await storage.getDealsWithClients(
         funnelId as string,
         userId as string,
-        userRole as string,
+        userRole as string
       );
       res.json(deals);
     } catch (error) {
@@ -1029,7 +1104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(
         "=== BULK DEALS - BODY COMPLETO ===",
-        JSON.stringify(req.body, null, 2),
+        JSON.stringify(req.body, null, 2)
       );
       const { companies, funnelId, stageId, value, assignedTo, notes, title } =
         req.body;
@@ -1085,7 +1160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors.push(
             `Erro ao criar negócio para empresa ${companyId}: ${
               error instanceof Error ? error.message : "Erro desconhecido"
-            }`,
+            }`
           );
         }
       }
@@ -1205,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const upcomingBirthdays = await storage.getUpcomingBirthdays(
         days,
-        filterByResponsible,
+        filterByResponsible
       );
       res.json(upcomingBirthdays);
     } catch (error) {
@@ -1316,7 +1391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const transactions = await storage.getCashbackTransactions(
         userId,
-        userRole,
+        userRole
       );
       res.json(transactions);
     } catch (error) {
@@ -1337,8 +1412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = insertCashbackTransactionSchema.parse(data);
-      const transaction =
-        await storage.createCashbackTransaction(validatedData);
+      const transaction = await storage.createCashbackTransaction(
+        validatedData
+      );
       res.status(201).json(transaction);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1527,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar vendas dos últimos 30 dias
       const sales = await storage.getSales();
       const recentSales = sales.filter(
-        (sale) => new Date(sale.date) >= thirtyDaysAgo,
+        (sale) => new Date(sale.date) >= thirtyDaysAgo
       );
 
       // Buscar transações de cashback dos últimos 30 dias
@@ -1550,15 +1626,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calcular totais
       const totalSales = recentSales.reduce(
         (sum, sale) => sum + parseFloat(sale.grossValue),
-        0,
+        0
       );
       const totalCashbackGenerated = recentSales.reduce(
         (sum, sale) => sum + parseFloat(sale.cashbackGenerated),
-        0,
+        0
       );
       const totalCashbackUsed = recentSales.reduce(
         (sum, sale) => sum + parseFloat(sale.cashbackUsed),
-        0,
+        0
       );
       const totalCashbackRedeemed = recentUsage.reduce((sum, item) => {
         const usage = item.cashback_usage || item;
@@ -1625,7 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let cashbackGenerated = 0;
       if (activeSetting) {
         const minimumPurchase = parseFloat(
-          activeSetting.minimumPurchase || "0",
+          activeSetting.minimumPurchase || "0"
         );
         if (netValue >= minimumPurchase) {
           const rate = parseFloat(activeSetting.percentageRate) / 100;
@@ -1919,7 +1995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const goals = await storage.getUserGoalsWithResults(
         Number(month),
-        Number(year),
+        Number(year)
       );
       res.json(goals);
     } catch (error) {
@@ -2026,14 +2102,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingGoal = await storage.getUserGoalByUserIdMonthYear(
         validatedData.userId,
         validatedData.month,
-        validatedData.year,
+        validatedData.year
       );
 
       if (existingGoal) {
         // Se já existe, atualizar a meta existente
         const updatedGoal = await storage.updateUserGoal(
           existingGoal.id,
-          validatedData,
+          validatedData
         );
         return res.json(updatedGoal);
       }
@@ -2110,14 +2186,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verificar se já existe resultado para essa meta e semana
       const existingResult = await storage.getWeeklyResult(
         validatedData.goalId,
-        validatedData.week,
+        validatedData.week
       );
 
       if (existingResult) {
         // Se existe, atualizar
         const updatedResult = await storage.updateWeeklyResult(
           existingResult.id,
-          validatedData,
+          validatedData
         );
         return res.json(updatedResult);
       }
@@ -2199,7 +2275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Number(month),
         Number(year),
         userId,
-        userRole,
+        userRole
       );
       res.json(goals);
     } catch (error) {
@@ -2269,7 +2345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getTelemarketingStatsByPeriod(
         parseInt(month),
-        parseInt(year),
+        parseInt(year)
       );
       res.json(stats);
     } catch (error) {
@@ -2310,7 +2386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(month),
         parseInt(year),
         userId,
-        userRole,
+        userRole
       );
       res.json(goals);
     } catch (error) {
@@ -2342,7 +2418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .parse(req.body);
       const goal = await storage.updateClientRegistrationGoal(
         id,
-        validatedData,
+        validatedData
       );
       res.json(goal);
     } catch (error) {
@@ -2377,7 +2453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getClientRegistrationStatsByPeriod(
         parseInt(month),
-        parseInt(year),
+        parseInt(year)
       );
       res.json(stats);
     } catch (error) {
@@ -2440,7 +2516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(
-        req.path,
+        req.path
       );
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
@@ -2461,7 +2537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectStorageService = new ObjectStorageService();
       const objectPath = objectStorageService.normalizeObjectEntityPath(
-        req.body.imageURL,
+        req.body.imageURL
       );
 
       res.status(200).json({
@@ -2506,7 +2582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const trainingUpdated = await storage.updateTraining(
         validatedData,
-        trainingId,
+        trainingId
       );
 
       await storage.updateTrainingAttachments(
@@ -2516,7 +2592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: trainingUpdated.title,
           url: validatedData.videoUrl,
         },
-        training.training_attachments?.url!,
+        training.training_attachments?.url!
       );
 
       res.status(201).json(training);
@@ -2629,7 +2705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new DeleteObjectCommand({
             Bucket: "crm-test",
             Key: training.training_attachments?.url!,
-          }),
+          })
         );
 
         const url = randomUUID() + "-" + req.file?.originalname;
@@ -2640,7 +2716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Body: req.file?.buffer,
             Key: url,
             ContentType: req.file?.mimetype,
-          }),
+          })
         );
 
         const [trainingsAttachmentsUpdated] = await db
@@ -2659,7 +2735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro ao atualizar arquivo:", error);
         res.status(500).json({ message: "Erro ao atualizar arquivo" });
       }
-    },
+    }
   );
 
   app.delete("/api/trainings/documents/:id", async (req, res) => {
@@ -2671,7 +2747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new DeleteObjectCommand({
           Bucket: "crm-test",
           Key: training.training_attachments?.url!,
-        }),
+        })
       );
 
       await storage.deleteTrainingAttachments(id);
@@ -2777,7 +2853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           Body: req.file?.buffer,
           Key: url,
           ContentType: req.file?.mimetype,
-        }),
+        })
       );
 
       res.json({ url, fileType: req.file?.mimetype });
@@ -2884,7 +2960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { data, total } = await storage.getProducts(
         filters,
         page,
-        pageSize,
+        pageSize
       );
 
       res.json({
@@ -3020,7 +3096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(500)
           .json({ error: "Failed to remove product from company" });
       }
-    },
+    }
   );
 
   // Update custom negotiated price for company product
@@ -3061,7 +3137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = await storage.updateCompanyProductPrice(
           companyId,
           productId,
-          numericPrice.toString(),
+          numericPrice.toString()
         );
 
         if (!result) {
@@ -3076,7 +3152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro ao atualizar preço customizado:", error);
         res.status(500).json({ message: "Erro interno do servidor" });
       }
-    },
+    }
   );
 
   // Get companies that have a specific product
@@ -3084,10 +3160,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { productId } = req.params;
       console.log(`API: Fetching companies for product ${productId}`);
-      const companiesWithProduct =
-        await storage.getCompaniesWithProduct(productId);
+      const companiesWithProduct = await storage.getCompaniesWithProduct(
+        productId
+      );
       console.log(
-        `API: Found ${companiesWithProduct.length} companies for product ${productId}`,
+        `API: Found ${companiesWithProduct.length} companies for product ${productId}`
       );
       res.json(companiesWithProduct);
     } catch (error) {
