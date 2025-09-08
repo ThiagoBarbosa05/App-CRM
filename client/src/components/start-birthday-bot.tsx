@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Bot, Loader2, MessageSquareMore, RefreshCw } from "lucide-react";
+import { Bot, Cake, Loader2, MessageSquareMore, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -48,18 +48,40 @@ export function StartBirthdayBot({
     enabled: !!isOpen && !!client,
   });
 
-  const { data: contactChat, isLoading: isLoadingChats } = useQuery<{
-    items: { id: string }[];
-  }>({
+  // const { data: contactChat, isLoading: isLoadingChats } = useQuery<{
+  //   items: { id: string }[];
+  // }>({
+  //   queryKey: ["contactChat", client?.phone],
+  //   queryFn: async () => {
+  //     const response = await fetch(
+  //       `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`
+  //     );
+  //     if (!response.ok) throw new Error("Failed to fetch umbler chats");
+  //     return response.json();
+  //   },
+  //   enabled: isOpen && !!umblerContact?.id,
+  // });
+
+  const { data: contactChat, isLoading: isLoadingChats } = useQuery({
     queryKey: ["contactChat", client?.phone],
     queryFn: async () => {
       const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`
+        `/api/umbler/chats?customerPhone=${client?.phone}&userId=${user?.id}`,
+        {
+          headers: {
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
+        },
       );
-      if (!response.ok) throw new Error("Failed to fetch umbler chats");
-      return response.json();
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat");
+      }
+
+      return await response.json();
     },
-    enabled: isOpen && !!umblerContact?.id,
+    enabled: !!client?.phone && isOpen,
   });
 
   const { data: bots, isLoading: isLoadingBots } =
@@ -80,43 +102,129 @@ export function StartBirthdayBot({
       enabled: !!isOpen && !!contactChat,
     });
 
+  // const syncCustomer = useMutation({
+  //   mutationFn: (customerData: {
+  //     phoneNumber: string;
+  //     name?: string;
+  //     organizationId: string;
+  //   }) =>
+  //     fetch(`/api/umbler/contacts/create`, {
+  //       method: "POST",
+  //       body: JSON.stringify(customerData),
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         "x-user-id": user?.id || "",
+  //         "x-user-role": user?.role || "",
+  //       },
+  //     }),
+  //   onSuccess: async (response) => {
+  //     if (!response.ok) throw new Error("Failed to sync customer");
+  //     toast({
+  //       title: "Cliente sincronizado com sucesso",
+  //       description: "O cliente foi sincronizado com o Umbler Talk.",
+  //     });
+  //     await queryClient.invalidateQueries({
+  //       queryKey: [`/api/umbler/contacts`, client?.phone],
+  //     });
+  //   },
+  //   onError: () => {
+  //     toast({
+  //       title: "Erro ao sincronizar cliente",
+  //       description: "Não foi possível sincronizar o cliente com o Umbler Talk.",
+  //       variant: "destructive",
+  //     });
+  //   },
+  // });
   const syncCustomer = useMutation({
-    mutationFn: (customerData: {
+    mutationFn: async (customerData: {
       phoneNumber: string;
       name?: string;
+      email?: string;
       organizationId: string;
-    }) =>
-      fetch(`/api/umbler/contacts/create`, {
-        method: "POST",
-        body: JSON.stringify(customerData),
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
+    }) => {
+      const response = await fetch(
+        `/api/umbler/contacts/create?userId=${user?.id}`,
+        {
+          method: "POST",
+          body: JSON.stringify(customerData),
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
         },
-      }),
-    onSuccess: async (response) => {
-      if (!response.ok) throw new Error("Failed to sync customer");
+      );
+      if (!response.ok) throw new Error("Failed to update customer");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const { newChat } = data;
+      console.log("Chat criado com sucesso:", newChat);
+
       toast({
         title: "Cliente sincronizado com sucesso",
-        description: "O cliente foi sincronizado com o Umbler Talk.",
+        description: "O cliente foi sincronizado com o Umbler Talk",
       });
-      await queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: [`/api/umbler/contacts`, client?.phone],
       });
+      // queryClient.invalidateQueries({
+      //   queryKey: ["contactChat", client?.phone],
+      // });
+
+      queryClient.setQueryData<{ items: { id: string }[] }>(
+        ["contactChat", client?.phone],
+        (old) => {
+          console.log(old);
+          return {
+            items: [...(old?.items ?? []), newChat],
+          };
+        },
+      );
     },
     onError: () => {
       toast({
         title: "Erro ao sincronizar cliente",
-        description: "Não foi possível sincronizar o cliente com o Umbler Talk.",
-        variant: "destructive",
+        description: "Não foi possível sincronizar o cliente com o Umbler Talk",
       });
     },
   });
 
+  // const createChatMutation = useMutation({
+  //   mutationFn: () =>
+  //     fetch("/api/umbler/chats", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         "x-user-id": user?.id || "",
+  //         "x-user-role": user?.role || "",
+  //       },
+  //       body: JSON.stringify({
+  //         contactId: umblerContact?.id,
+  //         channelId: user?.serviceChannelId,
+  //       }),
+  //     }),
+  //   onSuccess: async (response) => {
+  //     if (!response.ok) throw new Error("Failed to create chat");
+  //     toast({
+  //       title: "Chat criado com sucesso",
+  //       description: "A conversa foi iniciada e já pode receber o bot.",
+  //     });
+  //     await queryClient.invalidateQueries({
+  //       queryKey: ["contactChat", client?.phone],
+  //     });
+  //   },
+  //   onError: () => {
+  //     toast({
+  //       title: "Erro ao criar chat",
+  //       description: "Não foi possível iniciar a conversa.",
+  //       variant: "destructive",
+  //     });
+  //   },
+  // });
   const createChatMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/umbler/chats", {
+    mutationFn: async () => {
+      const response = await fetch(`/api/umbler/chats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -125,30 +233,91 @@ export function StartBirthdayBot({
         },
         body: JSON.stringify({
           contactId: umblerContact?.id,
-          channelId: user?.serviceChannelId,
+          userId: user?.id,
         }),
-      }),
-    onSuccess: async (response) => {
-      if (!response.ok) throw new Error("Failed to create chat");
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      const { newChat } = data;
+      console.log("Chat criado com sucesso:", newChat);
+
       toast({
         title: "Chat criado com sucesso",
-        description: "A conversa foi iniciada e já pode receber o bot.",
+        description: "O chat foi criado com sucesso",
       });
-      await queryClient.invalidateQueries({
-        queryKey: ["contactChat", client?.phone],
-      });
+
+      queryClient.setQueryData<{ items: { id: string }[] }>(
+        ["contactChat", client?.phone],
+        (old) => {
+          console.log(old);
+          return {
+            items: [...(old?.items ?? []), newChat],
+          };
+        },
+      );
+
+      // Função para verificar se o chat foi criado com retry
+      // const checkChatCreated = async (attempt = 1, maxAttempts = 10) => {
+      //   try {
+      //     await queryClient.invalidateQueries({
+      //       queryKey: ["chats", client?.phone],
+      //     });
+
+      // Aguarda um tempo antes de verificar
+      //     await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+
+      //     const chatData = queryClient.getQueryData([
+      //       "chats",
+      //       client?.phone,
+      //     ]) as any;
+
+      //     if (chatData?.items?.length > 0) {
+      //       console.log(`Chat encontrado na tentativa ${attempt}`);
+      //       return true;
+      //     }
+
+      //     if (attempt < maxAttempts) {
+      //       console.log(
+      //         `Tentativa ${attempt}/${maxAttempts} - Chat ainda não encontrado, tentando novamente...`,
+      //       );
+      //       return checkChatCreated(attempt + 1, maxAttempts);
+      //     } else {
+      //       console.log("Máximo de tentativas atingido");
+      //       toast({
+      //         title: "Chat criado",
+      //         description:
+      //           "O chat foi criado, mas pode levar alguns momentos para aparecer. Tente recarregar se necessário.",
+      //         variant: "default",
+      //       });
+      //       return false;
+      //     }
+      //   } catch (error) {
+      //     console.error(`Erro na tentativa ${attempt}:`, error);
+      //     if (attempt < maxAttempts) {
+      //       return checkChatCreated(attempt + 1, maxAttempts);
+      //     }
+      //     return false;
+      //   }
+      // };
+
+      // Inicia o processo de verificação
+      // checkChatCreated();
     },
     onError: () => {
       toast({
         title: "Erro ao criar chat",
-        description: "Não foi possível iniciar a conversa.",
-        variant: "destructive",
+        description: "Não foi possível criar o chat",
       });
     },
   });
 
   const startBotOnChatMutation = useMutation({
-    mutationFn: (data: { chatId: string; botId: string; triggerName: string }) =>
+    mutationFn: (data: {
+      chatId: string;
+      botId: string;
+      triggerName: string;
+    }) =>
       fetch("/api/start/birthday-bot", {
         method: "POST",
         headers: {
@@ -200,7 +369,7 @@ export function StartBirthdayBot({
             <RefreshCw
               className={cn(
                 "h-4 w-4 mr-2",
-                syncCustomer.isPending && "animate-spin"
+                syncCustomer.isPending && "animate-spin",
               )}
             />
             {syncCustomer.isPending
@@ -235,7 +404,7 @@ export function StartBirthdayBot({
     }
 
     const birthdayBot = bots?.items.find((bot) =>
-      bot.title.includes("ANIVERSARIO - NO DIA")
+      bot.title.includes("ANIVERSARIO - NO DIA"),
     );
 
     if (!birthdayBot) {
@@ -280,7 +449,8 @@ export function StartBirthdayBot({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-1">
+            <Cake className="size-5 text-red-5-00" />
             Bot de Aniversário para{" "}
             <span className="font-semibold">{client.name}</span>
           </DialogTitle>

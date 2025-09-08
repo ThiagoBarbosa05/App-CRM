@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ptBR, th } from "date-fns/locale";
 import { type Client, ClientCashbackBalance } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import ClientInteractionsTab from "./client-interactions-tab";
@@ -85,21 +85,43 @@ export default function ClientDetailsModal({
     enabled: !!client?.phone && isOpen,
   });
 
+  // const { data: contactChat, isLoading: isLoadingChats } = useQuery({
+  //   queryKey: ["chats", client?.phone],
+  //   queryFn: async () => {
+  //     const response = await fetch(
+  //       `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`,
+  //     );
+  //     if (!response.ok) throw new Error("Failed to fetch umbler chats");
+  //     return response.json();
+  //   },
+  //   enabled: !!client?.phone && isOpen,
+  // });
+
   const { data: contactChat, isLoading: isLoadingChats } = useQuery({
-    queryKey: ["chats", client?.phone],
+    queryKey: ["contactChat", client?.phone],
     queryFn: async () => {
       const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`,
+        `/api/umbler/chats?customerPhone=${client?.phone}&userId=${user?.id}`,
+        {
+          headers: {
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
+        },
       );
-      if (!response.ok) throw new Error("Failed to fetch umbler chats");
-      return response.json();
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat");
+      }
+
+      return await response.json();
     },
     enabled: !!client?.phone && isOpen,
   });
 
   const createChatMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/umbler/chats", {
+      const response = await fetch(`/api/umbler/chats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,55 +130,76 @@ export default function ClientDetailsModal({
         },
         body: JSON.stringify({
           contactId: umblerContact?.id,
-          channelId: user?.serviceChannelId,
+          userId: user?.id,
         }),
       });
       return await response.json();
     },
-    onSuccess: (newChat) => {
+    onSuccess: (data) => {
+      const { newChat } = data;
+      console.log("Chat criado com sucesso:", newChat);
+
       toast({
         title: "Chat criado com sucesso",
         description: "O chat foi criado com sucesso",
       });
 
+      queryClient.setQueryData<{ items: { id: string }[] }>(
+        ["contactChat", client?.phone],
+        (old) => {
+          console.log(old);
+          return {
+            items: [...(old?.items ?? []), newChat],
+          };
+        },
+      );
+
       // Função para verificar se o chat foi criado com retry
-      const checkChatCreated = async (attempt = 1, maxAttempts = 10) => {
-        try {
-          await queryClient.invalidateQueries({ queryKey: ["chats", client?.phone] });
+      // const checkChatCreated = async (attempt = 1, maxAttempts = 10) => {
+      //   try {
+      //     await queryClient.invalidateQueries({
+      //       queryKey: ["chats", client?.phone],
+      //     });
 
-          // Aguarda um tempo antes de verificar
-          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      // Aguarda um tempo antes de verificar
+      //     await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
 
-          const chatData = queryClient.getQueryData(["chats", client?.phone]) as any;
+      //     const chatData = queryClient.getQueryData([
+      //       "chats",
+      //       client?.phone,
+      //     ]) as any;
 
-          if (chatData?.items?.length > 0) {
-            console.log(`Chat encontrado na tentativa ${attempt}`);
-            return true;
-          }
+      //     if (chatData?.items?.length > 0) {
+      //       console.log(`Chat encontrado na tentativa ${attempt}`);
+      //       return true;
+      //     }
 
-          if (attempt < maxAttempts) {
-            console.log(`Tentativa ${attempt}/${maxAttempts} - Chat ainda não encontrado, tentando novamente...`);
-            return checkChatCreated(attempt + 1, maxAttempts);
-          } else {
-            console.log('Máximo de tentativas atingido');
-            toast({
-              title: "Chat criado",
-              description: "O chat foi criado, mas pode levar alguns momentos para aparecer. Tente recarregar se necessário.",
-              variant: "default",
-            });
-            return false;
-          }
-        } catch (error) {
-          console.error(`Erro na tentativa ${attempt}:`, error);
-          if (attempt < maxAttempts) {
-            return checkChatCreated(attempt + 1, maxAttempts);
-          }
-          return false;
-        }
-      };
+      //     if (attempt < maxAttempts) {
+      //       console.log(
+      //         `Tentativa ${attempt}/${maxAttempts} - Chat ainda não encontrado, tentando novamente...`,
+      //       );
+      //       return checkChatCreated(attempt + 1, maxAttempts);
+      //     } else {
+      //       console.log("Máximo de tentativas atingido");
+      //       toast({
+      //         title: "Chat criado",
+      //         description:
+      //           "O chat foi criado, mas pode levar alguns momentos para aparecer. Tente recarregar se necessário.",
+      //         variant: "default",
+      //       });
+      //       return false;
+      //     }
+      //   } catch (error) {
+      //     console.error(`Erro na tentativa ${attempt}:`, error);
+      //     if (attempt < maxAttempts) {
+      //       return checkChatCreated(attempt + 1, maxAttempts);
+      //     }
+      //     return false;
+      //   }
+      // };
 
       // Inicia o processo de verificação
-      checkChatCreated();
+      // checkChatCreated();
     },
     onError: () => {
       toast({
@@ -173,19 +216,25 @@ export default function ClientDetailsModal({
       email?: string;
       organizationId: string;
     }) => {
-      const response = await fetch(`/api/umbler/contacts/create`, {
-        method: "POST",
-        body: JSON.stringify(customerData),
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
+      const response = await fetch(
+        `/api/umbler/contacts/create?userId=${user?.id}`,
+        {
+          method: "POST",
+          body: JSON.stringify(customerData),
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": user?.id || "",
+            "x-user-role": user?.role || "",
+          },
         },
-      });
+      );
       if (!response.ok) throw new Error("Failed to update customer");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const { newChat } = data;
+      console.log("Chat criado com sucesso:", newChat);
+      
       toast({
         title: "Cliente sincronizado com sucesso",
         description: "O cliente foi sincronizado com o Umbler Talk",
@@ -193,6 +242,19 @@ export default function ClientDetailsModal({
       queryClient.invalidateQueries({
         queryKey: [`/api/umbler/contacts`, client?.phone],
       });
+      // queryClient.invalidateQueries({
+      //   queryKey: ["contactChat", client?.phone],
+      // });
+
+      queryClient.setQueryData<{ items: { id: string }[] }>(
+        ["contactChat", client?.phone],
+        (old) => {
+          console.log(old);
+          return {
+            items: [...(old?.items ?? []), newChat],
+          };
+        },
+      );
     },
     onError: () => {
       toast({
@@ -233,7 +295,7 @@ export default function ClientDetailsModal({
         queryKey: ["/api/clients", client?.id, "interactions"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["chats", client?.phone],
+        queryKey: ["contactChat", client?.phone],
       });
     },
     onError: (error: any) => {

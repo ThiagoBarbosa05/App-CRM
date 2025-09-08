@@ -3,6 +3,9 @@ import { serviceChannels } from "@shared/schema";
 // import "dotenv/config";
 import { db } from "server/db";
 import z from "zod";
+import { CreateContactResponse } from "./interfaces/create-contact";
+import { CreateChatResponse } from "./interfaces/create-chat";
+import { ChatResponse } from "./interfaces/chat";
 
 const apiEndpoint = process.env.UMBLER_ENDPOINT || "";
 const organizationId = process.env.UMBLER_ORGANIZATION_ID || "";
@@ -10,8 +13,8 @@ const apiKey = process.env.UMBLER_API_KEY || "";
 
 export const createContactSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
-  name: z.string().optional(),
-  email: z.string().optional(),
+  name: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
   organizationId: z.string().min(1, "Organization ID is required"),
 });
 
@@ -109,7 +112,7 @@ export async function syncContact(customerData: {
       throw new Error("Failed to sync contact" + error);
     }
 
-    const data = await response.json();
+    const data = await response.json() as CreateContactResponse;
 
     return data;
   } catch (error) {
@@ -144,6 +147,27 @@ export async function getChat(data: {
   }
 }
 
+export async function getChatById(id:string) {
+  try {
+    const response = await fetch(`${apiEndpoint}/chats/${id}?organizationId=${organizationId}`, {
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+      }
+  })
+
+  if(!response.ok){
+    throw new Error("Failed to fetch chat")
+  }
+
+  return await response.json() as ChatResponse
+
+}
+  catch (error) {
+    console.error("Error fetching chat:", error);
+    return null;
+  }
+}
+
 export async function createChat(data: {
   contactId: string;
   channelId: string;
@@ -164,7 +188,7 @@ export async function createChat(data: {
       }),
     });
 
-    return response.json();
+    return await response.json() as CreateChatResponse;
   } catch (error) {
     console.error("Error creating chat:", error);
     return null;

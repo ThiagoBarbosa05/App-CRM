@@ -59,6 +59,7 @@ import {
   getBirthdayBots,
   getChannels,
   getChat,
+  getChatById,
   getContactByPhone,
   sendMessage,
   startBirthdayBot,
@@ -125,12 +126,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/chats", async (req, res) => {
     try {
-      const { customerPhone, selectedChannel } = req.query as {
+      const { customerPhone, userId } = req.query as {
         customerPhone: string;
-        selectedChannel: string;
+        userId: string;
       };
 
-      const chats = await getChat({ customerPhone, selectedChannel });
+       const [user] = await db.select({
+        id: users.id,
+        channelId: serviceChannels.id,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+      .leftJoin(
+              serviceChannels,
+              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+      );
+
+      if(!user) {
+        res.status(404).json({ message: "Usuário não encontrado" });
+        return;
+      }
+
+      const chats = await getChat({ customerPhone, selectedChannel: user.channelId! });
 
       if (!chats) {
         return res.status(404).json({ message: "Chat não encontrado" });
@@ -211,6 +229,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/umbler/contacts/create", async (req, res) => {
     try {
+      const {userId} = req.query as {
+        userId: string
+      }
+
+       const [user] = await db.select({
+        id: users.id,
+        channelId: serviceChannels.id,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+      .leftJoin(
+              serviceChannels,
+              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+      );
+
+      if(!user) {
+        res.status(404).json({ message: "Usuário não encontrado" });
+        return;
+      }
+
       const validatedData = createContactSchema.parse(req.body);
       const contact = await syncContact(validatedData);
 
@@ -221,23 +260,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Erro ao sincronizar contato" + result });
       }
 
-      res.status(200).json({ message: "Contato sincronizado com sucesso" });
+      const newChat = await createChat({ channelId: user.channelId!, contactId: contact.contact.id });
+
+
+      res.status(201).json({ message: "Contato sincronizado com sucesso", newChat });
     } catch (error) {
       console.error("Erro ao sincronizar contato:", error);
       res.status(500).json({ message: "Erro ao sincronizar contato" });
     }
   });
 
+  app.get("/api/umbler/chats/:id", async (req, res) => {
+    try {
+      const { id } = req.params as { id: string };
+      const chat = await getChatById(id);
+
+      if(!chat) {
+        res.status(404).json({ message: "Chat não encontrado" });
+      }
+
+      res.json(chat);
+
+    }
+    catch (error)  {
+      console.error("Erro ao buscar chat:", error);
+      res.status(500).json({ message: "Erro ao buscar chat" });
+    }
+  })
+
   app.post("/api/umbler/chats", async (req, res) => {
     try {
-      const { channelId, contactId } = req.body as {
+
+      const { userId, contactId } = req.body as {
         contactId: string;
-        channelId: string;
+        userId: string;
       };
 
-      const result = await createChat({ channelId, contactId });
+      const [user] = await db.select({
+        id: users.id,
+        channelId: serviceChannels.id,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+      .leftJoin(
+              serviceChannels,
+              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+      );
 
-      res.status(201).json(result);
+      if(!user) {
+        res.status(404).json({ message: "Usuário não encontrado" });
+        return;
+      }
+
+      const newChat = await createChat({ channelId: user.channelId!, contactId });
+
+      res.status(201).json({message: "Chat criado com sucesso", newChat});
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       res.status(500).json({ message: "Erro ao enviar mensagem" });
