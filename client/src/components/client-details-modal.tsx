@@ -85,23 +85,16 @@ export default function ClientDetailsModal({
     enabled: !!client?.phone && isOpen,
   });
 
-  const { data: contactChat, isLoading: isLoadingChats } = useQuery<{
-    items: {
-      id: string;
-      lastMessage: {
-        content: string;
-      };
-    }[];
-  }>({
+  const { data: contactChat, isLoading: isLoadingChats } = useQuery({
     queryKey: ["chats", client?.phone],
     queryFn: async () => {
       const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`
+        `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`,
       );
       if (!response.ok) throw new Error("Failed to fetch umbler chats");
       return response.json();
     },
-    enabled: !!client?.phone && isOpen && !!umblerContact,
+    enabled: !!client?.phone && isOpen,
   });
 
   const createChatMutation = useMutation({
@@ -120,13 +113,50 @@ export default function ClientDetailsModal({
       });
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: [client?.phone] });
+    onSuccess: (newChat) => {
       toast({
         title: "Chat criado com sucesso",
-        description: "O chat foi criado com o sucesso",
+        description: "O chat foi criado com sucesso",
       });
+
+      // Função para verificar se o chat foi criado com retry
+      const checkChatCreated = async (attempt = 1, maxAttempts = 10) => {
+        try {
+          await queryClient.invalidateQueries({ queryKey: ["chats", client?.phone] });
+
+          // Aguarda um tempo antes de verificar
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+
+          const chatData = queryClient.getQueryData(["chats", client?.phone]) as any;
+
+          if (chatData?.items?.length > 0) {
+            console.log(`Chat encontrado na tentativa ${attempt}`);
+            return true;
+          }
+
+          if (attempt < maxAttempts) {
+            console.log(`Tentativa ${attempt}/${maxAttempts} - Chat ainda não encontrado, tentando novamente...`);
+            return checkChatCreated(attempt + 1, maxAttempts);
+          } else {
+            console.log('Máximo de tentativas atingido');
+            toast({
+              title: "Chat criado",
+              description: "O chat foi criado, mas pode levar alguns momentos para aparecer. Tente recarregar se necessário.",
+              variant: "default",
+            });
+            return false;
+          }
+        } catch (error) {
+          console.error(`Erro na tentativa ${attempt}:`, error);
+          if (attempt < maxAttempts) {
+            return checkChatCreated(attempt + 1, maxAttempts);
+          }
+          return false;
+        }
+      };
+
+      // Inicia o processo de verificação
+      checkChatCreated();
     },
     onError: () => {
       toast({
@@ -250,12 +280,12 @@ export default function ClientDetailsModal({
     if (cleanPhone.length === 11) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        7
+        7,
       )}-${cleanPhone.slice(7)}`;
     } else if (cleanPhone.length === 10) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        6
+        6,
       )}-${cleanPhone.slice(6)}`;
     }
     return phone;
@@ -267,7 +297,7 @@ export default function ClientDetailsModal({
     if (cleanCPF.length === 11) {
       return `${cleanCPF.slice(0, 3)}.${cleanCPF.slice(3, 6)}.${cleanCPF.slice(
         6,
-        9
+        9,
       )}-${cleanCPF.slice(9)}`;
     }
     return cpf;
@@ -317,7 +347,7 @@ export default function ClientDetailsModal({
           <TabsContent value="info" className="space-y-6 mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex flex-col sm:flex-row justify-start sm:items-center justify-between">
+                <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Informações Pessoais
@@ -429,7 +459,7 @@ export default function ClientDetailsModal({
                           <RefreshCw
                             className={cn(
                               "h-4 w-4 mr-2",
-                              syncCustomer.isPending && "animate-spin"
+                              syncCustomer.isPending && "animate-spin",
                             )}
                           />
                           {syncCustomer.isPending
@@ -600,7 +630,7 @@ export default function ClientDetailsModal({
 
                         const fullAddress = addressParts.join(", ");
                         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          fullAddress
+                          fullAddress,
                         )}`;
                         window.open(mapsUrl, "_blank");
                       }}
@@ -803,7 +833,7 @@ export default function ClientDetailsModal({
                     <p className="text-2xl font-bold text-green-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.currentBalance?.toString() || "0"
+                            cashbackBalance.currentBalance?.toString() || "0",
                           )
                         : formatCurrency(0)}
                     </p>
@@ -819,7 +849,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-blue-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalEarned?.toString() || "0"
+                            cashbackBalance.totalEarned?.toString() || "0",
                           )
                         : formatCurrency(0)}
                     </p>
@@ -831,7 +861,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-orange-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalUsed?.toString() || "0"
+                            cashbackBalance.totalUsed?.toString() || "0",
                           )
                         : formatCurrency(0)}
                     </p>
@@ -855,7 +885,6 @@ export default function ClientDetailsModal({
           funnelId={selectedFunnelId}
           deal={undefined}
           initialClientId={client.id}
-          initialTitle={client.name}
         />
       )}
     </Dialog>
