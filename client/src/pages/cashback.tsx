@@ -772,7 +772,7 @@ export default function Cashback() {
                       Nova Venda
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
+                  <DialogContent className="sm:max-w-[600px] max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Registrar Nova Venda</DialogTitle>
                     </DialogHeader>

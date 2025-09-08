@@ -23,8 +23,10 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Plus, Edit, Trash2, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CashbackSettingsManagement() {
+  const {user} = useAuth()
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -49,7 +51,7 @@ export default function CashbackSettingsManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          createdBy: "b314722c-8fd6-4592-a9de-9ee551ec35be", // ID do usuário admin
+          createdBy: user?.id, // ID do usuário admin
         }),
       });
       if (!response.ok) throw new Error("Erro ao criar configuração");
