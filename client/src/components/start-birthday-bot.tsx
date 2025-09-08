@@ -12,6 +12,22 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { BirthdayBotsResponse } from "server/integrations/umbler";
 
+function isBirthdayToday(person: any): boolean {
+  const today = new Date();
+
+  const [year, month, day] = person.birthday.split("-").map(Number);
+
+  // cria a data do aniversário no ano atual
+  const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+
+  return (
+    today.getDate() === birthdayThisYear.getDate() &&
+    today.getMonth() === birthdayThisYear.getMonth()
+  );
+}
+
+
+
 interface Client {
   id: string;
   name: string;
@@ -159,7 +175,6 @@ export function StartBirthdayBot({
     },
     onSuccess: (data) => {
       const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
 
       toast({
         title: "Cliente sincronizado com sucesso",
@@ -175,7 +190,6 @@ export function StartBirthdayBot({
       queryClient.setQueryData<{ items: { id: string }[] }>(
         ["contactChat", client?.phone],
         (old) => {
-          console.log(old);
           return {
             items: [...(old?.items ?? []), newChat],
           };
@@ -240,7 +254,6 @@ export function StartBirthdayBot({
     },
     onSuccess: (data) => {
       const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
 
       toast({
         title: "Chat criado com sucesso",
@@ -250,7 +263,6 @@ export function StartBirthdayBot({
       queryClient.setQueryData<{ items: { id: string }[] }>(
         ["contactChat", client?.phone],
         (old) => {
-          console.log(old);
           return {
             items: [...(old?.items ?? []), newChat],
           };
@@ -404,8 +416,10 @@ export function StartBirthdayBot({
     }
 
     const birthdayBot = bots?.items.find((bot) =>
-      bot.title.includes("ANIVERSARIO - NO DIA"),
+      isBirthdayToday(client) ? bot.title.includes("ANIVERSARIO - NO DIA") : bot.title.includes("ANIVERSARIO - DIAS ANTES"),
     );
+
+    console.log("bot", isBirthdayToday(client))
 
     if (!birthdayBot) {
       return (
@@ -437,9 +451,15 @@ export function StartBirthdayBot({
           ) : (
             <Bot className="size-5 mr-2" />
           )}
-          {startBotOnChatMutation.isPending
+          {isBirthdayToday(client) ? (<>
+            {startBotOnChatMutation.isPending
             ? "Enviando Mensagem..."
             : `Enviar Parabéns`}
+          </>) : (<>
+            {startBotOnChatMutation.isPending
+            ? "Enviando Mensagem..."
+            : `Enviar lembrete aniversário`}
+          </>)}
         </Button>
       </div>
     );
@@ -449,13 +469,13 @@ export function StartBirthdayBot({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-1">
-            <Cake className="size-5 text-red-5-00" />
+          <DialogTitle>
             Bot de Aniversário para{" "}
             <span className="font-semibold">{client.name}</span>
           </DialogTitle>
         </DialogHeader>
         {renderContent()}
+
       </DialogContent>
     </Dialog>
   );

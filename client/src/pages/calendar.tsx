@@ -40,6 +40,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StartBirthdayBot } from "@/components/start-birthday-bot";
 
+
+
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isPending, startTransition] = useTransition();
@@ -690,14 +692,8 @@ export default function CalendarPage() {
                                 variant="ghost"
                                 className="text-xs p-1 h-auto"
                                 onClick={() => {
-                                  const message = `Parabéns, ${client.name}! Feliz aniversário! 🎉🎂`;
-                                  window.open(
-                                    `https://wa.me/${client.phone?.replace(
-                                      /\D/g,
-                                      ""
-                                    )}?text=${encodeURIComponent(message)}`,
-                                    "_blank"
-                                  );
+                                  setClientStartBot(client);
+                                  setBirthdayBot(true)
                                 }}
                               >
                                 <MessageSquare className="h-3 w-3" />
