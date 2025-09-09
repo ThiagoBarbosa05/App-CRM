@@ -83,6 +83,11 @@ export default function ClientsTable({
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
 
+  // Debug: log dos filtros aplicados
+  if (filters && (filters.markers !== "" && filters.markers !== "all")) {
+    console.log("=== FILTROS APLICADOS ===", filters);
+  }
+
   const filteredClients =
     (clientsList as Client[]).filter((client: Client) => {
       // Basic search query filter
@@ -112,27 +117,29 @@ export default function ClientsTable({
               ?.toLowerCase()
               .includes(filters.origem.toLowerCase())) &&
           (() => {
-            // Se não há filtro ou é "all", passa todos os clientes
+            // FILTRO DE MARCADORES SIMPLIFICADO
+            console.log("VERIFICANDO MARCADOR:", {
+              clienteName: client.name,
+              clienteMarkers: client.markers,
+              filtroMarkers: filters.markers
+            });
+            
+            // Se filtro é vazio, "" ou "all" → PASSA TODOS
             if (!filters.markers || filters.markers === "" || filters.markers === "all") {
+              console.log("→ PASSA (sem filtro específico)");
               return true;
             }
             
-            // Se há filtro específico, verifica se o cliente tem esse marcador
-            if (client.markers && client.markers.length > 0) {
-              const hasMarker = client.markers.some((marker) =>
-                marker.toLowerCase() === filters.markers.toLowerCase()
-              );
-              console.log("DEBUG MARKER:", {
-                clientName: client.name,
-                clientMarkers: client.markers,
-                filterValue: filters.markers,
-                hasMarker
-              });
-              return hasMarker;
+            // Se cliente não tem marcadores → NÃO PASSA
+            if (!client.markers || !Array.isArray(client.markers) || client.markers.length === 0) {
+              console.log("→ NÃO PASSA (cliente sem marcadores)");
+              return false;
             }
             
-            // Cliente sem marcadores não passa no filtro específico
-            return false;
+            // Verifica se cliente tem o marcador específico
+            const temMarcador = client.markers.includes(filters.markers);
+            console.log("→", temMarcador ? "PASSA" : "NÃO PASSA", "(comparação exata)");
+            return temMarcador;
           })());
 
       return matchesSearch && matchesAdvancedFilters;
