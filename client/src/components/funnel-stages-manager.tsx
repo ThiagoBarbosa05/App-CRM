@@ -118,7 +118,7 @@ export default function FunnelStagesManager({
     }) => {
       return await apiRequest(
         "POST",
-        `/api/stages`,
+        `/api/funnel-stages/${funnel.id}`,
         stageData
       );
     },
