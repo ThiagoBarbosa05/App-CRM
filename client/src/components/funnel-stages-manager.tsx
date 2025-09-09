@@ -117,7 +117,7 @@ export default function FunnelStagesManager({
       order: number;
     }) => {
       return await apiRequest(
-        `/api/funnel-stages/${funnel.id}`,
+        `/api/stages`,
         "POST",
         stageData
       );
@@ -128,7 +128,7 @@ export default function FunnelStagesManager({
         description: "A nova etapa foi criada com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: ["/api/funnel-stages", funnel.id],
+        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       queryClient.invalidateQueries({
@@ -155,7 +155,7 @@ export default function FunnelStagesManager({
       id: string;
       data: { name: string; color: string };
     }) => {
-      return await apiRequest(`/api/funnel-stages/${id}`, "PUT", data);
+      return await apiRequest(`/api/stages/${id}`, "PUT", data);
     },
     onSuccess: () => {
       toast({
@@ -163,7 +163,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi atualizada com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: ["/api/funnel-stages", funnel.id],
+        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setEditingStage(null);
@@ -181,7 +181,7 @@ export default function FunnelStagesManager({
 
   const deleteStageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/funnel-stages/${id}`, "DELETE");
+      return await apiRequest(`/api/stages/${id}`, "DELETE");
     },
     onSuccess: () => {
       toast({
@@ -189,7 +189,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi excluída com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: ["/api/funnel-stages", funnel.id],
+        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setDeletingStage(null);

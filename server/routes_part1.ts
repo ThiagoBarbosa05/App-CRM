@@ -502,6 +502,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/stages/:id", async (req, res) => {
+    try {
+      const stageId = req.params.id;
+      const validatedData = insertFunnelStageSchema.partial().parse(req.body);
+      const stage = await storage.updateFunnelStage(stageId, validatedData);
+      res.json(stage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ message: fromZodError(error).toString() });
+      }
+      res.status(500).json({ message: "Erro ao atualizar estágio" });
+    }
+  });
+
+  app.delete("/api/stages/:id", async (req, res) => {
+    try {
+      const stageId = req.params.id;
+      const success = await storage.deleteFunnelStage(stageId);
+      if (success) {
+        res.json({ message: "Estágio excluído com sucesso" });
+      } else {
+        res.status(404).json({ message: "Estágio não encontrado" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir estágio" });
+    }
+  });
+
   // Client routes
   app.get("/api/clients", async (req, res) => {
     try {
