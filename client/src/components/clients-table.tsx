@@ -114,9 +114,20 @@ export default function ClientsTable({
           (filters.markers === "" ||
             filters.markers === "all" ||
             (client.markers && client.markers.length > 0 && 
-             client.markers.some((marker) =>
-               marker.toLowerCase() === filters.markers.toLowerCase()
-             ))));
+             filters.markers !== "" && filters.markers !== "all" &&
+             client.markers.some((marker) => {
+               const matches = marker.toLowerCase() === filters.markers.toLowerCase();
+               if (filters.markers !== "" && filters.markers !== "all") {
+                 console.log("DEBUG MARKER:", {
+                   clientName: client.name,
+                   clientMarkers: client.markers,
+                   filterValue: filters.markers,
+                   markerChecked: marker,
+                   matches
+                 });
+               }
+               return matches;
+             }))));
 
       return matchesSearch && matchesAdvancedFilters;
     }) || [];
