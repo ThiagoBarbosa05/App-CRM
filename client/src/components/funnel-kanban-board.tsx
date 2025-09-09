@@ -153,6 +153,16 @@ export default function FunnelKanbanBoard({
 
     const matchesUser = !filters.assignedUser || filters.assignedUser === "" || filters.assignedUser === "all" ||
       deal.assignedUserId === filters.assignedUser;
+    
+    // Debug específico para filtro de usuário
+    if (filters.assignedUser && filters.assignedUser !== "" && filters.assignedUser !== "all") {
+      console.log("🧑 FILTRO USUÁRIO:", {
+        dealTitle: deal.title,
+        dealAssignedUserId: deal.assignedUserId,
+        filterValue: filters.assignedUser,
+        matches: matchesUser
+      });
+    }
 
     const matchesDateFrom = !filters.dateFrom ||
       new Date(deal.createdAt) >= new Date(filters.dateFrom);
