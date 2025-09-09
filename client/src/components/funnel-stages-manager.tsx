@@ -94,6 +94,8 @@ export default function FunnelStagesManager({
   const [deletingStage, setDeletingStage] = useState<FunnelStage | null>(null);
   const [stageName, setStageName] = useState("");
   const [stageColor, setStageColor] = useState(defaultColors[0]);
+  const [draggedItem, setDraggedItem] = useState<FunnelStage | null>(null);
+  const [draggedOver, setDraggedOver] = useState<string | null>(null);
 
   const { data: funnelStages = [], isLoading } = useQuery<FunnelStage[]>({
     queryKey: [`/api/funnels/${funnel.id}/stages`],
@@ -202,6 +204,28 @@ export default function FunnelStagesManager({
     },
   });
 
+  const reorderStagesMutation = useMutation({
+    mutationFn: async (stageUpdates: { id: string; order: number }[]) => {
+      return await apiRequest("PUT", "/api/funnel-stages/reorder", { stageUpdates });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Etapas reordenadas",
+        description: "As etapas foram reordenadas com sucesso.",
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/funnels/${funnel.id}/stages`],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível reordenar as etapas.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateStage = () => {
     if (!stageName.trim()) {
       toast({
@@ -250,6 +274,54 @@ export default function FunnelStagesManager({
     setEditingStage(null);
     setStageName("");
     setStageColor(defaultColors[0]);
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, stage: FunnelStage) => {
+    setDraggedItem(stage);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetStage: FunnelStage) => {
+    e.preventDefault();
+    setDraggedOver(targetStage.id);
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragLeave = () => {
+    setDraggedOver(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStage: FunnelStage) => {
+    e.preventDefault();
+    
+    if (!draggedItem || draggedItem.id === targetStage.id) {
+      setDraggedItem(null);
+      setDraggedOver(null);
+      return;
+    }
+
+    // Criar nova lista com as etapas reordenadas
+    const sortedStages = [...funnelStages].sort((a, b) => a.order - b.order);
+    const draggedIndex = sortedStages.findIndex(s => s.id === draggedItem.id);
+    const targetIndex = sortedStages.findIndex(s => s.id === targetStage.id);
+
+    // Remove o item arrastado e insere na nova posição
+    const newStages = [...sortedStages];
+    const [draggedStage] = newStages.splice(draggedIndex, 1);
+    newStages.splice(targetIndex, 0, draggedStage);
+
+    // Criar array com as novas ordens
+    const stageUpdates = newStages.map((stage, index) => ({
+      id: stage.id,
+      order: index + 1
+    }));
+
+    // Executar mutation
+    reorderStagesMutation.mutate(stageUpdates);
+
+    setDraggedItem(null);
+    setDraggedOver(null);
   };
 
   if (isLoading) {
@@ -332,12 +404,30 @@ export default function FunnelStagesManager({
         </div>
 
         <div className="grid gap-4">
-          {funnelStages.map((stage: FunnelStage, index: number) => (
-            <Card key={stage.id}>
+          {funnelStages
+            .sort((a, b) => a.order - b.order)
+            .map((stage: FunnelStage, index: number) => (
+            <Card 
+              key={stage.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, stage)}
+              onDragOver={(e) => handleDragOver(e, stage)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, stage)}
+              className={`cursor-move transition-all duration-200 ${
+                draggedItem?.id === stage.id 
+                  ? 'opacity-50 scale-95' 
+                  : draggedOver === stage.id 
+                    ? 'ring-2 ring-primary bg-primary/5 scale-105' 
+                    : 'hover:shadow-md'
+              }`}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <GripVertical className="h-5 w-5 text-gray-400" />
+                    <GripVertical className={`h-5 w-5 ${
+                      draggedItem ? 'text-primary' : 'text-gray-400'
+                    }`} />
                     <div
                       className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: stage.color }}
