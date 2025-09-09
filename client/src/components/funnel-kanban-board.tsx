@@ -81,11 +81,9 @@ export default function FunnelKanbanBoard({
     search: "",
     valueMin: "",
     valueMax: "",
-    company: "",
     assignedUser: "",
     dateFrom: "",
-    dateTo: "",
-    status: ""
+    dateTo: ""
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -148,9 +146,6 @@ export default function FunnelKanbanBoard({
     const matchesValueMax = !filters.valueMax ||
       parseFloat(deal.value) <= parseFloat(filters.valueMax);
 
-    const matchesCompany = !filters.company || filters.company === "" || filters.company === "all" ||
-      deal.companyId === filters.company;
-
     const matchesUser = !filters.assignedUser || filters.assignedUser === "" || filters.assignedUser === "all" ||
       deal.assignedTo === filters.assignedUser;
     
@@ -161,12 +156,8 @@ export default function FunnelKanbanBoard({
     const matchesDateTo = !filters.dateTo ||
       new Date(deal.createdAt) <= new Date(filters.dateTo);
 
-    const matchesStatus = !filters.status || filters.status === "" || filters.status === "all" ||
-      deal.status === filters.status;
-
     return matchesSearch && matchesValueMin && matchesValueMax &&
-           matchesCompany && matchesUser && matchesDateFrom &&
-           matchesDateTo && matchesStatus;
+           matchesUser && matchesDateFrom && matchesDateTo;
   });
 
   // Debug: log dos deals filtrados
@@ -180,11 +171,9 @@ export default function FunnelKanbanBoard({
       search: "",
       valueMin: "",
       valueMax: "",
-      company: "",
       assignedUser: "",
       dateFrom: "",
-      dateTo: "",
-      status: ""
+      dateTo: ""
     });
   };
 
@@ -356,26 +345,6 @@ export default function FunnelKanbanBoard({
                     </div>
 
                     <div>
-                      <Label htmlFor="company">Empresa</Label>
-                      <Select
-                        value={filters.company}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, company: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Todas as empresas" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas as empresas</SelectItem>
-                          {companies.map((company: any) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
                       <Label htmlFor="assignedUser">Responsável</Label>
                       <Select
                         value={filters.assignedUser}
@@ -391,24 +360,6 @@ export default function FunnelKanbanBoard({
                               {user.name}
                             </SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        value={filters.status}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Todos os status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os status</SelectItem>
-                          <SelectItem value="open">Aberto</SelectItem>
-                          <SelectItem value="won">Ganho</SelectItem>
-                          <SelectItem value="lost">Perdido</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
