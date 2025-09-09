@@ -152,17 +152,14 @@ export default function FunnelKanbanBoard({
       deal.companyId === filters.company;
 
     const matchesUser = !filters.assignedUser || filters.assignedUser === "" || filters.assignedUser === "all" ||
-      deal.assignedUserId === filters.assignedUser;
+      deal.assignedTo === filters.assignedUser;
     
     // Debug específico para filtro de usuário
     if (filters.assignedUser && filters.assignedUser !== "" && filters.assignedUser !== "all") {
       console.log("🧑 FILTRO USUÁRIO:", {
         dealTitle: deal.title,
-        dealAssignedUserId: deal.assignedUserId,
+        dealAssignedTo: deal.assignedTo,
         filterValue: filters.assignedUser,
-        filterIsEmpty: !filters.assignedUser,
-        filterIsAll: filters.assignedUser === "all",
-        assignedUserField: deal.assignedUserId || deal.assignedTo,
         matches: matchesUser
       });
     }
