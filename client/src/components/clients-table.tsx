@@ -83,9 +83,9 @@ export default function ClientsTable({
   // Provide default empty array if clients is undefined
   const clientsList = clients || [];
 
-  // Debug: log dos filtros aplicados
-  if (filters && (filters.markers !== "" && filters.markers !== "all")) {
-    console.log("=== FILTROS APLICADOS ===", filters);
+  // Debug: apenas quando há filtro de marcador específico
+  if (filters?.markers && filters.markers !== "" && filters.markers !== "all") {
+    console.log("🔍 FILTRO ATIVO:", filters.markers);
   }
 
   const filteredClients =
@@ -117,29 +117,26 @@ export default function ClientsTable({
               ?.toLowerCase()
               .includes(filters.origem.toLowerCase())) &&
           (() => {
-            // FILTRO DE MARCADORES SIMPLIFICADO
-            console.log("VERIFICANDO MARCADOR:", {
-              clienteName: client.name,
-              clienteMarkers: client.markers,
-              filtroMarkers: filters.markers
-            });
-            
-            // Se filtro é vazio, "" ou "all" → PASSA TODOS
+            // FILTRO DE MARCADORES
+            // Se não há filtro específico → passa todos
             if (!filters.markers || filters.markers === "" || filters.markers === "all") {
-              console.log("→ PASSA (sem filtro específico)");
               return true;
             }
             
-            // Se cliente não tem marcadores → NÃO PASSA
+            // Se cliente não tem marcadores → não passa
             if (!client.markers || !Array.isArray(client.markers) || client.markers.length === 0) {
-              console.log("→ NÃO PASSA (cliente sem marcadores)");
               return false;
             }
             
-            // Verifica se cliente tem o marcador específico
-            const temMarcador = client.markers.includes(filters.markers);
-            console.log("→", temMarcador ? "PASSA" : "NÃO PASSA", "(comparação exata)");
-            return temMarcador;
+            // Verifica se cliente tem o marcador específico (comparação exata)
+            const hasMarker = client.markers.includes(filters.markers);
+            
+            // Log apenas casos problemáticos para debug
+            if (filters.markers === "Evento ROCCA") {
+              console.log(`Cliente: ${client.name} | Marcadores: [${client.markers.join(", ")}] | Tem "Evento ROCCA"? ${hasMarker}`);
+            }
+            
+            return hasMarker;
           })());
 
       return matchesSearch && matchesAdvancedFilters;

@@ -114,9 +114,11 @@ export default function FunnelKanbanBoard({
     queryKey: ["/api/users"],
   });
 
-  const { data: companies = [] } = useQuery({
+  const { data: companiesResponse } = useQuery({
     queryKey: ["/api/companies"],
   });
+  
+  const companies = companiesResponse?.data || [];
 
   // Função para filtrar deals
   const filteredDeals = deals.filter((deal: any) => {
