@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
@@ -24,6 +24,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Search, FilterX, Filter } from "lucide-react";
+
 
 interface SalesFunnel {
   id: string;
@@ -53,6 +61,7 @@ export default function FunnelKanbanBoard({
   funnel,
 }: FunnelKanbanBoardProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
@@ -66,7 +75,20 @@ export default function FunnelKanbanBoard({
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
-  const { data: deals, isLoading } = useQuery({
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    search: "",
+    valueMin: "",
+    valueMax: "",
+    company: "",
+    assignedUser: "",
+    dateFrom: "",
+    dateTo: "",
+    status: ""
+  });
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const { data: deals = [], isLoading } = useQuery({
     queryKey: ["/api/deals", funnelId],
     queryFn: async () => {
       // Get user data from localStorage for the query
@@ -87,6 +109,64 @@ export default function FunnelKanbanBoard({
       return await response.json();
     },
   });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["/api/companies"],
+  });
+
+  // Função para filtrar deals
+  const filteredDeals = deals.filter((deal: any) => {
+    const matchesSearch = !filters.search ||
+      deal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+      deal.description?.toLowerCase().includes(filters.search.toLowerCase());
+
+    const matchesValueMin = !filters.valueMin ||
+      parseFloat(deal.value) >= parseFloat(filters.valueMin);
+
+    const matchesValueMax = !filters.valueMax ||
+      parseFloat(deal.value) <= parseFloat(filters.valueMax);
+
+    const matchesCompany = !filters.company ||
+      deal.companyId === filters.company;
+
+    const matchesUser = !filters.assignedUser ||
+      deal.assignedUserId === filters.assignedUser;
+
+    const matchesDateFrom = !filters.dateFrom ||
+      new Date(deal.createdAt) >= new Date(filters.dateFrom);
+
+    const matchesDateTo = !filters.dateTo ||
+      new Date(deal.createdAt) <= new Date(filters.dateTo);
+
+    const matchesStatus = !filters.status ||
+      deal.status === filters.status;
+
+    return matchesSearch && matchesValueMin && matchesValueMax &&
+           matchesCompany && matchesUser && matchesDateFrom &&
+           matchesDateTo && matchesStatus;
+  });
+
+  // Função para limpar filtros
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      valueMin: "",
+      valueMax: "",
+      company: "",
+      assignedUser: "",
+      dateFrom: "",
+      dateTo: "",
+      status: ""
+    });
+  };
+
+  // Verificar se há filtros ativos
+  const hasActiveFilters = Object.values(filters).some(value => value !== "");
+
 
   const updateDealMutation = useMutation({
     mutationFn: async ({ id, stageId }: { id: string; stageId: string }) => {
@@ -129,19 +209,20 @@ export default function FunnelKanbanBoard({
   });
 
   // Buscar usuários para o filtro
-  const { data: users = [] } = useQuery<any[]>({
+  const { data: usersFromApi = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
   });
+
 
   const getDealsForStage = (stageId: string) => {
     if (!deals || !Array.isArray(deals)) return [];
     let filteredDeals = deals.filter((deal: DealWithClient) => deal.stageId === stageId);
-    
+
     // Aplicar filtro por responsável se selecionado
     if (selectedUserId && selectedUserId !== "all") {
       filteredDeals = filteredDeals.filter((deal: DealWithClient) => deal.assignedTo === selectedUserId);
     }
-    
+
     return filteredDeals;
   };
 
@@ -173,30 +254,180 @@ export default function FunnelKanbanBoard({
     <>
       <div className="flex-1 overflow-auto bg-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h3 className="text-lg font-semibold">Negócios no funil</h3>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-500" />
-              <Label htmlFor="user-filter" className="text-sm text-gray-600">Filtrar por responsável:</Label>
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Todos os responsáveis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os responsáveis</SelectItem>
-                  {users.map((user: any) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <h3 className="text-lg font-semibold">Pipeline de Vendas</h3>
+            <p className="text-gray-600">
+              Gerencie seus negócios através do funil
+              {hasActiveFilters && (
+                <span className="ml-2 text-sm">
+                  ({filteredDeals.length} de {deals.length} deals)
+                </span>
+              )}
+            </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Negócio
-          </Button>
+          <div className="flex items-center gap-2">
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="relative">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                  {hasActiveFilters && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Filtrar Deals</h4>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FilterX className="h-4 w-4 mr-1" />
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="search">Buscar</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                          id="search"
+                          placeholder="Título ou descrição..."
+                          value={filters.search}
+                          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="valueMin">Valor Mín.</Label>
+                        <Input
+                          id="valueMin"
+                          type="number"
+                          placeholder="0"
+                          value={filters.valueMin}
+                          onChange={(e) => setFilters(prev => ({ ...prev, valueMin: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="valueMax">Valor Máx.</Label>
+                        <Input
+                          id="valueMax"
+                          type="number"
+                          placeholder="999999"
+                          value={filters.valueMax}
+                          onChange={(e) => setFilters(prev => ({ ...prev, valueMax: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="company">Empresa</Label>
+                      <Select
+                        value={filters.company}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, company: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas as empresas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todas as empresas</SelectItem>
+                          {companies.map((company: any) => (
+                            <SelectItem key={company.id} value={company.id}>
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="assignedUser">Responsável</Label>
+                      <Select
+                        value={filters.assignedUser}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, assignedUser: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos os usuários" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos os usuários</SelectItem>
+                          {users.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={filters.status}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos os status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos os status</SelectItem>
+                          <SelectItem value="open">Aberto</SelectItem>
+                          <SelectItem value="won">Ganho</SelectItem>
+                          <SelectItem value="lost">Perdido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="dateFrom">Data Início</Label>
+                        <Input
+                          id="dateFrom"
+                          type="date"
+                          value={filters.dateFrom}
+                          onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dateTo">Data Fim</Label>
+                        <Input
+                          id="dateTo"
+                          type="date"
+                          value={filters.dateTo}
+                          onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Deal
+                </Button>
+              </DialogTrigger>
+              <DealFormModal
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+                funnelId={funnelId}
+              />
+            </Dialog>
+          </div>
         </div>
 
         <div
@@ -206,7 +437,8 @@ export default function FunnelKanbanBoard({
           }}
         >
           {funnel.stages?.map((stage) => {
-            const stageDeals = getDealsForStage(stage.id);
+            const stageDeals = filteredDeals.filter((deal: any) => deal.stageId === stage.id);
+            const totalValue = stageDeals.reduce((sum: number, deal: any) => sum + parseFloat(deal.value || "0"), 0);
 
             return (
               <div
