@@ -1174,6 +1174,23 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
+  async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean> {
+    try {
+      await this.db.transaction(async (tx) => {
+        for (const stageUpdate of stageUpdates) {
+          await tx
+            .update(funnelStages)
+            .set({ order: stageUpdate.order })
+            .where(eq(funnelStages.id, stageUpdate.id));
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error reordering funnel stages:', error);
+      return false;
+    }
+  }
+
   // Deal methods
   async getDeals(
     funnelId?: string,
