@@ -111,23 +111,29 @@ export default function ClientsTable({
             client.origem
               ?.toLowerCase()
               .includes(filters.origem.toLowerCase())) &&
-          (filters.markers === "" ||
-            filters.markers === "all" ||
-            (client.markers && client.markers.length > 0 && 
-             filters.markers !== "" && filters.markers !== "all" &&
-             client.markers.some((marker) => {
-               const matches = marker.toLowerCase() === filters.markers.toLowerCase();
-               if (filters.markers !== "" && filters.markers !== "all") {
-                 console.log("DEBUG MARKER:", {
-                   clientName: client.name,
-                   clientMarkers: client.markers,
-                   filterValue: filters.markers,
-                   markerChecked: marker,
-                   matches
-                 });
-               }
-               return matches;
-             }))));
+          (() => {
+            // Se não há filtro ou é "all", passa todos os clientes
+            if (!filters.markers || filters.markers === "" || filters.markers === "all") {
+              return true;
+            }
+            
+            // Se há filtro específico, verifica se o cliente tem esse marcador
+            if (client.markers && client.markers.length > 0) {
+              const hasMarker = client.markers.some((marker) =>
+                marker.toLowerCase() === filters.markers.toLowerCase()
+              );
+              console.log("DEBUG MARKER:", {
+                clientName: client.name,
+                clientMarkers: client.markers,
+                filterValue: filters.markers,
+                hasMarker
+              });
+              return hasMarker;
+            }
+            
+            // Cliente sem marcadores não passa no filtro específico
+            return false;
+          })());
 
       return matchesSearch && matchesAdvancedFilters;
     }) || [];

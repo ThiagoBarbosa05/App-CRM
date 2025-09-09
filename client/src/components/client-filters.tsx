@@ -108,7 +108,7 @@ export default function ClientFilters({
           {hasActiveFilters && (
             <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
               {
-                Object.values(currentFilters).filter((value) => value !== "")
+                Object.values(currentFilters).filter((value) => value !== "" && value !== "all")
                   .length
               }
             </span>
