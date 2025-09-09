@@ -121,6 +121,13 @@ export default function DealCard({
                 <span>{Math.round(getClosingProbability())}% chance</span>
               </div>
             </div>
+            
+            {/* Responsável pelo negócio */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <User className="h-4 w-4" />
+              <span className="font-medium">Responsável:</span>
+              <span>{deal.assignedUser?.name || "Não definido"}</span>
+            </div>
           </div>
           
           <DropdownMenu>
