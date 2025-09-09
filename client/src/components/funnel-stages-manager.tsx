@@ -96,15 +96,20 @@ export default function FunnelStagesManager({
   const [stageColor, setStageColor] = useState(defaultColors[0]);
 
   const { data: funnelStages = [], isLoading } = useQuery<FunnelStage[]>({
-    queryKey: [`/api/funnels/${funnel.id}/stages`],
+    queryKey: [`/api/funnels/${funnel.id}/stages`, Date.now()],
     queryFn: async () => {
+      const timestamp = Date.now();
       const response = await apiRequest(
         "GET",
-        `/api/funnels/${funnel.id}/stages`
+        `/api/funnels/${funnel.id}/stages?t=${timestamp}`
       );
       return response.json();
     },
     enabled: !!funnel.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   console.log(funnelStages);
