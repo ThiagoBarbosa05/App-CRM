@@ -117,8 +117,8 @@ export default function FunnelStagesManager({
       order: number;
     }) => {
       return await apiRequest(
-        `/api/stages`,
         "POST",
+        `/api/stages`,
         stageData
       );
     },
@@ -155,7 +155,7 @@ export default function FunnelStagesManager({
       id: string;
       data: { name: string; color: string };
     }) => {
-      return await apiRequest(`/api/stages/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/stages/${id}`, data);
     },
     onSuccess: () => {
       toast({
@@ -181,7 +181,7 @@ export default function FunnelStagesManager({
 
   const deleteStageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/stages/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/stages/${id}`);
     },
     onSuccess: () => {
       toast({
