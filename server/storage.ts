@@ -614,7 +614,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(ilike(clients.name, `%${filters.name}%`));
     }
     if (filters.phone) {
-      conditions.push(ilike(clients.phone, `%${filters.phone}%`));
+      const normalizedPhone = filters.phone.replace(/\D/g, ""); // só dígitos
+      conditions.push(
+        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
+          "%" + normalizedPhone + "%"
+        }`
+      );
     }
     if (filters.cpf) {
       conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
