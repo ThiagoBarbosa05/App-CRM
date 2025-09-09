@@ -107,7 +107,6 @@ import {
   ne,
   gt,
   like,
-  arrayContains,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -629,8 +628,9 @@ export class DatabaseStorage implements IStorage {
     if (filters.origem) {
       conditions.push(eq(clients.origem, filters.origem));
     }
-    // TODO: Implementar filtro de marcadores no backend
-    // Por enquanto, o filtro de marcadores será feito no frontend
+    if (filters.markers) {
+      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+    }
 
     // Filtro de busca geral (case-insensitive)
     if (filters.search) {

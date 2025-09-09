@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import ClientsTableWithSelection from "@/components/clients-table-with-selection";
 import ClientFormModal from "@/components/client-form-modal";
 import ClientFilters, {
@@ -12,41 +12,50 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 
+// Definição de tipo para cliente para melhorar a segurança de tipo.
+interface Client {
+  id: string;
+  [key: string]: any; // Permite outras propriedades não estritamente tipadas por enquanto.
+}
+
+// Hook customizado para debouncing de valores, útil para campos de busca.
+const useDebounce = (value: any, delay: number): any => {
+  const [debouncedValue, setDebouncedValue] = useState<any>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+};
+
 export default function Clients() {
   const { user } = useAuth();
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [selectedClients, setSelectedClients] = useState<any[]>([]);
+  const [selectedClients, setSelectedClients] = useState<Client[]>([]); // Tipagem melhorada
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
     name: "",
     phone: "",
     cpf: "",
     responsavelId: "all",
-    categoria: "all",
-    origem: "all",
-    markers: "all",
+    categoria: "",
+    origem: "",
+    markers: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1);
-    }, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, clientFilters]);
 
   const handleFiltersChange = useCallback((filters: ClientFiltersType) => {
     setClientFilters(filters);
-    setCurrentPage(1);
   }, []);
 
   const { data: clientsResponse, isFetching } = useQuery({
@@ -64,15 +73,10 @@ export default function Clients() {
         if (user?.id) params.append("userId", user.id);
         if (user?.role) params.append("userRole", user.role);
       }
-
-      if (debouncedSearchQuery) {
-        params.append("search", debouncedSearchQuery);
-      }
+      if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
 
       Object.entries(clientFilters).forEach(([key, value]) => {
-        if (value && value !== "all") {
-          params.append(key, value);
-        }
+        if (value && value !== "all") params.append(key, value);
       });
 
       params.append("page", currentPage.toString());
@@ -85,14 +89,14 @@ export default function Clients() {
     enabled: !!user,
   });
 
-  // Extrair dados da resposta
-  const clientsArray = Array.isArray(clientsResponse)
-    ? clientsResponse
-    : clientsResponse?.data || [];
-  const totalPages = clientsResponse?.totalPages || null;
-  const totalItems = clientsResponse?.totalItems || null;
-  const hasNextPage =
-    clientsResponse?.hasNextPage || clientsArray.length === itemsPerPage;
+  const { clientsArray, totalPages, hasNextPage } = useMemo(() => {
+    const data = clientsResponse?.data || [];
+    return {
+      clientsArray: data,
+      totalPages: clientsResponse?.totalPages || null,
+      hasNextPage: clientsResponse?.hasNextPage ?? data.length === itemsPerPage,
+    };
+  }, [clientsResponse]);
 
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
@@ -103,15 +107,58 @@ export default function Clients() {
     },
   });
 
-  const usersArray = Array.isArray(users) ? users : [];
+  const usersArray = useMemo(
+    () => (Array.isArray(users) ? users : []),
+    [users]
+  );
+
+  const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
+    useQuery({
+      queryKey: [
+        "/api/clients/all",
+        user?.id,
+        user?.role,
+        debouncedSearchQuery,
+        clientFilters,
+      ],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (user?.role !== "admin") {
+          if (user?.id) params.append("userId", user.id);
+          if (user?.role) params.append("userRole", user.role);
+        }
+        if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
+        Object.entries(clientFilters).forEach(([key, value]) => {
+          if (value && value !== "all") params.append(key, value);
+        });
+
+        const response = await fetch(`/api/clients?${params.toString()}`);
+        if (!response.ok)
+          throw new Error("Failed to fetch all clients for export");
+        const result = await response.json();
+        return Array.isArray(result) ? result : result.data || [];
+      },
+      enabled: isExportModalOpen && selectedClients.length === 0,
+    });
 
   const handleSelectionChange = useCallback(
-    (selectedIds: string[], selectedClientsData: any[]) => {
+    (selectedIds: string[], selectedClientsData: Client[]) => {
       setSelectedClientIds(selectedIds);
       setSelectedClients(selectedClientsData);
     },
     []
   );
+
+  const clearSelection = useCallback(() => {
+    setSelectedClientIds([]);
+    setSelectedClients([]);
+  }, []);
+
+  const clientsForExport = useMemo(() => {
+    return selectedClients.length > 0
+      ? selectedClients
+      : allClientsForExport || [];
+  }, [selectedClients, allClientsForExport]);
 
   return (
     <div className=" bg-gray-50">
@@ -172,10 +219,7 @@ export default function Clients() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setSelectedClientIds([]);
-                        setSelectedClients([]);
-                      }}
+                      onClick={clearSelection}
                       className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
                     >
                       ×
@@ -186,9 +230,16 @@ export default function Clients() {
                   variant="outline"
                   onClick={() => setIsExportModalOpen(true)}
                   className="w-full"
+                  disabled={
+                    isExportModalOpen &&
+                    selectedClients.length === 0 &&
+                    isFetchingAllForExport
+                  }
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {selectedClients.length > 0
+                  {isFetchingAllForExport && selectedClients.length === 0
+                    ? "Preparando..."
+                    : selectedClients.length > 0
                     ? `Exportar ${selectedClients.length} Selecionados`
                     : "Exportar Todos"}
                 </Button>
@@ -203,7 +254,8 @@ export default function Clients() {
           <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>
-                Mostrando {clientsArray.length} de 50 clientes por página
+                Mostrando {clientsArray.length} de {itemsPerPage} clientes por
+                página
               </span>
               <span>
                 Página {currentPage}
@@ -222,8 +274,9 @@ export default function Clients() {
             />
 
             {isFetching && (
-              <div className="absolute h-full inset-0 justify-center  items-center   flex flex-col p-6 space-y-4 backdrop-blur-sm">
-                <Loader2 className="animate-spin text-[#7b3aec]" />
+              <div className="absolute h-full inset-0 justify-center items-center flex flex-col p-6 space-y-4 backdrop-blur-sm bg-white/30">
+                <Loader2 className="animate-spin text-primary" />
+                <p className="text-sm text-gray-600">Carregando clientes...</p>
               </div>
             )}
           </div>
@@ -243,7 +296,7 @@ export default function Clients() {
       <ClientExportModal
         open={isExportModalOpen}
         onOpenChange={setIsExportModalOpen}
-        clients={clientsArray}
+        clients={clientsForExport}
         selectedClients={selectedClients}
         users={usersArray}
       />

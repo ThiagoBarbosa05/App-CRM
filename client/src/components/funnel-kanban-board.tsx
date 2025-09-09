@@ -133,10 +133,10 @@ export default function FunnelKanbanBoard({
     const matchesValueMax = !filters.valueMax ||
       parseFloat(deal.value) <= parseFloat(filters.valueMax);
 
-    const matchesCompany = filters.company === "all" ||
+    const matchesCompany = !filters.company || filters.company === "" || filters.company === "all" ||
       deal.companyId === filters.company;
 
-    const matchesUser = filters.assignedUser === "all" ||
+    const matchesUser = !filters.assignedUser || filters.assignedUser === "" || filters.assignedUser === "all" ||
       deal.assignedUserId === filters.assignedUser;
 
     const matchesDateFrom = !filters.dateFrom ||
