@@ -1217,72 +1217,43 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string
   ): Promise<DealWithClient[]> {
-    const dealsWithClients: DealWithClient[] = [];
+    // Usar uma única query com JOINs para otimizar performance
+    let query = this.db
+      .select({
+        deal: deals,
+        client: clients,
+        company: companies,
+        assignedUser: users,
+        stage: funnelStages,
+        funnel: salesFunnels
+      })
+      .from(deals)
+      .leftJoin(clients, eq(deals.clientId, clients.id))
+      .leftJoin(companies, eq(deals.companyId, companies.id))
+      .leftJoin(users, eq(deals.assignedTo, users.id))
+      .leftJoin(funnelStages, eq(deals.stageId, funnelStages.id))
+      .leftJoin(salesFunnels, eq(deals.funnelId, salesFunnels.id));
 
-    // Usar o método getDeals que já funciona
-    const dealsResult = await this.getDeals(funnelId, userId, userRole);
+    // Aplicar condições de filtro
+    const conditions = [];
+    if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
+    if (userRole === "vendedor" && userId) conditions.push(eq(deals.assignedTo, userId));
 
-    for (const deal of dealsResult) {
-      let client = null;
-      let company = null;
-      let assignedUser = null;
-      let stage = null;
-      let funnel = null;
-
-      // Buscar cliente se tiver clientId
-      if (deal.clientId) {
-        const [clientResult] = await this.db
-          .select()
-          .from(clients)
-          .where(eq(clients.id, deal.clientId));
-        client = clientResult || null;
-      }
-
-      // Buscar empresa se tiver companyId
-      if (deal.companyId) {
-        const [companyResult] = await this.db
-          .select()
-          .from(companies)
-          .where(eq(companies.id, deal.companyId));
-        company = companyResult || null;
-      }
-
-      // Buscar usuário responsável
-      if (deal.assignedTo) {
-        const [userResult] = await this.db
-          .select()
-          .from(users)
-          .where(eq(users.id, deal.assignedTo));
-        assignedUser = userResult || null;
-      }
-
-      // Buscar estágio
-      if (deal.stageId) {
-        const [stageResult] = await this.db
-          .select()
-          .from(funnelStages)
-          .where(eq(funnelStages.id, deal.stageId));
-        stage = stageResult || null;
-      }
-
-      // Buscar funil
-      if (deal.funnelId) {
-        const [funnelResult] = await this.db
-          .select()
-          .from(salesFunnels)
-          .where(eq(salesFunnels.id, deal.funnelId));
-        funnel = funnelResult || null;
-      }
-
-      dealsWithClients.push({
-        ...deal,
-        client,
-        company,
-        assignedUser,
-        stage,
-        funnel,
-      });
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
+
+    const results = await query.orderBy(deals.createdAt);
+    
+    // Mapear resultados para o formato esperado
+    const dealsWithClients: DealWithClient[] = results.reverse().map((row) => ({
+      ...row.deal,
+      client: row.client,
+      company: row.company,
+      assignedUser: row.assignedUser,
+      stage: row.stage,
+      funnel: row.funnel
+    }));
 
     return dealsWithClients;
   }
