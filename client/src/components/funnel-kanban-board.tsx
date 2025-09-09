@@ -118,7 +118,7 @@ export default function FunnelKanbanBoard({
   const { data: companiesResponse } = useQuery({
     queryKey: ["/api/companies"],
   });
-  
+
   const companies = companiesResponse?.data || [];
 
   // Função para filtrar deals
@@ -133,10 +133,10 @@ export default function FunnelKanbanBoard({
     const matchesValueMax = !filters.valueMax ||
       parseFloat(deal.value) <= parseFloat(filters.valueMax);
 
-    const matchesCompany = !filters.company ||
+    const matchesCompany = filters.company === "all" ||
       deal.companyId === filters.company;
 
-    const matchesUser = !filters.assignedUser ||
+    const matchesUser = filters.assignedUser === "all" ||
       deal.assignedUserId === filters.assignedUser;
 
     const matchesDateFrom = !filters.dateFrom ||
@@ -145,7 +145,7 @@ export default function FunnelKanbanBoard({
     const matchesDateTo = !filters.dateTo ||
       new Date(deal.createdAt) <= new Date(filters.dateTo);
 
-    const matchesStatus = !filters.status ||
+    const matchesStatus = filters.status === "all" ||
       deal.status === filters.status;
 
     return matchesSearch && matchesValueMin && matchesValueMax &&
@@ -344,7 +344,7 @@ export default function FunnelKanbanBoard({
                           <SelectValue placeholder="Todas as empresas" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todas as empresas</SelectItem>
+                          <SelectItem value="all">Todas as empresas</SelectItem>
                           {companies.map((company: any) => (
                             <SelectItem key={company.id} value={company.id}>
                               {company.name}
@@ -364,7 +364,7 @@ export default function FunnelKanbanBoard({
                           <SelectValue placeholder="Todos os usuários" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todos os usuários</SelectItem>
+                          <SelectItem value="all">Todos os usuários</SelectItem>
                           {users.map((user: any) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.name}
@@ -384,7 +384,7 @@ export default function FunnelKanbanBoard({
                           <SelectValue placeholder="Todos os status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todos os status</SelectItem>
+                          <SelectItem value="all">Todos os status</SelectItem>
                           <SelectItem value="open">Aberto</SelectItem>
                           <SelectItem value="won">Ganho</SelectItem>
                           <SelectItem value="lost">Perdido</SelectItem>
