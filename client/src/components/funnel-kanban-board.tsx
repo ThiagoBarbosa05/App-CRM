@@ -89,30 +89,42 @@ export default function FunnelKanbanBoard({
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const { data: deals = [], isLoading } = useQuery({
+  const { data: deals = [], isLoading, error } = useQuery({
     queryKey: ["/api/deals", funnelId],
     queryFn: async () => {
-      // Get user data from localStorage for the query
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        const user = JSON.parse(userData);
+      console.log("🚀 INICIANDO QUERY DEALS para funil:", funnelId);
+      try {
+        // Get user data from localStorage for the query
+        const userData = localStorage.getItem("user");
+        if (userData) {
+          const user = JSON.parse(userData);
+          console.log("👤 USER DATA:", user.id, user.role);
+          const response = await apiRequest(
+            "GET",
+            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
+          );
+          const data = await response.json();
+          console.log("🎯 DEALS CARREGADOS (com user):", data.length, "deals para funil", funnelId);
+          return data;
+        }
+        console.log("⚠️ SEM USER DATA - usando query básica");
         const response = await apiRequest(
           "GET",
-          `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
+          `/api/deals?funnelId=${funnelId}`,
         );
         const data = await response.json();
-        console.log("🎯 DEALS CARREGADOS:", data.length, "deals para funil", funnelId);
+        console.log("🎯 DEALS CARREGADOS (sem user):", data.length, "deals para funil", funnelId);
         return data;
+      } catch (error) {
+        console.error("❌ ERRO NA QUERY DEALS:", error);
+        throw error;
       }
-      const response = await apiRequest(
-        "GET",
-        `/api/deals?funnelId=${funnelId}`,
-      );
-      const data = await response.json();
-      console.log("🎯 DEALS CARREGADOS:", data.length, "deals para funil", funnelId);
-      return data;
     },
   });
+
+  if (error) {
+    console.error("❌ ERRO NA QUERY:", error);
+  }
 
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
@@ -148,7 +160,7 @@ export default function FunnelKanbanBoard({
     const matchesDateTo = !filters.dateTo ||
       new Date(deal.createdAt) <= new Date(filters.dateTo);
 
-    const matchesStatus = filters.status === "all" ||
+    const matchesStatus = !filters.status || filters.status === "" || filters.status === "all" ||
       deal.status === filters.status;
 
     return matchesSearch && matchesValueMin && matchesValueMax &&
@@ -450,6 +462,8 @@ export default function FunnelKanbanBoard({
           {funnel.stages?.map((stage) => {
             const stageDeals = filteredDeals.filter((deal: any) => deal.stageId === stage.id);
             const totalValue = stageDeals.reduce((sum: number, deal: any) => sum + parseFloat(deal.value || "0"), 0);
+            
+            console.log(`🏁 ESTÁGIO "${stage.name}" (${stage.id}):`, stageDeals.length, "deals");
 
             return (
               <div
