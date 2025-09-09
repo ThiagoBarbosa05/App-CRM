@@ -1092,6 +1092,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/funnel-stages/reorder", async (req, res) => {
+    try {
+      const { stageUpdates } = req.body;
+      if (!Array.isArray(stageUpdates)) {
+        return res.status(400).json({ message: "stageUpdates deve ser um array" });
+      }
+      
+      const success = await storage.reorderFunnelStages(stageUpdates);
+      if (success) {
+        res.json({ message: "Etapas reordenadas com sucesso" });
+      } else {
+        res.status(500).json({ message: "Erro ao reordenar etapas" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao reordenar etapas" });
+    }
+  });
+
   // Deal routes
   app.get("/api/deals", async (req, res) => {
     try {
