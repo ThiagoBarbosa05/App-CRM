@@ -113,9 +113,10 @@ export default function ClientsTable({
               .includes(filters.origem.toLowerCase())) &&
           (filters.markers === "" ||
             filters.markers === "all" ||
-            client.markers?.some((marker) =>
-              marker.toLowerCase() === filters.markers.toLowerCase()
-            )));
+            (client.markers && client.markers.length > 0 && 
+             client.markers.some((marker) =>
+               marker.toLowerCase() === filters.markers.toLowerCase()
+             ))));
 
       return matchesSearch && matchesAdvancedFilters;
     }) || [];

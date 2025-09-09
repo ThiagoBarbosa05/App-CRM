@@ -26,9 +26,9 @@ export default function Clients() {
     phone: "",
     cpf: "",
     responsavelId: "all",
-    categoria: "",
-    origem: "",
-    markers: "",
+    categoria: "all",
+    origem: "all",
+    markers: "all",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
