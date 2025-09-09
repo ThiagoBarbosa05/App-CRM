@@ -160,6 +160,9 @@ export default function FunnelKanbanBoard({
         dealTitle: deal.title,
         dealAssignedUserId: deal.assignedUserId,
         filterValue: filters.assignedUser,
+        filterIsEmpty: !filters.assignedUser,
+        filterIsAll: filters.assignedUser === "all",
+        assignedUserField: deal.assignedUserId || deal.assignedTo,
         matches: matchesUser
       });
     }
