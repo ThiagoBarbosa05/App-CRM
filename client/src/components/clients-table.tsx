@@ -112,8 +112,9 @@ export default function ClientsTable({
               ?.toLowerCase()
               .includes(filters.origem.toLowerCase())) &&
           (filters.markers === "" ||
+            filters.markers === "all" ||
             client.markers?.some((marker) =>
-              marker.toLowerCase().includes(filters.markers.toLowerCase())
+              marker.toLowerCase() === filters.markers.toLowerCase()
             )));
 
       return matchesSearch && matchesAdvancedFilters;
