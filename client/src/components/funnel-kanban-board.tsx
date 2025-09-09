@@ -100,14 +100,17 @@ export default function FunnelKanbanBoard({
           "GET",
           `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
         );
-
-        return await response.json();
+        const data = await response.json();
+        console.log("🎯 DEALS CARREGADOS:", data.length, "deals para funil", funnelId);
+        return data;
       }
       const response = await apiRequest(
         "GET",
         `/api/deals?funnelId=${funnelId}`,
       );
-      return await response.json();
+      const data = await response.json();
+      console.log("🎯 DEALS CARREGADOS:", data.length, "deals para funil", funnelId);
+      return data;
     },
   });
 
@@ -152,6 +155,11 @@ export default function FunnelKanbanBoard({
            matchesCompany && matchesUser && matchesDateFrom &&
            matchesDateTo && matchesStatus;
   });
+
+  // Debug: log dos deals filtrados
+  console.log("🔍 FILTROS APLICADOS:", filters);
+  console.log("📊 DEALS ANTES FILTRO:", deals.length);
+  console.log("📊 DEALS APÓS FILTRO:", filteredDeals.length);
 
   // Função para limpar filtros
   const clearFilters = () => {
