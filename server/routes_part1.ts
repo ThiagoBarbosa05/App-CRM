@@ -481,6 +481,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/funnels/:funnelId/stages", async (req, res) => {
     try {
       const stages = await storage.getFunnelStages(req.params.funnelId);
+      // Adicionar headers para evitar cache
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.json(stages);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar estágios do funil" });

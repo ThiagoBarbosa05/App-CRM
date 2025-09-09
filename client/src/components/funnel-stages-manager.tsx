@@ -96,11 +96,11 @@ export default function FunnelStagesManager({
   const [stageColor, setStageColor] = useState(defaultColors[0]);
 
   const { data: funnelStages = [], isLoading } = useQuery<FunnelStage[]>({
-    queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+    queryKey: [`/api/funnels/${funnel.id}/stages`],
     queryFn: async () => {
       const response = await apiRequest(
-        `/api/funnels/${funnel.id}/stages`,
-        "GET"
+        "GET",
+        `/api/funnels/${funnel.id}/stages`
       );
       return response.json();
     },
@@ -127,13 +127,12 @@ export default function FunnelStagesManager({
         title: "Etapa criada",
         description: "A nova etapa foi criada com sucesso.",
       });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+      // Forçar recarga completa da query
+      queryClient.refetchQueries({
+        queryKey: [`/api/funnels/${funnel.id}/stages`],
+        type: 'active'
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
-      });
       setIsCreateModalOpen(false);
       setStageName("");
       setStageColor(defaultColors[0]);
@@ -163,7 +162,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi atualizada com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+        queryKey: [`/api/funnels/${funnel.id}/stages`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setEditingStage(null);
@@ -189,7 +188,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi excluída com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`, funnel.id],
+        queryKey: [`/api/funnels/${funnel.id}/stages`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setDeletingStage(null);
