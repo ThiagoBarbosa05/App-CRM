@@ -371,7 +371,6 @@ export const clientInteractions = pgTable("client_interactions", {
   .notNull()
     .references(() => users.id),
   companyId: varchar("company_id")
-    .notNull()
     .references(() => companies.id),
   type: text("type", {
     enum: [
