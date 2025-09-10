@@ -300,6 +300,11 @@ export default function CompanyDetailsModal({
               <CardContent>
                 <div className="space-y-2">
                   {company.address && <p>{company.address}</p>}
+                  {company.neighborhood && (
+                    <p className="text-sm text-muted-foreground">
+                      Bairro: {company.neighborhood}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {company.city && <span>{company.city}</span>}
                     {company.city && company.state && <span>-</span>}

@@ -103,6 +103,7 @@ export const companies = pgTable("companies", {
   website: text("website"),
   cep: text("cep"),
   address: text("address"),
+  neighborhood: text("neighborhood"), // Bairro
   city: text("city"),
   state: text("state"),
   sectorId: varchar("sector_id").references(() => sectors.id), // Referência para setor

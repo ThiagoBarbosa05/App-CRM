@@ -31,6 +31,7 @@ const companyFormSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   cep: z.string().optional(),
+  neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   website: z.string().optional(),
@@ -116,6 +117,7 @@ export default function CompanyFormModal({
         phone: company.phone || "",
         address: company.address || "",
         cep: company.cep || "",
+        neighborhood: company.neighborhood || "",
         city: company.city || "",
         state: company.state || "",
         website: company.website || "",
@@ -135,6 +137,7 @@ export default function CompanyFormModal({
         phone: "",
         address: "",
         cep: "",
+        neighborhood: "",
         city: "",
         state: "",
         website: "",
@@ -457,6 +460,18 @@ export default function CompanyFormModal({
                 <p className="text-sm text-destructive">{errors.state.message}</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="neighborhood">Bairro</Label>
+              <Input
+                id="neighborhood"
+                {...register("neighborhood")}
+                placeholder="Centro"
+              />
+              {errors.neighborhood && (
+                <p className="text-sm text-destructive">{errors.neighborhood.message}</p>
+              )}
+            </div></div>
           </div>
 
           <div className="space-y-2">

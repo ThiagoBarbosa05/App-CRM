@@ -110,6 +110,8 @@ export default function CompanyImportModal({
             autoMapping[field] = 'cep';
           } else if (fieldLower.includes('endereco') || fieldLower.includes('address')) {
             autoMapping[field] = 'address';
+          } else if (fieldLower.includes('bairro') || fieldLower.includes('neighborhood')) {
+            autoMapping[field] = 'neighborhood';
           } else if (fieldLower.includes('cidade') || fieldLower.includes('city')) {
             autoMapping[field] = 'city';
           } else if (fieldLower.includes('estado') || fieldLower.includes('state')) {
@@ -160,6 +162,7 @@ export default function CompanyImportModal({
             website: "",
             cep: "",
             address: "",
+            neighborhood: "",
             city: "",
             state: "",
             sectorId: "",
@@ -312,6 +315,7 @@ export default function CompanyImportModal({
         Website: "https://www.empresa.com",
         CEP: "01234-567",
         Endereco: "Rua das Empresas, 123",
+        Bairro: "Centro",
         Cidade: "São Paulo",
         Estado: "SP",
         Observacoes: "Observações sobre a empresa",
@@ -440,6 +444,7 @@ export default function CompanyImportModal({
                     <option value="website">Website</option>
                     <option value="cep">CEP</option>
                     <option value="address">Endereço</option>
+                    <option value="neighborhood">Bairro</option>
                     <option value="city">Cidade</option>
                     <option value="state">Estado</option>
                     <option value="notes">Observações</option>
@@ -477,6 +482,7 @@ export default function CompanyImportModal({
                     <th className="px-3 py-2 text-left">Razão Social</th>
                     <th className="px-3 py-2 text-left">CNPJ</th>
                     <th className="px-3 py-2 text-left">Insc. Estadual</th>
+                    <th className="px-3 py-2 text-left">Bairro</th>
                     <th className="px-3 py-2 text-left">Responsável</th>
                     <th className="px-3 py-2 text-left">Telefone</th>
                     <th className="px-3 py-2 text-left">Email</th>
@@ -503,6 +509,11 @@ export default function CompanyImportModal({
                       <td className="px-3 py-2">
                         {Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')?.[0]
                           ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')![0]] || "N/A"
+                          : "N/A"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'neighborhood')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'neighborhood')![0]] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
