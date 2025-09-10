@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
@@ -25,87 +28,131 @@ import { queryClient } from "@/lib/queryClient";
 import { Plus, Edit, Trash2, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+// Schema para validação no formulário (frontend)
+const cashbackSettingsSchema = z.object({
+  name: z.string().min(1, "O nome da regra é obrigatório."),
+  description: z.string().optional(),
+  percentageRate: z.coerce
+    .number()
+    .min(0, "A taxa deve ser positiva.")
+    .max(100, "A taxa não pode ser maior que 100."),
+  minimumPurchase: z.coerce.number().min(0, "O valor deve ser positivo.").nullable().optional(),
+  maximumCashback: z.coerce.number().min(0, "O valor deve ser positivo.").nullable().optional(),
+  validUntil: z.string().nullable().optional(),
+  expirationDays: z.coerce
+    .number()
+    .int()
+    .min(1, "A expiração deve ser de no mínimo 1 dia.")
+    .default(28),
+  isActive: z.boolean().default(true),
+});
+
+type CashbackSettingsForm = z.infer<typeof cashbackSettingsSchema>;
+
+// Funções de máscara de moeda
+const formatBRL = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return '';
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+const parseBRL = (value: string): number | null => {
+    if (!value) return null;
+    const numberValue = Number(value.replace(/\D/g, '')) / 100;
+    return isNaN(numberValue) ? null : numberValue;
+}
+
+const newFormDefaultValues: CashbackSettingsForm = {
+  name: "",
+  description: "",
+  percentageRate: 0,
+  minimumPurchase: null,
+  maximumCashback: null,
+  validUntil: "",
+  expirationDays: 28,
+  isActive: true,
+};
+
 export default function CashbackSettingsManagement() {
-  const {user} = useAuth()
+  const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    percentageRate: "",
-    minimumPurchase: "",
-    maximumCashback: "",
-    validUntil: "",
-    expirationDays: "28",
-    isActive: "true",
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CashbackSettingsForm>({
+    resolver: zodResolver(cashbackSettingsSchema),
+    defaultValues: newFormDefaultValues,
   });
 
   const { data: settings = [] } = useQuery({
-    queryKey: ["/api/cashback-settings"],
+    queryKey: ["/api/v2/cashback-settings"],
+    queryFn: async () => {
+        const response = await fetch('/api/v2/cashback-settings');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    }
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch("/api/cashback-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          createdBy: user?.id, // ID do usuário admin
-        }),
-      });
-      if (!response.ok) throw new Error("Erro ao criar configuração");
-      return response.json();
+  const mutationOptions = {
+    onSuccess: (action: string) => {
+      toast({ title: `Configuração ${action} com sucesso` });
+      queryClient.invalidateQueries({ queryKey: ["/api/v2/cashback-settings"] });
+      closeDialog();
     },
-    onSuccess: () => {
-      toast({ title: "Configuração criada com sucesso" });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-settings"] });
-      resetForm();
-    },
-    onError: (error: any) => {
+    onError: (error: any, action: string) => {
       toast({
-        title: "Erro ao criar configuração",
+        title: `Erro ao ${action} configuração`,
         description: error.message,
         variant: "destructive",
       });
     },
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch("/api/v2/cashback-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, createdBy: user?.id }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    onSuccess: () => mutationOptions.onSuccess("criada"),
+    onError: (error: any) => mutationOptions.onError(error, "criar"),
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await fetch(`/api/cashback-settings/${id}`, {
+      const response = await fetch(`/api/v2/cashback-settings/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error("Erro ao atualizar configuração");
+      if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
-    onSuccess: () => {
-      toast({ title: "Configuração atualizada com sucesso" });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-settings"] });
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao atualizar configuração",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    onSuccess: () => mutationOptions.onSuccess("atualizada"),
+    onError: (error: any) => mutationOptions.onError(error, "atualizar"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/cashback-settings/${id}`, {
+      const response = await fetch(`/api/v2/cashback-settings/${id}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Erro ao deletar configuração");
+      if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
     onSuccess: () => {
       toast({ title: "Configuração deletada com sucesso" });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v2/cashback-settings"] });
     },
     onError: (error: any) => {
       toast({
@@ -116,58 +163,43 @@ export default function CashbackSettingsManagement() {
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      percentageRate: "",
-      minimumPurchase: "",
-      maximumCashback: "",
-      validUntil: "",
-      expirationDays: "28",
-      isActive: "true",
-    });
-    setEditingSetting(null);
+  const closeDialog = () => {
     setDialogOpen(false);
+    setEditingSetting(null);
+    reset(newFormDefaultValues);
   };
 
   const handleEdit = (setting: any) => {
     setEditingSetting(setting);
-    setFormData({
-      name: setting.name,
-      description: setting.description || "",
-      percentageRate: setting.percentageRate,
-      minimumPurchase: setting.minimumPurchase || "",
-      maximumCashback: setting.maximumCashback || "",
+    reset({
+      ...setting,
+      percentageRate: parseFloat(setting.percentageRate),
+      minimumPurchase: setting.minimumPurchase ? parseFloat(setting.minimumPurchase) : null,
+      maximumCashback: setting.maximumCashback ? parseFloat(setting.maximumCashback) : null,
       validUntil: setting.validUntil
         ? new Date(setting.validUntil).toISOString().split("T")[0]
         : "",
-      expirationDays: setting.expirationDays?.toString() || "28",
-      isActive: setting.isActive,
+      isActive: setting.isActive === "true" || setting.isActive === true,
     });
     setDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOpenNew = () => {
+    setEditingSetting(null);
+    reset(newFormDefaultValues);
+    setDialogOpen(true);
+  }
 
+  const onSubmit = (data: CashbackSettingsForm) => {
+    // Transforma os dados para o formato esperado pelo backend
     const submitData = {
-      ...formData,
-      percentageRate: formData.percentageRate,
-      minimumPurchase:
-        formData.minimumPurchase && formData.minimumPurchase.trim() !== ""
-          ? formData.minimumPurchase
-          : "0.00",
-      maximumCashback:
-        formData.maximumCashback && formData.maximumCashback.trim() !== ""
-          ? formData.maximumCashback
-          : null,
-      validUntil:
-        formData.validUntil && formData.validUntil.trim() !== ""
-          ? formData.validUntil
-          : null,
-      expirationDays: parseInt(formData.expirationDays) || 28,
-    };
+        ...data,
+        percentageRate: String(data.percentageRate),
+        minimumPurchase: data.minimumPurchase ? String(data.minimumPurchase) : "0.00",
+        maximumCashback: data.maximumCashback ? String(data.maximumCashback) : null,
+        isActive: String(data.isActive),
+        validUntil: data.validUntil || null
+    }
 
     if (editingSetting) {
       updateMutation.mutate({ id: editingSetting.id, data: submitData });
@@ -176,8 +208,10 @@ export default function CashbackSettingsManagement() {
     }
   };
 
-  const formatCurrency = (value: string | number) => {
+  const displayCurrency = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return "Ilimitado";
     const numericValue = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(numericValue)) return "Ilimitado";
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -191,7 +225,7 @@ export default function CashbackSettingsManagement() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
-              onClick={() => setEditingSetting(null)}
+              onClick={handleOpenNew}
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -204,28 +238,22 @@ export default function CashbackSettingsManagement() {
                 {editingSetting ? "Editar Configuração" : "Nova Configuração"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome da Regra</Label>
                 <Input
                   id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  {...register("name")}
                   placeholder="Ex: Cashback Padrão"
-                  required
                 />
+                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição</Label>
                 <Textarea
                   id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  {...register("description")}
                   placeholder="Descrição da regra..."
                   rows={2}
                 />
@@ -240,53 +268,45 @@ export default function CashbackSettingsManagement() {
                     step="0.1"
                     min="0"
                     max="100"
-                    value={formData.percentageRate}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        percentageRate: e.target.value,
-                      })
-                    }
+                    {...register("percentageRate")}
                     placeholder="2.5"
-                    required
                   />
+                  {errors.percentageRate && <p className="text-sm text-red-500">{errors.percentageRate.message}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="minimumPurchase">Compra Mínima (R$)</Label>
-                  <Input
-                    id="minimumPurchase"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.minimumPurchase}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        minimumPurchase: e.target.value,
-                      })
-                    }
-                    placeholder="0.00"
+                  <Controller
+                    name="minimumPurchase"
+                    control={control}
+                    render={({ field }) => (
+                        <Input
+                            {...field}
+                            placeholder="R$ 0,00"
+                            value={formatBRL(field.value)}
+                            onChange={(e) => field.onChange(parseBRL(e.target.value))}
+                        />
+                    )}
                   />
+                   {errors.minimumPurchase && <p className="text-sm text-red-500">{errors.minimumPurchase.message}</p>}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="maximumCashback">Cashback Máximo (R$)</Label>
-                <Input
-                  id="maximumCashback"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.maximumCashback}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      maximumCashback: e.target.value,
-                    })
-                  }
-                  placeholder="Deixe vazio para ilimitado"
-                />
+                <Controller
+                    name="maximumCashback"
+                    control={control}
+                    render={({ field }) => (
+                        <Input
+                            {...field}
+                            placeholder="Deixe vazio para ilimitado"
+                            value={formatBRL(field.value)}
+                            onChange={(e) => field.onChange(parseBRL(e.target.value))}
+                        />
+                    )}
+                 />
+                 {errors.maximumCashback && <p className="text-sm text-red-500">{errors.maximumCashback.message}</p>}
               </div>
 
               <div className="space-y-2">
@@ -298,13 +318,10 @@ export default function CashbackSettingsManagement() {
                   type="number"
                   min="1"
                   max="365"
-                  value={formData.expirationDays}
-                  onChange={(e) =>
-                    setFormData({ ...formData, expirationDays: e.target.value })
-                  }
+                  {...register("expirationDays")}
                   placeholder="28"
-                  required
                 />
+                 {errors.expirationDays && <p className="text-sm text-red-500">{errors.expirationDays.message}</p>}
                 <p className="text-xs text-gray-500">
                   Quantos dias o cashback será válido após ser gerado (padrão:
                   28 dias)
@@ -316,38 +333,35 @@ export default function CashbackSettingsManagement() {
                 <Input
                   id="validUntil"
                   type="date"
-                  value={formData.validUntil}
-                  onChange={(e) =>
-                    setFormData({ ...formData, validUntil: e.target.value })
-                  }
+                  {...register("validUntil")}
                 />
+                 {errors.validUntil && <p className="text-sm text-red-500">{errors.validUntil.message}</p>}
               </div>
 
               <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive === "true"}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      isActive: checked ? "true" : "false",
-                    })
-                  }
-                />
+                 <Controller
+                    control={control}
+                    name="isActive"
+                    render={({ field }) => (
+                        <Switch
+                        id="isActive"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    )}
+                    />
                 <Label htmlFor="isActive">Ativa</Label>
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button type="button" variant="outline" onClick={closeDialog}>
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
+                  disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}
                 >
-                  {editingSetting ? "Atualizar" : "Criar"}
+                  {isSubmitting ? "Salvando..." : (editingSetting ? "Atualizar" : "Criar")}
                 </Button>
               </div>
             </form>
@@ -366,7 +380,7 @@ export default function CashbackSettingsManagement() {
               <p className="text-gray-500 mb-4">
                 Crie suas primeiras regras de cashback para começar.
               </p>
-              <Button onClick={() => setDialogOpen(true)}>
+              <Button onClick={handleOpenNew}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Configuração
               </Button>
@@ -382,10 +396,10 @@ export default function CashbackSettingsManagement() {
                       {setting.name}
                       <Badge
                         variant={
-                          setting.isActive === "true" ? "default" : "secondary"
+                          setting.isActive === "true" || setting.isActive === true ? "default" : "secondary"
                         }
                       >
-                        {setting.isActive === "true" ? "Ativa" : "Inativa"}
+                        {setting.isActive === "true" || setting.isActive === true ? "Ativa" : "Inativa"}
                       </Badge>
                     </CardTitle>
                     {setting.description && (
@@ -420,17 +434,15 @@ export default function CashbackSettingsManagement() {
                   <div>
                     <p className="text-gray-500">Compra Mínima</p>
                     <p className="font-medium">
-                      {setting.minimumPurchase
-                        ? formatCurrency(setting.minimumPurchase)
+                      {setting.minimumPurchase && parseFloat(setting.minimumPurchase) > 0
+                        ? displayCurrency(setting.minimumPurchase)
                         : "Sem mínimo"}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-500">Cashback Máximo</p>
                     <p className="font-medium">
-                      {setting.maximumCashback
-                        ? formatCurrency(setting.maximumCashback)
-                        : "Ilimitado"}
+                      {displayCurrency(setting.maximumCashback)}
                     </p>
                   </div>
                   <div>
@@ -438,7 +450,7 @@ export default function CashbackSettingsManagement() {
                     <p className="font-medium">
                       {setting.validUntil
                         ? new Date(setting.validUntil).toLocaleDateString(
-                            "pt-BR",
+                            "pt-BR", {timeZone: 'UTC'}
                           )
                         : "Sem data"}
                     </p>

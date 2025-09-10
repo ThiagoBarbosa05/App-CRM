@@ -65,6 +65,10 @@ import {
   startBirthdayBot,
   syncContact,
 } from "./integrations/umbler";
+import { createCashbackSettingsController } from "./controllers/create-cashback-settings.controller";
+import { getCashbackSettingsController } from "./controllers/get-cashback-settings.controller";
+import { updateCashbackSettingsController } from "./controllers/update-cashback-settings.controller";
+import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -1107,6 +1111,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Erro ao reordenar etapas" });
+    }
+  });
+
+  // Delete funnel stage
+  app.delete("/api/stages/:id", async (req, res) => {
+    try {
+      const stageId = req.params.id;
+      const success = await storage.deleteFunnelStage(stageId);
+      if (success) {
+        res.json({ message: "Etapa excluída com sucesso" });
+      } else {
+        res.status(404).json({ message: "Etapa não encontrada" });
+      }
+    } catch (error) {
+      console.error("Erro ao excluir etapa:", error);
+      res.status(500).json({ message: "Erro ao excluir etapa" });
     }
   });
 
@@ -3290,6 +3310,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Erro ao buscar estatísticas de produtos" });
     }
   });
+
+  app.post("/api/v2/cashback-settings", createCashbackSettingsController)
+  app.get("/api/v2/cashback-settings", getCashbackSettingsController)
+  app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController)
+  app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController)
 
   const httpServer = createServer(app);
   return httpServer;

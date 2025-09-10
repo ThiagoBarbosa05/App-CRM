@@ -1,9 +1,8 @@
-import { Router } from "express";
+import { Request, Response } from "express";
 import { getAllCashbackSettings } from "server/db/functions/get-cashback-settings";
 
-const router = Router();
 
-router.get("/cashback-settings", async (req, res) => {
+export async function getCashbackSettingsController(req: Request, res: Response)  {
   try {
     const settings = await getAllCashbackSettings();
     res.status(200).json(settings);
@@ -13,6 +12,5 @@ router.get("/cashback-settings", async (req, res) => {
       .status(500)
       .json({ message: "Erro ao buscar as configurações de cashback." });
   }
-});
+}
 
-export const getCashbackSettingsRoute = router;

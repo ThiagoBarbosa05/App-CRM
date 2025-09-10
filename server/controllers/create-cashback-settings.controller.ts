@@ -1,11 +1,10 @@
-import { Request, Response, Router } from "express";
+import { Request, Response } from "express";
 import { createCashbackSetting, insertCashbackSettingSchema } from "server/db/functions/create-cashback-settings";
 
 import { ZodError } from "zod";
 
-const router = Router();
 
-router.post("/cashback-settings", async (req: Request, res: Response) => {
+export async function createCashbackSettingsController(req: Request, res: Response)  {
   try {
     // Validar o corpo da requisição com o schema Zod
     const validationResult = insertCashbackSettingSchema.safeParse(req.body);
@@ -34,6 +33,5 @@ router.post("/cashback-settings", async (req: Request, res: Response) => {
     console.error("Erro ao criar configuração de cashback:", error);
     return res.status(500).json({ message: "Erro interno do servidor" });
   }
-});
+}
 
-export default router;
