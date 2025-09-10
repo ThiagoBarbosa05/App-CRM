@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 const AVAILABLE_CLIENT_FIELDS = [
   { key: 'name', label: 'Nome', defaultChecked: true },
   { key: 'phone', label: 'Celular', defaultChecked: true },
+  { key: 'fixedPhone', label: 'Telefone Fixo', defaultChecked: true },
   { key: 'cpf', label: 'CPF', defaultChecked: true },
   { key: 'email', label: 'E-mail', defaultChecked: true },
   { key: 'address', label: 'Endereço', defaultChecked: true },
@@ -96,7 +97,10 @@ export default function DataExportManagement() {
             formattedData['Nome'] = client.name || '';
             break;
           case 'phone':
-            formattedData['Telefone'] = client.phone ? (includeCountryCode && !client.phone.startsWith('+55') ? `+55${client.phone}` : client.phone) : '';
+            formattedData['Celular'] = client.phone ? (includeCountryCode && !client.phone.startsWith('+55') ? `+55${client.phone}` : client.phone) : '';
+            break;
+          case 'fixedPhone':
+            formattedData['Telefone Fixo'] = client.fixedPhone || '';
             break;
           case 'cpf':
             formattedData['CPF'] = client.cpf || '';
@@ -252,7 +256,7 @@ export default function DataExportManagement() {
                 <Checkbox
                   id="countryCode"
                   checked={includeCountryCode}
-                  onCheckedChange={setIncludeCountryCode}
+                  onCheckedChange={(checked) => setIncludeCountryCode(checked === true)}
                 />
                 <Label htmlFor="countryCode" className="text-sm">
                   Incluir código do país (+55) nos telefones

@@ -150,6 +150,22 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                       </span>
                     </div>
 
+                    {client.fixedPhone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">
+                          <strong>Telefone Fixo:</strong> 
+                          <a 
+                            href={`tel:${client.fixedPhone}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-1"
+                            title="Clique para ligar"
+                          >
+                            {formatPhone(client.fixedPhone)}
+                          </a>
+                        </span>
+                      </div>
+                    )}
+
                     {client.email && (
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-gray-500" />

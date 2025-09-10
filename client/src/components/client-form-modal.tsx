@@ -141,6 +141,7 @@ export default function ClientFormModal({
     defaultValues: {
       name: client?.name || "",
       phone: client?.phone || "",
+      fixedPhone: client?.fixedPhone || "",
       cpf: client?.cpf || "",
       email: client?.email || "",
       birthday: convertBrazilianDateToISO(client?.birthday || ""),
@@ -338,6 +339,24 @@ export default function ClientFormModal({
                       <InputMask
                         mask="(99) 99999-9999"
                         placeholder="(11) 99999-9999"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fixedPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone Fixo</FormLabel>
+                    <FormControl>
+                      <InputMask
+                        mask="(99) 9999-9999"
+                        placeholder="(11) 1234-5678"
                         {...field}
                       />
                     </FormControl>

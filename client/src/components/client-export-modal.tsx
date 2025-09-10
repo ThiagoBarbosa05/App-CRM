@@ -23,6 +23,7 @@ interface ClientExportModalProps {
 const AVAILABLE_FIELDS = [
   { key: 'name', label: 'Nome', defaultChecked: true },
   { key: 'phone', label: 'Celular', defaultChecked: true },
+  { key: 'fixedPhone', label: 'Telefone Fixo', defaultChecked: true },
   { key: 'cpf', label: 'CPF', defaultChecked: true },
   { key: 'email', label: 'E-mail', defaultChecked: true },
   { key: 'address', label: 'Endereço', defaultChecked: true },
@@ -73,7 +74,10 @@ export default function ClientExportModal({
             formattedData['Nome'] = client.name || '';
             break;
           case 'phone':
-            formattedData['Telefone'] = client.phone || '';
+            formattedData['Celular'] = client.phone || '';
+            break;
+          case 'fixedPhone':
+            formattedData['Telefone Fixo'] = client.fixedPhone || '';
             break;
           case 'cpf':
             formattedData['CPF'] = client.cpf || '';

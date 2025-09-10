@@ -88,6 +88,8 @@ export default function ClientImportModal({
           initialFieldSelection[field] = 
             fieldLower.includes('nome') || fieldLower.includes('name') ||
             fieldLower.includes('telefone') || fieldLower.includes('phone') ||
+            fieldLower.includes('celular') || fieldLower.includes('mobile') ||
+            fieldLower.includes('fixo') || fieldLower.includes('fixed') ||
             fieldLower.includes('email') ||
             fieldLower.includes('categoria') || fieldLower.includes('category') ||
             fieldLower.includes('origem') || fieldLower.includes('origin');
@@ -294,7 +296,8 @@ export default function ClientImportModal({
           // Mapear campos do Excel para formato esperado
           const clientData = {
             name: client.Nome || client.name || "",
-            phone: (client.Telefone || client.phone || "").toString(),
+            phone: (client.Celular || client.phone || client.Telefone || "").toString(),
+            fixedPhone: (client["Telefone Fixo"] || client.fixedPhone || client.Fixo || "").toString(),
             cpf: (client.CPF || client.cpf || "").toString(),
             email: client.Email || client.email || null,
             birthday: formattedBirthday,
