@@ -35,6 +35,7 @@ interface DealCardProps {
   onEdit?: (deal: DealWithClient) => void;
   onDelete?: (deal: DealWithClient) => void;
   onClientClick?: (client: any) => void;
+  onCompanyClick?: (company: any) => void;
   onAddInteraction?: (deal: DealWithClient) => void;
   onMoveToNextStage?: (deal: DealWithClient) => void;
   className?: string;
@@ -45,6 +46,7 @@ export default function DealCard({
   onEdit,
   onDelete,
   onClientClick,
+  onCompanyClick,
   onAddInteraction,
   onMoveToNextStage,
   className
@@ -206,12 +208,25 @@ export default function DealCard({
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2">
               {deal.client ? <User className="h-4 w-4 text-gray-500" /> : <Building2 className="h-4 w-4 text-gray-500" />}
-              <button
-                onClick={() => deal.client && onClientClick?.(deal.client)}
-                className="font-medium text-gray-900 hover:text-primary underline truncate"
-              >
-                {deal.client?.name || `Empresa ID: ${deal.companyId}` || "Sem cliente"}
-              </button>
+              {deal.client ? (
+                <button
+                  onClick={() => onClientClick?.(deal.client)}
+                  className="font-medium text-gray-900 hover:text-primary underline truncate"
+                >
+                  {deal.client.name}
+                </button>
+              ) : deal.company ? (
+                <button
+                  onClick={() => onCompanyClick?.(deal.company)}
+                  className="font-medium text-gray-900 hover:text-primary underline truncate"
+                >
+                  {deal.company.name}
+                </button>
+              ) : (
+                <span className="font-medium text-gray-500 truncate">
+                  Sem cliente/empresa
+                </span>
+              )}
             </div>
             
             {deal.client && (
@@ -226,6 +241,23 @@ export default function DealCard({
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Mail className="h-3 w-3" />
                     <span className="truncate">{deal.client.email}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {deal.company && (
+              <div className="space-y-1">
+                {deal.company.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone className="h-3 w-3" />
+                    <span>{formatPhone(deal.company.phone)}</span>
+                  </div>
+                )}
+                {deal.company.email && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Mail className="h-3 w-3" />
+                    <span className="truncate">{deal.company.email}</span>
                   </div>
                 )}
               </div>

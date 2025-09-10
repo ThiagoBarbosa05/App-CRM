@@ -15,6 +15,7 @@ interface DealDetailsModalProps {
   onEdit?: (deal: DealWithClient) => void;
   onDelete?: (deal: DealWithClient) => void;
   onClientClick?: (client: any) => void;
+  onCompanyClick?: (company: any) => void;
   onAddInteraction?: (deal: DealWithClient) => void;
   onMoveToNextStage?: (deal: DealWithClient) => void;
 }
@@ -26,6 +27,7 @@ export default function DealDetailsModal({
   onEdit,
   onDelete,
   onClientClick,
+  onCompanyClick,
   onAddInteraction,
   onMoveToNextStage,
 }: DealDetailsModalProps) {
@@ -44,6 +46,7 @@ export default function DealDetailsModal({
             onEdit={onEdit}
             onDelete={onDelete}
             onClientClick={onClientClick}
+            onCompanyClick={onCompanyClick}
             onAddInteraction={onAddInteraction}
             onMoveToNextStage={onMoveToNextStage}
             className="border-0 shadow-none"
