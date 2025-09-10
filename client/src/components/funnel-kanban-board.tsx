@@ -5,7 +5,13 @@ import { useState } from "react";
 import { DealWithClient } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Plus, Users } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import DealFormModal from "./deal-form-modal";
@@ -33,7 +39,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Search, FilterX, Filter } from "lucide-react";
-
 
 interface SalesFunnel {
   id: string;
@@ -90,11 +95,15 @@ export default function FunnelKanbanBoard({
     valueMax: "",
     assignedUser: "",
     dateFrom: "",
-    dateTo: ""
+    dateTo: "",
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const { data: deals = [], isLoading, error } = useQuery({
+  const {
+    data: deals = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["/api/deals", funnelId],
     queryFn: async () => {
       console.log("🚀 INICIANDO QUERY DEALS para funil:", funnelId);
@@ -109,7 +118,12 @@ export default function FunnelKanbanBoard({
             `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
           );
           const data = await response.json();
-          console.log("🎯 DEALS CARREGADOS (com user):", data.length, "deals para funil", funnelId);
+          console.log(
+            "🎯 DEALS CARREGADOS (com user):",
+            data.length,
+            "deals para funil",
+            funnelId,
+          );
           return data;
         }
         console.log("⚠️ SEM USER DATA - usando query básica");
@@ -118,7 +132,12 @@ export default function FunnelKanbanBoard({
           `/api/deals?funnelId=${funnelId}`,
         );
         const data = await response.json();
-        console.log("🎯 DEALS CARREGADOS (sem user):", data.length, "deals para funil", funnelId);
+        console.log(
+          "🎯 DEALS CARREGADOS (sem user):",
+          data.length,
+          "deals para funil",
+          funnelId,
+        );
         return data;
       } catch (error) {
         console.error("❌ ERRO NA QUERY DEALS:", error);
@@ -126,6 +145,8 @@ export default function FunnelKanbanBoard({
       }
     },
   });
+
+  console.log(deals);
 
   if (error) {
     console.error("❌ ERRO NA QUERY:", error);
@@ -143,28 +164,40 @@ export default function FunnelKanbanBoard({
 
   // Função para filtrar deals
   const filteredDeals = deals.filter((deal: any) => {
-    const matchesSearch = !filters.search ||
+    const matchesSearch =
+      !filters.search ||
       deal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
       deal.description?.toLowerCase().includes(filters.search.toLowerCase());
 
-    const matchesValueMin = !filters.valueMin ||
+    const matchesValueMin =
+      !filters.valueMin ||
       parseFloat(deal.value) >= parseFloat(filters.valueMin);
 
-    const matchesValueMax = !filters.valueMax ||
+    const matchesValueMax =
+      !filters.valueMax ||
       parseFloat(deal.value) <= parseFloat(filters.valueMax);
 
-    const matchesUser = !filters.assignedUser || filters.assignedUser === "" || filters.assignedUser === "all" ||
+    const matchesUser =
+      !filters.assignedUser ||
+      filters.assignedUser === "" ||
+      filters.assignedUser === "all" ||
       deal.assignedTo === filters.assignedUser;
-    
 
-    const matchesDateFrom = !filters.dateFrom ||
+    const matchesDateFrom =
+      !filters.dateFrom ||
       new Date(deal.createdAt) >= new Date(filters.dateFrom);
 
-    const matchesDateTo = !filters.dateTo ||
-      new Date(deal.createdAt) <= new Date(filters.dateTo);
+    const matchesDateTo =
+      !filters.dateTo || new Date(deal.createdAt) <= new Date(filters.dateTo);
 
-    return matchesSearch && matchesValueMin && matchesValueMax &&
-           matchesUser && matchesDateFrom && matchesDateTo;
+    return (
+      matchesSearch &&
+      matchesValueMin &&
+      matchesValueMax &&
+      matchesUser &&
+      matchesDateFrom &&
+      matchesDateTo
+    );
   });
 
   // Debug: log dos deals filtrados
@@ -180,13 +213,12 @@ export default function FunnelKanbanBoard({
       valueMax: "",
       assignedUser: "",
       dateFrom: "",
-      dateTo: ""
+      dateTo: "",
     });
   };
 
   // Verificar se há filtros ativos
-  const hasActiveFilters = Object.values(filters).some(value => value !== "");
-
+  const hasActiveFilters = Object.values(filters).some((value) => value !== "");
 
   const updateDealMutation = useMutation({
     mutationFn: async ({ id, stageId }: { id: string; stageId: string }) => {
@@ -233,14 +265,17 @@ export default function FunnelKanbanBoard({
     queryKey: ["/api/users"],
   });
 
-
   const getDealsForStage = (stageId: string) => {
     if (!deals || !Array.isArray(deals)) return [];
-    let filteredDeals = deals.filter((deal: DealWithClient) => deal.stageId === stageId);
+    let filteredDeals = deals.filter(
+      (deal: DealWithClient) => deal.stageId === stageId,
+    );
 
     // Aplicar filtro por responsável se selecionado
     if (selectedUserId && selectedUserId !== "all") {
-      filteredDeals = filteredDeals.filter((deal: DealWithClient) => deal.assignedTo === selectedUserId);
+      filteredDeals = filteredDeals.filter(
+        (deal: DealWithClient) => deal.assignedTo === selectedUserId,
+      );
     }
 
     return filteredDeals;
@@ -322,7 +357,12 @@ export default function FunnelKanbanBoard({
                           id="search"
                           placeholder="Título ou descrição..."
                           value={filters.search}
-                          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              search: e.target.value,
+                            }))
+                          }
                           className="pl-10"
                         />
                       </div>
@@ -336,7 +376,12 @@ export default function FunnelKanbanBoard({
                           type="number"
                           placeholder="0"
                           value={filters.valueMin}
-                          onChange={(e) => setFilters(prev => ({ ...prev, valueMin: e.target.value }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              valueMin: e.target.value,
+                            }))
+                          }
                         />
                       </div>
                       <div>
@@ -346,7 +391,12 @@ export default function FunnelKanbanBoard({
                           type="number"
                           placeholder="999999"
                           value={filters.valueMax}
-                          onChange={(e) => setFilters(prev => ({ ...prev, valueMax: e.target.value }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              valueMax: e.target.value,
+                            }))
+                          }
                         />
                       </div>
                     </div>
@@ -355,7 +405,12 @@ export default function FunnelKanbanBoard({
                       <Label htmlFor="assignedUser">Responsável</Label>
                       <Select
                         value={filters.assignedUser}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, assignedUser: value }))}
+                        onValueChange={(value) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            assignedUser: value,
+                          }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Todos os usuários" />
@@ -378,7 +433,12 @@ export default function FunnelKanbanBoard({
                           id="dateFrom"
                           type="date"
                           value={filters.dateFrom}
-                          onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              dateFrom: e.target.value,
+                            }))
+                          }
                         />
                       </div>
                       <div>
@@ -387,7 +447,12 @@ export default function FunnelKanbanBoard({
                           id="dateTo"
                           type="date"
                           value={filters.dateTo}
-                          onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                          onChange={(e) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              dateTo: e.target.value,
+                            }))
+                          }
                         />
                       </div>
                     </div>
@@ -396,7 +461,10 @@ export default function FunnelKanbanBoard({
               </PopoverContent>
             </Popover>
 
-            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+            <Dialog
+              open={isCreateModalOpen}
+              onOpenChange={setIsCreateModalOpen}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -419,10 +487,19 @@ export default function FunnelKanbanBoard({
           }}
         >
           {funnel.stages?.map((stage) => {
-            const stageDeals = filteredDeals.filter((deal: any) => deal.stageId === stage.id);
-            const totalValue = stageDeals.reduce((sum: number, deal: any) => sum + parseFloat(deal.value || "0"), 0);
-            
-            console.log(`🏁 ESTÁGIO "${stage.name}" (${stage.id}):`, stageDeals.length, "deals");
+            const stageDeals = filteredDeals.filter(
+              (deal: any) => deal.stageId === stage.id,
+            );
+            const totalValue = stageDeals.reduce(
+              (sum: number, deal: any) => sum + parseFloat(deal.value || "0"),
+              0,
+            );
+
+            console.log(
+              `🏁 ESTÁGIO "${stage.name}" (${stage.id}):`,
+              stageDeals.length,
+              "deals",
+            );
 
             return (
               <div
@@ -485,8 +562,8 @@ export default function FunnelKanbanBoard({
 
                       <div className="space-y-2">
                         <p className="text-xs text-gray-600">
-                          Cliente:{" "}
-                          <button
+                          Responsável:  <strong className="block">{deal.assignedUser?.name}</strong> 
+                          {/* <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedClient(deal.client);
@@ -494,7 +571,7 @@ export default function FunnelKanbanBoard({
                             className="text-wine-600 hover:text-wine-800 underline font-medium"
                           >
                             {deal.client?.name}
-                          </button>
+                          </button> */}
                         </p>
                         <p className="text-sm font-semibold text-green-600">
                           {formatCurrency(parseFloat(deal.value))}

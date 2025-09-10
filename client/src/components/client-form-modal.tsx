@@ -92,10 +92,10 @@ export default function ClientFormModal({
     queryKey: ["/api/origins"],
   }) as { data: any[] };
 
-  // Buscar usuários para administradores
+  // Buscar usuários para administradores e gerentes
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
-    enabled: user?.role === "admin",
+    enabled: user?.role === "admin" || user?.role === "gerente",
   }) as { data: any[] };
 
   // Buscar marcadores das configurações
@@ -285,7 +285,7 @@ export default function ClientFormModal({
         city: data.city?.trim() || "",
         state: data.state?.trim() || "",
         responsavelId:
-          user?.role === "admin" ? data.responsavelId : user?.id || null, // Admin pode escolher, outros usam usuário atual
+          user?.role === "admin" || user?.role === "gerente" ? data.responsavelId : user?.id || null, // Admin e gerente podem escolher, outros usam usuário atual
       };
 
       if (client) {
