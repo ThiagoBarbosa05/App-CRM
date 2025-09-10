@@ -396,8 +396,8 @@ export default function ClientFormModal({
                 )}
               />
 
-              {/* Campo responsável - selecionável para admin, informativo para outros */}
-              {user?.role === "admin" ? (
+              {/* Campo responsável - selecionável para admin e gerente, informativo para outros */}
+              {user?.role === "admin" || user?.role === "gerente" ? (
                 <FormField
                   control={form.control}
                   name="responsavelId"
