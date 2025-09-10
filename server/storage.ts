@@ -1168,10 +1168,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFunnelStage(id: string): Promise<boolean> {
-    const result = await this.db
-      .delete(funnelStages)
-      .where(eq(funnelStages.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    try {
+      // Buscar a etapa a ser excluída para obter o funnelId
+      const [stageToDelete] = await this.db
+        .select()
+        .from(funnelStages)
+        .where(eq(funnelStages.id, id));
+
+      if (!stageToDelete) {
+        return false; // Etapa não existe
+      }
+
+      // Buscar a primeira etapa do mesmo funil (menor ordem) como destino
+      const [firstStage] = await this.db
+        .select()
+        .from(funnelStages)
+        .where(
+          and(
+            eq(funnelStages.funnelId, stageToDelete.funnelId),
+            ne(funnelStages.id, id) // Diferente da etapa sendo excluída
+          )
+        )
+        .orderBy(funnelStages.order)
+        .limit(1);
+
+      if (!firstStage) {
+        // Se é a única etapa do funil, não permitir exclusão
+        throw new Error("Não é possível excluir a única etapa do funil");
+      }
+
+      // Usar transação para garantir consistência
+      await this.db.transaction(async (tx) => {
+        // Mover todos os deals da etapa sendo excluída para a primeira etapa
+        await tx
+          .update(deals)
+          .set({ stageId: firstStage.id })
+          .where(eq(deals.stageId, id));
+
+        // Excluir a etapa
+        await tx
+          .delete(funnelStages)
+          .where(eq(funnelStages.id, id));
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir etapa:', error);
+      throw error;
+    }
   }
 
   async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean> {
