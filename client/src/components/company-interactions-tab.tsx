@@ -145,13 +145,20 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </div>
         <Button
           onClick={() => {
+            console.log("🐛 DEBUG: Botão Nova Interação clicado");
+            console.log("🐛 DEBUG: Deals carregados:", deals);
+            
             // Buscar cliente do primeiro deal da empresa
             const dealsWithClients = deals.filter((deal: any) => deal.clientId);
+            console.log("🐛 DEBUG: Deals com clientes:", dealsWithClients);
+            
             if (dealsWithClients.length > 0) {
+              console.log("🐛 DEBUG: Usando clientId:", dealsWithClients[0].clientId);
               setSelectedClientId(dealsWithClients[0].clientId);
               setEditingInteraction(null);
               setShowFormModal(true);
             } else {
+              console.log("🐛 DEBUG: Nenhum deal com cliente encontrado");
               toast({
                 title: "Atenção",
                 description: "Esta empresa não possui negócios com clientes. Adicione primeiro um deal com cliente para criar interações.",
@@ -297,14 +304,12 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
             if (!open) {
               setEditingInteraction(null);
               setSelectedClientId("");
+              // Atualizar a lista de interações após fechar
+              queryClient.invalidateQueries({ queryKey: ["/api/companies", company.id, "interactions"] });
             }
           }}
           clientId={selectedClientId}
           interaction={editingInteraction || undefined}
-          onSuccess={() => {
-            // Atualizar a lista de interações após sucesso
-            queryClient.invalidateQueries({ queryKey: ["/api/companies", company.id, "interactions"] });
-          }}
         />
       )}
     </div>
