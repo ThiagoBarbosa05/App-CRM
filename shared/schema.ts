@@ -825,6 +825,9 @@ export type Deal = typeof deals.$inferSelect;
 export interface DealWithClient extends Deal {
   client?: Client | null;
   company?: Company | null;
+  assignedUser?: User | null;
+  stage?: FunnelStage | null;
+  funnel?: SalesFunnel | null;
 }
 export type InsertBirthdayReminder = z.infer<
   typeof insertBirthdayReminderSchema
@@ -876,9 +879,6 @@ export type InsertTrainingAttachment = z.infer<typeof insertTrainingAttachment>;
 export type TrainingAttachment = typeof trainingAttachments.$inferSelect;
 
 // Interfaces com relacionamentos
-export interface DealWithClient extends Deal {
-  client: Client;
-}
 
 export interface DealWithRelations extends Deal {
   client: Client;
