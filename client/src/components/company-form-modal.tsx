@@ -421,7 +421,7 @@ export default function CompanyFormModal({
                 />
                 <Button
                   type="button"
-                  onClick={() => handleCepLookup(watch("cep"))}
+                  onClick={() => handleCepLookup(watch("cep") || "")}
                   disabled={isLoadingCep || watch("cep")?.replace(/\D/g, "").length !== 8}
                   className="px-3"
                 >
@@ -471,7 +471,7 @@ export default function CompanyFormModal({
               {errors.neighborhood && (
                 <p className="text-sm text-destructive">{errors.neighborhood.message}</p>
               )}
-            </div></div>
+            </div>
           </div>
 
           <div className="space-y-2">
