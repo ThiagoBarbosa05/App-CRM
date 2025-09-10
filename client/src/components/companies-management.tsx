@@ -508,7 +508,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       </button>
                     </TableHead>
                     <TableHead>CNPJ</TableHead>
-                    <TableHead>Telefone</TableHead>
+                    <TableHead>Celular</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Responsável</TableHead>
                     <TableHead>Status</TableHead>

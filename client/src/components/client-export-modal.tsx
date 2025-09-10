@@ -22,7 +22,7 @@ interface ClientExportModalProps {
 
 const AVAILABLE_FIELDS = [
   { key: 'name', label: 'Nome', defaultChecked: true },
-  { key: 'phone', label: 'Telefone', defaultChecked: true },
+  { key: 'phone', label: 'Celular', defaultChecked: true },
   { key: 'cpf', label: 'CPF', defaultChecked: true },
   { key: 'email', label: 'E-mail', defaultChecked: true },
   { key: 'address', label: 'Endereço', defaultChecked: true },

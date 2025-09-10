@@ -344,7 +344,7 @@ export default function CompanyFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">Celular</Label>
               <Input
                 id="phone"
                 {...register("phone")}

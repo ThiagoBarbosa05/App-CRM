@@ -139,7 +139,7 @@ export default function ClientDetailsCard({ client, open, onOpenChange, onEdit }
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">
-                        <strong>Telefone:</strong> 
+                        <strong>Celular:</strong> 
                         <a 
                           href={`tel:${client.phone}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-1"

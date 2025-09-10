@@ -307,7 +307,7 @@ export default function DealCard({
               <div className="flex items-center gap-2 text-gray-600">
                 <Phone className="h-4 w-4" />
                 <div>
-                  <div className="font-medium">Telefone</div>
+                  <div className="font-medium">Celular</div>
                   <div className="truncate">
                     {formatPhone(deal.client?.phone || deal.company?.phone || "")}
                   </div>

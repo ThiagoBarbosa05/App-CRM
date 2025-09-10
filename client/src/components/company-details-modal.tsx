@@ -239,7 +239,7 @@ export default function CompanyDetailsModal({
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1">
                         <p className="text-sm font-medium text-muted-foreground">
-                          Telefone
+                          Celular
                         </p>
                         <div className="flex items-center gap-2">
                           <a
