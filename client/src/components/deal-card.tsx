@@ -220,7 +220,7 @@ export default function DealCard({
                   onClick={() => onCompanyClick?.(deal.company)}
                   className="font-medium text-gray-900 hover:text-primary underline truncate"
                 >
-                  {deal.company.name}
+                  {deal.company.nomeFantasia}
                 </button>
               ) : (
                 <span className="font-medium text-gray-500 truncate">
