@@ -34,6 +34,10 @@ interface ImportResult {
   total: number;
 }
 
+interface FieldMapping {
+  [excelColumn: string]: string;
+}
+
 export default function CompanyImportModal({
   open,
   onOpenChange,
@@ -46,9 +50,11 @@ export default function CompanyImportModal({
   const [importData, setImportData] = useState<any[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [step, setStep] = useState<
-    "upload" | "preview" | "importing" | "result"
+    "upload" | "mapping" | "preview" | "importing" | "result"
   >("upload");
   const [progress, setProgress] = useState(0);
+  const [availableFields, setAvailableFields] = useState<string[]>([]);
+  const [fieldMapping, setFieldMapping] = useState<FieldMapping>({});
 
   const processFileMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -72,7 +78,51 @@ export default function CompanyImportModal({
     },
     onSuccess: (data: any) => {
       setImportData(data);
-      setStep("preview");
+      
+      // Detectar campos disponíveis automaticamente
+      if (data.length > 0) {
+        const fields = Object.keys(data[0]);
+        setAvailableFields(fields);
+        
+        // Criar mapeamento automático baseado em nomes similares
+        const autoMapping: FieldMapping = {};
+        fields.forEach(field => {
+          const fieldLower = field.toLowerCase();
+          if (fieldLower.includes('nome fantasia') || fieldLower.includes('nomefantasia')) {
+            autoMapping[field] = 'nomeFantasia';
+          } else if (fieldLower.includes('razao social') || fieldLower.includes('razaosocial')) {
+            autoMapping[field] = 'razaoSocial';
+          } else if (fieldLower.includes('cnpj')) {
+            autoMapping[field] = 'cnpj';
+          } else if (fieldLower.includes('inscricao estadual') || fieldLower.includes('inscricaoestadual')) {
+            autoMapping[field] = 'inscricaoEstadual';
+          } else if (fieldLower.includes('comprador') || fieldLower.includes('buyer')) {
+            autoMapping[field] = 'nomeComprador';
+          } else if (fieldLower.includes('responsavel') || fieldLower.includes('responsible')) {
+            autoMapping[field] = 'responsavelNome';
+          } else if (fieldLower.includes('telefone') || fieldLower.includes('phone')) {
+            autoMapping[field] = 'phone';
+          } else if (fieldLower.includes('email')) {
+            autoMapping[field] = 'email';
+          } else if (fieldLower.includes('website') || fieldLower.includes('site')) {
+            autoMapping[field] = 'website';
+          } else if (fieldLower.includes('cep')) {
+            autoMapping[field] = 'cep';
+          } else if (fieldLower.includes('endereco') || fieldLower.includes('address')) {
+            autoMapping[field] = 'address';
+          } else if (fieldLower.includes('cidade') || fieldLower.includes('city')) {
+            autoMapping[field] = 'city';
+          } else if (fieldLower.includes('estado') || fieldLower.includes('state')) {
+            autoMapping[field] = 'state';
+          } else if (fieldLower.includes('observacoes') || fieldLower.includes('notes')) {
+            autoMapping[field] = 'notes';
+          }
+        });
+        
+        setFieldMapping(autoMapping);
+      }
+      
+      setStep("mapping");
     },
     onError: () => {
       toast({
@@ -97,40 +147,38 @@ export default function CompanyImportModal({
         setProgress(((i + 1) / companies.length) * 100);
 
         try {
-          // Mapear campos do Excel para formato esperado
-          const companyData = {
-            nomeFantasia:
-              company["Nome Fantasia"] ||
-              company.nomeFantasia ||
-              company.name ||
-              "",
-            razaoSocial:
-              company["Razão Social"] ||
-              company.razaoSocial ||
-              company["Nome Fantasia"] ||
-              "",
-            cnpj: company.CNPJ?.toString() || company.cnpj?.toString() || "",
-            inscricaoEstadual:
-              company["Inscrição Estadual"]?.toString() ||
-              company.inscricaoEstadual?.toString() ||
-              "",
-            nomeComprador:
-              company["Nome do Comprador"] || company.nomeComprador || "",
-            responsavelNome:
-              company["Responsável"] || company.responsavel || "",
-            phone:
-              company.Telefone?.toString() || company.phone?.toString() || "",
-            email: company.Email || company.email || null,
-            website: company.Website || company.website || "",
-            cep: company.CEP?.toString() || company.cep?.toString() || "",
-            address: company.Endereco || company.address || "",
-            city: company.Cidade || company.city || "",
-            state: company.Estado || company.state || "",
-            sectorId: "", // Será mapeado posteriormente se necessário
-            responsavelId: "", // Será mapeado posteriormente se necessário
-            notes: company.Observacoes || company.notes || "",
+          // Mapear campos do Excel usando o mapeamento definido pelo usuário
+          const companyData: any = {
+            nomeFantasia: "",
+            razaoSocial: "",
+            cnpj: "",
+            inscricaoEstadual: "",
+            nomeComprador: "",
+            responsavelNome: "",
+            phone: "",
+            email: "",
+            website: "",
+            cep: "",
+            address: "",
+            city: "",
+            state: "",
+            sectorId: "",
+            responsavelId: "",
+            notes: "",
             active: true,
           };
+
+          // Aplicar mapeamento de campos
+          Object.entries(fieldMapping).forEach(([excelField, systemField]) => {
+            if (company[excelField] !== undefined && company[excelField] !== null) {
+              if (systemField === 'cnpj' || systemField === 'inscricaoEstadual' || 
+                  systemField === 'phone' || systemField === 'cep') {
+                companyData[systemField] = company[excelField]?.toString() || "";
+              } else {
+                companyData[systemField] = company[excelField] || "";
+              }
+            }
+          });
 
           // Validações básicas
           if (
@@ -245,6 +293,8 @@ export default function CompanyImportModal({
     setImportResult(null);
     setStep("upload");
     setProgress(0);
+    setAvailableFields([]);
+    setFieldMapping({});
     onOpenChange(false);
   };
 
@@ -353,6 +403,62 @@ export default function CompanyImportModal({
           </div>
         )}
 
+        {step === "mapping" && (
+          <div className="space-y-4">
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                Mapeie as colunas do seu arquivo Excel com os campos do sistema.
+              </AlertDescription>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+              {availableFields.map((field) => (
+                <div key={field} className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Coluna Excel: <span className="font-normal">{field}</span>
+                  </Label>
+                  <select
+                    className="w-full p-2 border rounded-md"
+                    value={fieldMapping[field] || ""}
+                    onChange={(e) => {
+                      setFieldMapping(prev => ({
+                        ...prev,
+                        [field]: e.target.value
+                      }));
+                    }}
+                  >
+                    <option value="">Não mapear</option>
+                    <option value="nomeFantasia">Nome Fantasia</option>
+                    <option value="razaoSocial">Razão Social</option>
+                    <option value="cnpj">CNPJ</option>
+                    <option value="inscricaoEstadual">Inscrição Estadual</option>
+                    <option value="nomeComprador">Nome do Comprador</option>
+                    <option value="responsavelNome">Responsável</option>
+                    <option value="phone">Telefone</option>
+                    <option value="email">E-mail</option>
+                    <option value="website">Website</option>
+                    <option value="cep">CEP</option>
+                    <option value="address">Endereço</option>
+                    <option value="city">Cidade</option>
+                    <option value="state">Estado</option>
+                    <option value="notes">Observações</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStep("upload")}>
+                Voltar
+              </Button>
+              <Button onClick={() => setStep("preview")}>
+                Continuar para Preview
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "preview" && (
           <div className="space-y-4">
             <Alert>
@@ -380,29 +486,39 @@ export default function CompanyImportModal({
                   {importData.slice(0, 10).map((company, index) => (
                     <tr key={index} className="border-t">
                       <td className="px-3 py-2">
-                        {company["Nome Fantasia"] ||
-                          company.nomeFantasia ||
-                          "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'nomeFantasia')?.[0] 
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'nomeFantasia')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company["Razão Social"] ||
-                          company.razaoSocial ||
-                          "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'razaoSocial')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'razaoSocial')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company.CNPJ || company.cnpj || "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'cnpj')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'cnpj')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company["Inscrição Estadual"] || company.inscricaoEstadual || "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company["Responsável"] || company.responsavel || "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'responsavelNome')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'responsavelNome')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company.Telefone || company.phone || "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'phone')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'phone')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {company.Email || company.email || "N/A"}
+                        {Object.entries(fieldMapping).find(([_, value]) => value === 'email')?.[0]
+                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'email')![0]] || "N/A"
+                          : "N/A"}
                       </td>
                     </tr>
                   ))}
@@ -416,8 +532,8 @@ export default function CompanyImportModal({
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setStep("upload")}>
-                Voltar
+              <Button variant="outline" onClick={() => setStep("mapping")}>
+                Voltar ao Mapeamento
               </Button>
               <Button onClick={handleImport}>
                 Importar {importData.length} Empresas
