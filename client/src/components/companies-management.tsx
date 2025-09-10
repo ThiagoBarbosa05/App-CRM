@@ -90,8 +90,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
       "/api/companies",
-      currentUser?.id,
-      currentUser?.role,
       debouncedSearchQuery,
       debouncedNomeFantasiaFilter,
       debouncedRazaoSocialFilter,
@@ -102,13 +100,9 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (currentUser?.id) params.append("userId", currentUser.id);
-      if (currentUser?.role) params.append("userRole", currentUser.role);
       if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-      if (debouncedNomeFantasiaFilter)
-        params.append("nomeFantasia", debouncedNomeFantasiaFilter);
-      if (debouncedRazaoSocialFilter)
-        params.append("razaoSocial", debouncedRazaoSocialFilter);
+      if (debouncedNomeFantasiaFilter) params.append("nomeFantasia", debouncedNomeFantasiaFilter);
+      if (debouncedRazaoSocialFilter) params.append("razaoSocial", debouncedRazaoSocialFilter);
       if (debouncedCnpjFilter) params.append("cnpj", debouncedCnpjFilter);
       if (responsavelFilter) params.append("responsavelId", responsavelFilter);
       params.append("page", page.toString());
@@ -122,8 +116,8 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   });
 
   const companies = data?.data || [];
-  const totalItems = data?.totalItems || 0;
-  const totalPages = data?.totalPages || 1;
+  const totalItems = data?.totalItems || companies.length;
+  const totalPages = data?.totalPages || Math.ceil(totalItems / pageSize);
 
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users"],
