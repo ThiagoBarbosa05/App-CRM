@@ -65,10 +65,6 @@ import {
   startBirthdayBot,
   syncContact,
 } from "./integrations/umbler";
-import { createCashbackSettingsController } from "./controllers/create-cashback-settings.controller";
-import { getCashbackSettingsController } from "./controllers/get-cashback-settings.controller";
-import { updateCashbackSettingsController } from "./controllers/update-cashback-settings.controller";
-import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -1102,7 +1098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(stageUpdates)) {
         return res.status(400).json({ message: "stageUpdates deve ser um array" });
       }
-      
+
       const success = await storage.reorderFunnelStages(stageUpdates);
       if (success) {
         res.json({ message: "Etapas reordenadas com sucesso" });
@@ -1111,22 +1107,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Erro ao reordenar etapas" });
-    }
-  });
-
-  // Delete funnel stage
-  app.delete("/api/stages/:id", async (req, res) => {
-    try {
-      const stageId = req.params.id;
-      const success = await storage.deleteFunnelStage(stageId);
-      if (success) {
-        res.json({ message: "Etapa excluída com sucesso" });
-      } else {
-        res.status(404).json({ message: "Etapa não encontrada" });
-      }
-    } catch (error) {
-      console.error("Erro ao excluir etapa:", error);
-      res.status(500).json({ message: "Erro ao excluir etapa" });
     }
   });
 
@@ -1433,6 +1413,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar marcadores:", error);
       res.status(500).json({ message: "Erro ao buscar marcadores" });
+    }
+  });
+
+  // Client Interactions routes
+  app.post("/api/interactions", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado." });
+      }
+
+      const data = { ...req.body, userId };
+      const validatedData = insertClientInteractionSchema.parse(data);
+
+      if (!validatedData.clientId && !validatedData.companyId) {
+        return res.status(400).json({
+          message: "A interação deve estar associada a um cliente ou a uma empresa.",
+        });
+      }
+
+      const [newInteraction] = await db
+        .insert(clientInteractions)
+        .values(validatedData)
+        .returning();
+
+      res.status(201).json(newInteraction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        console.error("Erro de validação ao criar interação:", validationError.toString());
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro no servidor ao criar interação:", error);
+      res.status(500).json({ message: "Erro interno ao criar a interação." });
     }
   });
 
@@ -2166,6 +2180,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar interações da empresa" });
     }
   });
+
+  app.post("/api/companies/:companyId/interactions", async (req, res) => {
+    try {
+
+
+
+    }
+    catch (error) {
+        console.error("Erro ao criar interação:", error);
+
+    }
+  })
 
   app.get("/api/companies/:companyId/funnels", async (req, res) => {
     try {
@@ -3310,11 +3336,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Erro ao buscar estatísticas de produtos" });
     }
   });
-
-  app.post("/api/v2/cashback-settings", createCashbackSettingsController)
-  app.get("/api/v2/cashback-settings", getCashbackSettingsController)
-  app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController)
-  app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController)
 
   const httpServer = createServer(app);
   return httpServer;

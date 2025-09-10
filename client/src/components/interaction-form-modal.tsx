@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ClientInteraction, insertClientInteractionSchema } from "@shared/schema";
 import {
@@ -31,17 +29,24 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { X, Calendar, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote } from "lucide-react";
+import { X, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote } from "lucide-react";
 import { z } from "zod";
+import { useEffect } from "react";
 
+// Extends the base schema for form-specific validation
 const interactionFormSchema = insertClientInteractionSchema.extend({
   date: z.string().min(1, "Data é obrigatória"),
 });
 
+type InteractionFormData = z.infer<typeof interactionFormSchema>;
+
 interface InteractionFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  clientId: string;
+  target: {
+    id: string;
+    type: 'client' | 'company';
+  };
   interaction?: ClientInteraction;
 }
 
@@ -73,124 +78,104 @@ const callResultOptions = [
 export default function InteractionFormModal({ 
   open, 
   onOpenChange, 
-  clientId, 
+  target, 
   interaction 
 }: InteractionFormModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
-  const form = useForm({
+  const form = useForm<InteractionFormData>({
     resolver: zodResolver(interactionFormSchema),
     defaultValues: {
-      clientId,
-      userId: user?.id || "", // Use authenticated user's ID
-      type: interaction?.type || "note",
-      subject: interaction?.subject || "",
-      description: interaction?.description || "",
-      date: interaction?.date ? new Date(interaction.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-      callResult: interaction?.callResult || "",
-      status: interaction?.status || "completed",
-      attachments: interaction?.attachments || [],
+      clientId: target.type === 'client' ? target.id : undefined,
+      companyId: target.type === 'company' ? target.id : undefined,
+      userId: user?.id || "",
+      type: "note",
+      subject: "",
+      description: "",
+      date: new Date().toISOString().slice(0, 16),
+      callResult: undefined,
+      status: "completed",
+      attachments: [],
     },
   });
 
-  const createInteractionMutation = useMutation({
-    mutationFn: async (data: any) => {
-      // Convert date string to ISO timestamp
-      const payload = {
-        ...data,
-        date: new Date(data.date).toISOString(),
-      };
-      const response = await apiRequest("POST", "/api/interactions", payload);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
-      
-      // Invalidate company interactions for all companies
-      queryClient.invalidateQueries({ queryKey: ["/api/companies"], predicate: (query) => {
-        return query.queryKey.includes("interactions");
-      }});
-
-      // Invalidate telemarketing stats if it's a telemarketing interaction
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
-
-      queryClient.invalidateQueries({
-        queryKey: [`/api/telemarketing-stats/${currentMonth}/${currentYear}`],
+  // Effect to update form when interaction or target changes
+  useEffect(() => {
+    if (open) {
+      const defaultDate = new Date().toISOString().slice(0, 16);
+      form.reset({
+        clientId: target.type === 'client' ? target.id : undefined,
+        companyId: target.type === 'company' ? target.id : undefined,
+        userId: user?.id || "",
+        type: interaction?.type || "note",
+        subject: interaction?.subject || "",
+        description: interaction?.description || "",
+        date: interaction?.date ? new Date(interaction.date).toISOString().slice(0, 16) : defaultDate,
+        callResult: interaction?.callResult || undefined,
+        status: interaction?.status || "completed",
+        attachments: interaction?.attachments || [],
       });
-
-      toast({
-        title: "Interação criada",
-        description: "Interação foi adicionada com sucesso.",
-      });
-      onOpenChange(false);
-      form.reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível criar a interação.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateInteractionMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const payload = {
-        ...data,
-        date: new Date(data.date).toISOString(),
-      };
-      const response = await apiRequest("PUT", `/api/interactions/${interaction!.id}`, payload);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", clientId, "interactions"] });
-      
-      // Invalidate company interactions for all companies
-      queryClient.invalidateQueries({ queryKey: ["/api/companies"], predicate: (query) => {
-        return query.queryKey.includes("interactions");
-      }});
-
-      // Invalidate telemarketing stats if it's a telemarketing interaction
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
-
-      queryClient.invalidateQueries({
-        queryKey: [`/api/telemarketing-stats/${currentMonth}/${currentYear}`],
-      });
-
-      toast({
-        title: "Interação atualizada",
-        description: "A interação foi atualizada com sucesso.",
-      });
-      onOpenChange(false);
-      form.reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível atualizar a interação.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = async (data: any) => {
-    setIsSubmitting(true);
-    try {
-      if (interaction) {
-        await updateInteractionMutation.mutateAsync(data);
-      } else {
-        await createInteractionMutation.mutateAsync(data);
-      }
-    } finally {
-      setIsSubmitting(false);
     }
+  }, [open, interaction, target, user, form]);
+
+  const handleMutationSuccess = (isUpdate: boolean) => {
+    // Invalidate relevant queries
+    if (target.type === 'client') {
+      queryClient.invalidateQueries({ queryKey: ['interactions', 'client', target.id] });
+      queryClient.invalidateQueries({ queryKey: ['clients', target.id] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['interactions', 'company', target.id] });
+      queryClient.invalidateQueries({ queryKey: ['companies', target.id] });
+    }
+
+    // Invalidate general stats if a call was logged
+    if (form.getValues("type") === "telemarketing") {
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-stats/${currentMonth}/${currentYear}`],
+      });
+    }
+
+    toast({
+      title: `Interação ${isUpdate ? 'atualizada' : 'criada'}`,
+      description: `A interação foi ${isUpdate ? 'atualizada' : 'adicionada'} com sucesso.`,
+    });
+    onOpenChange(false);
+  };
+
+  const handleMutationError = (error: any, isUpdate: boolean) => {
+    toast({
+      title: "Erro",
+      description: error.message || `Não foi possível ${isUpdate ? 'atualizar' : 'criar'} a interação.`,
+      variant: "destructive",
+    });
+  };
+
+  const mutation = useMutation({
+    mutationFn: async (data: InteractionFormData) => {
+      const payload = {
+        ...data,
+        date: new Date(data.date).toISOString(),
+        // Ensure empty strings for optional fields are not sent
+        callResult: data.callResult || undefined,
+      };
+
+      const method = interaction ? "PUT" : "POST";
+      const endpoint = interaction ? `/api/interactions/${interaction.id}` : "/api/interactions";
+
+      const response = await apiRequest(method, endpoint, payload);
+      return response.json();
+    },
+    onSuccess: () => handleMutationSuccess(!!interaction),
+    onError: (error: any) => handleMutationError(error, !!interaction),
+  });
+
+  const onSubmit = (data: InteractionFormData) => {
+    mutation.mutate(data);
   };
 
   const selectedType = interactionTypes.find(t => t.value === form.watch("type"));
@@ -224,7 +209,7 @@ export default function InteractionFormModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Interação *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o tipo..." />
@@ -252,7 +237,7 @@ export default function InteractionFormModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o status..." />
@@ -305,8 +290,8 @@ export default function InteractionFormModal({
                   name="callResult"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Resultado da Chamada *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Resultado da Chamada</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione o resultado..." />
@@ -350,15 +335,16 @@ export default function InteractionFormModal({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={mutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={mutation.isPending}
                 className="bg-primary hover:bg-primary-dark text-white"
               >
-                {isSubmitting ? "Salvando..." : interaction ? "Atualizar Interação" : "Salvar Interação"}
+                {mutation.isPending ? "Salvando..." : interaction ? "Atualizar Interação" : "Salvar Interação"}
               </Button>
             </div>
           </form>
