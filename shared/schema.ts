@@ -366,11 +366,13 @@ export const clientInteractions = pgTable("client_interactions", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   clientId: varchar("client_id")
-    .notNull()
     .references(() => clients.id, { onDelete: "cascade" }),
   userId: varchar("user_id")
-    .notNull()
+  .notNull()
     .references(() => users.id),
+  companyId: varchar("company_id")
+    .notNull()
+    .references(() => companies.id),
   type: text("type", {
     enum: [
       "call",
@@ -416,8 +418,11 @@ export const clientInteractionsRelations = relations(
       fields: [clientInteractions.userId],
       references: [users.id],
     }),
+    company: one(companies, {
+      fields: [clientInteractions.companyId],
+      references: [companies.id],
   }),
-);
+}));
 
 // Email Marketing Campaign tables
 export const emailCampaigns = pgTable("email_campaigns", {
