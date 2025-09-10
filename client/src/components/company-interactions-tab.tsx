@@ -20,6 +20,10 @@ import { Company, ClientInteractionWithUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import InteractionFormModal from "@/components/interaction-form-modal";
+import ClientFormModal from "@/components/client-form-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface CompanyInteractionsTabProps {
   company: Company;
@@ -68,6 +72,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingInteraction, setEditingInteraction] = useState<ClientInteractionWithUser | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [showClientSelectionModal, setShowClientSelectionModal] = useState(false);
 
   // Buscar deals da empresa para obter clientes associados
   const { data: deals = [] } = useQuery({
@@ -145,25 +150,17 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </div>
         <Button
           onClick={() => {
-            console.log("🐛 DEBUG: Botão Nova Interação clicado");
-            console.log("🐛 DEBUG: Deals carregados:", deals);
-            
-            // Buscar cliente do primeiro deal da empresa
+            // Buscar clientes da empresa através de deals ou permitir criar representante
             const dealsWithClients = deals.filter((deal: any) => deal.clientId);
-            console.log("🐛 DEBUG: Deals com clientes:", dealsWithClients);
             
             if (dealsWithClients.length > 0) {
-              console.log("🐛 DEBUG: Usando clientId:", dealsWithClients[0].clientId);
+              // Usar cliente existente
               setSelectedClientId(dealsWithClients[0].clientId);
               setEditingInteraction(null);
               setShowFormModal(true);
             } else {
-              console.log("🐛 DEBUG: Nenhum deal com cliente encontrado");
-              toast({
-                title: "Atenção",
-                description: "Esta empresa não possui negócios com clientes. Adicione primeiro um deal com cliente para criar interações.",
-                variant: "destructive",
-              });
+              // Abrir modal para criar cliente representante
+              setShowClientSelectionModal(true);
             }
           }}
           className="bg-black hover:bg-gray-800 text-white"
@@ -191,11 +188,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
                   setEditingInteraction(null);
                   setShowFormModal(true);
                 } else {
-                  toast({
-                    title: "Atenção",
-                    description: "Esta empresa não possui negócios com clientes. Adicione primeiro um deal com cliente para criar interações.",
-                    variant: "destructive",
-                  });
+                  setShowClientSelectionModal(true);
                 }
               }}
               className="bg-black hover:bg-gray-800 text-white"
@@ -294,6 +287,62 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
           })}
         </div>
       )}
+
+      {/* Modal de seleção/criação de cliente */}
+      <Dialog open={showClientSelectionModal} onOpenChange={setShowClientSelectionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cliente Representante Necessário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Para criar interações com esta empresa, você precisa primeiro ter um cliente representante. 
+              Crie um novo cliente que represente essa empresa.
+            </p>
+            <Button 
+              onClick={() => {
+                setShowClientSelectionModal(false);
+                // Simular criação de cliente representante baseado na empresa
+                const representativeClient = {
+                  name: `Representante - ${company.nomeFantasia}`,
+                  phone: company.telefone || "11999999999",
+                  email: company.email,
+                  cpf: "",
+                  address: company.endereco,
+                  city: company.cidade,
+                  state: company.estado,
+                  cep: company.cep
+                };
+                
+                // Chamar API para criar o cliente representante
+                apiRequest("POST", "/api/clients", representativeClient)
+                  .then((newClient: any) => {
+                    toast({
+                      title: "Cliente representante criado",
+                      description: `Cliente "${newClient.name}" criado com sucesso para representar a empresa.`,
+                    });
+                    // Usar o novo cliente para a interação
+                    setSelectedClientId(newClient.id);
+                    setEditingInteraction(null);
+                    setShowFormModal(true);
+                    // Atualizar dados
+                    queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+                  })
+                  .catch((error) => {
+                    toast({
+                      title: "Erro",
+                      description: "Erro ao criar cliente representante.",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+              className="w-full"
+            >
+              Criar Cliente Representante
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de formulário de interação */}
       {selectedClientId && (
