@@ -12,6 +12,7 @@ import DealFormModal from "./deal-form-modal";
 import ClientDetailsCard from "./client-details-card";
 import ClientFormModal from "./client-form-modal";
 import DealDetailsModal from "./deal-details-modal";
+import CompanyDetailsModal from "./company-details-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +73,12 @@ export default function FunnelKanbanBoard({
   >(null);
   const [editingClient, setEditingClient] = useState<
     DealWithClient["client"] | null
+  >(null);
+  const [selectedCompany, setSelectedCompany] = useState<
+    DealWithClient["company"] | null
+  >(null);
+  const [editingCompany, setEditingCompany] = useState<
+    DealWithClient["company"] | null
   >(null);
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
@@ -551,6 +558,16 @@ export default function FunnelKanbanBoard({
         />
       )}
 
+      <CompanyDetailsModal
+        company={selectedCompany}
+        isOpen={!!selectedCompany}
+        onClose={() => setSelectedCompany(null)}
+        onEdit={(company) => {
+          setSelectedCompany(null);
+          setEditingCompany(company);
+        }}
+      />
+
       <DealDetailsModal
         deal={selectedDeal}
         isOpen={!!selectedDeal}
@@ -566,6 +583,10 @@ export default function FunnelKanbanBoard({
         onClientClick={(client) => {
           setSelectedDeal(null);
           setSelectedClient(client);
+        }}
+        onCompanyClick={(company) => {
+          setSelectedDeal(null);
+          setSelectedCompany(company);
         }}
       />
 
