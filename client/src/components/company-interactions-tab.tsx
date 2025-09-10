@@ -69,6 +69,18 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
   const [editingInteraction, setEditingInteraction] = useState<ClientInteractionWithUser | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
 
+  // Buscar deals da empresa para obter clientes associados
+  const { data: deals = [] } = useQuery({
+    queryKey: ["/api/deals", "company", company.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/deals?companyId=${company.id}`);
+      if (!response.ok) {
+        throw new Error('Erro ao buscar deals da empresa');
+      }
+      return response.json();
+    },
+  });
+
   const { data: interactions = [], isLoading } = useQuery({
     queryKey: ["/api/companies", company.id, "interactions"],
     queryFn: async () => {
@@ -133,17 +145,16 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </div>
         <Button
           onClick={() => {
-            // Para empresas, precisamos primeiro buscar um cliente da empresa
-            // ou permitir que o usuário selecione um cliente
-            const firstDeal = interactions.length > 0 ? interactions[0] : null;
-            if (firstDeal) {
-              setSelectedClientId(firstDeal.clientId);
+            // Buscar cliente do primeiro deal da empresa
+            const dealsWithClients = deals.filter((deal: any) => deal.clientId);
+            if (dealsWithClients.length > 0) {
+              setSelectedClientId(dealsWithClients[0].clientId);
               setEditingInteraction(null);
               setShowFormModal(true);
             } else {
               toast({
                 title: "Atenção",
-                description: "Esta empresa não possui negócios com clientes. Adicione primeiro um negócio para criar interações.",
+                description: "Esta empresa não possui negócios com clientes. Adicione primeiro um deal com cliente para criar interações.",
                 variant: "destructive",
               });
             }
@@ -167,11 +178,18 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
             </p>
             <Button
               onClick={() => {
-                toast({
-                  title: "Atenção",
-                  description: "Esta empresa não possui negócios com clientes. Adicione primeiro um negócio para criar interações.",
-                  variant: "destructive",
-                });
+                const dealsWithClients = deals.filter((deal: any) => deal.clientId);
+                if (dealsWithClients.length > 0) {
+                  setSelectedClientId(dealsWithClients[0].clientId);
+                  setEditingInteraction(null);
+                  setShowFormModal(true);
+                } else {
+                  toast({
+                    title: "Atenção",
+                    description: "Esta empresa não possui negócios com clientes. Adicione primeiro um deal com cliente para criar interações.",
+                    variant: "destructive",
+                  });
+                }
               }}
               className="bg-black hover:bg-gray-800 text-white"
             >
@@ -283,6 +301,10 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
           }}
           clientId={selectedClientId}
           interaction={editingInteraction || undefined}
+          onSuccess={() => {
+            // Atualizar a lista de interações após sucesso
+            queryClient.invalidateQueries({ queryKey: ["/api/companies", company.id, "interactions"] });
+          }}
         />
       )}
     </div>
