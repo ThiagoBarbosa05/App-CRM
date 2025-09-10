@@ -29,6 +29,7 @@ const companyFormSchema = z.object({
   nomeComprador: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
+  fixedPhone: z.string().optional(),
   address: z.string().optional(),
   cep: z.string().optional(),
   neighborhood: z.string().optional(),
@@ -90,6 +91,7 @@ export default function CompanyFormModal({
       nomeComprador: "",
       email: "",
       phone: "",
+      fixedPhone: "",
       address: "",
       cep: "",
       city: "",
@@ -115,6 +117,7 @@ export default function CompanyFormModal({
         nomeComprador: company.nomeComprador || "",
         email: company.email || "",
         phone: company.phone || "",
+        fixedPhone: company.fixedPhone || "",
         address: company.address || "",
         cep: company.cep || "",
         neighborhood: company.neighborhood || "",
@@ -135,6 +138,7 @@ export default function CompanyFormModal({
         nomeComprador: "",
         email: "",
         phone: "",
+        fixedPhone: "",
         address: "",
         cep: "",
         neighborhood: "",
@@ -352,6 +356,18 @@ export default function CompanyFormModal({
               />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fixedPhone">Telefone Fixo</Label>
+              <Input
+                id="fixedPhone"
+                {...register("fixedPhone")}
+                placeholder="(11) 9999-9999"
+              />
+              {errors.fixedPhone && (
+                <p className="text-sm text-destructive">{errors.fixedPhone.message}</p>
               )}
             </div>
 

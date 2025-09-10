@@ -100,6 +100,7 @@ export const companies = pgTable("companies", {
   inscricaoEstadual: text("inscricao_estadual"), // Inscrição Estadual (números)
   nomeComprador: text("nome_comprador"), // Nome do Comprador
   phone: text("phone"),
+  fixedPhone: text("fixed_phone"),
   email: text("email"),
   website: text("website"),
   cep: text("cep"),
