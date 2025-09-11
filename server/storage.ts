@@ -4147,7 +4147,7 @@ export class DatabaseStorage implements IStorage {
           updatedAt: events.updatedAt,
           creatorName: users.name,
           participantCount: sql<number>`(
-            SELECT COUNT(*)::int 
+            SELECT COALESCE(SUM(${eventParticipants.numberOfParticipants}), 0)::int 
             FROM ${eventParticipants} 
             WHERE ${eventParticipants.eventId} = ${events.id}
             AND ${eventParticipants.status} != 'cancelado'
