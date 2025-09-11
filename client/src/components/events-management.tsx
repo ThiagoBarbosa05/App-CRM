@@ -448,7 +448,7 @@ export default function EventsManagement() {
           pago: "PAGO",
           convidado: "CONVIDADO",
           pendente: "PENDENTE",
-          pagar na hora: "PAGAR NA HORA",
+          pagar na ho: "PAGAR NA HORA",
           cancelado: "CANCELADO",
         };
         return statusMap[status] || status;
