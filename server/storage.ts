@@ -501,14 +501,14 @@ export interface IStorage {
   ): Promise<CompanyProduct | null>;
 
   // Events methods
-  getEvents(userId?: string, userRole?: string);
-  createEvent(eventData: InsertEvent);
-  updateEvent(eventId: string, eventData: Partial<InsertEvent>);
-  deleteEvent(eventId: string);
-  getEventParticipants(eventId: string);
-  addEventParticipant(participantData: InsertEventParticipant);
-  updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>);
-  removeEventParticipant(participantId: string);
+  getEvents(userId?: string, userRole?: string): Promise<Event[]>;
+  createEvent(eventData: InsertEvent): Promise<Event>;
+  updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event>;
+  deleteEvent(eventId: string): Promise<boolean>;
+  getEventParticipants(eventId: string): Promise<EventParticipant[]>;
+  addEventParticipant(participantData: InsertEventParticipant): Promise<EventParticipant>;
+  updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>): Promise<EventParticipant>;
+  removeEventParticipant(participantId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4127,9 +4127,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Events methods
-  async getEvents(userId?: string, userRole?: string) {
+  async getEvents(userId?: string, userRole?: string): Promise<Event[]> {
     try {
-      let query = this.db
+      const baseQuery = this.db
         .select({
           id: events.id,
           name: events.name,
@@ -4159,10 +4159,10 @@ export class DatabaseStorage implements IStorage {
 
       // Se não for admin, filtrar apenas eventos do usuário
       if (userRole !== "admin" && userRole !== "administrador" && userId) {
-        query = query.where(eq(events.createdBy, userId));
+        return await baseQuery.where(eq(events.createdBy, userId));
       }
 
-      return await query;
+      return await baseQuery;
     } catch (error) {
       console.error("Error fetching events:", error);
       throw error;
