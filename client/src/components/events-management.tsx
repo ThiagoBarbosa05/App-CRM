@@ -409,170 +409,179 @@ export default function EventsManagement() {
 
       const participants = await response.json();
 
+      // Função para converter status
+      const getStatusLabel = (status: string) => {
+        const statusMap: { [key: string]: string } = {
+          'inscrito': 'Inscrito',
+          'confirmado': 'Confirmado', 
+          'presente': 'Presente',
+          'ausente': 'Ausente',
+          'cancelado': 'Cancelado'
+        };
+        return statusMap[status] || status;
+      };
+
+      // Função para obter status do evento
+      const getEventStatusLabel = (status: string) => {
+        const statusConfig = EVENT_STATUS.find(s => s.value === status);
+        return statusConfig?.label || status;
+      };
+
+      // Gerar linhas da tabela
+      const participantRows = participants.length > 0 
+        ? participants.map((participant: any) => `
+            <tr>
+              <td>${participant.clientName || 'N/A'}</td>
+              <td>${participant.clientPhone || 'N/A'}</td>
+              <td>${participant.clientEmail || 'N/A'}</td>
+              <td><span class="status-badge status-${participant.status}">${getStatusLabel(participant.status)}</span></td>
+              <td>${formatDate(participant.registrationDate)}</td>
+              <td>${participant.notes || ''}</td>
+            </tr>
+          `).join('')
+        : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante inscrito</td></tr>';
+
       // Gerar HTML para impressão
-      const printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Lista de Participantes - ${event.name}</title>
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 20px;
-              color: #333;
-            }
-            .header { 
-              text-align: center; 
-              margin-bottom: 30px;
-              border-bottom: 2px solid #ccc;
-              padding-bottom: 20px;
-            }
-            .event-info { 
-              margin-bottom: 30px; 
-            }
-            .event-info h2 { 
-              color: #2563eb; 
-              margin-bottom: 10px;
-            }
-            .event-details { 
-              display: grid; 
-              grid-template-columns: 1fr 1fr; 
-              gap: 20px; 
-              margin-bottom: 20px;
-            }
-            .info-item { 
-              margin-bottom: 8px; 
-            }
-            .info-label { 
-              font-weight: bold; 
-              color: #666;
-            }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-top: 20px;
-            }
-            th, td { 
-              border: 1px solid #ddd; 
-              padding: 12px; 
-              text-align: left; 
-            }
-            th { 
-              background-color: #f5f5f5; 
-              font-weight: bold;
-              color: #333;
-            }
-            .status-badge {
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 12px;
-              font-weight: bold;
-            }
-            .status-inscrito { background-color: #dbeafe; color: #1e40af; }
-            .status-confirmado { background-color: #dcfce7; color: #15803d; }
-            .status-presente { background-color: #d1fae5; color: #047857; }
-            .status-ausente { background-color: #fee2e2; color: #dc2626; }
-            .status-cancelado { background-color: #f3f4f6; color: #374151; }
-            .footer {
-              margin-top: 40px;
-              text-align: center;
-              font-size: 12px;
-              color: #666;
-              border-top: 1px solid #ccc;
-              padding-top: 20px;
-            }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Lista de Participantes</h1>
-          </div>
-          
-          <div class="event-info">
-            <h2>${event.name}</h2>
-            <div class="event-details">
-              <div>
-                <div class="info-item">
-                  <span class="info-label">Data:</span> ${formatDate(event.eventDate)}
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Local:</span> ${event.location}
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Categoria:</span> ${event.category}
-                </div>
-              </div>
-              <div>
-                <div class="info-item">
-                  <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(parseFloat(event.pricePerPerson))}
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Capacidade:</span> ${event.maxCapacity ? `${event.participantCount}/${event.maxCapacity}` : event.participantCount}
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Status:</span> ${EVENT_STATUS.find(s => s.value === event.status)?.label}
-                </div>
-              </div>
-            </div>
-            ${event.description ? `<div class="info-item"><span class="info-label">Descrição:</span> ${event.description}</div>` : ''}
-          </div>
+      const printContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Lista de Participantes - ${event.name}</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px;
+      color: #333;
+    }
+    .header { 
+      text-align: center; 
+      margin-bottom: 30px;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 20px;
+    }
+    .event-info { 
+      margin-bottom: 30px; 
+    }
+    .event-info h2 { 
+      color: #2563eb; 
+      margin-bottom: 10px;
+    }
+    .event-details { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 20px; 
+      margin-bottom: 20px;
+    }
+    .info-item { 
+      margin-bottom: 8px; 
+    }
+    .info-label { 
+      font-weight: bold; 
+      color: #666;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px;
+    }
+    th, td { 
+      border: 1px solid #ddd; 
+      padding: 12px; 
+      text-align: left; 
+    }
+    th { 
+      background-color: #f5f5f5; 
+      font-weight: bold;
+      color: #333;
+    }
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; }
+    .status-ausente { background-color: #fee2e2; color: #dc2626; }
+    .status-cancelado { background-color: #f3f4f6; color: #374151; }
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      border-top: 1px solid #ccc;
+      padding-top: 20px;
+    }
+    @media print {
+      body { margin: 0; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Lista de Participantes</h1>
+  </div>
+  
+  <div class="event-info">
+    <h2>${event.name}</h2>
+    <div class="event-details">
+      <div>
+        <div class="info-item">
+          <span class="info-label">Data:</span> ${formatDate(event.eventDate)}
+        </div>
+        <div class="info-item">
+          <span class="info-label">Local:</span> ${event.location}
+        </div>
+        <div class="info-item">
+          <span class="info-label">Categoria:</span> ${event.category}
+        </div>
+      </div>
+      <div>
+        <div class="info-item">
+          <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(parseFloat(event.pricePerPerson))}
+        </div>
+        <div class="info-item">
+          <span class="info-label">Capacidade:</span> ${event.maxCapacity ? `${event.participantCount}/${event.maxCapacity}` : event.participantCount}
+        </div>
+        <div class="info-item">
+          <span class="info-label">Status:</span> ${getEventStatusLabel(event.status)}
+        </div>
+      </div>
+    </div>
+    ${event.description ? `<div class="info-item"><span class="info-label">Descrição:</span> ${event.description}</div>` : ''}
+  </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Nome do Cliente</th>
-                <th>Telefone</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Data de Inscrição</th>
-                <th>Observações</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${participants.length > 0 ? participants.map((participant: any) => `
-                <tr>
-                  <td>${participant.clientName || 'N/A'}</td>
-                  <td>${participant.clientPhone || 'N/A'}</td>
-                  <td>${participant.clientEmail || 'N/A'}</td>
-                  <td><span class="status-badge status-${participant.status}">${getStatusLabel(participant.status)}</span></td>
-                  <td>${formatDate(participant.registrationDate)}</td>
-                  <td>${participant.notes || ''}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante inscrito</td></tr>'}
-            </tbody>
-          </table>
+  <table>
+    <thead>
+      <tr>
+        <th>Nome do Cliente</th>
+        <th>Telefone</th>
+        <th>Email</th>
+        <th>Status</th>
+        <th>Data de Inscrição</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${participantRows}
+    </tbody>
+  </table>
 
-          <div class="footer">
-            <p>Lista gerada em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-            <p>Total de participantes: ${participants.length}</p>
-          </div>
+  <div class="footer">
+    <p>Lista gerada em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+    <p>Total de participantes: ${participants.length}</p>
+  </div>
 
-          <script>
-            function getStatusLabel(status) {
-              const statusMap = {
-                'inscrito': 'Inscrito',
-                'confirmado': 'Confirmado', 
-                'presente': 'Presente',
-                'ausente': 'Ausente',
-                'cancelado': 'Cancelado'
-              };
-              return statusMap[status] || status;
-            }
-            
-            // Imprimir automaticamente quando a página carregar
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 500);
-            };
-          </script>
-        </body>
-        </html>
-      `;
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
+</body>
+</html>`;
 
       // Abrir nova janela e imprimir
       const printWindow = window.open('', '_blank');
