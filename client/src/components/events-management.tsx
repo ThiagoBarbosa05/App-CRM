@@ -44,10 +44,12 @@ import {
   TrashIcon,
   UsersIcon,
   SearchIcon,
+  UserCheckIcon,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import EventParticipantsModal from "@/components/event-participants-modal";
 
 interface Event {
   id: string;
@@ -106,6 +108,7 @@ export default function EventsManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [participantsEvent, setParticipantsEvent] = useState<Event | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -482,18 +485,32 @@ export default function EventsManagement() {
                     {getStatusBadge(event.status)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <UsersIcon className="h-4 w-4 text-gray-400" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setParticipantsEvent(event)}
+                      className="flex items-center gap-1"
+                    >
+                      <UsersIcon className="h-4 w-4" />
                       {event.participantCount}
                       {event.maxCapacity && `/${event.maxCapacity}`}
-                    </div>
+                    </Button>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setParticipantsEvent(event)}
+                        title="Gerenciar Participantes"
+                      >
+                        <UserCheckIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleEdit(event)}
+                        title="Editar Evento"
                       >
                         <EditIcon className="h-4 w-4" />
                       </Button>
@@ -501,6 +518,7 @@ export default function EventsManagement() {
                         variant="outline"
                         size="sm"
                         onClick={() => setEventToDelete(event)}
+                        title="Excluir Evento"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </Button>
@@ -705,6 +723,13 @@ export default function EventsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Gerenciamento de Participantes */}
+      <EventParticipantsModal
+        isOpen={!!participantsEvent}
+        onClose={() => setParticipantsEvent(null)}
+        event={participantsEvent}
+      />
     </div>
   );
 }
