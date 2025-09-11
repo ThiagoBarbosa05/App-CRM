@@ -86,6 +86,12 @@ import {
   type CompanyProduct,
   serviceChannels,
   userServiceChannel,
+  events,
+  eventParticipants,
+  type InsertEvent,
+  type Event,
+  type InsertEventParticipant,
+  type EventParticipant,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -207,6 +213,7 @@ export interface IStorage {
     stage: Partial<InsertFunnelStage>
   ): Promise<FunnelStage | undefined>;
   deleteFunnelStage(id: string): Promise<boolean>;
+  reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean>;
 
   // Deals
   getDeals(
@@ -296,6 +303,8 @@ export interface IStorage {
     year: number
   ): Promise<any | null>;
   getWeeklyResult(goalId: string, week: number): Promise<any | null>;
+  getAllWeeklyResults(): Promise<any[]>;
+  deleteWeeklyResult(id: string): Promise<boolean>;
 
   // Learning Images methods
   getLearningImages(): Promise<LearningImage[]>;
@@ -355,7 +364,7 @@ export interface IStorage {
     userRole?: string
   ): Promise<CashbackUsage[]>;
 
-  // Método para calcular cashback baseado nas regras ativas
+  // Method to calculate cashback based on active rules
   calculateCashback(purchaseAmount: number): Promise<{
     setting: CashbackSetting | null;
     cashbackAmount: number;
@@ -489,7 +498,17 @@ export interface IStorage {
     companyId: string,
     productId: string,
     customPrice: string
-  );
+  ): Promise<CompanyProduct | null>;
+
+  // Events methods
+  getEvents(userId?: string, userRole?: string);
+  createEvent(eventData: InsertEvent);
+  updateEvent(eventId: string, eventData: Partial<InsertEvent>);
+  deleteEvent(eventId: string);
+  getEventParticipants(eventId: string);
+  addEventParticipant(participantData: InsertEventParticipant);
+  updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>);
+  removeEventParticipant(participantId: string);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1288,7 +1307,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const results = await query.orderBy(deals.createdAt);
-    
+
     // Mapear resultados para o formato esperado
     const dealsWithClients: DealWithClient[] = results.reverse().map((row) => ({
       ...row.deal,
@@ -3888,33 +3907,93 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompaniesWithProduct(productId: string) {
+    console.log(`Storage: Fetching companies for product ${productId}`);
     try {
-      const result = await db
+      const companiesWithProduct = await this.db
+        .select({
+          company: companies,
+          customNegotiatedPrice: companyProducts.customNegotiatedPrice,
+          addedAt: companyProducts.addedAt,
+          isActive: companyProducts.isActive,
+        })
+        .from(companyProducts)
+        .innerJoin(companies, eq(companyProducts.companyId, companies.id))
+        .where(eq(companyProducts.productId, productId));
+
+      console.log(
+        `Storage: Found ${companiesWithProduct.length} companies for product ${productId}`
+      );
+      return companiesWithProduct;
+    } catch (error) {
+      console.error(
+        `Storage error fetching companies for product ${productId}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  async getProductsStatistics() {
+    try {
+      // Top companies by number of products in wine list
+      const topCompaniesByProducts = await this.db
         .select({
           companyId: companies.id,
           companyName: companies.nomeFantasia,
           companyRazaoSocial: companies.razaoSocial,
           companyCnpj: companies.cnpj,
-          companyPhone: companies.phone,
-          companyEmail: companies.email,
           companyCity: companies.city,
           companyState: companies.state,
           responsibleName: users.name,
-          customPrice: companyProducts.customNegotiatedPrice,
-          addedAt: companyProducts.addedAt,
-          sectorName: sectors.name,
+          productCount: sql<number>`COUNT(${companyProducts.productId})::int`,
         })
         .from(companyProducts)
         .innerJoin(companies, eq(companyProducts.companyId, companies.id))
         .leftJoin(users, eq(companies.responsavelId, users.id))
-        .leftJoin(sectors, eq(companies.sectorId, sectors.id))
-        .where(eq(companyProducts.productId, productId))
-        .orderBy(asc(companies.nomeFantasia));
+        .where(eq(companyProducts.isActive, "true"))
+        .groupBy(
+          companies.id,
+          companies.nomeFantasia,
+          companies.razaoSocial,
+          companies.cnpj,
+          companies.city,
+          companies.state,
+          users.name
+        )
+        .orderBy(sql`COUNT(${companyProducts.productId}) DESC`)
+        .limit(10);
 
-      console.log(`Found ${result.length} companies for product ${productId}`);
-      return result;
+      // Top products by number of companies
+      const topProductsByCompanies = await this.db
+        .select({
+          productId: products.id,
+          productName: products.name,
+          productCountry: products.country,
+          productVolume: products.volume,
+          productType: products.type,
+          productPrice: products.negotiatedPrice,
+          companyCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
+        })
+        .from(companyProducts)
+        .innerJoin(products, eq(companyProducts.productId, products.id))
+        .where(eq(companyProducts.isActive, "true"))
+        .groupBy(
+          products.id,
+          products.name,
+          products.country,
+          products.volume,
+          products.type,
+          products.negotiatedPrice
+        )
+        .orderBy(sql`COUNT(${companyProducts.companyId}) DESC`)
+        .limit(10);
+
+      return {
+        topCompaniesByProducts,
+        topProductsByCompanies,
+      };
     } catch (error) {
-      console.error("Error fetching companies with product:", error);
+      console.error("Error fetching products statistics:", error);
       throw error;
     }
   }
@@ -4047,67 +4126,184 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProductsStatistics() {
+  // Events methods
+  async getEvents(userId?: string, userRole?: string) {
     try {
-      // Top companies by number of products in wine list
-      const topCompaniesByProducts = await this.db
+      let query = this.db
         .select({
-          companyId: companies.id,
-          companyName: companies.nomeFantasia,
-          companyRazaoSocial: companies.razaoSocial,
-          companyCnpj: companies.cnpj,
-          companyCity: companies.city,
-          companyState: companies.state,
-          responsibleName: users.name,
-          productCount: sql<number>`COUNT(${companyProducts.productId})::int`,
+          id: events.id,
+          name: events.name,
+          description: events.description,
+          eventDate: events.eventDate,
+          registrationDeadline: events.registrationDeadline,
+          location: events.location,
+          pricePerPerson: events.pricePerPerson,
+          maxCapacity: events.maxCapacity,
+          category: events.category,
+          status: events.status,
+          notes: events.notes,
+          createdBy: events.createdBy,
+          createdAt: events.createdAt,
+          updatedAt: events.updatedAt,
+          creatorName: users.name,
+          participantCount: sql<number>`(
+            SELECT COUNT(*)::int 
+            FROM ${eventParticipants} 
+            WHERE ${eventParticipants.eventId} = ${events.id}
+            AND ${eventParticipants.status} != 'cancelado'
+          )`,
         })
-        .from(companyProducts)
-        .innerJoin(companies, eq(companyProducts.companyId, companies.id))
-        .leftJoin(users, eq(companies.responsavelId, users.id))
-        .where(eq(companyProducts.isActive, "true"))
-        .groupBy(
-          companies.id,
-          companies.nomeFantasia,
-          companies.razaoSocial,
-          companies.cnpj,
-          companies.city,
-          companies.state,
-          users.name
-        )
-        .orderBy(sql`COUNT(${companyProducts.productId}) DESC`)
-        .limit(10);
+        .from(events)
+        .leftJoin(users, eq(events.createdBy, users.id))
+        .orderBy(desc(events.eventDate));
 
-      // Top products by number of companies
-      const topProductsByCompanies = await this.db
-        .select({
-          productId: products.id,
-          productName: products.name,
-          productCountry: products.country,
-          productVolume: products.volume,
-          productType: products.type,
-          productPrice: products.negotiatedPrice,
-          companyCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
-        })
-        .from(companyProducts)
-        .innerJoin(products, eq(companyProducts.productId, products.id))
-        .where(eq(companyProducts.isActive, "true"))
-        .groupBy(
-          products.id,
-          products.name,
-          products.country,
-          products.volume,
-          products.type,
-          products.negotiatedPrice
-        )
-        .orderBy(sql`COUNT(${companyProducts.companyId}) DESC`)
-        .limit(10);
+      // Se não for admin, filtrar apenas eventos do usuário
+      if (userRole !== "admin" && userRole !== "administrador" && userId) {
+        query = query.where(eq(events.createdBy, userId));
+      }
 
-      return {
-        topCompaniesByProducts,
-        topProductsByCompanies,
-      };
+      return await query;
     } catch (error) {
-      console.error("Error fetching products statistics:", error);
+      console.error("Error fetching events:", error);
+      throw error;
+    }
+  }
+
+  async createEvent(eventData: InsertEvent) {
+    try {
+      const [newEvent] = await this.db
+        .insert(events)
+        .values(eventData)
+        .returning();
+      return newEvent;
+    } catch (error) {
+      console.error("Error creating event:", error);
+      throw error;
+    }
+  }
+
+  async updateEvent(eventId: string, eventData: Partial<InsertEvent>) {
+    try {
+      const [updatedEvent] = await this.db
+        .update(events)
+        .set({ ...eventData, updatedAt: new Date() })
+        .where(eq(events.id, eventId))
+        .returning();
+      return updatedEvent;
+    } catch (error) {
+      console.error("Error updating event:", error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(eventId: string) {
+    try {
+      // First, delete all participants related to the event
+      await this.db.delete(eventParticipants).where(eq(eventParticipants.eventId, eventId));
+
+      // Then, delete the event itself
+      const [deletedEvent] = await this.db
+        .delete(events)
+        .where(eq(events.id, eventId))
+        .returning();
+      return !!deletedEvent;
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      throw error;
+    }
+  }
+
+  async getEventParticipants(eventId: string) {
+    try {
+      return await this.db
+        .select({
+          id: eventParticipants.id,
+          eventId: eventParticipants.eventId,
+          clientId: eventParticipants.clientId,
+          registrationDate: eventParticipants.registrationDate,
+          status: eventParticipants.status,
+          notes: eventParticipants.notes,
+          registeredBy: eventParticipants.registeredBy,
+          clientName: clients.name,
+          clientPhone: clients.phone,
+          clientEmail: clients.email,
+          registeredByName: users.name,
+        })
+        .from(eventParticipants)
+        .leftJoin(clients, eq(eventParticipants.clientId, clients.id))
+        .leftJoin(users, eq(eventParticipants.registeredBy, users.id))
+        .where(eq(eventParticipants.eventId, eventId))
+        .orderBy(desc(eventParticipants.registrationDate));
+    } catch (error) {
+      console.error("Error fetching event participants:", error);
+      throw error;
+    }
+  }
+
+  async addEventParticipant(participantData: InsertEventParticipant) {
+    try {
+      // Verificar se o cliente já está inscrito no evento
+      const existingParticipant = await this.db
+        .select()
+        .from(eventParticipants)
+        .where(
+          and(
+            eq(eventParticipants.eventId, participantData.eventId),
+            eq(eventParticipants.clientId, participantData.clientId)
+          )
+        );
+
+      if (existingParticipant.length > 0) {
+        throw new Error("Cliente já está inscrito neste evento");
+      }
+
+      // Verificar se a capacidade máxima do evento foi atingida
+      const event = await this.db.select().from(events).where(eq(events.id, participantData.eventId)).limit(1);
+      if (event && event[0]) {
+        const currentParticipants = await this.db
+          .select({ count: count() })
+          .from(eventParticipants)
+          .where(and(eq(eventParticipants.eventId, participantData.eventId), eq(eventParticipants.status, 'confirmado')));
+
+        if (event[0].maxCapacity && currentParticipants[0].count >= event[0].maxCapacity) {
+          throw new Error("Capacidade máxima do evento atingida");
+        }
+      }
+
+      const [newParticipant] = await this.db
+        .insert(eventParticipants)
+        .values(participantData)
+        .returning();
+      return newParticipant;
+    } catch (error) {
+      console.error("Error adding event participant:", error);
+      throw error;
+    }
+  }
+
+  async updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>) {
+    try {
+      const [updatedParticipant] = await this.db
+        .update(eventParticipants)
+        .set(participantData)
+        .where(eq(eventParticipants.id, participantId))
+        .returning();
+      return updatedParticipant;
+    } catch (error) {
+      console.error("Error updating event participant:", error);
+      throw error;
+    }
+  }
+
+  async removeEventParticipant(participantId: string) {
+    try {
+      const [removedParticipant] = await this.db
+        .delete(eventParticipants)
+        .where(eq(eventParticipants.id, participantId))
+        .returning();
+      return !!removedParticipant;
+    } catch (error) {
+      console.error("Error removing event participant:", error);
       throw error;
     }
   }

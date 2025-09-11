@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Bookmark,
   BookMarked,
+  CalendarIcon,
   CircleDollarSign,
   Download,
   GraduationCap,
@@ -32,6 +33,7 @@ import LearningImagesManagement from "@/components/learning-images-management";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
 import ClientDebtsManagement from "@/components/client-debts-management";
 import DataExportManagement from "@/components/data-export-management";
+import EventsManagement from "@/components/events-management";
 import { Separator } from "@/components/ui/separator";
 
 export default function Configurations() {
@@ -86,7 +88,7 @@ export default function Configurations() {
           </div>
 
           <Tabs defaultValue="users" className="space-y-4  ">
-            <TabsList className="grid w-full grid-cols-9">
+            <TabsList className="grid w-full grid-cols-10">
               <TabsTrigger title="usuários" value="users">
                 <span className="hidden sm:block">Usuários</span>
                 <Users className="size-4 sm:hidden" />
@@ -106,6 +108,10 @@ export default function Configurations() {
               <TabsTrigger title="setores" value="sectors">
                 <span className="hidden sm:block">Setores</span>
                 <LayoutPanelTop className="size-4 sm:hidden" />
+              </TabsTrigger>
+              <TabsTrigger title="eventos" value="events">
+                <span className="hidden sm:block">Eventos</span>
+                <CalendarIcon className="size-4 sm:hidden" />
               </TabsTrigger>
               <TabsTrigger title="treinamentos" value="learning-images">
                 <span className="hidden sm:block">Treinamentos</span>
@@ -143,6 +149,10 @@ export default function Configurations() {
 
             <TabsContent value="sectors">
               <SectorsManagement />
+            </TabsContent>
+
+            <TabsContent value="events">
+              <EventsManagement />
             </TabsContent>
 
             <TabsContent value="learning-images" className="h-full">

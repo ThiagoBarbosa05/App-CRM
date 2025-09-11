@@ -1277,3 +1277,100 @@ export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Sale = typeof sales.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
+
+// Tabela de eventos
+export const events = pgTable("events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  eventDate: timestamp("event_date").notNull(),
+  registrationDeadline: timestamp("registration_deadline"),
+  location: text("location").notNull(),
+  pricePerPerson: decimal("price_per_person", { precision: 10, scale: 2 }).notNull(),
+  maxCapacity: integer("max_capacity"),
+  category: text("category").notNull().default("Geral"),
+  status: text("status", { 
+    enum: ["planejado", "ativo", "finalizado", "cancelado"] 
+  }).notNull().default("planejado"),
+  notes: text("notes"),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de participantes dos eventos
+export const eventParticipants = pgTable("event_participants", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  clientId: varchar("client_id")
+    .references(() => clients.id, { onDelete: "cascade" })
+    .notNull(),
+  registrationDate: timestamp("registration_date").defaultNow().notNull(),
+  status: text("status", {
+    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"]
+  }).notNull().default("inscrito"),
+  notes: text("notes"),
+  registeredBy: varchar("registered_by")
+    .references(() => users.id)
+    .notNull(),
+});
+
+// Relações para eventos
+export const eventsRelations = relations(events, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [events.createdBy],
+    references: [users.id],
+  }),
+  participants: many(eventParticipants),
+}));
+
+export const eventParticipantsRelations = relations(eventParticipants, ({ one }) => ({
+  event: one(events, {
+    fields: [eventParticipants.eventId],
+    references: [events.id],
+  }),
+  client: one(clients, {
+    fields: [eventParticipants.clientId],
+    references: [clients.id],
+  }),
+  registeredByUser: one(users, {
+    fields: [eventParticipants.registeredBy],
+    references: [users.id],
+  }),
+}));
+
+// Schemas de inserção para eventos
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEventParticipantSchema = createInsertSchema(eventParticipants).omit({
+  id: true,
+  registrationDate: true,
+});
+
+// Tipos para eventos
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Event = typeof events.$inferSelect;
+export type InsertEventParticipant = z.infer<typeof insertEventParticipantSchema>;
+export type EventParticipant = typeof eventParticipants.$inferSelect;
+
+// Interface com relacionamentos
+export interface EventWithDetails extends Event {
+  creator: User;
+  participants: (EventParticipant & {
+    client: Client;
+    registeredByUser: User;
+  })[];
+  participantCount?: number;
+}

@@ -22,6 +22,7 @@ import {
   User
 } from "lucide-react";
 import ClientDetailsCard from "@/components/client-details-card";
+import EventsDashboard from "@/components/events-dashboard";
 
 interface ClientDebt {
   id: string;
@@ -215,7 +216,7 @@ export default function Dashboard() {
 
           {/* Tabs com conteúdo */}
           <Tabs defaultValue="debts" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="debts" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 Dívidas
@@ -223,6 +224,10 @@ export default function Dashboard() {
               <TabsTrigger value="birthdays" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Aniversários
+              </TabsTrigger>
+              <TabsTrigger value="events" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Eventos
               </TabsTrigger>
               <TabsTrigger value="summary" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
@@ -378,6 +383,10 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="events" className="space-y-4">
+              <EventsDashboard />
             </TabsContent>
 
             <TabsContent value="summary" className="space-y-4">

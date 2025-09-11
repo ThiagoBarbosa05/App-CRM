@@ -31,6 +31,8 @@ import {
   updateDocumentTrainingSchema,
   createScriptSchema,
   insertProductSchema,
+  insertEventSchema,
+  insertEventParticipantSchema,
   clientInteractions,
   clients,
   users,
@@ -3334,6 +3336,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ message: "Erro ao buscar estatísticas de produtos" });
+    }
+  });
+
+  // Events routes
+  app.get("/api/events", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      const userRole = req.headers["x-user-role"] as string;
+      
+      const events = await storage.getEvents(userId, userRole);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      res.status(500).json({ message: "Erro ao buscar eventos" });
+    }
+  });
+
+  app.post("/api/events", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const eventData = {
+        ...req.body,
+        createdBy: userId,
+      };
+
+      const validatedData = insertEventSchema.parse(eventData);
+      const event = await storage.createEvent(validatedData);
+      res.status(201).json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error creating event:", error);
+      res.status(500).json({ message: "Erro ao criar evento" });
+    }
+  });
+
+  app.put("/api/events/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertEventSchema.partial().parse(req.body);
+      const event = await storage.updateEvent(id, validatedData);
+      res.json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error updating event:", error);
+      res.status(500).json({ message: "Erro ao atualizar evento" });
+    }
+  });
+
+  app.delete("/api/events/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteEvent(id);
+      if (!success) {
+        return res.status(404).json({ message: "Evento não encontrado" });
+      }
+      res.json({ message: "Evento excluído com sucesso" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: "Erro ao excluir evento" });
+    }
+  });
+
+  app.get("/api/events/:id/participants", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const participants = await storage.getEventParticipants(id);
+      res.json(participants);
+    } catch (error) {
+      console.error("Error fetching event participants:", error);
+      res.status(500).json({ message: "Erro ao buscar participantes do evento" });
+    }
+  });
+
+  app.post("/api/events/:id/participants", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.headers["x-user-id"] as string;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const participantData = {
+        ...req.body,
+        eventId: id,
+        registeredBy: userId,
+      };
+
+      const validatedData = insertEventParticipantSchema.parse(participantData);
+      const participant = await storage.addEventParticipant(validatedData);
+      res.status(201).json(participant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error adding event participant:", error);
+      res.status(500).json({ message: "Erro ao adicionar participante" });
+    }
+  });
+
+  app.put("/api/events/:eventId/participants/:participantId", async (req, res) => {
+    try {
+      const { participantId } = req.params;
+      const validatedData = insertEventParticipantSchema.partial().parse(req.body);
+      const participant = await storage.updateEventParticipant(participantId, validatedData);
+      res.json(participant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error updating event participant:", error);
+      res.status(500).json({ message: "Erro ao atualizar participante" });
+    }
+  });
+
+  app.delete("/api/events/:eventId/participants/:participantId", async (req, res) => {
+    try {
+      const { participantId } = req.params;
+      const success = await storage.removeEventParticipant(participantId);
+      if (!success) {
+        return res.status(404).json({ message: "Participante não encontrado" });
+      }
+      res.json({ message: "Participante removido com sucesso" });
+    } catch (error) {
+      console.error("Error removing event participant:", error);
+      res.status(500).json({ message: "Erro ao remover participante" });
     }
   });
 
