@@ -171,7 +171,7 @@ export default function EventsDashboard() {
                       onClick={() => {
                         // Navegar para configurações apenas se for admin
                         if (user?.role === "admin") {
-                          window.open(`/configurations?tab=events`, '_blank')
+                          window.open(`/configuracoes?tab=events`, '_blank')
                         } else {
                           // Para outros usuários, mostrar uma mensagem ou ação alternativa
                           alert("Acesso restrito. Somente administradores podem gerenciar eventos.");
