@@ -141,27 +141,46 @@ export default function EventsManagement() {
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
-      const response = await fetch("/api/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-        },
-        body: JSON.stringify({
+      try {
+        const eventData = {
           ...data,
           pricePerPerson: parseFloat(data.pricePerPerson),
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
-          eventDate: new Date(data.eventDate),
-          registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
-        }),
-      });
+          eventDate: new Date(data.eventDate).toISOString(),
+          registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline).toISOString() : null,
+          createdBy: user?.id,
+        };
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao criar evento");
+        console.log("Enviando dados do evento:", eventData);
+
+        const response = await fetch("/api/events", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": user?.id || "",
+          },
+          body: JSON.stringify(eventData),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = "Erro ao criar evento";
+          
+          try {
+            const error = JSON.parse(errorText);
+            errorMessage = error.message || errorMessage;
+          } catch {
+            errorMessage = `Erro ${response.status}: ${response.statusText}`;
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Erro na criação do evento:", error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -173,9 +192,10 @@ export default function EventsManagement() {
       });
     },
     onError: (error: Error) => {
+      console.error("Erro na mutation:", error);
       toast({
         title: "Erro",
-        description: error.message,
+        description: error.message || "Erro desconhecido ao criar evento",
         variant: "destructive",
       });
     },
@@ -273,6 +293,68 @@ export default function EventsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validações básicas
+    if (!formData.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome do evento é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.eventDate) {
+      toast({
+        title: "Erro",
+        description: "Data do evento é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.location.trim()) {
+      toast({
+        title: "Erro",
+        description: "Local do evento é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.pricePerPerson || parseFloat(formData.pricePerPerson) < 0) {
+      toast({
+        title: "Erro",
+        description: "Valor por pessoa deve ser um número válido",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validar se a data do evento não é no passado
+    const eventDate = new Date(formData.eventDate);
+    const now = new Date();
+    if (eventDate < now) {
+      toast({
+        title: "Erro",
+        description: "A data do evento não pode ser no passado",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validar se o prazo de inscrição não é após a data do evento
+    if (formData.registrationDeadline) {
+      const deadline = new Date(formData.registrationDeadline);
+      if (deadline > eventDate) {
+        toast({
+          title: "Erro",
+          description: "O prazo de inscrição não pode ser após a data do evento",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     
     if (editingEvent) {
       updateEventMutation.mutate(formData);

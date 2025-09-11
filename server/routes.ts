@@ -3344,7 +3344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.headers["x-user-id"] as string;
       const userRole = req.headers["x-user-role"] as string;
-      
+
       const events = await storage.getEvents(userId, userRole);
       res.json(events);
     } catch (error) {
@@ -3356,26 +3356,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/events", async (req, res) => {
     try {
       const userId = req.headers["x-user-id"] as string;
-      
+
       if (!userId) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
+
+      console.log("Dados recebidos para criar evento:", JSON.stringify(req.body, null, 2));
 
       const eventData = {
         ...req.body,
         createdBy: userId,
       };
 
+      // Validar dados antes de enviar para o schema
+      if (!eventData.name || !eventData.name.trim()) {
+        return res.status(400).json({ message: "Nome do evento é obrigatório" });
+      }
+
+      if (!eventData.eventDate) {
+        return res.status(400).json({ message: "Data do evento é obrigatória" });
+      }
+
+      if (!eventData.location || !eventData.location.trim()) {
+        return res.status(400).json({ message: "Local do evento é obrigatório" });
+      }
+
+      if (!eventData.pricePerPerson || isNaN(parseFloat(eventData.pricePerPerson))) {
+        return res.status(400).json({ message: "Valor por pessoa deve ser um número válido" });
+      }
+
+      // Converter strings de data para objetos Date
+      if (typeof eventData.eventDate === 'string') {
+        eventData.eventDate = new Date(eventData.eventDate);
+      }
+      if (eventData.registrationDeadline && typeof eventData.registrationDeadline === 'string') {
+        eventData.registrationDeadline = new Date(eventData.registrationDeadline);
+      }
+
       const validatedData = insertEventSchema.parse(eventData);
+      console.log("Dados validados:", validatedData);
+
       const event = await storage.createEvent(validatedData);
+      console.log("Evento criado com sucesso:", event.id);
+
       res.status(201).json(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Erro de validação Zod:", error.errors);
         const validationError = fromZodError(error);
         return res.status(400).json({ message: validationError.toString() });
       }
-      console.error("Error creating event:", error);
-      res.status(500).json({ message: "Erro ao criar evento" });
+      console.error("Erro ao criar evento:", error);
+      res.status(500).json({
+        message: "Erro ao criar evento",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
     }
   });
 
@@ -3424,7 +3459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.headers["x-user-id"] as string;
-      
+
       if (!userId) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
