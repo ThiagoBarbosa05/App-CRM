@@ -433,13 +433,12 @@ export default function EventsManagement() {
             <tr>
               <td>${participant.clientName || 'N/A'}</td>
               <td>${participant.clientPhone || 'N/A'}</td>
-              <td>${participant.clientEmail || 'N/A'}</td>
               <td><span class="status-badge status-${participant.status}">${getStatusLabel(participant.status)}</span></td>
               <td>${formatDate(participant.registrationDate)}</td>
               <td>${participant.notes || ''}</td>
             </tr>
           `).join('')
-        : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante inscrito</td></tr>';
+        : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante inscrito</td></tr>';
 
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
@@ -557,7 +556,6 @@ export default function EventsManagement() {
       <tr>
         <th>Nome do Cliente</th>
         <th>Telefone</th>
-        <th>Email</th>
         <th>Status</th>
         <th>Data de Inscrição</th>
         <th>Observações</th>
