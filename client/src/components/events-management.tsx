@@ -144,7 +144,7 @@ export default function EventsManagement() {
       try {
         const eventData = {
           ...data,
-          pricePerPerson: parseFloat(data.pricePerPerson),
+          pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: new Date(data.eventDate).toISOString(),
           registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline).toISOString() : null,
@@ -211,7 +211,7 @@ export default function EventsManagement() {
         },
         body: JSON.stringify({
           ...data,
-          pricePerPerson: parseFloat(data.pricePerPerson),
+          pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: new Date(data.eventDate),
           registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
