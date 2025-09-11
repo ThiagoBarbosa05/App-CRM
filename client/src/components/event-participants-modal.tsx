@@ -113,12 +113,24 @@ export default function EventParticipantsModal({
   });
 
   // Buscar todos os clientes para adicionar participantes
-  const { data: clientsData } = useQuery<{ data: Client[] }>({
+  const { data: clientsData, isLoading: isLoadingClients } = useQuery<{ data: Client[] }>({
     queryKey: ["/api/clients"],
     enabled: isAddModalOpen,
   });
 
   const clients = clientsData?.data || [];
+  
+  // Debug: Log para verificar dados
+  console.log("Debug - Modal add participant:", {
+    isAddModalOpen,
+    clientsDataRaw: clientsData,
+    clientsCount: clients.length,
+    clientSearchTerm,
+    availableClientsCount: clients.filter(client => {
+      const participantClientIds = participants.map(p => p.clientId);
+      return !participantClientIds.includes(client.id);
+    }).length
+  });
 
   // Filtrar participantes
   const filteredParticipants = useMemo(() => {
@@ -443,7 +455,9 @@ export default function EventParticipantsModal({
                       ))
                     ) : (
                       <div className="px-2 py-1.5 text-sm text-gray-500">
-                        {clientSearchTerm ? "Nenhum cliente encontrado" : "Carregando clientes..."}
+                        {isLoadingClients ? "Carregando clientes..." :
+                         clients.length === 0 ? "Nenhum cliente cadastrado" :
+                         clientSearchTerm ? "Nenhum cliente encontrado com esse termo" : "Nenhum cliente disponível"}
                       </div>
                     )}
                   </SelectContent>
