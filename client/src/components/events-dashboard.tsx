@@ -311,7 +311,7 @@ export default function EventsDashboard() {
             <p className="text-gray-500">Nenhum evento próximo</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {upcomingEvents.map((event) => {
               const daysUntil = getDaysUntilEvent(event.eventDate);
               const isToday = daysUntil === 0;
@@ -320,68 +320,76 @@ export default function EventsDashboard() {
               return (
                 <div
                   key={event.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-medium">{event.name}</h3>
-                      {getStatusBadge(event.status)}
-                      <Badge variant="outline" className="text-xs">
-                        {event.category}
-                      </Badge>
+                  {/* Header do Card */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">{event.name}</h3>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {getStatusBadge(event.status)}
+                        <Badge variant="outline" className="text-xs">
+                          {event.category}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informações principais */}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CalendarIcon className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium">
+                        {formatDate(event.eventDate)}
+                        {isToday && <span className="text-red-600 font-bold ml-1">(Hoje!)</span>}
+                        {isTomorrow && <span className="text-orange-600 font-bold ml-1">(Amanhã)</span>}
+                        {!isToday && !isTomorrow && daysUntil > 0 && (
+                          <span className="text-blue-600 ml-1">({daysUntil} dias)</span>
+                        )}
+                      </span>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>
-                          {formatDate(event.eventDate)}
-                          {isToday && <span className="text-red-600 font-medium ml-1">(Hoje!)</span>}
-                          {isTomorrow && <span className="text-orange-600 font-medium ml-1">(Amanhã)</span>}
-                          {!isToday && !isTomorrow && daysUntil > 0 && (
-                            <span className="text-blue-600 ml-1">({daysUntil} dias)</span>
-                          )}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <MapPinIcon className="h-4 w-4" />
-                        <span>{event.location}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <UsersIcon className="h-4 w-4" />
-                        <span>
-                          {event.participantCount} participante(s)
-                          {event.maxCapacity && ` / ${event.maxCapacity}`}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <ClockIcon className="h-4 w-4" />
-                        <span>{formatCurrency(parseFloat(event.pricePerPerson))}</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPinIcon className="h-4 w-4 text-green-500" />
+                      <span className="line-clamp-1">{event.location}</span>
                     </div>
-
-                    {event.description && (
-                      <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-                        {event.description}
-                      </p>
-                    )}
-
-                    {event.registrationDeadline && (
-                      <div className="text-xs text-orange-600 mt-2">
-                        Inscrições até: {formatDate(event.registrationDeadline)}
-                      </div>
-                    )}
+                    
+                    <div className="flex items-center gap-2 text-sm">
+                      <UsersIcon className="h-4 w-4 text-purple-500" />
+                      <span>
+                        {event.participantCount} participante(s)
+                        {event.maxCapacity && ` / ${event.maxCapacity}`}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-sm">
+                      <ClockIcon className="h-4 w-4 text-orange-500" />
+                      <span className="font-medium">{formatCurrency(parseFloat(event.pricePerPerson))}</span>
+                    </div>
                   </div>
-                  
-                  <div className="flex flex-col gap-2 ml-4">
+
+                  {/* Descrição */}
+                  {event.description && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {event.description}
+                    </p>
+                  )}
+
+                  {/* Deadline de inscrição */}
+                  {event.registrationDeadline && (
+                    <div className="text-xs text-orange-600 mb-4 p-2 bg-orange-50 rounded">
+                      <strong>Inscrições até:</strong> {formatDate(event.registrationDeadline)}
+                    </div>
+                  )}
+
+                  {/* Botão de ação */}
+                  <div className="pt-4 border-t">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePrintParticipants(event)}
                       data-testid="button-print-participants"
+                      className="w-full"
                     >
                       Detalhes do Evento
                     </Button>
