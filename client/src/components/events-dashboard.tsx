@@ -370,9 +370,10 @@ export default function EventsDashboard() {
 
                   {/* Descrição */}
                   {event.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                      {event.description}
-                    </p>
+                    <div 
+                      className="text-sm text-gray-600 mb-4 line-clamp-3 rich-text-content"
+                      dangerouslySetInnerHTML={{ __html: event.description }}
+                    />
                   )}
 
                   {/* Deadline de inscrição */}
