@@ -4169,7 +4169,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createEvent(eventData: InsertEvent) {
+  async createEvent(eventData: InsertEvent): Promise<Event> {
     try {
       const [newEvent] = await this.db
         .insert(events)
@@ -4182,7 +4182,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateEvent(eventId: string, eventData: Partial<InsertEvent>) {
+  async updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event> {
     try {
       const [updatedEvent] = await this.db
         .update(events)
@@ -4196,7 +4196,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteEvent(eventId: string) {
+  async deleteEvent(eventId: string): Promise<boolean> {
     try {
       // First, delete all participants related to the event
       await this.db.delete(eventParticipants).where(eq(eventParticipants.eventId, eventId));
@@ -4213,7 +4213,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getEventParticipants(eventId: string) {
+  async getEventParticipants(eventId: string): Promise<EventParticipant[]> {
     try {
       return await this.db
         .select({
@@ -4240,7 +4240,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async addEventParticipant(participantData: InsertEventParticipant) {
+  async addEventParticipant(participantData: InsertEventParticipant): Promise<EventParticipant> {
     try {
       // Verificar se o cliente já está inscrito no evento
       const existingParticipant = await this.db
@@ -4281,7 +4281,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>) {
+  async updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>): Promise<EventParticipant> {
     try {
       const [updatedParticipant] = await this.db
         .update(eventParticipants)
@@ -4295,7 +4295,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async removeEventParticipant(participantId: string) {
+  async removeEventParticipant(participantId: string): Promise<boolean> {
     try {
       const [removedParticipant] = await this.db
         .delete(eventParticipants)
