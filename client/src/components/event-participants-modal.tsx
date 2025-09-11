@@ -45,7 +45,8 @@ interface EventParticipant {
   eventId: string;
   clientId: string;
   registrationDate: string;
-  status: "pago" | "pendente" | "convidado" | "pagar na hora" | "cancelado";
+  status: "inscrito" | "confirmado" | "presente" | "ausente" | "cancelado";
+  numberOfParticipants: number;
   notes: string | null;
   registeredBy: string;
   clientName: string;
@@ -101,6 +102,7 @@ export default function EventParticipantsModal({
   const [newParticipant, setNewParticipant] = useState({
     clientId: "",
     status: "inscrito",
+    numberOfParticipants: 1,
     notes: "",
   });
 
@@ -191,7 +193,7 @@ export default function EventParticipantsModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setIsAddModalOpen(false);
-      setNewParticipant({ clientId: "", status: "inscrito", notes: "" });
+      setNewParticipant({ clientId: "", status: "inscrito", numberOfParticipants: 1, notes: "" });
       setClientSearchTerm("");
       toast({
         title: "Sucesso",
@@ -349,7 +351,7 @@ export default function EventParticipantsModal({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">
-                  {participants.length}
+                  {participants.reduce((total, p) => total + (p.numberOfParticipants || 1), 0)}
                   {event.maxCapacity && ` / ${event.maxCapacity}`} participantes
                 </span>
                 <Button onClick={() => setIsAddModalOpen(true)}>
@@ -368,6 +370,7 @@ export default function EventParticipantsModal({
                   <TableRow>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Contato</TableHead>
+                    <TableHead>Nº Participantes</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Data de Inscrição</TableHead>
                     <TableHead>Responsável</TableHead>
@@ -390,6 +393,9 @@ export default function EventParticipantsModal({
                             <div className="text-gray-500">{participant.clientEmail}</div>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-semibold text-lg">{participant.numberOfParticipants}</span>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(participant.status)}
@@ -501,6 +507,18 @@ export default function EventParticipantsModal({
                   </>
                 )}
               </div>
+            </div>
+
+            <div>
+              <Label>Número de Participantes</Label>
+              <Input
+                type="number"
+                min="1"
+                value={newParticipant.numberOfParticipants}
+                onChange={(e) => setNewParticipant(prev => ({ ...prev, numberOfParticipants: Math.max(1, parseInt(e.target.value) || 1) }))}
+                placeholder="Quantos participantes..."
+                data-testid="input-number-participants"
+              />
             </div>
 
             <div>

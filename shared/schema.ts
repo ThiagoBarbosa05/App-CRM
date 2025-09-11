@@ -1317,6 +1317,7 @@ export const eventParticipants = pgTable("event_participants", {
   status: text("status", { 
     enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"] 
   }).notNull().default("inscrito"),
+  numberOfParticipants: integer("number_of_participants").notNull().default(1),
   notes: text("notes"),
   registeredBy: varchar("registered_by")
     .references(() => users.id)

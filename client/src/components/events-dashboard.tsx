@@ -109,12 +109,13 @@ export default function EventsDashboard() {
             <tr>
               <td>${participant.clientName || 'N/A'}</td>
               <td>${participant.clientPhone || 'N/A'}</td>
+              <td style="text-align: center; font-weight: bold;">${participant.numberOfParticipants || 1}</td>
               <td><span class="status-badge status-${participant.status}">${getStatusLabel(participant.status)}</span></td>
               <td>${formatDate(participant.registrationDate)}</td>
               <td>${participant.notes || ''}</td>
             </tr>
           `).join('')
-        : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
+        : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
@@ -232,6 +233,7 @@ export default function EventsDashboard() {
       <tr>
         <th>Nome do Cliente</th>
         <th>Telefone</th>
+        <th>Nº Participantes</th>
         <th>Status</th>
         <th>Data de Inscrição</th>
         <th>Observações</th>
@@ -244,7 +246,7 @@ export default function EventsDashboard() {
 
   <div class="footer">
     <p>Lista gerada em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-    <p>Total de participantes: ${participants.length}</p>
+    <p>Total de participantes: ${participants.reduce((total: number, p: any) => total + (p.numberOfParticipants || 1), 0)}</p>
   </div>
 
   <script>
