@@ -2,6 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estilos customizados para o editor React Quill */
+.ql-toolbar {
+  border-top: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-left: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-right: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-bottom: none !important;
+  border-radius: 0.375rem 0.375rem 0 0 !important;
+  background: hsl(0 0% 100%) !important;
+}
+
+.ql-container {
+  border-bottom: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-left: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-right: 1px solid hsl(214.3 31.8% 91.4%) !important;
+  border-top: none !important;
+  border-radius: 0 0 0.375rem 0.375rem !important;
+  font-family: inherit !important;
+}
+
+.ql-editor {
+  min-height: 100px;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ql-editor::before {
+  color: hsl(215.4 16.3% 56.9%);
+  font-style: normal;
+}
+
+.ql-toolbar .ql-stroke {
+  fill: none;
+  stroke: hsl(215.4 16.3% 46.9%);
+}
+
+.ql-toolbar .ql-fill {
+  fill: hsl(215.4 16.3% 46.9%);
+  stroke: none;
+}
+
+.ql-toolbar .ql-picker-label {
+  color: hsl(215.4 16.3% 46.9%);
+}
+
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button:focus .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke {
+  stroke: hsl(222.2 84% 4.9%);
+}
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button:focus .ql-fill,
+.ql-toolbar button.ql-active .ql-fill {
+  fill: hsl(222.2 84% 4.9%);
+}
+
 :root {
   --bordeaux-50: #fef7f0;
   --bordeaux-100: #fdecdb;

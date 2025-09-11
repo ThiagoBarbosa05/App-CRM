@@ -3,6 +3,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import {
   Card,
   CardContent,
@@ -99,6 +101,22 @@ const EVENT_STATUS = [
   { value: "ativo", label: "Ativo", color: "bg-green-100 text-green-800" },
   { value: "finalizado", label: "Finalizado", color: "bg-gray-100 text-gray-800" },
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
+];
+
+// Configuração do editor de texto rico
+const quillModules = {
+  toolbar: [
+    ['bold', 'italic', 'underline'],
+    [{ 'color': [] }, { 'background': [] }],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    ['clean']
+  ],
+};
+
+const quillFormats = [
+  'bold', 'italic', 'underline',
+  'color', 'background',
+  'list', 'bullet'
 ];
 
 export default function EventsManagement() {
@@ -804,12 +822,16 @@ export default function EventsManagement() {
 
             <div>
               <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-              />
+              <div className="mt-2">
+                <ReactQuill
+                  value={formData.description}
+                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  className="bg-white"
+                  style={{ minHeight: '120px' }}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
