@@ -320,7 +320,7 @@ export default function EventsDashboard() {
               return (
                 <div
                   key={event.id}
-                  className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow duration-200 min-h-[400px]"
                 >
                   {/* Header do Card */}
                   <div className="flex items-start justify-between mb-4">
@@ -371,7 +371,7 @@ export default function EventsDashboard() {
                   {/* Descrição */}
                   {event.description && (
                     <div 
-                      className="text-sm text-gray-600 mb-4 line-clamp-3 rich-text-content"
+                      className="text-sm text-gray-600 mb-4 rich-text-content"
                       dangerouslySetInnerHTML={{ __html: event.description }}
                     />
                   )}
