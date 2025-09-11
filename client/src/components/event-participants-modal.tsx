@@ -115,9 +115,8 @@ export default function EventParticipantsModal({
   // Buscar todos os clientes para adicionar participantes
   const { data: clientsData, isLoading: isLoadingClients } = useQuery<{ data: Client[] }>({
     queryKey: ["/api/clients"],
-    enabled: !!event?.id,
-    staleTime: 0,
-    cacheTime: 0
+    enabled: isAddModalOpen,
+    staleTime: 0
   });
 
   const clients = clientsData?.data || [];
@@ -140,12 +139,12 @@ export default function EventParticipantsModal({
   const availableClients = useMemo(() => {
     if (!clients || clients.length === 0) return [];
     
-    const participantClientIds = participants.map(p => p.clientId);
-    let filteredClients = clients.filter(client => !participantClientIds.includes(client.id));
+    const participantClientIds = participants.map((p: EventParticipant) => p.clientId);
+    let filteredClients = clients.filter((client: Client) => !participantClientIds.includes(client.id));
     
     if (clientSearchTerm && clientSearchTerm.trim() !== "") {
       const searchLower = clientSearchTerm.toLowerCase().trim();
-      filteredClients = filteredClients.filter(client => {
+      filteredClients = filteredClients.filter((client: Client) => {
         const nameMatch = client.name && client.name.toLowerCase().includes(searchLower);
         const phoneMatch = client.phone && client.phone.includes(clientSearchTerm.trim());
         const emailMatch = client.email && client.email.toLowerCase().includes(searchLower);
@@ -429,38 +428,49 @@ export default function EventParticipantsModal({
             <div>
               <Label>Cliente</Label>
               <div className="space-y-2">
-                <Input
-                  placeholder="Buscar cliente por nome, telefone ou email..."
-                  value={clientSearchTerm}
-                  onChange={(e) => setClientSearchTerm(e.target.value)}
-                  className="w-full"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nome do cliente..."
+                    value={clientSearchTerm}
+                    onChange={(e) => setClientSearchTerm(e.target.value)}
+                    className="flex-1"
+                    data-testid="input-client-search"
+                  />
+                </div>
                 <Select
                   value={newParticipant.clientId}
                   onValueChange={(value) => setNewParticipant(prev => ({ ...prev, clientId: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="select-client">
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     {availableClients.length > 0 ? (
-                      availableClients.map((client) => (
+                      availableClients.map((client: Client) => (
                         <SelectItem key={client.id} value={client.id}>
-                          {client.name} - {client.phone}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{client.name}</span>
+                            <span className="text-xs text-gray-500">{client.phone}</span>
+                          </div>
                         </SelectItem>
                       ))
                     ) : (
                       <div className="px-2 py-1.5 text-sm text-gray-500">
                         {isLoadingClients ? "Carregando clientes..." :
                          clients.length === 0 ? "Nenhum cliente cadastrado" :
-                         clientSearchTerm ? "Nenhum cliente encontrado com esse termo" : "Nenhum cliente disponível"}
+                         clientSearchTerm ? "Nenhum cliente encontrado" : "Todos os clientes já estão inscritos"}
                       </div>
                     )}
                   </SelectContent>
                 </Select>
-                {clientSearchTerm && (
-                  <p className="text-sm text-gray-500">
+                {clientSearchTerm && availableClients.length > 0 && (
+                  <p className="text-sm text-green-600">
                     {availableClients.length} cliente(s) encontrado(s)
+                  </p>
+                )}
+                {clientSearchTerm && availableClients.length === 0 && !isLoadingClients && (
+                  <p className="text-sm text-orange-600">
+                    Nenhum cliente encontrado com esse termo
                   </p>
                 )}
               </div>
