@@ -1314,9 +1314,9 @@ export const eventParticipants = pgTable("event_participants", {
     .references(() => clients.id, { onDelete: "cascade" })
     .notNull(),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
-  status: text("status", {
-    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"]
-  }).notNull().default("inscrito"),
+  status: varchar("status")
+    .notNull()
+    .default("inscrito"),
   notes: text("notes"),
   registeredBy: varchar("registered_by")
     .references(() => users.id)
@@ -1354,10 +1354,14 @@ export const insertEventSchema = createInsertSchema(events).omit({
   updatedAt: true,
 });
 
-export const insertEventParticipantSchema = createInsertSchema(eventParticipants).omit({
-  id: true,
-  registrationDate: true,
-});
+export const insertEventParticipantSchema = createInsertSchema(eventParticipants)
+  .omit({
+    id: true,
+    registrationDate: true,
+  })
+  .extend({
+    status: z.enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"]).default("inscrito"),
+  });
 
 // Tipos para eventos
 export type InsertEvent = z.infer<typeof insertEventSchema>;
