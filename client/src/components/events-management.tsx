@@ -566,7 +566,6 @@ export default function EventsManagement() {
         </div>
       </div>
     </div>
-    ${event.description ? `<div class="info-item"><span class="info-label">Descrição:</span> ${event.description}</div>` : ''}
   </div>
 
   <table>
