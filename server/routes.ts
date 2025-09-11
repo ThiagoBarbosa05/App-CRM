@@ -3417,13 +3417,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/events/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      console.log("Event update request body:", JSON.stringify(req.body, null, 2));
       const validatedData = insertEventSchema.partial().parse(req.body);
       const event = await storage.updateEvent(id, validatedData);
       res.json(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
+        console.error("Event validation error:", {
+          issues: error.issues,
+          formattedError: validationError.toString(),
+          requestBody: req.body
+        });
+        return res.status(400).json({ 
+          message: validationError.toString(),
+          details: error.issues 
+        });
       }
       console.error("Error updating event:", error);
       res.status(500).json({ message: "Erro ao atualizar evento" });
