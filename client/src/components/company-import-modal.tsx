@@ -229,8 +229,8 @@ export default function CompanyImportModal({
           delete companyData.responsavelNome;
 
           const response = await apiRequest(
-            "/api/companies",
             "POST",
+            "/api/companies",
             companyData
           );
           results.success++;
