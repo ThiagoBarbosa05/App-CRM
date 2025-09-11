@@ -4222,6 +4222,7 @@ export class DatabaseStorage implements IStorage {
           clientId: eventParticipants.clientId,
           registrationDate: eventParticipants.registrationDate,
           status: eventParticipants.status,
+          numberOfParticipants: eventParticipants.numberOfParticipants,
           notes: eventParticipants.notes,
           registeredBy: eventParticipants.registeredBy,
           clientName: clients.name,
