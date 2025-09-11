@@ -88,11 +88,11 @@ export default function EventsDashboard() {
       // Função para converter status
       const getStatusLabel = (status: string) => {
         const statusMap: { [key: string]: string } = {
-          'inscrito': 'Inscrito',
-          'confirmado': 'Confirmado', 
-          'presente': 'Presente',
-          'ausente': 'Ausente',
-          'cancelado': 'Cancelado'
+          'pago': 'PAGO',
+          'pendente': 'PENDENTE', 
+          'convidado': 'CONVIDADO',
+          'pagar na hora': 'PAGAR NA HORA',
+          'cancelado': 'CANCELADO'
         };
         return statusMap[status] || status;
       };
@@ -114,7 +114,7 @@ export default function EventsDashboard() {
               <td>${participant.notes || ''}</td>
             </tr>
           `).join('')
-        : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante inscrito</td></tr>';
+        : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
@@ -174,10 +174,11 @@ export default function EventsDashboard() {
       font-size: 12px;
       font-weight: bold;
     }
-    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
-    .status-confirmado { background-color: #dcfce7; color: #15803d; }
-    .status-presente { background-color: #d1fae5; color: #047857; }
-    .status-ausente { background-color: #fee2e2; color: #dc2626; }
+    .status-pago { background-color: #dcfce7; color: #15803d; }
+    .status-pendente { background-color: #fef3c7; color: #d97706; }
+    .status-convidado { background-color: #dbeafe; color: #1e40af; }
+    .status-pagar-na-hora { background-color: #fed7aa; color: #ea580c; }
+    .status-cancelado { background-color: #fee2e2; color: #dc2626; }
     .status-cancelado { background-color: #f3f4f6; color: #374151; }
     .footer {
       margin-top: 40px;

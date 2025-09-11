@@ -45,7 +45,7 @@ interface EventParticipant {
   eventId: string;
   clientId: string;
   registrationDate: string;
-  status: "inscrito" | "confirmado" | "presente" | "ausente" | "cancelado";
+  status: "pago" | "pendente" | "convidado" | "pagar na hora" | "cancelado";
   notes: string | null;
   registeredBy: string;
   clientName: string;
@@ -76,11 +76,11 @@ interface EventParticipantsModalProps {
 }
 
 const PARTICIPANT_STATUS = [
-  { value: "inscrito", label: "Inscrito", color: "bg-blue-100 text-blue-800" },
-  { value: "confirmado", label: "Confirmado", color: "bg-green-100 text-green-800" },
-  { value: "presente", label: "Presente", color: "bg-emerald-100 text-emerald-800" },
-  { value: "ausente", label: "Ausente", color: "bg-red-100 text-red-800" },
-  { value: "cancelado", label: "Cancelado", color: "bg-gray-100 text-gray-800" },
+  { value: "pago", label: "PAGO", color: "bg-green-100 text-green-800" },
+  { value: "pendente", label: "PENDENTE", color: "bg-yellow-100 text-yellow-800" },
+  { value: "convidado", label: "CONVIDADO", color: "bg-blue-100 text-blue-800" },
+  { value: "pagar na hora", label: "PAGAR NA HORA", color: "bg-orange-100 text-orange-800" },
+  { value: "cancelado", label: "CANCELADO", color: "bg-red-100 text-red-800" },
 ];
 
 export default function EventParticipantsModal({
@@ -100,7 +100,7 @@ export default function EventParticipantsModal({
   
   const [newParticipant, setNewParticipant] = useState({
     clientId: "",
-    status: "inscrito",
+    status: "pendente",
     notes: "",
   });
   
@@ -171,7 +171,7 @@ export default function EventParticipantsModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setIsAddModalOpen(false);
-      setNewParticipant({ clientId: "", status: "inscrito", notes: "" });
+      setNewParticipant({ clientId: "", status: "pendente", notes: "" });
       setClientSearchTerm("");
       toast({
         title: "Sucesso",
