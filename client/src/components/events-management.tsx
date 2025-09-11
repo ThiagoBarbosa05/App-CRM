@@ -445,10 +445,10 @@ export default function EventsManagement() {
       // Função para converter status
       const getStatusLabel = (status: string) => {
         const statusMap: { [key: string]: string } = {
-          pago: "PAGO",
-          convidado: "CONVIDADO",
-          pendente: "PENDENTE",
-          "pagar na ho": "PAGAR NA HORA",
+          inscrito: "PAGO",
+          confirmado: "CONVIDADO",
+          presente: "PENDENTE",
+          ausente: "PAGAR NA HORA",
           cancelado: "CANCELADO",
         };
         return statusMap[status] || status;

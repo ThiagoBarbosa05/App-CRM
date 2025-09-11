@@ -88,10 +88,10 @@ export default function EventsDashboard() {
       // Função para converter status
       const getStatusLabel = (status: string) => {
         const statusMap: { [key: string]: string } = {
-          'inscrito': 'INSCRITO',
-          'confirmado': 'CONFIRMADO',
-          'presente': 'PRESENTE',
-          'ausente': 'AUSENTE',
+          'inscrito': 'PAGO',
+          'confirmado': 'CONVIDADO',
+          'presente': 'PENDENTE',
+          'ausente': 'PAGAR NA HORA',
           'cancelado': 'CANCELADO'
         };
         return statusMap[status] || status;

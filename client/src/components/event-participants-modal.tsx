@@ -77,10 +77,10 @@ interface EventParticipantsModalProps {
 }
 
 const PARTICIPANT_STATUS = [
-  { value: "inscrito", label: "INSCRITO", color: "bg-blue-100 text-blue-800" },
-  { value: "confirmado", label: "CONFIRMADO", color: "bg-green-100 text-green-800" },
-  { value: "presente", label: "PRESENTE", color: "bg-emerald-100 text-emerald-800" },
-  { value: "ausente", label: "AUSENTE", color: "bg-orange-100 text-orange-800" },
+  { value: "inscrito", label: "PAGO", color: "bg-blue-100 text-blue-800" },
+  { value: "confirmado", label: "CONVIDADO", color: "bg-green-100 text-green-800" },
+  { value: "presente", label: "PENDENTE", color: "bg-emerald-100 text-emerald-800" },
+  { value: "ausente", label: "PAGAR NA HORA", color: "bg-orange-100 text-orange-800" },
   { value: "cancelado", label: "CANCELADO", color: "bg-red-100 text-red-800" },
 ];
 
