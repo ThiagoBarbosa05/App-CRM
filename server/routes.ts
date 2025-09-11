@@ -253,7 +253,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = createContactSchema.parse(req.body);
-      const contact = await syncContact(validatedData);
+      const contact = await syncContact({
+        ...validatedData,
+        name: validatedData.name ?? undefined,
+        email: validatedData.email ?? undefined,
+      });
 
       if (!contact) {
         const result = contact;
@@ -453,13 +457,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (searchQuery) {
         const lowercasedQuery = `%${searchQuery.toLowerCase()}%`;
-        baseConditions.push(
-          or(
-            like(clients.name, lowercasedQuery),
-            like(clients.phone, lowercasedQuery),
-            like(clients.cpf, lowercasedQuery)
-          )
+        const searchCondition = or(
+          like(clients.name, lowercasedQuery),
+          like(clients.phone, lowercasedQuery),
+          like(clients.cpf, lowercasedQuery)
         );
+        if (searchCondition) {
+          baseConditions.push(searchCondition);
+        }
       }
 
       const finalConditions = and(...baseConditions);
@@ -528,14 +533,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
 
       // 4. Queries para estatísticas gerais
-      let totalClientsInSystemQuery = db
-        .select({ count: count() })
-        .from(clients);
-      if (userRole !== "admin" && userRole !== "administrador") {
-        totalClientsInSystemQuery = totalClientsInSystemQuery.where(
-          eq(clients.responsavelId, userId)
-        );
-      }
+      const totalClientsInSystemQuery = userRole !== "admin" && userRole !== "administrador" 
+        ? db.select({ count: count() }).from(clients).where(eq(clients.responsavelId, userId))
+        : db.select({ count: count() }).from(clients);
       const totalInteracoesQuery = db
         .select({ count: count() })
         .from(clientInteractions);
@@ -1769,7 +1769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         0
       );
       const totalCashbackRedeemed = recentUsage.reduce((sum, item) => {
-        const usage = item.cashback_usage || item;
+        const usage = (item as any).cashback_usage || item;
         return sum + parseFloat(usage.usedAmount || 0);
       }, 0);
 
@@ -3218,7 +3218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(companyProduct);
     } catch (error) {
       console.error("Error adding product to company:", error);
-      if (error.message === "Produto já vinculado a esta empresa") {
+      if (error instanceof Error && error.message === "Produto já vinculado a esta empresa") {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Erro ao adicionar produto à carta" });
