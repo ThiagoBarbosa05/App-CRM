@@ -103,6 +103,8 @@ export default function EventParticipantsModal({
     status: "inscrito",
     notes: "",
   });
+  
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
 
   // Buscar participantes do evento
   const { data: participants = [], isLoading: isLoadingParticipants } = useQuery<EventParticipant[]>({
@@ -132,11 +134,19 @@ export default function EventParticipantsModal({
     });
   }, [participants, searchTerm, statusFilter]);
 
-  // Clientes disponíveis (não já inscritos)
+  // Clientes disponíveis (não já inscritos) e filtrados pela busca
   const availableClients = useMemo(() => {
     const participantClientIds = participants.map(p => p.clientId);
-    return clients.filter(client => !participantClientIds.includes(client.id));
-  }, [clients, participants]);
+    return clients
+      .filter(client => !participantClientIds.includes(client.id))
+      .filter(client => {
+        if (!clientSearchTerm) return true;
+        const searchLower = clientSearchTerm.toLowerCase();
+        return client.name.toLowerCase().includes(searchLower) || 
+               client.phone.includes(clientSearchTerm) ||
+               (client.email && client.email.toLowerCase().includes(searchLower));
+      });
+  }, [clients, participants, clientSearchTerm]);
 
   // Mutation para adicionar participante
   const addParticipantMutation = useMutation({
@@ -162,6 +172,7 @@ export default function EventParticipantsModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setIsAddModalOpen(false);
       setNewParticipant({ clientId: "", status: "inscrito", notes: "" });
+      setClientSearchTerm("");
       toast({
         title: "Sucesso",
         description: "Participante adicionado com sucesso",
@@ -409,21 +420,40 @@ export default function EventParticipantsModal({
           <div className="space-y-4">
             <div>
               <Label>Cliente</Label>
-              <Select
-                value={newParticipant.clientId}
-                onValueChange={(value) => setNewParticipant(prev => ({ ...prev, clientId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableClients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} - {client.phone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Buscar cliente por nome, telefone ou email..."
+                  value={clientSearchTerm}
+                  onChange={(e) => setClientSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+                <Select
+                  value={newParticipant.clientId}
+                  onValueChange={(value) => setNewParticipant(prev => ({ ...prev, clientId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableClients.length > 0 ? (
+                      availableClients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} - {client.phone}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        {clientSearchTerm ? "Nenhum cliente encontrado" : "Carregando clientes..."}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {clientSearchTerm && (
+                  <p className="text-sm text-gray-500">
+                    {availableClients.length} cliente(s) encontrado(s)
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
