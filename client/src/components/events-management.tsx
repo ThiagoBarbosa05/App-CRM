@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,37 +96,51 @@ const EVENT_CATEGORIES = [
 ];
 
 const EVENT_STATUS = [
-  { value: "planejado", label: "Planejado", color: "bg-blue-100 text-blue-800" },
+  {
+    value: "planejado",
+    label: "Planejado",
+    color: "bg-blue-100 text-blue-800",
+  },
   { value: "ativo", label: "Ativo", color: "bg-green-100 text-green-800" },
-  { value: "finalizado", label: "Finalizado", color: "bg-gray-100 text-gray-800" },
+  {
+    value: "finalizado",
+    label: "Finalizado",
+    color: "bg-gray-100 text-gray-800",
+  },
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ];
 
 // Configuração do editor de texto rico
 const quillModules = {
   toolbar: [
-    ['bold', 'italic', 'underline'],
-    [{ 'color': [] }, { 'background': [] }],
-    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-    ['clean']
+    ["bold", "italic", "underline"],
+    [{ color: [] }, { background: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["clean"],
   ],
 };
 
 const quillFormats = [
-  'bold', 'italic', 'underline',
-  'color', 'background',
-  'list', 'bullet'
+  "bold",
+  "italic",
+  "underline",
+  "color",
+  "background",
+  "list",
+  "bullet",
 ];
 
 export default function EventsManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
-  const [participantsEvent, setParticipantsEvent] = useState<Event | null>(null);
+  const [participantsEvent, setParticipantsEvent] = useState<Event | null>(
+    null,
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -150,13 +163,14 @@ export default function EventsManagement() {
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      const matchesSearch = 
+      const matchesSearch =
         event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         event.category.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = statusFilter === "all" || event.status === statusFilter;
-      
+
+      const matchesStatus =
+        statusFilter === "all" || event.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [events, searchTerm, statusFilter]);
@@ -169,7 +183,9 @@ export default function EventsManagement() {
           pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: new Date(data.eventDate).toISOString(),
-          registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline).toISOString() : null,
+          registrationDeadline: data.registrationDeadline
+            ? new Date(data.registrationDeadline).toISOString()
+            : null,
           createdBy: user?.id,
         };
 
@@ -187,14 +203,14 @@ export default function EventsManagement() {
         if (!response.ok) {
           const errorText = await response.text();
           let errorMessage = "Erro ao criar evento";
-          
+
           try {
             const error = JSON.parse(errorText);
             errorMessage = error.message || errorMessage;
           } catch {
             errorMessage = `Erro ${response.status}: ${response.statusText}`;
           }
-          
+
           throw new Error(errorMessage);
         }
 
@@ -236,7 +252,9 @@ export default function EventsManagement() {
           pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: new Date(data.eventDate),
-          registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
+          registrationDeadline: data.registrationDeadline
+            ? new Date(data.registrationDeadline)
+            : null,
         }),
       });
 
@@ -315,7 +333,7 @@ export default function EventsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validações básicas
     if (!formData.name.trim()) {
       toast({
@@ -325,7 +343,7 @@ export default function EventsManagement() {
       });
       return;
     }
-    
+
     if (!formData.eventDate) {
       toast({
         title: "Erro",
@@ -334,7 +352,7 @@ export default function EventsManagement() {
       });
       return;
     }
-    
+
     if (!formData.location.trim()) {
       toast({
         title: "Erro",
@@ -343,7 +361,7 @@ export default function EventsManagement() {
       });
       return;
     }
-    
+
     if (!formData.pricePerPerson || parseFloat(formData.pricePerPerson) < 0) {
       toast({
         title: "Erro",
@@ -352,7 +370,7 @@ export default function EventsManagement() {
       });
       return;
     }
-    
+
     // Validar se a data do evento não é no passado
     const eventDate = new Date(formData.eventDate);
     const now = new Date();
@@ -364,20 +382,21 @@ export default function EventsManagement() {
       });
       return;
     }
-    
+
     // Validar se o prazo de inscrição não é após a data do evento
     if (formData.registrationDeadline) {
       const deadline = new Date(formData.registrationDeadline);
       if (deadline > eventDate) {
         toast({
           title: "Erro",
-          description: "O prazo de inscrição não pode ser após a data do evento",
+          description:
+            "O prazo de inscrição não pode ser após a data do evento",
           variant: "destructive",
         });
         return;
       }
     }
-    
+
     if (editingEvent) {
       updateEventMutation.mutate(formData);
     } else {
@@ -391,8 +410,8 @@ export default function EventsManagement() {
       name: event.name,
       description: event.description || "",
       eventDate: new Date(event.eventDate).toISOString().slice(0, 16),
-      registrationDeadline: event.registrationDeadline 
-        ? new Date(event.registrationDeadline).toISOString().slice(0, 16) 
+      registrationDeadline: event.registrationDeadline
+        ? new Date(event.registrationDeadline).toISOString().slice(0, 16)
         : "",
       location: event.location,
       pricePerPerson: event.pricePerPerson,
@@ -404,12 +423,8 @@ export default function EventsManagement() {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = EVENT_STATUS.find(s => s.value === status);
-    return (
-      <Badge className={statusConfig?.color}>
-        {statusConfig?.label}
-      </Badge>
-    );
+    const statusConfig = EVENT_STATUS.find((s) => s.value === status);
+    return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
   };
 
   const handlePrintParticipants = async (event: Event) => {
@@ -430,33 +445,38 @@ export default function EventsManagement() {
       // Função para converter status
       const getStatusLabel = (status: string) => {
         const statusMap: { [key: string]: string } = {
-          'pago': 'PAGO',
-          'pendente': 'PENDENTE', 
-          'convidado': 'CONVIDADO',
-          'pagar na hora': 'PAGAR NA HORA',
-          'cancelado': 'CANCELADO'
+          inscrito: "INSCRITO",
+          confirmado: "CONFIRMADO",
+          presente: "PRESENTE",
+          ausente: "AUSENTE",
+          cancelado: "CANCELADO",
         };
         return statusMap[status] || status;
       };
 
       // Função para obter status do evento
       const getEventStatusLabel = (status: string) => {
-        const statusConfig = EVENT_STATUS.find(s => s.value === status);
+        const statusConfig = EVENT_STATUS.find((s) => s.value === status);
         return statusConfig?.label || status;
       };
 
       // Gerar linhas da tabela
-      const participantRows = participants.length > 0 
-        ? participants.map((participant: any) => `
+      const participantRows =
+        participants.length > 0
+          ? participants
+              .map(
+                (participant: any) => `
             <tr>
-              <td>${participant.clientName || 'N/A'}</td>
-              <td>${participant.clientPhone || 'N/A'}</td>
+              <td>${participant.clientName || "N/A"}</td>
+              <td>${participant.clientPhone || "N/A"}</td>
               <td><span class="status-badge status-${participant.status}">${getStatusLabel(participant.status)}</span></td>
               <td>${formatDate(participant.registrationDate)}</td>
-              <td>${participant.notes || ''}</td>
+              <td>${participant.notes || ""}</td>
             </tr>
-          `).join('')
-        : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
+          `,
+              )
+              .join("")
+          : '<tr><td colspan="5" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
@@ -516,12 +536,11 @@ export default function EventsManagement() {
       font-size: 12px;
       font-weight: bold;
     }
-    .status-pago { background-color: #dcfce7; color: #15803d; }
-    .status-pendente { background-color: #fef3c7; color: #d97706; }
-    .status-convidado { background-color: #dbeafe; color: #1e40af; }
-    .status-pagar-na-hora { background-color: #fed7aa; color: #ea580c; }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; }
+    .status-ausente { background-color: #fed7aa; color: #ea580c; }
     .status-cancelado { background-color: #fee2e2; color: #dc2626; }
-    .status-cancelado { background-color: #f3f4f6; color: #374151; }
     .footer {
       margin-top: 40px;
       text-align: center;
@@ -585,7 +604,7 @@ export default function EventsManagement() {
   </table>
 
   <div class="footer">
-    <p>Lista gerada em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+    <p>Lista gerada em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
     <p>Total de participantes: ${participants.length}</p>
   </div>
 
@@ -600,18 +619,18 @@ export default function EventsManagement() {
 </html>`;
 
       // Abrir nova janela e imprimir
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open("", "_blank");
       if (printWindow) {
         printWindow.document.write(printContent);
         printWindow.document.close();
       } else {
         toast({
           title: "Erro",
-          description: "Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.",
+          description:
+            "Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.",
           variant: "destructive",
         });
       }
-
     } catch (error) {
       console.error("Erro ao imprimir lista:", error);
       toast({
@@ -636,9 +655,7 @@ export default function EventsManagement() {
                 <CalendarIcon className="h-5 w-5" />
                 Gerenciamento de Eventos
               </CardTitle>
-              <CardDescription>
-                Gerencie os eventos da empresa
-              </CardDescription>
+              <CardDescription>Gerencie os eventos da empresa</CardDescription>
             </div>
             <Button onClick={() => setIsCreateModalOpen(true)}>
               <PlusIcon className="h-4 w-4 mr-2" />
@@ -692,7 +709,9 @@ export default function EventsManagement() {
                   <TableCell>
                     <div>
                       <div className="font-medium">{event.name}</div>
-                      <div className="text-sm text-gray-500">{event.category}</div>
+                      <div className="text-sm text-gray-500">
+                        {event.category}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -710,9 +729,7 @@ export default function EventsManagement() {
                   <TableCell>
                     {formatCurrency(parseFloat(event.pricePerPerson))}
                   </TableCell>
-                  <TableCell>
-                    {getStatusBadge(event.status)}
-                  </TableCell>
+                  <TableCell>{getStatusBadge(event.status)}</TableCell>
                   <TableCell>
                     <Button
                       variant="outline"
@@ -769,8 +786,8 @@ export default function EventsManagement() {
       </Card>
 
       {/* Modal de Criação/Edição */}
-      <Dialog 
-        open={isCreateModalOpen || !!editingEvent} 
+      <Dialog
+        open={isCreateModalOpen || !!editingEvent}
         onOpenChange={(open) => {
           if (!open) {
             setIsCreateModalOpen(false);
@@ -779,7 +796,7 @@ export default function EventsManagement() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingEvent ? "Editar Evento" : "Novo Evento"}
@@ -788,7 +805,7 @@ export default function EventsManagement() {
               Preencha as informações do evento
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -796,7 +813,9 @@ export default function EventsManagement() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -804,7 +823,9 @@ export default function EventsManagement() {
                 <Label htmlFor="category">Categoria</Label>
                 <Select
                   value={formData.category}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, category: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -825,11 +846,13 @@ export default function EventsManagement() {
               <div className="mt-2">
                 <ReactQuill
                   value={formData.description}
-                  onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                  onChange={(value) =>
+                    setFormData((prev) => ({ ...prev, description: value }))
+                  }
                   modules={quillModules}
                   formats={quillFormats}
                   className="bg-white"
-                  style={{ minHeight: '120px' }}
+                  style={{ minHeight: "120px" }}
                 />
               </div>
             </div>
@@ -841,7 +864,12 @@ export default function EventsManagement() {
                   id="eventDate"
                   type="datetime-local"
                   value={formData.eventDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, eventDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      eventDate: e.target.value,
+                    }))
+                  }
                   required
                 />
               </div>
@@ -851,7 +879,12 @@ export default function EventsManagement() {
                   id="registrationDeadline"
                   type="datetime-local"
                   value={formData.registrationDeadline}
-                  onChange={(e) => setFormData(prev => ({ ...prev, registrationDeadline: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      registrationDeadline: e.target.value,
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -861,7 +894,9 @@ export default function EventsManagement() {
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, location: e.target.value }))
+                }
                 required
               />
             </div>
@@ -874,7 +909,12 @@ export default function EventsManagement() {
                   type="number"
                   step="0.01"
                   value={formData.pricePerPerson}
-                  onChange={(e) => setFormData(prev => ({ ...prev, pricePerPerson: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      pricePerPerson: e.target.value,
+                    }))
+                  }
                   required
                 />
               </div>
@@ -884,14 +924,21 @@ export default function EventsManagement() {
                   id="maxCapacity"
                   type="number"
                   value={formData.maxCapacity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, maxCapacity: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      maxCapacity: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, status: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -912,7 +959,9 @@ export default function EventsManagement() {
               <Textarea
                 id="notes"
                 value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, notes: e.target.value }))
+                }
                 rows={3}
               />
             </div>
@@ -929,9 +978,11 @@ export default function EventsManagement() {
               >
                 Cancelar
               </Button>
-              <Button 
+              <Button
                 type="submit"
-                disabled={createEventMutation.isPending || updateEventMutation.isPending}
+                disabled={
+                  createEventMutation.isPending || updateEventMutation.isPending
+                }
               >
                 {editingEvent ? "Atualizar" : "Criar"} Evento
               </Button>
@@ -941,7 +992,10 @@ export default function EventsManagement() {
       </Dialog>
 
       {/* Modal de Confirmação de Exclusão */}
-      <Dialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
+      <Dialog
+        open={!!eventToDelete}
+        onOpenChange={() => setEventToDelete(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Exclusão</DialogTitle>
@@ -956,7 +1010,9 @@ export default function EventsManagement() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => eventToDelete && deleteEventMutation.mutate(eventToDelete.id)}
+              onClick={() =>
+                eventToDelete && deleteEventMutation.mutate(eventToDelete.id)
+              }
               disabled={deleteEventMutation.isPending}
             >
               Excluir

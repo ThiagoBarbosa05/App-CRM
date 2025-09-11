@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -76,10 +76,10 @@ interface EventParticipantsModalProps {
 }
 
 const PARTICIPANT_STATUS = [
-  { value: "pago", label: "PAGO", color: "bg-green-100 text-green-800" },
-  { value: "pendente", label: "PENDENTE", color: "bg-yellow-100 text-yellow-800" },
-  { value: "convidado", label: "CONVIDADO", color: "bg-blue-100 text-blue-800" },
-  { value: "pagar na hora", label: "PAGAR NA HORA", color: "bg-orange-100 text-orange-800" },
+  { value: "inscrito", label: "INSCRITO", color: "bg-blue-100 text-blue-800" },
+  { value: "confirmado", label: "CONFIRMADO", color: "bg-green-100 text-green-800" },
+  { value: "presente", label: "PRESENTE", color: "bg-emerald-100 text-emerald-800" },
+  { value: "ausente", label: "AUSENTE", color: "bg-orange-100 text-orange-800" },
   { value: "cancelado", label: "CANCELADO", color: "bg-red-100 text-red-800" },
 ];
 
@@ -91,20 +91,38 @@ export default function EventParticipantsModal({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<EventParticipant | null>(null);
   const [participantToDelete, setParticipantToDelete] = useState<EventParticipant | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  
+
   const [newParticipant, setNewParticipant] = useState({
     clientId: "",
-    status: "pendente",
+    status: "inscrito",
     notes: "",
   });
-  
+
   const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [debouncedClientSearchTerm, setDebouncedClientSearchTerm] = useState("");
+  const [selectedClientDisplay, setSelectedClientDisplay] = useState<{name: string, phone: string} | null>(null);
+
+  // Debounce do input de busca de cliente
+  useEffect(() => {
+    // Se um cliente já foi selecionado, não faz a busca
+    if (selectedClientDisplay) {
+      setDebouncedClientSearchTerm("");
+      return;
+    }
+    const handler = setTimeout(() => {
+      setDebouncedClientSearchTerm(clientSearchTerm);
+    }, 300); // Aguarda 300ms após o usuário parar de digitar
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [clientSearchTerm, selectedClientDisplay]);
 
   // Buscar participantes do evento
   const { data: participants = [], isLoading: isLoadingParticipants } = useQuery<EventParticipant[]>({
@@ -112,11 +130,19 @@ export default function EventParticipantsModal({
     enabled: !!event?.id,
   });
 
-  // Buscar todos os clientes para adicionar participantes
+  // Buscar clientes para adicionar ao evento (com debounce e busca no servidor)
   const { data: clientsData, isLoading: isLoadingClients } = useQuery<{ data: Client[] }>({
-    queryKey: ["/api/clients"],
-    enabled: isAddModalOpen,
-    staleTime: 0
+    queryKey: ["/api/clients", { search: debouncedClientSearchTerm }],
+    queryFn: async () => {
+      const response = await fetch(`/api/clients?search=${encodeURIComponent(debouncedClientSearchTerm)}`);
+      if (!response.ok) {
+        throw new Error("Erro ao buscar clientes");
+      }
+      return response.json();
+    },
+    // A busca só é ativada se o modal estiver aberto e o usuário tiver digitado ao menos 2 caracteres.
+    enabled: isAddModalOpen && debouncedClientSearchTerm.trim().length > 1,
+    staleTime: 1000 * 60 * 5, // Cache de 5 minutos para os resultados
   });
 
   const clients = clientsData?.data || [];
@@ -128,32 +154,19 @@ export default function EventParticipantsModal({
         participant.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         participant.clientPhone.includes(searchTerm) ||
         (participant.clientEmail && participant.clientEmail.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+
       const matchesStatus = statusFilter === "all" || participant.status === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [participants, searchTerm, statusFilter]);
 
-  // Clientes disponíveis (não já inscritos) e filtrados pela busca
+  // Clientes disponíveis para adição (resultados da busca que ainda não estão no evento)
   const availableClients = useMemo(() => {
-    if (!clients || clients.length === 0) return [];
-    
-    const participantClientIds = participants.map((p: EventParticipant) => p.clientId);
-    let filteredClients = clients.filter((client: Client) => !participantClientIds.includes(client.id));
-    
-    if (clientSearchTerm && clientSearchTerm.trim() !== "") {
-      const searchLower = clientSearchTerm.toLowerCase().trim();
-      filteredClients = filteredClients.filter((client: Client) => {
-        const nameMatch = client.name && client.name.toLowerCase().includes(searchLower);
-        const phoneMatch = client.phone && client.phone.includes(clientSearchTerm.trim());
-        const emailMatch = client.email && client.email.toLowerCase().includes(searchLower);
-        return nameMatch || phoneMatch || emailMatch;
-      });
-    }
-    
-    return filteredClients;
-  }, [clients, participants, clientSearchTerm]);
+    if (!clients) return [];
+    const participantClientIds = new Set(participants.map((p: EventParticipant) => p.clientId));
+    return clients.filter((client: Client) => !participantClientIds.has(client.id));
+  }, [clients, participants]);
 
   // Mutation para adicionar participante
   const addParticipantMutation = useMutation({
@@ -178,7 +191,7 @@ export default function EventParticipantsModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setIsAddModalOpen(false);
-      setNewParticipant({ clientId: "", status: "pendente", notes: "" });
+      setNewParticipant({ clientId: "", status: "inscrito", notes: "" });
       setClientSearchTerm("");
       toast({
         title: "Sucesso",
@@ -283,7 +296,7 @@ export default function EventParticipantsModal({
       });
       return;
     }
-    
+
     addParticipantMutation.mutate(newParticipant);
   };
 
@@ -423,55 +436,69 @@ export default function EventParticipantsModal({
               Selecione um cliente para adicionar ao evento
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <Label>Cliente</Label>
               <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nome do cliente..."
-                    value={clientSearchTerm}
-                    onChange={(e) => setClientSearchTerm(e.target.value)}
-                    className="flex-1"
-                    data-testid="input-client-search"
-                  />
-                </div>
-                <Select
-                  value={newParticipant.clientId}
-                  onValueChange={(value) => setNewParticipant(prev => ({ ...prev, clientId: value }))}
-                >
-                  <SelectTrigger data-testid="select-client">
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {availableClients.length > 0 ? (
-                      availableClients.map((client: Client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{client.name}</span>
-                            <span className="text-xs text-gray-500">{client.phone}</span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-sm text-gray-500">
-                        {isLoadingClients ? "Carregando clientes..." :
-                         clients.length === 0 ? "Nenhum cliente cadastrado" :
-                         clientSearchTerm ? "Nenhum cliente encontrado" : "Todos os clientes já estão inscritos"}
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
-                {clientSearchTerm && availableClients.length > 0 && (
-                  <p className="text-sm text-green-600">
-                    {availableClients.length} cliente(s) encontrado(s)
-                  </p>
-                )}
-                {clientSearchTerm && availableClients.length === 0 && !isLoadingClients && (
-                  <p className="text-sm text-orange-600">
-                    Nenhum cliente encontrado com esse termo
-                  </p>
+                {selectedClientDisplay ? (
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                    <div>
+                      <p className="font-medium">{selectedClientDisplay.name}</p>
+                      <p className="text-sm text-gray-500">{selectedClientDisplay.phone}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        setSelectedClientDisplay(null);
+                        setNewParticipant(prev => ({ ...prev, clientId: "" }));
+                      }}
+                    >
+                      Alterar
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Buscar por nome, telefone ou email..."
+                        value={clientSearchTerm}
+                        onChange={(e) => setClientSearchTerm(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-client-search"
+                      />
+                    </div>
+                    <div className="border rounded-md max-h-60 overflow-y-auto">
+                      {isLoadingClients ? (
+                        <div className="p-3 text-sm text-center text-gray-500">Buscando...</div>
+                      ) : availableClients.length > 0 ? (
+                        <div>
+                          {availableClients.map((client: Client) => (
+                            <div 
+                              key={client.id} 
+                              className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                setNewParticipant(prev => ({ ...prev, clientId: client.id }));
+                                setSelectedClientDisplay({ name: client.name, phone: client.phone });
+                                setClientSearchTerm("");
+                              }}
+                            >
+                              <p className="font-medium">{client.name}</p>
+                              <p className="text-sm text-gray-500">{client.phone}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 text-sm text-center text-gray-500">
+                          {debouncedClientSearchTerm.trim().length < 2
+                            ? "Digite ao menos 2 caracteres para buscar."
+                            : clients.length > 0 && availableClients.length === 0
+                            ? "Todos os clientes encontrados já participam do evento."
+                            : "Nenhum cliente encontrado."}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -529,7 +556,7 @@ export default function EventParticipantsModal({
               Altere o status e observações do participante
             </DialogDescription>
           </DialogHeader>
-          
+
           {editingParticipant && (
             <div className="space-y-4">
               <div>

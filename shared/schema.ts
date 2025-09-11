@@ -1315,8 +1315,8 @@ export const eventParticipants = pgTable("event_participants", {
     .notNull(),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
   status: text("status", { 
-    enum: ["pago", "pendente", "convidado", "pagar na hora", "cancelado"] 
-  }).notNull().default("pendente"),
+    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"] 
+  }).notNull().default("inscrito"),
   notes: text("notes"),
   registeredBy: varchar("registered_by")
     .references(() => users.id)
@@ -1360,7 +1360,7 @@ export const insertEventParticipantSchema = createInsertSchema(eventParticipants
     registrationDate: true,
   })
   .extend({
-    status: z.enum(["pago", "pendente", "convidado", "pagar na hora", "cancelado"]).default("pendente"),
+    status: z.enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"]).default("inscrito"),
   });
 
 // Tipos para eventos

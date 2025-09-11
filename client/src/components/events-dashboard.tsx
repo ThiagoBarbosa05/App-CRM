@@ -88,10 +88,10 @@ export default function EventsDashboard() {
       // Função para converter status
       const getStatusLabel = (status: string) => {
         const statusMap: { [key: string]: string } = {
-          'pago': 'PAGO',
-          'pendente': 'PENDENTE', 
-          'convidado': 'CONVIDADO',
-          'pagar na hora': 'PAGAR NA HORA',
+          'inscrito': 'INSCRITO',
+          'confirmado': 'CONFIRMADO',
+          'presente': 'PRESENTE',
+          'ausente': 'AUSENTE',
           'cancelado': 'CANCELADO'
         };
         return statusMap[status] || status;
@@ -174,12 +174,11 @@ export default function EventsDashboard() {
       font-size: 12px;
       font-weight: bold;
     }
-    .status-pago { background-color: #dcfce7; color: #15803d; }
-    .status-pendente { background-color: #fef3c7; color: #d97706; }
-    .status-convidado { background-color: #dbeafe; color: #1e40af; }
-    .status-pagar-na-hora { background-color: #fed7aa; color: #ea580c; }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; }
+    .status-ausente { background-color: #fed7aa; color: #ea580c; }
     .status-cancelado { background-color: #fee2e2; color: #dc2626; }
-    .status-cancelado { background-color: #f3f4f6; color: #374151; }
     .footer {
       margin-top: 40px;
       text-align: center;
