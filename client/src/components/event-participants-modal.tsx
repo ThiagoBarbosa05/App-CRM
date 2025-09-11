@@ -115,22 +115,12 @@ export default function EventParticipantsModal({
   // Buscar todos os clientes para adicionar participantes
   const { data: clientsData, isLoading: isLoadingClients } = useQuery<{ data: Client[] }>({
     queryKey: ["/api/clients"],
-    enabled: isAddModalOpen,
+    enabled: !!event?.id,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   const clients = clientsData?.data || [];
-  
-  // Debug: Log para verificar dados
-  console.log("Debug - Modal add participant:", {
-    isAddModalOpen,
-    clientsDataRaw: clientsData,
-    clientsCount: clients.length,
-    clientSearchTerm,
-    availableClientsCount: clients.filter(client => {
-      const participantClientIds = participants.map(p => p.clientId);
-      return !participantClientIds.includes(client.id);
-    }).length
-  });
 
   // Filtrar participantes
   const filteredParticipants = useMemo(() => {
@@ -148,16 +138,22 @@ export default function EventParticipantsModal({
 
   // Clientes disponíveis (não já inscritos) e filtrados pela busca
   const availableClients = useMemo(() => {
+    if (!clients || clients.length === 0) return [];
+    
     const participantClientIds = participants.map(p => p.clientId);
-    return clients
-      .filter(client => !participantClientIds.includes(client.id))
-      .filter(client => {
-        if (!clientSearchTerm) return true;
-        const searchLower = clientSearchTerm.toLowerCase();
-        return client.name.toLowerCase().includes(searchLower) || 
-               client.phone.includes(clientSearchTerm) ||
-               (client.email && client.email.toLowerCase().includes(searchLower));
+    let filteredClients = clients.filter(client => !participantClientIds.includes(client.id));
+    
+    if (clientSearchTerm && clientSearchTerm.trim() !== "") {
+      const searchLower = clientSearchTerm.toLowerCase().trim();
+      filteredClients = filteredClients.filter(client => {
+        const nameMatch = client.name && client.name.toLowerCase().includes(searchLower);
+        const phoneMatch = client.phone && client.phone.includes(clientSearchTerm.trim());
+        const emailMatch = client.email && client.email.toLowerCase().includes(searchLower);
+        return nameMatch || phoneMatch || emailMatch;
       });
+    }
+    
+    return filteredClients;
   }, [clients, participants, clientSearchTerm]);
 
   // Mutation para adicionar participante
