@@ -553,7 +553,7 @@ export default function CompanyImportModal({
           </div>
         )}
 
-        {/* {step === "importing" && (
+        {step === "importing" && (
           <div className="space-y-4">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -569,9 +569,9 @@ export default function CompanyImportModal({
               {Math.round(progress)}% concluído
             </p>
           </div>
-        )} */}
+        )}
 
-        {/* {step === "result" && importResult && (
+        {step === "result" && importResult && (
           <div className="space-y-4">
             <div className="text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -647,7 +647,7 @@ export default function CompanyImportModal({
               <Button onClick={handleClose}>Fechar</Button>
             </div>
           </div>
-        )}  */}
+        )}
       </DialogContent>
     </Dialog>
   );
