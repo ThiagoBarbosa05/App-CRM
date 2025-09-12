@@ -59,6 +59,7 @@ import {
   createChat,
   createContactSchema,
   getBirthdayBots,
+  getBot,
   getChannels,
   getChat,
   getChatById,
@@ -126,6 +127,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/umbler/bot", async (req, res) => {
+    try {
+      const { title } = req.query as {
+        title: string;
+      };
+
+      const result = await getBot(title);
+
+      res.json({ result: result?.items });
+    } catch (error) {
+      console.error("Erro ao buscar bot:", error);
+      res.status(500).json({ message: "Erro ao buscar bot" });
+    }
+  });
+
   app.get("/api/umbler/chats", async (req, res) => {
     try {
       const { customerPhone, userId } = req.query as {
@@ -133,24 +149,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: string;
       };
 
-       const [user] = await db.select({
-        id: users.id,
-        channelId: serviceChannels.id,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
-      .leftJoin(
-              serviceChannels,
-              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
-      );
+      const [user] = await db
+        .select({
+          id: users.id,
+          channelId: serviceChannels.id,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+        .leftJoin(
+          serviceChannels,
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        );
 
-      if(!user) {
+      if (!user) {
         res.status(404).json({ message: "Usuário não encontrado" });
         return;
       }
 
-      const chats = await getChat({ customerPhone, selectedChannel: user.channelId! });
+      const chats = await getChat({
+        customerPhone,
+        selectedChannel: user.channelId!,
+      });
 
       if (!chats) {
         return res.status(404).json({ message: "Chat não encontrado" });
@@ -231,23 +251,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/umbler/contacts/create", async (req, res) => {
     try {
-      const {userId} = req.query as {
-        userId: string
-      }
+      const { userId } = req.query as {
+        userId: string;
+      };
 
-       const [user] = await db.select({
-        id: users.id,
-        channelId: serviceChannels.id,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
-      .leftJoin(
-              serviceChannels,
-              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
-      );
+      const [user] = await db
+        .select({
+          id: users.id,
+          channelId: serviceChannels.id,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+        .leftJoin(
+          serviceChannels,
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        );
 
-      if(!user) {
+      if (!user) {
         res.status(404).json({ message: "Usuário não encontrado" });
         return;
       }
@@ -266,10 +287,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Erro ao sincronizar contato" + result });
       }
 
-      const newChat = await createChat({ channelId: user.channelId!, contactId: contact.contact.id });
+      const newChat = await createChat({
+        channelId: user.channelId!,
+        contactId: contact.contact.id,
+      });
 
-
-      res.status(201).json({ message: "Contato sincronizado com sucesso", newChat });
+      res
+        .status(201)
+        .json({ message: "Contato sincronizado com sucesso", newChat });
     } catch (error) {
       console.error("Erro ao sincronizar contato:", error);
       res.status(500).json({ message: "Erro ao sincronizar contato" });
@@ -281,47 +306,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params as { id: string };
       const chat = await getChatById(id);
 
-      if(!chat) {
+      if (!chat) {
         res.status(404).json({ message: "Chat não encontrado" });
       }
 
       res.json(chat);
-
-    }
-    catch (error)  {
+    } catch (error) {
       console.error("Erro ao buscar chat:", error);
       res.status(500).json({ message: "Erro ao buscar chat" });
     }
-  })
+  });
 
   app.post("/api/umbler/chats", async (req, res) => {
     try {
-
       const { userId, contactId } = req.body as {
         contactId: string;
         userId: string;
       };
 
-      const [user] = await db.select({
-        id: users.id,
-        channelId: serviceChannels.id,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
-      .leftJoin(
-              serviceChannels,
-              eq(userServiceChannel.serviceChannelId, serviceChannels.id)
-      );
+      const [user] = await db
+        .select({
+          id: users.id,
+          channelId: serviceChannels.id,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+        .leftJoin(
+          serviceChannels,
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        );
 
-      if(!user) {
+      if (!user) {
         res.status(404).json({ message: "Usuário não encontrado" });
         return;
       }
 
-      const newChat = await createChat({ channelId: user.channelId!, contactId });
+      const newChat = await createChat({
+        channelId: user.channelId!,
+        contactId,
+      });
 
-      res.status(201).json({message: "Chat criado com sucesso", newChat});
+      res.status(201).json({ message: "Chat criado com sucesso", newChat });
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       res.status(500).json({ message: "Erro ao enviar mensagem" });
@@ -533,9 +559,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
 
       // 4. Queries para estatísticas gerais
-      const totalClientsInSystemQuery = userRole !== "admin" && userRole !== "administrador" 
-        ? db.select({ count: count() }).from(clients).where(eq(clients.responsavelId, userId))
-        : db.select({ count: count() }).from(clients);
+      const totalClientsInSystemQuery =
+        userRole !== "admin" && userRole !== "administrador"
+          ? db
+              .select({ count: count() })
+              .from(clients)
+              .where(eq(clients.responsavelId, userId))
+          : db.select({ count: count() }).from(clients);
       const totalInteracoesQuery = db
         .select({ count: count() })
         .from(clientInteractions);
@@ -1098,7 +1128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { stageUpdates } = req.body;
       if (!Array.isArray(stageUpdates)) {
-        return res.status(400).json({ message: "stageUpdates deve ser um array" });
+        return res
+          .status(400)
+          .json({ message: "stageUpdates deve ser um array" });
       }
 
       const success = await storage.reorderFunnelStages(stageUpdates);
@@ -1431,7 +1463,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!validatedData.clientId && !validatedData.companyId) {
         return res.status(400).json({
-          message: "A interação deve estar associada a um cliente ou a uma empresa.",
+          message:
+            "A interação deve estar associada a um cliente ou a uma empresa.",
         });
       }
 
@@ -1444,7 +1477,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
-        console.error("Erro de validação ao criar interação:", validationError.toString());
+        console.error(
+          "Erro de validação ao criar interação:",
+          validationError.toString()
+        );
         return res.status(400).json({ message: validationError.toString() });
       }
       console.error("Erro no servidor ao criar interação:", error);
@@ -2185,15 +2221,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/companies/:companyId/interactions", async (req, res) => {
     try {
-
-
-
+    } catch (error) {
+      console.error("Erro ao criar interação:", error);
     }
-    catch (error) {
-        console.error("Erro ao criar interação:", error);
-
-    }
-  })
+  });
 
   app.get("/api/companies/:companyId/funnels", async (req, res) => {
     try {
@@ -3218,7 +3249,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(companyProduct);
     } catch (error) {
       console.error("Error adding product to company:", error);
-      if (error instanceof Error && error.message === "Produto já vinculado a esta empresa") {
+      if (
+        error instanceof Error &&
+        error.message === "Produto já vinculado a esta empresa"
+      ) {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Erro ao adicionar produto à carta" });
@@ -3361,7 +3395,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
 
-      console.log("Dados recebidos para criar evento:", JSON.stringify(req.body, null, 2));
+      console.log(
+        "Dados recebidos para criar evento:",
+        JSON.stringify(req.body, null, 2)
+      );
 
       const eventData = {
         ...req.body,
@@ -3370,27 +3407,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validar dados antes de enviar para o schema
       if (!eventData.name || !eventData.name.trim()) {
-        return res.status(400).json({ message: "Nome do evento é obrigatório" });
+        return res
+          .status(400)
+          .json({ message: "Nome do evento é obrigatório" });
       }
 
       if (!eventData.eventDate) {
-        return res.status(400).json({ message: "Data do evento é obrigatória" });
+        return res
+          .status(400)
+          .json({ message: "Data do evento é obrigatória" });
       }
 
       if (!eventData.location || !eventData.location.trim()) {
-        return res.status(400).json({ message: "Local do evento é obrigatório" });
+        return res
+          .status(400)
+          .json({ message: "Local do evento é obrigatório" });
       }
 
-      if (!eventData.pricePerPerson || isNaN(parseFloat(eventData.pricePerPerson))) {
-        return res.status(400).json({ message: "Valor por pessoa deve ser um número válido" });
+      if (
+        !eventData.pricePerPerson ||
+        isNaN(parseFloat(eventData.pricePerPerson))
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Valor por pessoa deve ser um número válido" });
       }
 
       // Converter strings de data para objetos Date
-      if (typeof eventData.eventDate === 'string') {
+      if (typeof eventData.eventDate === "string") {
         eventData.eventDate = new Date(eventData.eventDate);
       }
-      if (eventData.registrationDeadline && typeof eventData.registrationDeadline === 'string') {
-        eventData.registrationDeadline = new Date(eventData.registrationDeadline);
+      if (
+        eventData.registrationDeadline &&
+        typeof eventData.registrationDeadline === "string"
+      ) {
+        eventData.registrationDeadline = new Date(
+          eventData.registrationDeadline
+        );
       }
 
       const validatedData = insertEventSchema.parse(eventData);
@@ -3409,7 +3462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao criar evento:", error);
       res.status(500).json({
         message: "Erro ao criar evento",
-        error: error instanceof Error ? error.message : "Erro desconhecido"
+        error: error instanceof Error ? error.message : "Erro desconhecido",
       });
     }
   });
@@ -3417,14 +3470,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/events/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Converter strings de data para objetos Date se necessário
       const eventData = { ...req.body };
-      if (eventData.eventDate && typeof eventData.eventDate === 'string') {
+      if (eventData.eventDate && typeof eventData.eventDate === "string") {
         eventData.eventDate = new Date(eventData.eventDate);
       }
-      if (eventData.registrationDeadline && typeof eventData.registrationDeadline === 'string') {
-        eventData.registrationDeadline = new Date(eventData.registrationDeadline);
+      if (
+        eventData.registrationDeadline &&
+        typeof eventData.registrationDeadline === "string"
+      ) {
+        eventData.registrationDeadline = new Date(
+          eventData.registrationDeadline
+        );
       }
 
       const validatedData = insertEventSchema.partial().parse(eventData);
@@ -3461,7 +3519,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(participants);
     } catch (error) {
       console.error("Error fetching event participants:", error);
-      res.status(500).json({ message: "Erro ao buscar participantes do evento" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar participantes do evento" });
     }
   });
 
@@ -3493,35 +3553,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/events/:eventId/participants/:participantId", async (req, res) => {
-    try {
-      const { participantId } = req.params;
-      const validatedData = insertEventParticipantSchema.partial().parse(req.body);
-      const participant = await storage.updateEventParticipant(participantId, validatedData);
-      res.json(participant);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
+  app.put(
+    "/api/events/:eventId/participants/:participantId",
+    async (req, res) => {
+      try {
+        const { participantId } = req.params;
+        const validatedData = insertEventParticipantSchema
+          .partial()
+          .parse(req.body);
+        const participant = await storage.updateEventParticipant(
+          participantId,
+          validatedData
+        );
+        res.json(participant);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const validationError = fromZodError(error);
+          return res.status(400).json({ message: validationError.toString() });
+        }
+        console.error("Error updating event participant:", error);
+        res.status(500).json({ message: "Erro ao atualizar participante" });
       }
-      console.error("Error updating event participant:", error);
-      res.status(500).json({ message: "Erro ao atualizar participante" });
     }
-  });
+  );
 
-  app.delete("/api/events/:eventId/participants/:participantId", async (req, res) => {
-    try {
-      const { participantId } = req.params;
-      const success = await storage.removeEventParticipant(participantId);
-      if (!success) {
-        return res.status(404).json({ message: "Participante não encontrado" });
+  app.delete(
+    "/api/events/:eventId/participants/:participantId",
+    async (req, res) => {
+      try {
+        const { participantId } = req.params;
+        const success = await storage.removeEventParticipant(participantId);
+        if (!success) {
+          return res
+            .status(404)
+            .json({ message: "Participante não encontrado" });
+        }
+        res.json({ message: "Participante removido com sucesso" });
+      } catch (error) {
+        console.error("Error removing event participant:", error);
+        res.status(500).json({ message: "Erro ao remover participante" });
       }
-      res.json({ message: "Participante removido com sucesso" });
-    } catch (error) {
-      console.error("Error removing event participant:", error);
-      res.status(500).json({ message: "Erro ao remover participante" });
     }
-  });
+  );
 
   const httpServer = createServer(app);
   return httpServer;

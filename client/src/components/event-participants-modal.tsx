@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,8 +36,10 @@ import {
   TrashIcon,
   EditIcon,
   UsersIcon,
+  Plus,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import ClientFormModal from "./client-form-modal";
 
 interface EventParticipant {
   id: string;
@@ -78,9 +79,21 @@ interface EventParticipantsModalProps {
 
 const PARTICIPANT_STATUS = [
   { value: "inscrito", label: "PAGO", color: "bg-blue-100 text-blue-800" },
-  { value: "confirmado", label: "CONVIDADO", color: "bg-green-100 text-green-800" },
-  { value: "presente", label: "PENDENTE", color: "bg-emerald-100 text-emerald-800" },
-  { value: "ausente", label: "PAGAR NA HORA", color: "bg-orange-100 text-orange-800" },
+  {
+    value: "confirmado",
+    label: "CONVIDADO",
+    color: "bg-green-100 text-green-800",
+  },
+  {
+    value: "presente",
+    label: "PENDENTE",
+    color: "bg-emerald-100 text-emerald-800",
+  },
+  {
+    value: "ausente",
+    label: "PAGAR NA HORA",
+    color: "bg-orange-100 text-orange-800",
+  },
   { value: "cancelado", label: "CANCELADO", color: "bg-red-100 text-red-800" },
 ];
 
@@ -94,10 +107,13 @@ export default function EventParticipantsModal({
   const queryClient = useQueryClient();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingParticipant, setEditingParticipant] = useState<EventParticipant | null>(null);
-  const [participantToDelete, setParticipantToDelete] = useState<EventParticipant | null>(null);
+  const [editingParticipant, setEditingParticipant] =
+    useState<EventParticipant | null>(null);
+  const [participantToDelete, setParticipantToDelete] =
+    useState<EventParticipant | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showCreateClientModal, setShowCreateClientModal] = useState(false);
 
   const [newParticipant, setNewParticipant] = useState({
     clientId: "",
@@ -107,8 +123,12 @@ export default function EventParticipantsModal({
   });
 
   const [clientSearchTerm, setClientSearchTerm] = useState("");
-  const [debouncedClientSearchTerm, setDebouncedClientSearchTerm] = useState("");
-  const [selectedClientDisplay, setSelectedClientDisplay] = useState<{name: string, phone: string} | null>(null);
+  const [debouncedClientSearchTerm, setDebouncedClientSearchTerm] =
+    useState("");
+  const [selectedClientDisplay, setSelectedClientDisplay] = useState<{
+    name: string;
+    phone: string;
+  } | null>(null);
 
   // Debounce do input de busca de cliente
   useEffect(() => {
@@ -127,16 +147,21 @@ export default function EventParticipantsModal({
   }, [clientSearchTerm, selectedClientDisplay]);
 
   // Buscar participantes do evento
-  const { data: participants = [], isLoading: isLoadingParticipants } = useQuery<EventParticipant[]>({
-    queryKey: ["/api/events", event?.id, "participants"],
-    enabled: !!event?.id,
-  });
+  const { data: participants = [], isLoading: isLoadingParticipants } =
+    useQuery<EventParticipant[]>({
+      queryKey: ["/api/events", event?.id, "participants"],
+      enabled: !!event?.id,
+    });
 
   // Buscar clientes para adicionar ao evento (com debounce e busca no servidor)
-  const { data: clientsData, isLoading: isLoadingClients } = useQuery<{ data: Client[] }>({
+  const { data: clientsData, isLoading: isLoadingClients } = useQuery<{
+    data: Client[];
+  }>({
     queryKey: ["/api/clients", { search: debouncedClientSearchTerm }],
     queryFn: async () => {
-      const response = await fetch(`/api/clients?search=${encodeURIComponent(debouncedClientSearchTerm)}`);
+      const response = await fetch(
+        `/api/clients?search=${encodeURIComponent(debouncedClientSearchTerm)}`
+      );
       if (!response.ok) {
         throw new Error("Erro ao buscar clientes");
       }
@@ -152,12 +177,18 @@ export default function EventParticipantsModal({
   // Filtrar participantes
   const filteredParticipants = useMemo(() => {
     return participants.filter((participant) => {
-      const matchesSearch = 
-        participant.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch =
+        participant.clientName
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         participant.clientPhone.includes(searchTerm) ||
-        (participant.clientEmail && participant.clientEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+        (participant.clientEmail &&
+          participant.clientEmail
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()));
 
-      const matchesStatus = statusFilter === "all" || participant.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || participant.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -166,8 +197,12 @@ export default function EventParticipantsModal({
   // Clientes disponíveis para adição (resultados da busca que ainda não estão no evento)
   const availableClients = useMemo(() => {
     if (!clients) return [];
-    const participantClientIds = new Set(participants.map((p: EventParticipant) => p.clientId));
-    return clients.filter((client: Client) => !participantClientIds.has(client.id));
+    const participantClientIds = new Set(
+      participants.map((p: EventParticipant) => p.clientId)
+    );
+    return clients.filter(
+      (client: Client) => !participantClientIds.has(client.id)
+    );
   }, [clients, participants]);
 
   // Mutation para adicionar participante
@@ -190,10 +225,17 @@ export default function EventParticipantsModal({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/events", event?.id, "participants"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setIsAddModalOpen(false);
-      setNewParticipant({ clientId: "", status: "inscrito", numberOfParticipants: 1, notes: "" });
+      setNewParticipant({
+        clientId: "",
+        status: "inscrito",
+        numberOfParticipants: 1,
+        notes: "",
+      });
       setClientSearchTerm("");
       toast({
         title: "Sucesso",
@@ -212,14 +254,17 @@ export default function EventParticipantsModal({
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
     mutationFn: async (data: { status: string; notes: string }) => {
-      const response = await fetch(`/api/events/${event?.id}/participants/${editingParticipant?.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-        },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        `/api/events/${event?.id}/participants/${editingParticipant?.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": user?.id || "",
+          },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -229,7 +274,9 @@ export default function EventParticipantsModal({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/events", event?.id, "participants"],
+      });
       setEditingParticipant(null);
       toast({
         title: "Sucesso",
@@ -248,12 +295,15 @@ export default function EventParticipantsModal({
   // Mutation para remover participante
   const removeParticipantMutation = useMutation({
     mutationFn: async (participantId: string) => {
-      const response = await fetch(`/api/events/${event?.id}/participants/${participantId}`, {
-        method: "DELETE",
-        headers: {
-          "x-user-id": user?.id || "",
-        },
-      });
+      const response = await fetch(
+        `/api/events/${event?.id}/participants/${participantId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "x-user-id": user?.id || "",
+          },
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -263,7 +313,9 @@ export default function EventParticipantsModal({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/events", event?.id, "participants"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setParticipantToDelete(null);
       toast({
@@ -281,12 +333,8 @@ export default function EventParticipantsModal({
   });
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = PARTICIPANT_STATUS.find(s => s.value === status);
-    return (
-      <Badge className={statusConfig?.color}>
-        {statusConfig?.label}
-      </Badge>
-    );
+    const statusConfig = PARTICIPANT_STATUS.find((s) => s.value === status);
+    return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
   };
 
   const handleAddParticipant = () => {
@@ -318,7 +366,8 @@ export default function EventParticipantsModal({
               Participantes - {event.name}
             </DialogTitle>
             <DialogDescription>
-              Gerencie os participantes do evento ({formatDate(event.eventDate)} - {event.location})
+              Gerencie os participantes do evento ({formatDate(event.eventDate)}{" "}
+              - {event.location})
             </DialogDescription>
           </DialogHeader>
 
@@ -351,7 +400,10 @@ export default function EventParticipantsModal({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">
-                  {participants.reduce((total, p) => total + (p.numberOfParticipants || 1), 0)}
+                  {participants.reduce(
+                    (total, p) => total + (p.numberOfParticipants || 1),
+                    0
+                  )}
                   {event.maxCapacity && ` / ${event.maxCapacity}`} participantes
                 </span>
                 <Button onClick={() => setIsAddModalOpen(true)}>
@@ -381,21 +433,29 @@ export default function EventParticipantsModal({
                   {filteredParticipants.map((participant) => (
                     <TableRow key={participant.id}>
                       <TableCell>
-                        <div className="font-medium">{participant.clientName}</div>
+                        <div className="font-medium">
+                          {participant.clientName}
+                        </div>
                         {participant.notes && (
-                          <div className="text-sm text-gray-500">{participant.notes}</div>
+                          <div className="text-sm text-gray-500">
+                            {participant.notes}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <div>{participant.clientPhone}</div>
                           {participant.clientEmail && (
-                            <div className="text-gray-500">{participant.clientEmail}</div>
+                            <div className="text-gray-500">
+                              {participant.clientEmail}
+                            </div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-semibold text-lg">{participant.numberOfParticipants}</span>
+                        <span className="font-semibold text-lg">
+                          {participant.numberOfParticipants}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(participant.status)}
@@ -403,9 +463,7 @@ export default function EventParticipantsModal({
                       <TableCell>
                         {formatDate(participant.registrationDate)}
                       </TableCell>
-                      <TableCell>
-                        {participant.registeredByName}
-                      </TableCell>
+                      <TableCell>{participant.registeredByName}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -450,14 +508,21 @@ export default function EventParticipantsModal({
                 {selectedClientDisplay ? (
                   <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
                     <div>
-                      <p className="font-medium">{selectedClientDisplay.name}</p>
-                      <p className="text-sm text-gray-500">{selectedClientDisplay.phone}</p>
+                      <p className="font-medium">
+                        {selectedClientDisplay.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {selectedClientDisplay.phone}
+                      </p>
                     </div>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         setSelectedClientDisplay(null);
-                        setNewParticipant(prev => ({ ...prev, clientId: "" }));
+                        setNewParticipant((prev) => ({
+                          ...prev,
+                          clientId: "",
+                        }));
                       }}
                     >
                       Alterar
@@ -476,31 +541,53 @@ export default function EventParticipantsModal({
                     </div>
                     <div className="border rounded-md max-h-60 overflow-y-auto">
                       {isLoadingClients ? (
-                        <div className="p-3 text-sm text-center text-gray-500">Buscando...</div>
+                        <div className="p-3 text-sm text-center text-gray-500">
+                          Buscando...
+                        </div>
                       ) : availableClients.length > 0 ? (
                         <div>
                           {availableClients.map((client: Client) => (
-                            <div 
-                              key={client.id} 
+                            <div
+                              key={client.id}
                               className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
                               onClick={() => {
-                                setNewParticipant(prev => ({ ...prev, clientId: client.id }));
-                                setSelectedClientDisplay({ name: client.name, phone: client.phone });
+                                setNewParticipant((prev) => ({
+                                  ...prev,
+                                  clientId: client.id,
+                                }));
+                                setSelectedClientDisplay({
+                                  name: client.name,
+                                  phone: client.phone,
+                                });
                                 setClientSearchTerm("");
                               }}
                             >
                               <p className="font-medium">{client.name}</p>
-                              <p className="text-sm text-gray-500">{client.phone}</p>
+                              <p className="text-sm text-gray-500">
+                                {client.phone}
+                              </p>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-3 text-sm text-center text-gray-500">
-                          {debouncedClientSearchTerm.trim().length < 2
-                            ? "Digite ao menos 2 caracteres para buscar."
-                            : clients.length > 0 && availableClients.length === 0
-                            ? "Todos os clientes encontrados já participam do evento."
-                            : "Nenhum cliente encontrado."}
+                        <div className="flex flex-col items-center pb-4">
+                          <div className="p-3 text-sm text-center text-gray-500">
+                            {debouncedClientSearchTerm.trim().length < 2
+                              ? "Digite ao menos 2 caracteres para buscar."
+                              : clients.length > 0 &&
+                                availableClients.length === 0
+                              ? "Todos os clientes encontrados já participam do evento."
+                              : "Nenhum cliente encontrado."}
+                          </div>
+
+                          <Button
+                            onClick={() => setShowCreateClientModal(true)}
+                            size={"sm"}
+                            variant={"outline"}
+                          >
+                            <Plus />
+                            Novo cliente
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -515,7 +602,15 @@ export default function EventParticipantsModal({
                 type="number"
                 min="1"
                 value={newParticipant.numberOfParticipants}
-                onChange={(e) => setNewParticipant(prev => ({ ...prev, numberOfParticipants: Math.max(1, parseInt(e.target.value) || 1) }))}
+                onChange={(e) =>
+                  setNewParticipant((prev) => ({
+                    ...prev,
+                    numberOfParticipants: Math.max(
+                      1,
+                      parseInt(e.target.value) || 1
+                    ),
+                  }))
+                }
                 placeholder="Quantos participantes..."
                 data-testid="input-number-participants"
               />
@@ -525,7 +620,9 @@ export default function EventParticipantsModal({
               <Label>Status</Label>
               <Select
                 value={newParticipant.status}
-                onValueChange={(value) => setNewParticipant(prev => ({ ...prev, status: value }))}
+                onValueChange={(value) =>
+                  setNewParticipant((prev) => ({ ...prev, status: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -544,7 +641,12 @@ export default function EventParticipantsModal({
               <Label>Observações</Label>
               <Textarea
                 value={newParticipant.notes}
-                onChange={(e) => setNewParticipant(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) =>
+                  setNewParticipant((prev) => ({
+                    ...prev,
+                    notes: e.target.value,
+                  }))
+                }
                 placeholder="Observações sobre a participação..."
                 rows={3}
               />
@@ -555,7 +657,7 @@ export default function EventParticipantsModal({
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleAddParticipant}
               disabled={addParticipantMutation.isPending}
             >
@@ -566,7 +668,10 @@ export default function EventParticipantsModal({
       </Dialog>
 
       {/* Modal para editar participante */}
-      <Dialog open={!!editingParticipant} onOpenChange={() => setEditingParticipant(null)}>
+      <Dialog
+        open={!!editingParticipant}
+        onOpenChange={() => setEditingParticipant(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Participante</DialogTitle>
@@ -586,7 +691,11 @@ export default function EventParticipantsModal({
                 <Label>Status</Label>
                 <Select
                   value={editingParticipant.status}
-                  onValueChange={(value) => setEditingParticipant(prev => prev ? { ...prev, status: value as any } : null)}
+                  onValueChange={(value) =>
+                    setEditingParticipant((prev) =>
+                      prev ? { ...prev, status: value as any } : null
+                    )
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -605,7 +714,11 @@ export default function EventParticipantsModal({
                 <Label>Observações</Label>
                 <Textarea
                   value={editingParticipant.notes || ""}
-                  onChange={(e) => setEditingParticipant(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                  onChange={(e) =>
+                    setEditingParticipant((prev) =>
+                      prev ? { ...prev, notes: e.target.value } : null
+                    )
+                  }
                   placeholder="Observações sobre a participação..."
                   rows={3}
                 />
@@ -614,11 +727,20 @@ export default function EventParticipantsModal({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingParticipant(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setEditingParticipant(null)}
+            >
               Cancelar
             </Button>
-            <Button 
-              onClick={() => editingParticipant && handleUpdateParticipant(editingParticipant.status, editingParticipant.notes || "")}
+            <Button
+              onClick={() =>
+                editingParticipant &&
+                handleUpdateParticipant(
+                  editingParticipant.status,
+                  editingParticipant.notes || ""
+                )
+              }
               disabled={updateParticipantMutation.isPending}
             >
               Atualizar
@@ -628,22 +750,31 @@ export default function EventParticipantsModal({
       </Dialog>
 
       {/* Modal de confirmação de exclusão */}
-      <Dialog open={!!participantToDelete} onOpenChange={() => setParticipantToDelete(null)}>
+      <Dialog
+        open={!!participantToDelete}
+        onOpenChange={() => setParticipantToDelete(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Remoção</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover "{participantToDelete?.clientName}" do evento?
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja remover "{participantToDelete?.clientName}"
+              do evento? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setParticipantToDelete(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setParticipantToDelete(null)}
+            >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              onClick={() => participantToDelete && removeParticipantMutation.mutate(participantToDelete.id)}
+              onClick={() =>
+                participantToDelete &&
+                removeParticipantMutation.mutate(participantToDelete.id)
+              }
               disabled={removeParticipantMutation.isPending}
             >
               Remover
@@ -651,6 +782,11 @@ export default function EventParticipantsModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ClientFormModal
+        open={showCreateClientModal}
+        onOpenChange={setShowCreateClientModal}
+      />
     </>
   );
 }

@@ -28,6 +28,7 @@ import {
   Check,
   MessageSquareMore,
   Send,
+  Bot,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
@@ -41,6 +42,7 @@ import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Textarea } from "./ui/textarea";
+import { Skeleton } from "./ui/skeleton";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -85,18 +87,6 @@ export default function ClientDetailsModal({
     enabled: !!client?.phone && isOpen,
   });
 
-  // const { data: contactChat, isLoading: isLoadingChats } = useQuery({
-  //   queryKey: ["chats", client?.phone],
-  //   queryFn: async () => {
-  //     const response = await fetch(
-  //       `/api/umbler/chats?customerPhone=${client?.phone}&selectedChannel=${user?.serviceChannelId}`,
-  //     );
-  //     if (!response.ok) throw new Error("Failed to fetch umbler chats");
-  //     return response.json();
-  //   },
-  //   enabled: !!client?.phone && isOpen,
-  // });
-
   const { data: contactChat, isLoading: isLoadingChats } = useQuery({
     queryKey: ["contactChat", client?.phone],
     queryFn: async () => {
@@ -107,8 +97,82 @@ export default function ClientDetailsModal({
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        },
+        }
       );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat");
+      }
+
+      return await response.json();
+    },
+    enabled: !!client?.phone && isOpen,
+  });
+
+  const { data: welcomeBot, isLoading: isLoadingWelcomeBot } = useQuery<{
+    result: {
+      _t: string;
+      triggers: string[];
+      manualTriggers: string[];
+      steps: any[];
+      channels: any[];
+      title: string;
+      order: number;
+      final: boolean;
+      active: boolean;
+      groupIds: any[];
+      updatedAtUTC: string;
+      executionsCount: number;
+      executionsDateUTC: string;
+      id: string;
+      createdAtUTC: string;
+    }[];
+  }>({
+    queryKey: ["welcomeBot"],
+    queryFn: async () => {
+      const response = await fetch(`/api/umbler/bot?title=vindas`, {
+        headers: {
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat");
+      }
+
+      return await response.json();
+    },
+    enabled: !!client?.phone && isOpen,
+  });
+
+  const { data: inactiveBot, isLoading: isLoadingInactiveBot } = useQuery<{
+    result: {
+      _t: string;
+      triggers: string[];
+      manualTriggers: string[];
+      steps: any[];
+      channels: any[];
+      title: string;
+      order: number;
+      final: boolean;
+      active: boolean;
+      groupIds: any[];
+      updatedAtUTC: string;
+      executionsCount: number;
+      executionsDateUTC: string;
+      id: string;
+      createdAtUTC: string;
+    }[];
+  }>({
+    queryKey: ["inactiveBot"],
+    queryFn: async () => {
+      const response = await fetch(`/api/umbler/bot?title=inativo`, {
+        headers: {
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch chat");
@@ -151,55 +215,8 @@ export default function ClientDetailsModal({
           return {
             items: [...(old?.items ?? []), newChat],
           };
-        },
+        }
       );
-
-      // Função para verificar se o chat foi criado com retry
-      // const checkChatCreated = async (attempt = 1, maxAttempts = 10) => {
-      //   try {
-      //     await queryClient.invalidateQueries({
-      //       queryKey: ["chats", client?.phone],
-      //     });
-
-      // Aguarda um tempo antes de verificar
-      //     await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-
-      //     const chatData = queryClient.getQueryData([
-      //       "chats",
-      //       client?.phone,
-      //     ]) as any;
-
-      //     if (chatData?.items?.length > 0) {
-      //       console.log(`Chat encontrado na tentativa ${attempt}`);
-      //       return true;
-      //     }
-
-      //     if (attempt < maxAttempts) {
-      //       console.log(
-      //         `Tentativa ${attempt}/${maxAttempts} - Chat ainda não encontrado, tentando novamente...`,
-      //       );
-      //       return checkChatCreated(attempt + 1, maxAttempts);
-      //     } else {
-      //       console.log("Máximo de tentativas atingido");
-      //       toast({
-      //         title: "Chat criado",
-      //         description:
-      //           "O chat foi criado, mas pode levar alguns momentos para aparecer. Tente recarregar se necessário.",
-      //         variant: "default",
-      //       });
-      //       return false;
-      //     }
-      //   } catch (error) {
-      //     console.error(`Erro na tentativa ${attempt}:`, error);
-      //     if (attempt < maxAttempts) {
-      //       return checkChatCreated(attempt + 1, maxAttempts);
-      //     }
-      //     return false;
-      //   }
-      // };
-
-      // Inicia o processo de verificação
-      // checkChatCreated();
     },
     onError: () => {
       toast({
@@ -226,7 +243,7 @@ export default function ClientDetailsModal({
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        },
+        }
       );
       if (!response.ok) throw new Error("Failed to update customer");
       return response.json();
@@ -234,7 +251,7 @@ export default function ClientDetailsModal({
     onSuccess: (data) => {
       const { newChat } = data;
       console.log("Chat criado com sucesso:", newChat);
-      
+
       toast({
         title: "Cliente sincronizado com sucesso",
         description: "O cliente foi sincronizado com o Umbler Talk",
@@ -253,7 +270,7 @@ export default function ClientDetailsModal({
           return {
             items: [...(old?.items ?? []), newChat],
           };
-        },
+        }
       );
     },
     onError: () => {
@@ -307,6 +324,41 @@ export default function ClientDetailsModal({
     },
   });
 
+  const startBotOnChatMutation = useMutation({
+    mutationFn: (data: {
+      chatId: string;
+      botId: string;
+      triggerName: string;
+    }) =>
+      fetch("/api/start/birthday-bot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-user-role": user?.role || "",
+        },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: async (response) => {
+      if (!response.ok) throw new Error("Failed to start bot");
+      toast({
+        title: "Bot iniciado com sucesso",
+        description: "A mensagem foi enviada com sucesso.",
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["contactChat", client?.phone],
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao iniciar bot",
+        description: "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatCurrency = (value: string | number) => {
     const numericValue = typeof value === "string" ? parseFloat(value) : value;
     return new Intl.NumberFormat("pt-BR", {
@@ -342,12 +394,12 @@ export default function ClientDetailsModal({
     if (cleanPhone.length === 11) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        7,
+        7
       )}-${cleanPhone.slice(7)}`;
     } else if (cleanPhone.length === 10) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        6,
+        6
       )}-${cleanPhone.slice(6)}`;
     }
     return phone;
@@ -359,7 +411,7 @@ export default function ClientDetailsModal({
     if (cleanCPF.length === 11) {
       return `${cleanCPF.slice(0, 3)}.${cleanCPF.slice(3, 6)}.${cleanCPF.slice(
         6,
-        9,
+        9
       )}-${cleanCPF.slice(9)}`;
     }
     return cpf;
@@ -521,7 +573,7 @@ export default function ClientDetailsModal({
                           <RefreshCw
                             className={cn(
                               "h-4 w-4 mr-2",
-                              syncCustomer.isPending && "animate-spin",
+                              syncCustomer.isPending && "animate-spin"
                             )}
                           />
                           {syncCustomer.isPending
@@ -575,7 +627,79 @@ export default function ClientDetailsModal({
                                     className="border-green-500 focus:ring-green-500"
                                     rows={3}
                                   />
-                                  <div className="flex justify-end items-center">
+                                  <div className="flex justify-end flex-col sm:flex-row gap-2 sm:items-center">
+                                    <div className="flex-1">
+                                      {isLoadingInactiveBot &&
+                                      isLoadingWelcomeBot ? (
+                                        <Skeleton className="w[240px] h-[40px] bg-gray-200" />
+                                      ) : (
+                                        <div className="flex sm:items-center flex-col sm:flex-row gap-2">
+                                          {welcomeBot?.result
+                                            .filter(
+                                              (bot) =>
+                                                bot.title ===
+                                                "Fluxo BOAS VINDAS"
+                                            )
+                                            .map((bot) => (
+                                              <Button
+                                                onClick={async () =>
+                                                  startBotOnChatMutation.mutateAsync(
+                                                    {
+                                                      botId: bot.id,
+                                                      chatId:
+                                                        contactChat.items[0].id,
+                                                      triggerName:
+                                                        "Boas vindas",
+                                                    }
+                                                  )
+                                                }
+                                                disabled={
+                                                  startBotOnChatMutation.isPending
+                                                }
+                                                size={"sm"}
+                                                variant={"outline"}
+                                              >
+                                                <Bot />
+                                                {startBotOnChatMutation.isPending
+                                                  ? "iniciando bot..."
+                                                  : `${bot.title}`}
+                                              </Button>
+                                            ))}
+
+                                          {inactiveBot?.result
+                                            .filter(
+                                              (bot) =>
+                                                bot.title ===
+                                                "campanha INATIVOS"
+                                            )
+                                            .map((bot) => (
+                                              <Button
+                                                onClick={async () =>
+                                                  startBotOnChatMutation.mutateAsync(
+                                                    {
+                                                      botId: bot.id,
+                                                      chatId:
+                                                        contactChat.items[0].id,
+                                                      triggerName: "Início",
+                                                    }
+                                                  )
+                                                }
+                                                disabled={
+                                                  startBotOnChatMutation.isPending
+                                                }
+                                                size={"sm"}
+                                                variant={"outline"}
+                                              >
+                                                <Bot />
+                                                {startBotOnChatMutation.isPending
+                                                  ? "iniciando bot..."
+                                                  : `${bot.title}`}
+                                              </Button>
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
+
                                     <Button
                                       onClick={() =>
                                         sendMessageMutation.mutate({
@@ -692,7 +816,7 @@ export default function ClientDetailsModal({
 
                         const fullAddress = addressParts.join(", ");
                         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          fullAddress,
+                          fullAddress
                         )}`;
                         window.open(mapsUrl, "_blank");
                       }}
@@ -895,7 +1019,7 @@ export default function ClientDetailsModal({
                     <p className="text-2xl font-bold text-green-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.currentBalance?.toString() || "0",
+                            cashbackBalance.currentBalance?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>
@@ -911,7 +1035,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-blue-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalEarned?.toString() || "0",
+                            cashbackBalance.totalEarned?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>
@@ -923,7 +1047,7 @@ export default function ClientDetailsModal({
                     <p className="text-lg font-bold text-orange-700">
                       {cashbackBalance
                         ? formatCurrency(
-                            cashbackBalance.totalUsed?.toString() || "0",
+                            cashbackBalance.totalUsed?.toString() || "0"
                           )
                         : formatCurrency(0)}
                     </p>

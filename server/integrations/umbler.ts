@@ -112,7 +112,7 @@ export async function syncContact(customerData: {
       throw new Error("Failed to sync contact" + error);
     }
 
-    const data = await response.json() as CreateContactResponse;
+    const data = (await response.json()) as CreateContactResponse;
 
     return data;
   } catch (error) {
@@ -147,22 +147,23 @@ export async function getChat(data: {
   }
 }
 
-export async function getChatById(id:string) {
+export async function getChatById(id: string) {
   try {
-    const response = await fetch(`${apiEndpoint}/chats/${id}?organizationId=${organizationId}`, {
-      headers: {
-        authorization: `Bearer ${apiKey}`,
+    const response = await fetch(
+      `${apiEndpoint}/chats/${id}?organizationId=${organizationId}`,
+      {
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+        },
       }
-  })
+    );
 
-  if(!response.ok){
-    throw new Error("Failed to fetch chat")
-  }
+    if (!response.ok) {
+      throw new Error("Failed to fetch chat");
+    }
 
-  return await response.json() as ChatResponse
-
-}
-  catch (error) {
+    return (await response.json()) as ChatResponse;
+  } catch (error) {
     console.error("Error fetching chat:", error);
     return null;
   }
@@ -188,7 +189,7 @@ export async function createChat(data: {
       }),
     });
 
-    return await response.json() as CreateChatResponse;
+    return (await response.json()) as CreateChatResponse;
   } catch (error) {
     console.error("Error creating chat:", error);
     return null;
@@ -268,6 +269,29 @@ export async function startBirthdayBot(data: {
     return response.json();
   } catch (error) {
     console.error("Error starting bot:", error);
+    return null;
+  }
+}
+
+export async function getBot(query: string) {
+  try {
+    const response = await fetch(
+      `https://app-utalk.umbler.com/api/v1/bots/?organizationId=aGx7Jh43-au36EGi&query=${query}&Skip=0&Take=50&Behavior=GetSliceOnly`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch bots");
+    }
+
+    return (await response.json()) as BirthdayBotsResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
     return null;
   }
 }
