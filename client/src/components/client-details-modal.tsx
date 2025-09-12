@@ -43,6 +43,7 @@ import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { Textarea } from "./ui/textarea";
 import { Skeleton } from "./ui/skeleton";
+import { ClientCashbackTab } from "./client-cashback-tab";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -62,10 +63,7 @@ export default function ClientDetailsModal({
   const [message, setMessage] = useState("");
   const { user } = useAuth();
 
-  const { data: cashbackBalance } = useQuery<ClientCashbackBalance>({
-    queryKey: [`/api/cashback-balances/${client?.id}`],
-    enabled: !!client?.id && isOpen,
-  });
+
 
   const { data: clientFunnels = [] } = useQuery({
     queryKey: [`/api/clients/${client?.id}/funnels`],
@@ -86,6 +84,7 @@ export default function ClientDetailsModal({
     },
     enabled: !!client?.phone && isOpen,
   });
+
 
   const { data: contactChat, isLoading: isLoadingChats } = useQuery({
     queryKey: ["contactChat", client?.phone],
@@ -642,6 +641,7 @@ export default function ClientDetailsModal({
                                             )
                                             .map((bot) => (
                                               <Button
+                                              key={bot.id}
                                                 onClick={async () =>
                                                   startBotOnChatMutation.mutateAsync(
                                                     {
@@ -674,6 +674,7 @@ export default function ClientDetailsModal({
                                             )
                                             .map((bot) => (
                                               <Button
+                                              key={bot.id}
                                                 onClick={async () =>
                                                   startBotOnChatMutation.mutateAsync(
                                                     {
@@ -1003,7 +1004,8 @@ export default function ClientDetailsModal({
           </TabsContent>
 
           <TabsContent value="cashback" className="space-y-6 mt-6">
-            <Card>
+            <ClientCashbackTab client={client} contactId={umblerContact ? umblerContact.id : undefined} />
+            {/* <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Wallet className="h-5 w-5 text-green-600" />
@@ -1054,7 +1056,7 @@ export default function ClientDetailsModal({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </TabsContent>
         </Tabs>
       </DialogContent>

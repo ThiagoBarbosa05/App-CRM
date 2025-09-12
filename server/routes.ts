@@ -60,6 +60,8 @@ import {
   createContactSchema,
   getBirthdayBots,
   getBot,
+  getBotCashback,
+  getCashbackField,
   getChannels,
   getChat,
   getChatById,
@@ -68,6 +70,10 @@ import {
   startBirthdayBot,
   syncContact,
 } from "./integrations/umbler";
+import { createCashbackSettingsController } from "./controllers/create-cashback-settings.controller";
+import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
+import { getCashbackSettingsController } from "./controllers/get-cashback-settings.controller";
+import { updateCashbackSettingsController } from "./controllers/update-cashback-settings.controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -403,6 +409,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao iniciar bot de aniversário" });
     }
   });
+
+  app.get("/api/umbler/:contactId/cashback-field", async (req, res) => {
+    try {
+
+      const { contactId } = req.params as { contactId: string };
+      const fields = await getCashbackField(contactId);
+
+      res.json({result: fields});
+    }
+
+    catch (error) {
+      console.error("Erro ao buscar campos personalizados:", error);
+      res.status(500).json({ message: "Erro ao buscar campos personalizados" })
+    }
+  })
+
+  app.get("/api/umbler/bot-cashback", async (req, res) => {
+    try{
+
+      const result = await getBotCashback()
+
+      res.json({result: result?.bot})
+
+    }
+    catch (error) {
+      console.error("Erro ao buscar bot de cashback:", error);
+      res.status(500).json({ message: "Erro ao buscar bot de cashback" });
+    }
+  })
 
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
@@ -1459,14 +1494,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const data = { ...req.body, userId };
-      const validatedData = insertClientInteractionSchema.parse(data);
 
-      if (!validatedData.clientId && !validatedData.companyId) {
-        return res.status(400).json({
-          message:
-            "A interação deve estar associada a um cliente ou a uma empresa.",
-        });
+      if (data.date && typeof data.date === 'string') {
+        data.date = new Date(data.date);
       }
+
+      const validatedData = insertClientInteractionSchema.parse(data);
 
       const [newInteraction] = await db
         .insert(clientInteractions)
@@ -1474,6 +1507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       res.status(201).json(newInteraction);
+      res.send()
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
@@ -2219,12 +2253,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/companies/:companyId/interactions", async (req, res) => {
-    try {
-    } catch (error) {
-      console.error("Erro ao criar interação:", error);
-    }
-  });
 
   app.get("/api/companies/:companyId/funnels", async (req, res) => {
     try {
@@ -2237,15 +2265,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/interactions", async (req, res) => {
-    try {
-      const interaction = await storage.createClientInteraction(req.body);
-      res.status(201).json(interaction);
-    } catch (error) {
-      console.error("Erro ao criar interação:", error);
-      res.status(500).json({ message: "Erro ao criar interação" });
-    }
-  });
+  // app.post("/api/interactions", async (req, res) => {
+  //   try {
+  //     const interaction = await storage.createClientInteraction(req.body);
+  //     res.status(201).json(interaction);
+  //   } catch (error) {
+  //     console.error("Erro ao criar interação:", error);
+  //     res.status(500).json({ message: "Erro ao criar interação" });
+  //   }
+  // });
 
   app.put("/api/interactions/:id", async (req, res) => {
     try {
@@ -3595,6 +3623,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  app.post("/api/v2/cashback-settings", createCashbackSettingsController)
+  app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController)
+  app.get("/api/v2/cashback-settings", getCashbackSettingsController)
+  app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController)
 
   const httpServer = createServer(app);
   return httpServer;

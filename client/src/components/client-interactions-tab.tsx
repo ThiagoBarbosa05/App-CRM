@@ -227,14 +227,20 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
       <InteractionFormModal
         open={showFormModal}
         onOpenChange={setShowFormModal}
-        clientId={client.id}
+        target={{
+          id: client.id,
+          type: "client"
+        }}
       />
 
       {editingInteraction && (
         <InteractionFormModal
           open={!!editingInteraction}
           onOpenChange={(open) => !open && setEditingInteraction(null)}
-          clientId={client.id}
+           target={{
+          id: client.id,
+          type: "client"
+        }}
           interaction={editingInteraction}
         />
       )}

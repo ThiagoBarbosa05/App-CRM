@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Calendar,
   Clock,
@@ -13,97 +13,64 @@ import {
   Trash2,
   User,
   Edit,
+  Users,
+  MapPin,
+  StickyNote,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Company, ClientInteractionWithUser } from "@shared/schema";
+import { Company, ClientInteraction, ClientInteractionWithUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import InteractionFormModal from "@/components/interaction-form-modal";
-import ClientFormModal from "@/components/client-form-modal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 interface CompanyInteractionsTabProps {
   company: Company;
 }
 
 const interactionTypeConfig = {
-  telemarketing: {
-    label: "Telemarketing",
-    icon: Phone,
-    color: "bg-blue-100 text-blue-800",
-  },
-  email: {
-    label: "E-mail",
-    icon: Mail,
-    color: "bg-green-100 text-green-800",
-  },
-  meeting: {
-    label: "Reunião",
-    icon: User,
-    color: "bg-purple-100 text-purple-800",
-  },
-  other: {
-    label: "Outro",
-    icon: MessageSquare,
-    color: "bg-gray-100 text-gray-800",
-  },
+  telemarketing: { label: "Ligação", icon: Phone, color: "bg-blue-100 text-blue-800" },
+  email: { label: "E-mail", icon: Mail, color: "bg-green-100 text-green-800" },
+  meeting: { label: "Reunião", icon: Users, color: "bg-purple-100 text-purple-800" },
+  whatsapp: { label: "WhatsApp", icon: MessageSquare, color: "bg-teal-100 text-teal-800" },
+  visit: { label: "Visita", icon: MapPin, color: "bg-indigo-100 text-indigo-800" },
+  note: { label: "Anotação", icon: StickyNote, color: "bg-gray-200 text-gray-800" },
+  other: { label: "Outro", icon: Clock, color: "bg-gray-100 text-gray-800" },
+  call: { label: "Chamada", icon: Phone, color: "bg-sky-100 text-sky-800" },
 };
 
 const statusConfig = {
-  pending: {
-    label: "Pendente",
-    color: "bg-yellow-100 text-yellow-800",
-  },
-  completed: {
-    label: "Concluído",
-    color: "bg-green-100 text-green-800",
-  },
-  cancelled: {
-    label: "Cancelado",
-    color: "bg-red-100 text-red-800",
-  },
+  scheduled: { label: "Agendado", color: "bg-yellow-100 text-yellow-800" },
+  completed: { label: "Concluído", color: "bg-green-100 text-green-800" },
+  cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800" },
 };
 
 export default function CompanyInteractionsTab({ company }: CompanyInteractionsTabProps) {
   const { toast } = useToast();
   const [showFormModal, setShowFormModal] = useState(false);
-  const [editingInteraction, setEditingInteraction] = useState<ClientInteractionWithUser | null>(null);
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [showClientSelectionModal, setShowClientSelectionModal] = useState(false);
+  const [editingInteraction, setEditingInteraction] = useState<ClientInteraction | null>(null);
 
-  // Buscar deals da empresa para obter clientes associados
-  const { data: deals = [] } = useQuery({
-    queryKey: ["/api/deals", "company", company.id],
+  const { data: interactions = [], isLoading } = useQuery<ClientInteractionWithUser[]>({
+    queryKey: ["interactions", "company", company.id],
     queryFn: async () => {
-      const response = await fetch(`/api/deals?companyId=${company.id}`);
+      const response = await apiRequest("GET", `/api/companies/${company.id}/interactions`);
       if (!response.ok) {
-        throw new Error('Erro ao buscar deals da empresa');
+        throw new Error("Erro ao buscar interações da empresa");
       }
       return response.json();
     },
-  });
-
-  const { data: interactions = [], isLoading } = useQuery({
-    queryKey: ["/api/companies", company.id, "interactions"],
-    queryFn: async () => {
-      const response = await fetch(`/api/companies/${company.id}/interactions`);
-      if (!response.ok) throw new Error("Erro ao buscar interações");
-      return response.json();
-    },
+    enabled: !!company.id,
   });
 
   const deleteInteractionMutation = useMutation({
     mutationFn: async (interactionId: string) => {
-      await apiRequest(`/api/interactions/${interactionId}`, "DELETE");
+      await apiRequest("DELETE", `/api/interactions/${interactionId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/companies", company.id, "interactions"] });
+      queryClient.invalidateQueries({ queryKey: ["interactions", "company", company.id] });
       toast({
         title: "Interação excluída",
-        description: "Interação foi removida com sucesso.",
+        description: "A interação foi removida com sucesso.",
       });
     },
     onError: (error: any) => {
@@ -115,13 +82,23 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
     },
   });
 
-  const formatDateTime = (date: string | Date) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  const handleAddNewInteraction = () => {
+    setEditingInteraction(null);
+    setShowFormModal(true);
   };
 
-  const formatCallResult = (result: string | null) => {
-    return result || "";
+  const handleEditInteraction = (interaction: ClientInteraction) => {
+    setEditingInteraction(interaction);
+    setShowFormModal(true);
+  };
+
+  const formatDateTime = (date: string | Date) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+    } catch (error) {
+      return "Data inválida";
+    }
   };
 
   if (isLoading) {
@@ -149,21 +126,8 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
           </p>
         </div>
         <Button
-          onClick={() => {
-            // Buscar clientes da empresa através de deals ou permitir criar representante
-            const dealsWithClients = deals.filter((deal: any) => deal.clientId);
-            
-            if (dealsWithClients.length > 0) {
-              // Usar cliente existente
-              setSelectedClientId(dealsWithClients[0].clientId);
-              setEditingInteraction(null);
-              setShowFormModal(true);
-            } else {
-              // Abrir modal para criar cliente representante
-              setShowClientSelectionModal(true);
-            }
-          }}
-          className="bg-black hover:bg-gray-800 text-white"
+          onClick={handleAddNewInteraction}
+
         >
           <Plus className="h-4 w-4 mr-2" />
           Nova Interação
@@ -181,17 +145,8 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
               Comece registrando a primeira interação com esta empresa.
             </p>
             <Button
-              onClick={() => {
-                const dealsWithClients = deals.filter((deal: any) => deal.clientId);
-                if (dealsWithClients.length > 0) {
-                  setSelectedClientId(dealsWithClients[0].clientId);
-                  setEditingInteraction(null);
-                  setShowFormModal(true);
-                } else {
-                  setShowClientSelectionModal(true);
-                }
-              }}
-              className="bg-black hover:bg-gray-800 text-white"
+              onClick={handleAddNewInteraction}
+
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Primeira Interação
@@ -200,16 +155,9 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </Card>
       ) : (
         <div className="space-y-4">
-          {interactions.map((interaction: ClientInteractionWithUser) => {
-            const typeConfig = interactionTypeConfig[interaction.type as keyof typeof interactionTypeConfig] || {
-              label: "Outro", 
-              icon: Clock, 
-              color: "bg-gray-100 text-gray-800"
-            };
-            const statusConfig_ = statusConfig[interaction.status as keyof typeof statusConfig] || {
-              label: "Desconhecido",
-              color: "bg-gray-100 text-gray-800"
-            };
+          {interactions.map((interaction) => {
+            const typeConfig = interactionTypeConfig[interaction.type as keyof typeof interactionTypeConfig] || interactionTypeConfig.other;
+            const statusConfig_ = statusConfig[interaction.status as keyof typeof statusConfig] || { label: "Desconhecido", color: "bg-gray-100 text-gray-800" };
             const IconComponent = typeConfig.icon;
 
             return (
@@ -233,7 +181,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
                           {interaction.callResult && interaction.type === "telemarketing" && (
                             <div className="flex items-center gap-1">
                               <Phone className="h-3 w-3" />
-                              {formatCallResult(interaction.callResult)}
+                              {interaction.callResult}
                             </div>
                           )}
                         </div>
@@ -260,11 +208,7 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setSelectedClientId(interaction.clientId);
-                              setEditingInteraction(interaction);
-                              setShowFormModal(true);
-                            }}
+                            onClick={() => handleEditInteraction(interaction)}
                             className="h-8 w-8 p-0"
                           >
                             <Edit className="h-3 w-3" />
@@ -288,76 +232,17 @@ export default function CompanyInteractionsTab({ company }: CompanyInteractionsT
         </div>
       )}
 
-      {/* Modal de seleção/criação de cliente */}
-      <Dialog open={showClientSelectionModal} onOpenChange={setShowClientSelectionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cliente Representante Necessário</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Para criar interações com esta empresa, você precisa primeiro ter um cliente representante. 
-              Crie um novo cliente que represente essa empresa.
-            </p>
-            <Button 
-              onClick={() => {
-                setShowClientSelectionModal(false);
-                // Simular criação de cliente representante baseado na empresa
-                const representativeClient = {
-                  name: `Representante - ${company.nomeFantasia}`,
-                  phone: company.telefone || "11999999999",
-                  email: company.email,
-                  cpf: "",
-                  address: company.endereco,
-                  city: company.cidade,
-                  state: company.estado,
-                  cep: company.cep
-                };
-                
-                // Chamar API para criar o cliente representante
-                apiRequest("POST", "/api/clients", representativeClient)
-                  .then((newClient: any) => {
-                    toast({
-                      title: "Cliente representante criado",
-                      description: `Cliente "${newClient.name}" criado com sucesso para representar a empresa.`,
-                    });
-                    // Usar o novo cliente para a interação
-                    setSelectedClientId(newClient.id);
-                    setEditingInteraction(null);
-                    setShowFormModal(true);
-                    // Atualizar dados
-                    queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-                  })
-                  .catch((error) => {
-                    toast({
-                      title: "Erro",
-                      description: "Erro ao criar cliente representante.",
-                      variant: "destructive",
-                    });
-                  });
-              }}
-              className="w-full"
-            >
-              Criar Cliente Representante
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de formulário de interação */}
-      {selectedClientId && (
+      {showFormModal && (
         <InteractionFormModal
           open={showFormModal}
           onOpenChange={(open) => {
             setShowFormModal(open);
             if (!open) {
               setEditingInteraction(null);
-              setSelectedClientId("");
-              // Atualizar a lista de interações após fechar
-              queryClient.invalidateQueries({ queryKey: ["/api/companies", company.id, "interactions"] });
+              queryClient.invalidateQueries({ queryKey: ["interactions", "company", company.id] });
             }
           }}
-          clientId={selectedClientId}
+          target={{ id: company.id, type: 'company' }}
           interaction={editingInteraction || undefined}
         />
       )}

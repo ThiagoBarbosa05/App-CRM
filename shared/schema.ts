@@ -728,14 +728,32 @@ export const insertMarkerSchema = insertTagSchema.omit({ type: true });
 // Origin schemas (também usar tags como origins) - apenas name e color do frontend
 export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
-export const insertClientInteractionSchema = createInsertSchema(
+export const baseInsertClientInteractionSchema = createInsertSchema(
   clientInteractions,
 ).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  clientId: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val === "" ? null : val)),
+  companyId: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => (val === "" ? null : val)),
 });
 
+export const insertClientInteractionSchema = baseInsertClientInteractionSchema.refine(
+  (data) => !!data.clientId || !!data.companyId,
+  {
+    message: "A interação deve estar associada a um cliente ou a uma empresa.",
+    path: ["clientId"],
+  },
+);
 export const insertEmailCampaignSchema = createInsertSchema(
   emailCampaigns,
 ).omit({

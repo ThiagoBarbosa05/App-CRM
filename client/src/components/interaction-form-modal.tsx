@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ClientInteraction, insertClientInteractionSchema } from "@shared/schema";
+import { ClientInteraction, insertClientInteractionSchema, baseInsertClientInteractionSchema } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +34,10 @@ import { z } from "zod";
 import { useEffect } from "react";
 
 // Extends the base schema for form-specific validation
-const interactionFormSchema = insertClientInteractionSchema.extend({
+const interactionFormSchema = baseInsertClientInteractionSchema.extend({
   date: z.string().min(1, "Data é obrigatória"),
+  subject: z.string().min(1, "Assunto é obrigatório"),
+  description: z.string().min(1, "Descrição é obrigatória"),
 });
 
 type InteractionFormData = z.infer<typeof interactionFormSchema>;
@@ -85,11 +87,12 @@ export default function InteractionFormModal({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+
   const form = useForm<InteractionFormData>({
     resolver: zodResolver(interactionFormSchema),
     defaultValues: {
-      clientId: target.type === 'client' ? target.id : undefined,
-      companyId: target.type === 'company' ? target.id : undefined,
+      clientId: target?.type === 'client' ? target.id : undefined,
+      companyId: target?.type === 'company' ? target.id : undefined,
       userId: user?.id || "",
       type: "note",
       subject: "",
@@ -101,13 +104,14 @@ export default function InteractionFormModal({
     },
   });
 
+
   // Effect to update form when interaction or target changes
   useEffect(() => {
     if (open) {
       const defaultDate = new Date().toISOString().slice(0, 16);
       form.reset({
-        clientId: target.type === 'client' ? target.id : undefined,
-        companyId: target.type === 'company' ? target.id : undefined,
+        clientId: target?.type === 'client' ? target.id : undefined,
+        companyId: target?.type === 'company' ? target.id : undefined,
         userId: user?.id || "",
         type: interaction?.type || "note",
         subject: interaction?.subject || "",
@@ -122,10 +126,11 @@ export default function InteractionFormModal({
 
   const handleMutationSuccess = (isUpdate: boolean) => {
     // Invalidate relevant queries
-    if (target.type === 'client') {
+    if (target?.type === 'client') {
       queryClient.invalidateQueries({ queryKey: ['interactions', 'client', target.id] });
       queryClient.invalidateQueries({ queryKey: ['clients', target.id] });
-    } else {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", target.id, "interactions"] });
+    } else if (target?.type === 'company') {
       queryClient.invalidateQueries({ queryKey: ['interactions', 'company', target.id] });
       queryClient.invalidateQueries({ queryKey: ['companies', target.id] });
     }
@@ -202,6 +207,8 @@ export default function InteractionFormModal({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <input type="hidden" {...form.register("clientId")} />
+            <input type="hidden" {...form.register("companyId")} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
