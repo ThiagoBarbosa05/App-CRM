@@ -68,7 +68,7 @@ export default function OriginsManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: OriginFormData) => {
-      const response = await apiRequest("/api/origins", "POST", {
+      const response = await apiRequest("POST", "/api/origins", {
         ...data,
         type: "origem",
       });
@@ -94,7 +94,7 @@ export default function OriginsManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: OriginFormData & { id: string }) => {
-      const response = await apiRequest(`/api/origins/${data.id}`, "PUT", {
+      const response = await apiRequest("PUT", `/api/origins/${data.id}`, {
         name: data.name,
         color: data.color,
         type: "origem",
@@ -121,7 +121,7 @@ export default function OriginsManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest(`/api/origins/${id}`, "DELETE");
+      const response = await apiRequest("DELETE", `/api/origins/${id}`);
       return response.json();
     },
     onSuccess: () => {

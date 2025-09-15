@@ -81,7 +81,7 @@ export default function UsersManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await apiRequest(`/api/users/${userId}`, "DELETE");
+      await apiRequest("DELETE", `/api/users/${userId}`);
     },
     onSuccess: () => {
       toast({
@@ -108,7 +108,7 @@ export default function UsersManagement() {
       userId: string;
       isActive: boolean;
     }) => {
-      return await apiRequest(`/api/users/${userId}/toggle-status`, "PATCH", {
+      return await apiRequest("PATCH", `/api/users/${userId}/toggle-status`, {
         isActive: isActive ? "true" : "false",
       });
     },

@@ -111,7 +111,7 @@ export default function MarkersManagement() {
 
   const deleteMarkerMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/markers/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/markers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markers"] });

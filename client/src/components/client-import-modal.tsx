@@ -354,7 +354,7 @@ export default function ClientImportModal({
               if (existingClientResponse.ok) {
                 // Cliente existe, atualizar dados
                 const existingClient = await existingClientResponse.json();
-                await apiRequest(`/api/clients/${existingClient.id}`, "PUT", {
+                await apiRequest("PUT", `/api/clients/${existingClient.id}`, {
                   ...clientData,
                   birthday: clientData.birthday,
                 });
@@ -362,7 +362,7 @@ export default function ClientImportModal({
                 console.log(`Linha ${i + 1}: Cliente atualizado por telefone ${phone}`);
               } else {
                 // Cliente não existe, criar novo
-                await apiRequest("/api/clients", "POST", {
+                await apiRequest("POST", "/api/clients", {
                   ...clientData,
                   birthday: clientData.birthday,
                 });
@@ -371,7 +371,7 @@ export default function ClientImportModal({
               }
             } catch (updateError: any) {
               // Se houver erro na atualização, tentar criar novo
-              await apiRequest("/api/clients", "POST", {
+              await apiRequest("POST", "/api/clients", {
                 ...clientData,
                 birthday: clientData.birthday,
               });
@@ -380,7 +380,7 @@ export default function ClientImportModal({
             }
           } else {
             // Se não tem telefone, criar normalmente
-            await apiRequest("/api/clients", "POST", {
+            await apiRequest("POST", "/api/clients", {
               ...clientData,
               birthday: clientData.birthday,
             });

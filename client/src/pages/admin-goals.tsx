@@ -324,9 +324,9 @@ export default function AdminGoals() {
       };
 
       if (editingGoal) {
-        return apiRequest(`/api/user-goals/${editingGoal.id}`, "PUT", goalData);
+        return apiRequest("PUT", `/api/user-goals/${editingGoal.id}`, goalData);
       } else {
-        return apiRequest("/api/user-goals", "POST", goalData);
+        return apiRequest("POST", "/api/user-goals", goalData);
       }
     },
     onSuccess: () => {
@@ -364,7 +364,7 @@ export default function AdminGoals() {
         itemsAchieved: parseInt(data.itemsAchieved),
       };
 
-      return apiRequest("/api/weekly-results", "POST", resultData);
+      return apiRequest("POST", "/api/weekly-results", resultData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -390,7 +390,7 @@ export default function AdminGoals() {
   // Mutation para deletar meta
   const deleteMutation = useMutation({
     mutationFn: async (goalId: string) => {
-      return apiRequest(`/api/user-goals/${goalId}`, "DELETE");
+      return apiRequest("DELETE", `/api/user-goals/${goalId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -425,12 +425,12 @@ export default function AdminGoals() {
 
       if (editingTelemarketingGoal) {
         return apiRequest(
-          `/api/telemarketing-goals/${editingTelemarketingGoal.id}`,
           "PUT",
+          `/api/telemarketing-goals/${editingTelemarketingGoal.id}`,
           goalData,
         );
       } else {
-        return apiRequest("/api/telemarketing-goals", "POST", goalData);
+        return apiRequest("POST", "/api/telemarketing-goals", goalData);
       }
     },
     onSuccess: () => {
@@ -459,7 +459,7 @@ export default function AdminGoals() {
   // Mutation para deletar meta de telemarketing
   const deleteTelemarketingMutation = useMutation({
     mutationFn: async (goalId: string) => {
-      return apiRequest(`/api/telemarketing-goals/${goalId}`, "DELETE");
+      return apiRequest("DELETE", `/api/telemarketing-goals/${goalId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -491,12 +491,12 @@ export default function AdminGoals() {
 
       if (editingClientRegistrationGoal) {
         return apiRequest(
-          `/api/client-registration-goals/${editingClientRegistrationGoal.id}`,
           "PUT",
+          `/api/client-registration-goals/${editingClientRegistrationGoal.id}`,
           goalData,
         );
       } else {
-        return apiRequest("/api/client-registration-goals", "POST", goalData);
+        return apiRequest("POST", "/api/client-registration-goals", goalData);
       }
     },
     onSuccess: () => {
@@ -527,7 +527,7 @@ export default function AdminGoals() {
   // Mutation para deletar meta de cadastros
   const deleteClientRegistrationMutation = useMutation({
     mutationFn: async (goalId: string) => {
-      return apiRequest(`/api/client-registration-goals/${goalId}`, "DELETE");
+      return apiRequest("DELETE", `/api/client-registration-goals/${goalId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
