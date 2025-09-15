@@ -56,6 +56,7 @@ import {
 import { db } from "./db";
 import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
 import {
+  createCashback,
   createChat,
   createContactSchema,
   getBirthdayBots,
@@ -69,6 +70,7 @@ import {
   sendMessage,
   startBirthdayBot,
   syncContact,
+  updateCashback,
 } from "./integrations/umbler";
 import { createCashbackSettingsController } from "./controllers/create-cashback-settings.controller";
 import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
@@ -412,32 +414,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/:contactId/cashback-field", async (req, res) => {
     try {
-
       const { contactId } = req.params as { contactId: string };
       const fields = await getCashbackField(contactId);
 
-      res.json({result: fields});
-    }
-
-    catch (error) {
+      res.json({
+        result: fields
+          ? fields.filter(
+              (field) => field.customFieldDefinitionId === "aIpL5QxBcwmaXxEo"
+            )[0]
+          : [],
+      });
+    } catch (error) {
       console.error("Erro ao buscar campos personalizados:", error);
-      res.status(500).json({ message: "Erro ao buscar campos personalizados" })
+      res.status(500).json({ message: "Erro ao buscar campos personalizados" });
     }
-  })
+  });
 
   app.get("/api/umbler/bot-cashback", async (req, res) => {
-    try{
+    try {
+      const result = await getBotCashback();
 
-      const result = await getBotCashback()
-
-      res.json({result: result?.bot})
-
-    }
-    catch (error) {
+      res.json({ result: result?.bot });
+    } catch (error) {
       console.error("Erro ao buscar bot de cashback:", error);
       res.status(500).json({ message: "Erro ao buscar bot de cashback" });
     }
-  })
+  });
+
+  app.post("/api/umbler/cashback", async (req, res) => {
+    try {
+      const { contactId, value } = req.body as {
+        contactId: string;
+        value: string;
+      };
+      const result = await createCashback({ contactId, value });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao buscar bot de cashback:", error);
+      res.send(500).json({ message: "Erro ao buscar bot de cashback" });
+    }
+  });
+
+  app.put("/api/umbler/cashback/:cashbackId", async (req, res) => {
+    try {
+      const { cashbackId } = req.params as { cashbackId: string };
+      const { value, contactId } = req.body as {
+        value: string;
+        contactId: string;
+      };
+      const result = await updateCashback({
+        contactId,
+        customFieldId: cashbackId,
+        value,
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao atualizar cashback:", error);
+      res.status(500).json({ message: "Erro ao atualizar cashback" });
+    }
+  });
 
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
@@ -1495,7 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = { ...req.body, userId };
 
-      if (data.date && typeof data.date === 'string') {
+      if (data.date && typeof data.date === "string") {
         data.date = new Date(data.date);
       }
 
@@ -1507,7 +1544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       res.status(201).json(newInteraction);
-      res.send()
+      res.send();
     } catch (error) {
       if (error instanceof z.ZodError) {
         const validationError = fromZodError(error);
@@ -2252,7 +2289,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar interações da empresa" });
     }
   });
-
 
   app.get("/api/companies/:companyId/funnels", async (req, res) => {
     try {
@@ -3624,10 +3660,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/v2/cashback-settings", createCashbackSettingsController)
-  app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController)
-  app.get("/api/v2/cashback-settings", getCashbackSettingsController)
-  app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController)
+  app.post("/api/v2/cashback-settings", createCashbackSettingsController);
+  app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController);
+  app.get("/api/v2/cashback-settings", getCashbackSettingsController);
+  app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
 
   const httpServer = createServer(app);
   return httpServer;

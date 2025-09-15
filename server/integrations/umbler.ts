@@ -3,7 +3,10 @@ import { serviceChannels } from "@shared/schema";
 // import "dotenv/config";
 import { db } from "server/db";
 import z from "zod";
-import { CreateContactResponse, CustomField } from "./interfaces/create-contact";
+import {
+  CreateContactResponse,
+  CustomField,
+} from "./interfaces/create-contact";
 import { CreateChatResponse } from "./interfaces/create-chat";
 import { ChatResponse } from "./interfaces/chat";
 import { CustomFields } from "./interfaces/custom-fields";
@@ -300,24 +303,22 @@ export async function getBot(query: string) {
 
 export async function getCashbackField(contactId: string) {
   try {
-     const response = await fetch(
-        `https://app-utalk.umbler.com/api/v1/contacts/${contactId}/custom-fields/aLeLfB4t2mV76fQ5?organizationId=aGx7Jh43-au36EGi`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${apiKey}`,
-          },
+    const response = await fetch(
+      `https://app-utalk.umbler.com/api/v1/contacts/${contactId}/custom-fields?organizationId=aGx7Jh43-au36EGi`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      );
-
-      if(!response.ok) {
-        throw new Error("Failed to fetch custom fields");
       }
+    );
 
-      return await response.json() as CustomField;
-  }
-  catch(error) {
+    if (!response.ok) {
+      throw new Error("Failed to fetch custom fields");
+    }
+
+    return (await response.json()) as CustomFields;
+  } catch (error) {
     console.error("Error fetching bots:", error);
     return null;
   }
@@ -326,24 +327,90 @@ export async function getCashbackField(contactId: string) {
 export async function getBotCashback() {
   try {
     const response = await fetch(
-        "https://app-utalk.umbler.com/api/v1/bots/aI0JfqYybpBr4ie-?organizationId=aGx7Jh43-au36EGi",
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${apiKey}`,
-          },
+      "https://app-utalk.umbler.com/api/v1/bots/aI0JfqYybpBr4ie-?organizationId=aGx7Jh43-au36EGi",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      );
-
-      if(!response.ok) {
-        throw new Error("Failed to fetch bots");
       }
+    );
 
-      return await  response.json() as BotResponse;
+    if (!response.ok) {
+      throw new Error("Failed to fetch bots");
+    }
+
+    return (await response.json()) as BotResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
+    return null;
   }
-  catch (error) {
-    console.error("Error fetching bots:", error)
+}
+
+export async function createCashback(data: {
+  value: string;
+  contactId: string;
+}) {
+  try {
+    const response = await fetch(
+      `${apiEndpoint}/contacts/${data.contactId}/custom-fields`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          _t: "CreateContactTextCustomFieldModel",
+          Value: data.value,
+          OrganizationId: "aGx7Jh43-au36EGi",
+          CustomFieldDefinitionId: "aIpL5QxBcwmaXxEo",
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to create cashback" + error);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error create cashback:", error);
+    return null;
+  }
+}
+
+export async function updateCashback(data: {
+  value: string;
+  contactId: string;
+  customFieldId: string;
+}) {
+  try {
+    const response = await fetch(
+      `${apiEndpoint}/contacts/${data.contactId}/custom-fields/${data.customFieldId}?organizationId=${organizationId}`,
+      {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          _t: "EditContactTextCustomFieldModel",
+          value: data.value,
+          organizationId: "aGx7Jh43-au36EGi",
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to update cashback" + error);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching bots:", error);
     return null;
   }
 }
