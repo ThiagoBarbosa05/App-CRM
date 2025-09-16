@@ -34,7 +34,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { format, parseISO } from "date-fns";
 import { ptBR, th } from "date-fns/locale";
 import { type Client, ClientCashbackBalance } from "@shared/schema";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import ClientInteractionsTab from "./client-interactions-tab";
 import DealFormModal from "./deal-form-modal";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,6 +44,15 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "./ui/textarea";
 import { Skeleton } from "./ui/skeleton";
 import { ClientCashbackTab } from "./client-cashback-tab";
+import {
+  useUmblerContact,
+  useUmblerContactChats,
+  useUmblerBot,
+  useCreateUmblerChat,
+  useSyncUmblerCustomer,
+  useSendUmblerMessage,
+  useStartUmblerBot,
+} from "../hooks/use-umbler";
 
 interface ClientDetailsModalProps {
   client: Client | null;
@@ -63,8 +72,6 @@ export default function ClientDetailsModal({
   const [message, setMessage] = useState("");
   const { user } = useAuth();
 
-
-
   const { data: clientFunnels = [] } = useQuery({
     queryKey: [`/api/clients/${client?.id}/funnels`],
     enabled: !!client?.id && isOpen,
@@ -75,288 +82,35 @@ export default function ClientDetailsModal({
     enabled: !!client?.id && isOpen,
   });
 
-  const { data: umblerContact, isLoading: isLoadingContact } = useQuery({
-    queryKey: [`/api/umbler/contacts`, client?.phone],
-    queryFn: async () => {
-      const response = await fetch(`/api/umbler/contacts/${client?.phone}`);
-      if (!response.ok) throw new Error("Failed to fetch umbler contacts");
-      return response.json();
-    },
-    enabled: !!client?.phone && isOpen,
-  });
+  const { data: umblerContact, isLoading: isLoadingContact } = useUmblerContact(
+    client?.phone,
+    !!client?.phone && isOpen
+  );
 
+  const { data: contactChat, isLoading: isLoadingChats } =
+    useUmblerContactChats(client?.phone, user?.id, !!client?.phone && isOpen);
 
-  const { data: contactChat, isLoading: isLoadingChats } = useQuery({
-    queryKey: ["contactChat", client?.phone],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&userId=${user?.id}`,
-        {
-          headers: {
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
-          },
-        }
-      );
+  const { data: welcomeBot, isLoading: isLoadingWelcomeBot } = useUmblerBot(
+    "vindas",
+    user?.id,
+    user?.role,
+    !!client?.phone && isOpen
+  );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat");
-      }
+  const { data: inactiveBot, isLoading: isLoadingInactiveBot } = useUmblerBot(
+    "inativo",
+    user?.id,
+    user?.role,
+    !!client?.phone && isOpen
+  );
 
-      return await response.json();
-    },
-    enabled: !!client?.phone && isOpen,
-  });
+  const createChatMutation = useCreateUmblerChat(user?.id, user?.role);
 
-  const { data: welcomeBot, isLoading: isLoadingWelcomeBot } = useQuery<{
-    result: {
-      _t: string;
-      triggers: string[];
-      manualTriggers: string[];
-      steps: any[];
-      channels: any[];
-      title: string;
-      order: number;
-      final: boolean;
-      active: boolean;
-      groupIds: any[];
-      updatedAtUTC: string;
-      executionsCount: number;
-      executionsDateUTC: string;
-      id: string;
-      createdAtUTC: string;
-    }[];
-  }>({
-    queryKey: ["welcomeBot"],
-    queryFn: async () => {
-      const response = await fetch(`/api/umbler/bot?title=vindas`, {
-        headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-      });
+  const syncCustomer = useSyncUmblerCustomer(user?.id, user?.role);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat");
-      }
+  const sendMessageMutation = useSendUmblerMessage(user?.id, user?.role);
 
-      return await response.json();
-    },
-    enabled: !!client?.phone && isOpen,
-  });
-
-  const { data: inactiveBot, isLoading: isLoadingInactiveBot } = useQuery<{
-    result: {
-      _t: string;
-      triggers: string[];
-      manualTriggers: string[];
-      steps: any[];
-      channels: any[];
-      title: string;
-      order: number;
-      final: boolean;
-      active: boolean;
-      groupIds: any[];
-      updatedAtUTC: string;
-      executionsCount: number;
-      executionsDateUTC: string;
-      id: string;
-      createdAtUTC: string;
-    }[];
-  }>({
-    queryKey: ["inactiveBot"],
-    queryFn: async () => {
-      const response = await fetch(`/api/umbler/bot?title=inativo`, {
-        headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat");
-      }
-
-      return await response.json();
-    },
-    enabled: !!client?.phone && isOpen,
-  });
-
-  const createChatMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/umbler/chats`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify({
-          contactId: umblerContact?.id,
-          userId: user?.id,
-        }),
-      });
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
-
-      toast({
-        title: "Chat criado com sucesso",
-        description: "O chat foi criado com sucesso",
-      });
-
-      queryClient.setQueryData<{ items: { id: string }[] }>(
-        ["contactChat", client?.phone],
-        (old) => {
-          console.log(old);
-          return {
-            items: [...(old?.items ?? []), newChat],
-          };
-        }
-      );
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao criar chat",
-        description: "Não foi possível criar o chat",
-      });
-    },
-  });
-
-  const syncCustomer = useMutation({
-    mutationFn: async (customerData: {
-      phoneNumber: string;
-      name?: string;
-      email?: string;
-      organizationId: string;
-    }) => {
-      const response = await fetch(
-        `/api/umbler/contacts/create?userId=${user?.id}`,
-        {
-          method: "POST",
-          body: JSON.stringify(customerData),
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
-          },
-        }
-      );
-      if (!response.ok) throw new Error("Failed to update customer");
-      return response.json();
-    },
-    onSuccess: (data) => {
-      const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
-
-      toast({
-        title: "Cliente sincronizado com sucesso",
-        description: "O cliente foi sincronizado com o Umbler Talk",
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/umbler/contacts`, client?.phone],
-      });
-      // queryClient.invalidateQueries({
-      //   queryKey: ["contactChat", client?.phone],
-      // });
-
-      queryClient.setQueryData<{ items: { id: string }[] }>(
-        ["contactChat", client?.phone],
-        (old) => {
-          console.log(old);
-          return {
-            items: [...(old?.items ?? []), newChat],
-          };
-        }
-      );
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao sincronizar cliente",
-        description: "Não foi possível sincronizar o cliente com o Umbler Talk",
-      });
-    },
-  });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async ({ message }: { message: string }) => {
-      const chatId = contactChat?.items[0]?.id;
-      if (!chatId) throw new Error("Chat não encontrado");
-
-      const response = await fetch("/api/umbler/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify({
-          chatId,
-          message,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Falha ao enviar mensagem");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Mensagem enviada!",
-        description: "Sua mensagem foi enviada com sucesso.",
-      });
-      setMessage("");
-      queryClient.invalidateQueries({
-        queryKey: ["/api/clients", client?.id, "interactions"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["contactChat", client?.phone],
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error.message || "Não foi possível enviar a mensagem.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const startBotOnChatMutation = useMutation({
-    mutationFn: (data: {
-      chatId: string;
-      botId: string;
-      triggerName: string;
-    }) =>
-      fetch("/api/start/birthday-bot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify(data),
-      }),
-    onSuccess: async (response) => {
-      if (!response.ok) throw new Error("Failed to start bot");
-      toast({
-        title: "Bot iniciado com sucesso",
-        description: "A mensagem foi enviada com sucesso.",
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["contactChat", client?.phone],
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao iniciar bot",
-        description: "Não foi possível enviar a mensagem.",
-        variant: "destructive",
-      });
-    },
-  });
+  const startBotOnChatMutation = useStartUmblerBot(user?.id, user?.role);
 
   const formatCurrency = (value: string | number) => {
     const numericValue = typeof value === "string" ? parseFloat(value) : value;
@@ -641,7 +395,7 @@ export default function ClientDetailsModal({
                                             )
                                             .map((bot) => (
                                               <Button
-                                              key={bot.id}
+                                                key={bot.id}
                                                 onClick={async () =>
                                                   startBotOnChatMutation.mutateAsync(
                                                     {
@@ -674,7 +428,7 @@ export default function ClientDetailsModal({
                                             )
                                             .map((bot) => (
                                               <Button
-                                              key={bot.id}
+                                                key={bot.id}
                                                 onClick={async () =>
                                                   startBotOnChatMutation.mutateAsync(
                                                     {
@@ -704,6 +458,7 @@ export default function ClientDetailsModal({
                                     <Button
                                       onClick={() =>
                                         sendMessageMutation.mutate({
+                                          chatId: contactChat?.items[0]?.id,
                                           message,
                                         })
                                       }
@@ -726,7 +481,9 @@ export default function ClientDetailsModal({
                                 <Button
                                   disabled={createChatMutation.isPending}
                                   onClick={async () =>
-                                    createChatMutation.mutateAsync()
+                                    createChatMutation.mutateAsync({
+                                      contactId: umblerContact?.id,
+                                    })
                                   }
                                   className="bg-green-500 text-white font-medium"
                                 >
@@ -1004,7 +761,10 @@ export default function ClientDetailsModal({
           </TabsContent>
 
           <TabsContent value="cashback" className="space-y-6 mt-6">
-            <ClientCashbackTab client={client} contactId={umblerContact ? umblerContact.id : undefined} />
+            <ClientCashbackTab
+              client={client}
+              contactId={umblerContact ? umblerContact.id : undefined}
+            />
             {/* <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">

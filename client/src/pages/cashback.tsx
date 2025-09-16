@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/table";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
+import { SalesManagementTab } from "@/components/sales-manegement-tab";
 
 // Interfaces
 interface Client {
@@ -120,7 +121,7 @@ export default function Cashback() {
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deletingBalance, setDeletingBalance] = useState<any>(null);
-  
+
   // Estados para vendas
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -128,17 +129,18 @@ export default function Cashback() {
   const [loading, setLoading] = useState(false);
   const [selectedClientBalance, setSelectedClientBalance] = useState<number>(0);
   const [clientSearchQuery, setClientSearchQuery] = useState<string>("");
-  const [debouncedClientSearch, setDebouncedClientSearch] = useState<string>("");
+  const [debouncedClientSearch, setDebouncedClientSearch] =
+    useState<string>("");
   const [selectedClientName, setSelectedClientName] = useState<string>("");
   const [useCashback, setUseCashback] = useState<boolean>(true); // Controla se deve usar cashback
   const [saleForm, setSaleForm] = useState<SaleForm>({
-    clientId: '',
-    date: new Date().toISOString().split('T')[0],
-    grossValue: '',
-    notes: '',
-    invoiceNumber: ''
+    clientId: "",
+    date: new Date().toISOString().split("T")[0],
+    grossValue: "",
+    notes: "",
+    invoiceNumber: "",
   });
-  
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -197,29 +199,29 @@ export default function Cashback() {
     try {
       const params = new URLSearchParams();
       if (debouncedClientSearch.trim()) {
-        params.append('search', debouncedClientSearch);
+        params.append("search", debouncedClientSearch);
       }
-      params.append('pageSize', '5000'); // Buscar mais clientes
-      
+      params.append("pageSize", "5000"); // Buscar mais clientes
+
       const response = await fetch(`/api/clients?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setClients(data.data || []); // API retorna {data: [...]} 
+        setClients(data.data || []); // API retorna {data: [...]}
       }
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+      console.error("Erro ao carregar clientes:", error);
     }
   };
 
   const loadSales = async () => {
     try {
-      const response = await fetch('/api/sales');
+      const response = await fetch("/api/sales");
       if (response.ok) {
         const data = await response.json();
         setSales(data);
       }
     } catch (error) {
-      console.error('Erro ao carregar vendas:', error);
+      console.error("Erro ao carregar vendas:", error);
     }
   };
 
@@ -236,38 +238,42 @@ export default function Cashback() {
         setSelectedClientBalance(parseFloat(data.currentBalance) || 0);
       }
     } catch (error) {
-      console.error('Erro ao carregar saldo de cashback:', error);
+      console.error("Erro ao carregar saldo de cashback:", error);
       setSelectedClientBalance(0);
     }
   };
 
-  const calculateSaleValues = (grossValue: number, clientBalance: number, shouldUseCashback: boolean = true) => {
+  const calculateSaleValues = (
+    grossValue: number,
+    clientBalance: number,
+    shouldUseCashback: boolean = true
+  ) => {
     // Aplicar cashback existente apenas se o vendedor escolher usar
     let cashbackUsed = 0;
     if (shouldUseCashback && clientBalance > 0) {
       const maxCashbackUsage = grossValue * 0.5;
       cashbackUsed = Math.min(clientBalance, maxCashbackUsage);
     }
-    
+
     // Valor líquido após aplicação do cashback
     const netValue = grossValue - cashbackUsed;
-    
+
     // Buscar configuração ativa de cashback
     const activeSetting = settings.find((s: any) => s.isActive === "true");
     let cashbackRate = 0;
-    
+
     if (activeSetting) {
       const minimumPurchase = parseFloat(activeSetting.minimumPurchase || "0");
-      
+
       // Verificar se o valor líquido atende ao mínimo
       if (netValue >= minimumPurchase) {
         cashbackRate = parseFloat(activeSetting.percentageRate) / 100;
       }
     }
-    
+
     // Gerar novo cashback baseado no valor líquido após desconto do cashback usado
     let cashbackGenerated = netValue * cashbackRate;
-    
+
     // Aplicar limite máximo se definido
     if (activeSetting && activeSetting.maximumCashback) {
       const maxCashback = parseFloat(activeSetting.maximumCashback);
@@ -278,18 +284,18 @@ export default function Cashback() {
       cashbackUsed,
       netValue,
       cashbackGenerated,
-      cashbackRate: cashbackRate * 100 // Retornar em percentual para exibição
+      cashbackRate: cashbackRate * 100, // Retornar em percentual para exibição
     };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!saleForm.clientId || !saleForm.date || !saleForm.grossValue) {
       toast({
         title: "Erro",
         description: "Todos os campos são obrigatórios",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -299,7 +305,7 @@ export default function Cashback() {
       toast({
         title: "Erro",
         description: "Valor da venda deve ser maior que zero",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -308,16 +314,16 @@ export default function Cashback() {
 
     try {
       // Primeiro calcular o cashback usando a API
-      const cashbackResponse = await fetch('/api/calculate-cashback', {
-        method: 'POST',
+      const cashbackResponse = await fetch("/api/calculate-cashback", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ purchaseAmount: grossValue })
+        body: JSON.stringify({ purchaseAmount: grossValue }),
       });
 
       if (!cashbackResponse.ok) {
-        throw new Error('Erro ao calcular cashback');
+        throw new Error("Erro ao calcular cashback");
       }
 
       const cashbackData = await cashbackResponse.json();
@@ -329,49 +335,54 @@ export default function Cashback() {
         notes: saleForm.notes,
         invoiceNumber: saleForm.invoiceNumber,
         userId: user?.id,
-        useCashback: useCashback
+        useCashback: useCashback,
       };
 
-      const response = await fetch('/api/sales', {
-        method: 'POST',
+      const response = await fetch("/api/sales", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(saleData)
+        body: JSON.stringify(saleData),
       });
 
       if (response.ok) {
         toast({
           title: "Sucesso",
-          description: "Venda registrada com sucesso!"
+          description: "Venda registrada com sucesso!",
         });
-        
+
         setSaleForm({
-          clientId: '',
-          date: new Date().toISOString().split('T')[0],
-          grossValue: ''
+          clientId: "",
+          date: new Date().toISOString().split("T")[0],
+          grossValue: "",
         });
         setSelectedClientBalance(0);
-        setSelectedClientName('');
+        setSelectedClientName("");
         setUseCashback(true);
         setIsDialogOpen(false);
-        
+
         // Recarregar todos os dados relacionados
         await loadSales();
         queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/cashback-transactions"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/cashback-reports/30-days"],
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       } else {
         const error = await response.json();
-        throw new Error(error.message || 'Erro ao registrar venda');
+        throw new Error(error.message || "Erro ao registrar venda");
       }
     } catch (error) {
-      console.error('Erro ao registrar venda:', error);
+      console.error("Erro ao registrar venda:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao registrar venda",
-        variant: "destructive"
+        description:
+          error instanceof Error ? error.message : "Erro ao registrar venda",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -379,23 +390,29 @@ export default function Cashback() {
   };
 
   const handleClientChange = (clientId: string) => {
-    setSaleForm(prev => ({ ...prev, clientId }));
-    const selectedClient = clients.find(c => c.id === clientId);
-    setSelectedClientName(selectedClient?.name || '');
+    setSaleForm((prev) => ({ ...prev, clientId }));
+    const selectedClient = clients.find((c) => c.id === clientId);
+    setSelectedClientName(selectedClient?.name || "");
     loadClientBalance(clientId);
   };
 
   const previewValues = () => {
     const grossValue = parseFloat(saleForm.grossValue) || 0;
-    const result = calculateSaleValues(grossValue, selectedClientBalance, useCashback);
-    
+    const result = calculateSaleValues(
+      grossValue,
+      selectedClientBalance,
+      useCashback
+    );
+
     // Buscar configuração ativa para obter a taxa real
     const activeSetting = settings.find((s: any) => s.isActive === "true");
-    const actualRate = activeSetting ? parseFloat(activeSetting.percentageRate) : 0;
-    
+    const actualRate = activeSetting
+      ? parseFloat(activeSetting.percentageRate)
+      : 0;
+
     return {
       ...result,
-      actualRate
+      actualRate,
     };
   };
 
@@ -488,11 +505,17 @@ export default function Cashback() {
       loadSales();
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/cashback-transactions"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/cashback-reports/30-days"],
+      });
       // Forçar refetch imediato dos dados críticos
       queryClient.refetchQueries({ queryKey: ["/api/sales"] });
-      queryClient.refetchQueries({ queryKey: ["/api/cashback-reports/30-days"] });
+      queryClient.refetchQueries({
+        queryKey: ["/api/cashback-reports/30-days"],
+      });
       setDeletingSaleId(null);
     },
     onError: (error: any) => {
@@ -507,7 +530,11 @@ export default function Cashback() {
   });
 
   const handleDeleteSale = (saleId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.")) {
+    if (
+      !confirm(
+        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
+      )
+    ) {
       return;
     }
     setDeletingSaleId(saleId);
@@ -532,14 +559,14 @@ export default function Cashback() {
   }, 0);
 
   const activeClients = balances.filter(
-    (b: any) => parseFloat(b.currentBalance) > 0,
+    (b: any) => parseFloat(b.currentBalance) > 0
   ).length;
 
   const averageRate =
     settings.length > 0
       ? settings.reduce(
           (sum: number, s: any) => sum + parseFloat(s.percentageRate),
-          0,
+          0
         ) / settings.length
       : 0;
 
@@ -679,7 +706,7 @@ export default function Cashback() {
                         return (
                           expiryDate > today && expiryDate <= sevenDaysFromNow
                         );
-                      },
+                      }
                     );
 
                     if (expiringTransactions.length === 0) {
@@ -706,7 +733,7 @@ export default function Cashback() {
                           const expiryDate = new Date(transaction.expiresAt);
                           const daysUntilExpiry = Math.ceil(
                             (expiryDate.getTime() - today.getTime()) /
-                              (1000 * 60 * 60 * 24),
+                              (1000 * 60 * 60 * 24)
                           );
 
                           return (
@@ -757,14 +784,18 @@ export default function Cashback() {
             </TabsContent>
 
             <TabsContent value="sales" className="space-y-6">
-              <div className="flex justify-between items-center">
+              <SalesManagementTab
+                isDialogOpen={isDialogOpen}
+                setIsDialogOpen={setIsDialogOpen}
+              />
+              {/* <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-2xl font-bold">Vendas</h2>
                   <p className="text-muted-foreground">
                     Gerencie vendas e cashback automaticamente
                   </p>
                 </div>
-                
+
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
@@ -776,7 +807,7 @@ export default function Cashback() {
                     <DialogHeader>
                       <DialogTitle>Registrar Nova Venda</DialogTitle>
                     </DialogHeader>
-                    
+
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -787,7 +818,9 @@ export default function Cashback() {
                               <Input
                                 placeholder="Buscar por nome, CPF ou telefone..."
                                 value={clientSearchQuery}
-                                onChange={(e) => setClientSearchQuery(e.target.value)}
+                                onChange={(e) =>
+                                  setClientSearchQuery(e.target.value)
+                                }
                                 className="pl-10"
                               />
                             </div>
@@ -797,7 +830,9 @@ export default function Cashback() {
                                   <div
                                     key={client.id}
                                     className={`p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
-                                      saleForm.clientId === client.id ? 'bg-blue-50 border-blue-200' : ''
+                                      saleForm.clientId === client.id
+                                        ? "bg-blue-50 border-blue-200"
+                                        : ""
                                     }`}
                                     onClick={() => {
                                       handleClientChange(client.id);
@@ -805,7 +840,9 @@ export default function Cashback() {
                                     }}
                                   >
                                     <div className="flex flex-col">
-                                      <span className="font-medium text-gray-900">{client.name}</span>
+                                      <span className="font-medium text-gray-900">
+                                        {client.name}
+                                      </span>
                                       <span className="text-sm text-gray-500">
                                         {client.cpf} • {client.phone}
                                       </span>
@@ -814,14 +851,16 @@ export default function Cashback() {
                                 ))}
                               </div>
                             )}
-                            {clientSearchQuery.trim() && clients.length === 0 && (
-                              <div className="border rounded-md p-4 text-center text-sm text-gray-500">
-                                Nenhum cliente encontrado
-                              </div>
-                            )}
+                            {clientSearchQuery.trim() &&
+                              clients.length === 0 && (
+                                <div className="border rounded-md p-4 text-center text-sm text-gray-500">
+                                  Nenhum cliente encontrado
+                                </div>
+                              )}
                             {saleForm.clientId && selectedClientName && (
                               <div className="text-sm text-gray-600">
-                                <strong>Cliente selecionado:</strong> {selectedClientName}
+                                <strong>Cliente selecionado:</strong>{" "}
+                                {selectedClientName}
                               </div>
                             )}
                           </div>
@@ -833,14 +872,21 @@ export default function Cashback() {
                             id="date"
                             type="date"
                             value={saleForm.date}
-                            onChange={(e) => setSaleForm(prev => ({ ...prev, date: e.target.value }))}
+                            onChange={(e) =>
+                              setSaleForm((prev) => ({
+                                ...prev,
+                                date: e.target.value,
+                              }))
+                            }
                             required
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="grossValue">Valor Bruto da Venda *</Label>
+                        <Label htmlFor="grossValue">
+                          Valor Bruto da Venda *
+                        </Label>
                         <Input
                           id="grossValue"
                           type="number"
@@ -848,12 +894,16 @@ export default function Cashback() {
                           min="0"
                           placeholder="0,00"
                           value={saleForm.grossValue}
-                          onChange={(e) => setSaleForm(prev => ({ ...prev, grossValue: e.target.value }))}
+                          onChange={(e) =>
+                            setSaleForm((prev) => ({
+                              ...prev,
+                              grossValue: e.target.value,
+                            }))
+                          }
                           required
                         />
                       </div>
 
-                      {/* Opção para usar cashback */}
                       {saleForm.clientId && selectedClientBalance > 0 && (
                         <div className="flex items-center space-x-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                           <input
@@ -864,11 +914,17 @@ export default function Cashback() {
                             className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                           />
                           <div className="flex-1">
-                            <Label htmlFor="useCashback" className="text-sm font-medium text-green-700 cursor-pointer">
-                              Usar saldo de cashback disponível ({formatCurrency(selectedClientBalance)})
+                            <Label
+                              htmlFor="useCashback"
+                              className="text-sm font-medium text-green-700 cursor-pointer"
+                            >
+                              Usar saldo de cashback disponível (
+                              {formatCurrency(selectedClientBalance)})
                             </Label>
                             <p className="text-xs text-green-600">
-                              {useCashback ? 'O cashback será aplicado automaticamente' : 'O cashback não será usado nesta venda'}
+                              {useCashback
+                                ? "O cashback será aplicado automaticamente"
+                                : "O cashback não será usado nesta venda"}
                             </p>
                           </div>
                         </div>
@@ -881,7 +937,12 @@ export default function Cashback() {
                           type="text"
                           placeholder="Ex: 123456"
                           value={saleForm.invoiceNumber}
-                          onChange={(e) => setSaleForm(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                          onChange={(e) =>
+                            setSaleForm((prev) => ({
+                              ...prev,
+                              invoiceNumber: e.target.value,
+                            }))
+                          }
                         />
                       </div>
 
@@ -892,14 +953,21 @@ export default function Cashback() {
                           type="text"
                           placeholder="Adicione observações sobre a venda..."
                           value={saleForm.notes}
-                          onChange={(e) => setSaleForm(prev => ({ ...prev, notes: e.target.value }))}
+                          onChange={(e) =>
+                            setSaleForm((prev) => ({
+                              ...prev,
+                              notes: e.target.value,
+                            }))
+                          }
                         />
                       </div>
 
                       {saleForm.clientId && (
                         <Card>
                           <CardHeader>
-                            <CardTitle className="text-sm">Resumo da Venda</CardTitle>
+                            <CardTitle className="text-sm">
+                              Resumo da Venda
+                            </CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-3">
                             <div className="flex justify-between">
@@ -909,38 +977,74 @@ export default function Cashback() {
                                   {formatCurrency(selectedClientBalance)}
                                 </Badge>
                                 {selectedClientBalance > 0 && (
-                                  <Badge variant={useCashback ? "default" : "outline"} className={useCashback ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}>
-                                    {useCashback ? "Será usado" : "Não será usado"}
+                                  <Badge
+                                    variant={
+                                      useCashback ? "default" : "outline"
+                                    }
+                                    className={
+                                      useCashback
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-gray-100 text-gray-600"
+                                    }
+                                  >
+                                    {useCashback
+                                      ? "Será usado"
+                                      : "Não será usado"}
                                   </Badge>
                                 )}
                               </div>
                             </div>
-                            
+
                             {saleForm.grossValue && (
                               <>
                                 <div className="flex justify-between">
                                   <span>Valor Bruto:</span>
-                                  <span>{formatCurrency(parseFloat(saleForm.grossValue))}</span>
-                                </div>
-                                
-                                <div className={`flex justify-between ${useCashback && previewValues().cashbackUsed > 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                                  <span>Cashback Aplicado:</span>
                                   <span>
-                                    {useCashback && previewValues().cashbackUsed > 0 
-                                      ? `-${formatCurrency(previewValues().cashbackUsed)}`
-                                      : formatCurrency(0)
-                                    }
+                                    {formatCurrency(
+                                      parseFloat(saleForm.grossValue)
+                                    )}
                                   </span>
                                 </div>
-                                
+
+                                <div
+                                  className={`flex justify-between ${
+                                    useCashback &&
+                                    previewValues().cashbackUsed > 0
+                                      ? "text-green-600"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  <span>Cashback Aplicado:</span>
+                                  <span>
+                                    {useCashback &&
+                                    previewValues().cashbackUsed > 0
+                                      ? `-${formatCurrency(
+                                          previewValues().cashbackUsed
+                                        )}`
+                                      : formatCurrency(0)}
+                                  </span>
+                                </div>
+
                                 <div className="flex justify-between font-semibold">
                                   <span>Valor Líquido a Pagar:</span>
-                                  <span>{formatCurrency(previewValues().netValue)}</span>
+                                  <span>
+                                    {formatCurrency(previewValues().netValue)}
+                                  </span>
                                 </div>
-                                
+
                                 <div className="flex justify-between text-blue-600">
-                                  <span>Novo Cashback Gerado ({previewValues().actualRate?.toFixed(1) || 0}%):</span>
-                                  <span>+{formatCurrency(previewValues().cashbackGenerated)}</span>
+                                  <span>
+                                    Novo Cashback Gerado (
+                                    {previewValues().actualRate?.toFixed(1) ||
+                                      0}
+                                    %):
+                                  </span>
+                                  <span>
+                                    +
+                                    {formatCurrency(
+                                      previewValues().cashbackGenerated
+                                    )}
+                                  </span>
                                 </div>
                               </>
                             )}
@@ -958,11 +1062,11 @@ export default function Cashback() {
                             setSelectedClientName("");
                             setUseCashback(true);
                             setSaleForm({
-                              clientId: '',
-                              date: new Date().toISOString().split('T')[0],
-                              grossValue: '',
-                              notes: '',
-                              invoiceNumber: ''
+                              clientId: "",
+                              date: new Date().toISOString().split("T")[0],
+                              grossValue: "",
+                              notes: "",
+                              invoiceNumber: "",
                             });
                             setSelectedClientBalance(0);
                           }}
@@ -976,13 +1080,15 @@ export default function Cashback() {
                     </form>
                   </DialogContent>
                 </Dialog>
-              </div>
+              </div> */}
 
               {/* Estatísticas de Vendas - Últimos 30 dias */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {/* <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total de Vendas (30 dias)</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Total de Vendas (30 dias)
+                    </CardTitle>
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -995,9 +1101,11 @@ export default function Cashback() {
                   </CardContent>
                 </Card>
 
-<Card>
+                <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Valor Total Bruto (30 dias)</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Valor Total Bruto (30 dias)
+                    </CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -1012,12 +1120,17 @@ export default function Cashback() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Valor de venda Líquida</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Valor de venda Líquida
+                    </CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-600">
-                      {formatCurrency((thirtyDaysReport.totalSales || 0) - (thirtyDaysReport.totalCashbackUsed || 0))}
+                      {formatCurrency(
+                        (thirtyDaysReport.totalSales || 0) -
+                          (thirtyDaysReport.totalCashbackUsed || 0)
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
@@ -1027,7 +1140,9 @@ export default function Cashback() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Cashback Utilizado (30 dias)</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Cashback Utilizado (30 dias)
+                    </CardTitle>
                     <Percent className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -1042,22 +1157,26 @@ export default function Cashback() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Cashback Gerado (30 dias)</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Cashback Gerado (30 dias)
+                    </CardTitle>
                     <Percent className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(thirtyDaysReport.totalCashbackGenerated || 0)}
+                      {formatCurrency(
+                        thirtyDaysReport.totalCashbackGenerated || 0
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Últimos 30 dias
                     </p>
                   </CardContent>
                 </Card>
-              </div>
+              </div> */}
 
               {/* Lista de Vendas */}
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Histórico de Vendas</CardTitle>
                 </CardHeader>
@@ -1079,18 +1198,25 @@ export default function Cashback() {
                     <TableBody>
                       {sales.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                          <TableCell
+                            colSpan={isAdmin ? 7 : 6}
+                            className="text-center py-8 text-muted-foreground"
+                          >
                             Nenhuma venda registrada ainda.
                           </TableCell>
                         </TableRow>
                       ) : (
                         sales.map((sale) => (
                           <TableRow key={sale.id}>
-                            <TableCell className="font-medium">{sale.clientName}</TableCell>
-                            <TableCell>
-                              {new Date(sale.date).toLocaleDateString('pt-BR')}
+                            <TableCell className="font-medium">
+                              {sale.clientName}
                             </TableCell>
-                            <TableCell>{formatCurrency(sale.grossValue)}</TableCell>
+                            <TableCell>
+                              {new Date(sale.date).toLocaleDateString("pt-BR")}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(sale.grossValue)}
+                            </TableCell>
                             <TableCell className="text-green-600">
                               {formatCurrency(sale.cashbackUsed)}
                             </TableCell>
@@ -1124,7 +1250,7 @@ export default function Cashback() {
                     </TableBody>
                   </Table>
                 </CardContent>
-              </Card>
+              </Card> */}
             </TabsContent>
 
             <TabsContent value="balances" className="space-y-6">
@@ -1188,8 +1314,8 @@ export default function Cashback() {
                         {selectedUserId === "all" && !searchQuery.trim()
                           ? "Os saldos de cashback aparecerão aqui conforme os clientes acumularem pontos."
                           : searchQuery.trim()
-                            ? "Nenhum cliente encontrado com os filtros aplicados. Tente uma busca diferente."
-                            : "Nenhum cliente com saldo de cashback encontrado para o usuário selecionado."}
+                          ? "Nenhum cliente encontrado com os filtros aplicados. Tente uma busca diferente."
+                          : "Nenhum cliente com saldo de cashback encontrado para o usuário selecionado."}
                       </p>
                     </div>
                   ) : (
@@ -1228,7 +1354,7 @@ export default function Cashback() {
                               <p className="text-gray-500">
                                 {balance.firstCashbackDate
                                   ? new Date(
-                                      balance.firstCashbackDate,
+                                      balance.firstCashbackDate
                                     ).toLocaleDateString("pt-BR")
                                   : "N/A"}
                               </p>
@@ -1241,7 +1367,7 @@ export default function Cashback() {
                                 className={`text-sm ${
                                   balance.nextExpiryDate
                                     ? new Date(
-                                        balance.nextExpiryDate,
+                                        balance.nextExpiryDate
                                       ).getTime() -
                                         Date.now() <
                                       7 * 24 * 60 * 60 * 1000
@@ -1252,7 +1378,7 @@ export default function Cashback() {
                               >
                                 {balance.nextExpiryDate
                                   ? new Date(
-                                      balance.nextExpiryDate,
+                                      balance.nextExpiryDate
                                     ).toLocaleDateString("pt-BR")
                                   : "N/A"}
                               </p>
@@ -1324,7 +1450,11 @@ export default function Cashback() {
                           type: "earn",
                           date: new Date(t.createdAt),
                           amount: parseFloat(t.cashbackAmount),
-                          description: `Compra de ${formatCurrency(t.purchaseAmount)} • ${parseFloat(t.cashbackRate).toFixed(1)}% cashback`,
+                          description: `Compra de ${formatCurrency(
+                            t.purchaseAmount
+                          )} • ${parseFloat(t.cashbackRate).toFixed(
+                            1
+                          )}% cashback`,
                         };
                       }),
                       // Resgates (uso)
@@ -1398,11 +1528,11 @@ export default function Cashback() {
                                   </p>
                                   <p className="text-xs text-gray-400">
                                     {transaction.date.toLocaleDateString(
-                                      "pt-BR",
+                                      "pt-BR"
                                     )}{" "}
                                     às{" "}
                                     {transaction.date.toLocaleTimeString(
-                                      "pt-BR",
+                                      "pt-BR"
                                     )}
                                   </p>
                                 </div>
@@ -1443,7 +1573,7 @@ export default function Cashback() {
                                 )}
                               </div>
                             </div>
-                          ),
+                          )
                         )}
                       </div>
                     );
@@ -1502,7 +1632,7 @@ export default function Cashback() {
                               </p>
                               <p className="text-sm text-gray-500">
                                 {new Date(usage.createdAt).toLocaleDateString(
-                                  "pt-BR",
+                                  "pt-BR"
                                 )}
                               </p>
                             </div>
@@ -1547,7 +1677,7 @@ export default function Cashback() {
                         allUsage.reduce((sum: number, item: any) => {
                           const usage = item.cashback_usage || item;
                           return sum + parseFloat(usage.usedAmount || 0);
-                        }, 0),
+                        }, 0)
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1569,8 +1699,8 @@ export default function Cashback() {
                         balances.reduce(
                           (sum: number, balance: any) =>
                             sum + parseFloat(balance.currentBalance || 0),
-                          0,
-                        ),
+                          0
+                        )
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1611,7 +1741,7 @@ export default function Cashback() {
                         .sort(
                           (a: any, b: any) =>
                             parseFloat(b.totalEarned || 0) -
-                            parseFloat(a.totalEarned || 0),
+                            parseFloat(a.totalEarned || 0)
                         )
                         .slice(0, 5)
                         .map((balance: any, index: number) => (
@@ -1669,7 +1799,9 @@ export default function Cashback() {
                                 Mín:{" "}
                                 {formatCurrency(setting.minimumPurchase || 0)}
                                 {setting.maximumCashback &&
-                                  ` • Máx: ${formatCurrency(setting.maximumCashback)}`}
+                                  ` • Máx: ${formatCurrency(
+                                    setting.maximumCashback
+                                  )}`}
                               </p>
                             </div>
                             <Badge className="bg-green-100 text-green-800">
@@ -1678,7 +1810,7 @@ export default function Cashback() {
                           </div>
                         ))}
                       {settings.filter(
-                        (setting: any) => setting.isActive === "true",
+                        (setting: any) => setting.isActive === "true"
                       ).length === 0 && (
                         <p className="text-center text-gray-500 py-4">
                           Nenhuma regra ativa

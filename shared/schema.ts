@@ -368,13 +368,13 @@ export const clientInteractions = pgTable("client_interactions", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  clientId: varchar("client_id")
-    .references(() => clients.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => clients.id, {
+    onDelete: "cascade",
+  }),
   userId: varchar("user_id")
-  .notNull()
+    .notNull()
     .references(() => users.id),
-  companyId: varchar("company_id")
-    .references(() => companies.id),
+  companyId: varchar("company_id").references(() => companies.id),
   type: text("type", {
     enum: [
       "call",
@@ -423,8 +423,9 @@ export const clientInteractionsRelations = relations(
     company: one(companies, {
       fields: [clientInteractions.companyId],
       references: [companies.id],
+    }),
   }),
-}));
+);
 
 // Email Marketing Campaign tables
 export const emailCampaigns = pgTable("email_campaigns", {
@@ -730,30 +731,34 @@ export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
 export const baseInsertClientInteractionSchema = createInsertSchema(
   clientInteractions,
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  clientId: z
-    .string()
-    .optional()
-    .nullable()
-    .transform((val) => (val === "" ? null : val)),
-  companyId: z
-    .string()
-    .optional()
-    .nullable()
-    .transform((val) => (val === "" ? null : val)),
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    clientId: z
+      .string()
+      .optional()
+      .nullable()
+      .transform((val) => (val === "" ? null : val)),
+    companyId: z
+      .string()
+      .optional()
+      .nullable()
+      .transform((val) => (val === "" ? null : val)),
+  });
 
-export const insertClientInteractionSchema = baseInsertClientInteractionSchema.refine(
-  (data) => !!data.clientId || !!data.companyId,
-  {
-    message: "A interação deve estar associada a um cliente ou a uma empresa.",
-    path: ["clientId"],
-  },
-);
+export const insertClientInteractionSchema =
+  baseInsertClientInteractionSchema.refine(
+    (data) => !!data.clientId || !!data.companyId,
+    {
+      message:
+        "A interação deve estar associada a um cliente ou a uma empresa.",
+      path: ["clientId"],
+    },
+  );
 export const insertEmailCampaignSchema = createInsertSchema(
   emailCampaigns,
 ).omit({
@@ -1296,6 +1301,44 @@ export type Sale = typeof sales.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 
+// automation
+export const messageAutomationSettings = pgTable(
+  "message_automation_settings",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`), // uuid
+    enabled: boolean("enabled").notNull().default(true),
+    sendTime: varchar("send_time").notNull(), // "09:00" (HH:mm) OR store as time
+    daysBefore: integer("days_before").notNull().default(0),
+    template: text("template"), // texto com placeholders: "Olá {name}..."
+    externalChannelId: varchar("external_channel_id"), // canal de comunicação
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+);
+
+export const messageJobsLogs = pgTable("message_jobs_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  automationId: varchar("automation_id")
+    .references(() => messageAutomationSettings.id)
+    .notNull(),
+  clientId: varchar("client_id")
+    .references(() => clients.id)
+    .notNull(),
+  scheduledSendAt: timestamp("scheduled_send_at").notNull(),
+  actualSendAt: timestamp("actual_send_at"),
+  status: text("status", { enum: ["agendado", "enviado", "falhou"] })
+    .notNull()
+    .default("agendado"),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  externalId: varchar("external_id"), // id retornado pelo canal externo
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tabela de eventos
 export const events = pgTable("events", {
   id: varchar("id")
@@ -1306,12 +1349,17 @@ export const events = pgTable("events", {
   eventDate: timestamp("event_date").notNull(),
   registrationDeadline: timestamp("registration_deadline"),
   location: text("location").notNull(),
-  pricePerPerson: decimal("price_per_person", { precision: 10, scale: 2 }).notNull(),
+  pricePerPerson: decimal("price_per_person", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   maxCapacity: integer("max_capacity"),
   category: text("category").notNull().default("Geral"),
-  status: text("status", { 
-    enum: ["planejado", "ativo", "finalizado", "cancelado"] 
-  }).notNull().default("planejado"),
+  status: text("status", {
+    enum: ["planejado", "ativo", "finalizado", "cancelado"],
+  })
+    .notNull()
+    .default("planejado"),
   notes: text("notes"),
   createdBy: varchar("created_by")
     .references(() => users.id)
@@ -1332,9 +1380,11 @@ export const eventParticipants = pgTable("event_participants", {
     .references(() => clients.id, { onDelete: "cascade" })
     .notNull(),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
-  status: text("status", { 
-    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"] 
-  }).notNull().default("inscrito"),
+  status: text("status", {
+    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],
+  })
+    .notNull()
+    .default("inscrito"),
   numberOfParticipants: integer("number_of_participants").notNull().default(1),
   notes: text("notes"),
   registeredBy: varchar("registered_by")
@@ -1351,20 +1401,23 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   participants: many(eventParticipants),
 }));
 
-export const eventParticipantsRelations = relations(eventParticipants, ({ one }) => ({
-  event: one(events, {
-    fields: [eventParticipants.eventId],
-    references: [events.id],
+export const eventParticipantsRelations = relations(
+  eventParticipants,
+  ({ one }) => ({
+    event: one(events, {
+      fields: [eventParticipants.eventId],
+      references: [events.id],
+    }),
+    client: one(clients, {
+      fields: [eventParticipants.clientId],
+      references: [clients.id],
+    }),
+    registeredByUser: one(users, {
+      fields: [eventParticipants.registeredBy],
+      references: [users.id],
+    }),
   }),
-  client: one(clients, {
-    fields: [eventParticipants.clientId],
-    references: [clients.id],
-  }),
-  registeredByUser: one(users, {
-    fields: [eventParticipants.registeredBy],
-    references: [users.id],
-  }),
-}));
+);
 
 // Schemas de inserção para eventos
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -1373,19 +1426,25 @@ export const insertEventSchema = createInsertSchema(events).omit({
   updatedAt: true,
 });
 
-export const insertEventParticipantSchema = createInsertSchema(eventParticipants)
+export const insertEventParticipantSchema = createInsertSchema(
+  eventParticipants,
+)
   .omit({
     id: true,
     registrationDate: true,
   })
   .extend({
-    status: z.enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"]).default("inscrito"),
+    status: z
+      .enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"])
+      .default("inscrito"),
   });
 
 // Tipos para eventos
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
-export type InsertEventParticipant = z.infer<typeof insertEventParticipantSchema>;
+export type InsertEventParticipant = z.infer<
+  typeof insertEventParticipantSchema
+>;
 export type EventParticipant = typeof eventParticipants.$inferSelect;
 
 // Interface com relacionamentos

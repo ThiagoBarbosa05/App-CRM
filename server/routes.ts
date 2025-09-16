@@ -1970,7 +1970,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // O saldo de cashback será atualizado automaticamente pelo createSale
 
-      res.status(201).json(sale);
+      // Buscar o saldo atualizado do cliente após a venda
+      const updatedClientBalance = await storage.getClientCashbackBalance(
+        clientId
+      );
+      const updatedBalance = updatedClientBalance
+        ? parseFloat(updatedClientBalance.currentBalance)
+        : 0;
+
+      res.status(201).json({
+        ...sale,
+        clientCurrentBalance: updatedBalance,
+      });
     } catch (error) {
       console.error("Erro ao criar venda:", error);
       res.status(500).json({ message: "Erro ao criar venda" });

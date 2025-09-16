@@ -11,21 +11,27 @@ import {
   Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Client, ClientCashbackBalance } from "@shared/schema";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import { CustomField } from "server/integrations/interfaces/create-contact";
 import { Input } from "./ui/input";
-import { Bot as IBot } from "server/integrations/interfaces/bot";
 import z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { Skeleton } from "./ui/skeleton";
+import {
+  useUmblerContactChats,
+  useUmblerCashbackField,
+  useUmblerBotCashback,
+  useCreateUmblerChat,
+  useSyncUmblerCustomer,
+  useStartUmblerBot,
+  useCreateUmblerCashback,
+  useUpdateUmblerCashback,
+} from "../hooks/use-umbler";
 
 const cashbackFormSchema = z.object({
   value: z.string().min(1, "O valor é obrigatório."),
@@ -49,57 +55,14 @@ export function ClientCashbackTab({
       enabled: !!client.id,
     });
 
-  const { data: customField, isLoading: isLoadingCustomField } = useQuery<{
-    result: CustomField;
-  }>({
-    queryKey: ["customFields", contactId],
-    queryFn: async () => {
-      const response = await fetch(`/api/umbler/${contactId}/cashback-field`, {
-        headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-      });
-      return response.json();
-    },
-    enabled: !!contactId,
-  });
+  const { data: customField, isLoading: isLoadingCustomField } =
+    useUmblerCashbackField(contactId, user?.id, user?.role, !!contactId);
 
-  const { data: contactChat, isLoading: isLoadingChats } = useQuery({
-    queryKey: ["contactChat", client?.phone],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/umbler/chats?customerPhone=${client?.phone}&userId=${user?.id}`,
-        {
-          headers: {
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat");
-      }
-      return response.json();
-    },
-    enabled: !!client?.phone,
-  });
+  const { data: contactChat, isLoading: isLoadingChats } =
+    useUmblerContactChats(client?.phone, user?.id, !!client?.phone);
 
-  const { data: botCashback, isLoading: isLoadingBotCashback } = useQuery<{
-    result: IBot;
-  }>({
-    queryKey: ["botCashback"],
-    queryFn: async () => {
-      const response = await fetch("/api/umbler/bot-cashback", {
-        headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-      });
-      return response.json();
-    },
-    enabled: !!contactId,
-  });
+  const { data: botCashback, isLoading: isLoadingBotCashback } =
+    useUmblerBotCashback(contactId, user?.id, user?.role, !!contactId);
 
   const {
     register,
@@ -128,90 +91,11 @@ export function ClientCashbackTab({
     reset({ value: initialValue });
   }, [customField, cashbackBalance, reset]);
 
-  const syncCustomer = useMutation({
-    mutationFn: async (customerData: {
-      phoneNumber: string;
-      name?: string;
-      email?: string;
-      organizationId: string;
-    }) => {
-      const response = await fetch(
-        `/api/umbler/contacts/create?userId=${user?.id}`,
-        {
-          method: "POST",
-          body: JSON.stringify(customerData),
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
-          },
-        }
-      );
-      if (!response.ok) throw new Error("Failed to update customer");
-      return response.json();
-    },
-    onSuccess: (data) => {
-      const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
-      toast({
-        title: "Cliente sincronizado com sucesso",
-        description: "O cliente foi sincronizado com o Umbler Talk",
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/umbler/contacts`, client?.phone],
-      });
-      queryClient.setQueryData<{ items: { id: string }[] }>(
-        ["contactChat", client?.phone],
-        (old) => ({
-          items: [...(old?.items ?? []), newChat],
-        })
-      );
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao sincronizar cliente",
-        description: "Não foi possível sincronizar o cliente com o Umbler Talk",
-      });
-    },
-  });
-
-  const createChatMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/umbler/chats`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify({
-          contactId: contactId,
-          userId: user?.id,
-        }),
-      });
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      const { newChat } = data;
-      console.log("Chat criado com sucesso:", newChat);
-      toast({
-        title: "Chat criado com sucesso",
-        description: "O chat foi criado com sucesso",
-      });
-      queryClient.setQueryData<{ items: { id: string }[] }>(
-        ["contactChat", client?.phone],
-        (old) => ({
-          items: [...(old?.items ?? []), newChat],
-        })
-      );
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao criar chat",
-        description: "Não foi possível criar o chat",
-      });
-    },
-  });
+  const syncCustomer = useSyncUmblerCustomer(user?.id, user?.role);
+  const createChatMutation = useCreateUmblerChat(user?.id, user?.role);
+  const createCashbackMutation = useCreateUmblerCashback(user?.id, user?.role);
+  const updateCashbackMutation = useUpdateUmblerCashback(user?.id, user?.role);
+  const startBotOnChatMutation = useStartUmblerBot(user?.id, user?.role);
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, "");
@@ -227,119 +111,6 @@ export function ClientCashbackTab({
 
     setValue("value", formattedValue, { shouldValidate: true });
   };
-
-  const createCashbackMutation = useMutation({
-    mutationFn: async (data: CashbackFormData) => {
-      const response = await fetch(`/api/umbler/cashback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify({
-          value: data.value,
-          contactId: contactId,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("Erro ao cadastrar cashback");
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Cashback cadastrado com sucesso",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["customFields", contactId],
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao cadastrar cashback",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateCashbackMutation = useMutation({
-    mutationFn: async (data: CashbackFormData) => {
-      const response = await fetch(
-        `/api/umbler/cashback/${customField?.result.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
-          },
-          body: JSON.stringify({
-            value: data.value,
-            contactId: contactId,
-          }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Erro ao atualizar cashback");
-      }
-    },
-    onSuccess: () => {
-      if (isEditing) {
-        toast({
-          title: "Cashback atualizado com sucesso",
-        });
-        setIsEditing(false);
-      } else {
-        toast({
-          title: "Sincronização Automática",
-          description: "O saldo de cashback foi sincronizado com a Umbler.",
-          variant: "default",
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["customFields", contactId] });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao atualizar cashback",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const startBotOnChatMutation = useMutation({
-    mutationFn: (data: {
-      chatId: string;
-      botId: string;
-      triggerName: string;
-    }) =>
-      fetch("/api/start/birthday-bot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-        body: JSON.stringify(data),
-      }),
-    onSuccess: async (response) => {
-      if (!response.ok) throw new Error("Failed to start bot");
-      toast({
-        title: "Bot iniciado com sucesso",
-        description: "A mensagem foi enviada com sucesso.",
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["contactChat", client?.phone],
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro ao iniciar bot",
-        description: "Não foi possível enviar a mensagem.",
-        variant: "destructive",
-      });
-    },
-  });
 
   useEffect(() => {
     const syncBalances = () => {
@@ -377,7 +148,12 @@ export function ClientCashbackTab({
           maximumFractionDigits: 2,
         }).format(dbValue);
 
-        updateCashbackMutation.mutate({ value: formattedDbValue });
+        updateCashbackMutation.mutate({
+          value: formattedDbValue,
+          contactId: contactId!,
+          fieldId: customField.result.id,
+          isAutoSync: true,
+        });
       }
     };
 
@@ -385,11 +161,18 @@ export function ClientCashbackTab({
   }, [cashbackBalance, customField, updateCashbackMutation.isPending]);
 
   const handleCreateSubmit = (data: CashbackFormData) => {
-    createCashbackMutation.mutate(data);
+    createCashbackMutation.mutate({
+      value: data.value,
+      contactId: contactId!,
+    });
   };
 
   const handleUpdateSubmit = (data: CashbackFormData) => {
-    updateCashbackMutation.mutate(data);
+    updateCashbackMutation.mutate({
+      value: data.value,
+      contactId: contactId!,
+      fieldId: customField?.result.id!,
+    });
   };
 
   return (
@@ -482,7 +265,11 @@ export function ClientCashbackTab({
                       </p>
                       <Button
                         disabled={createChatMutation.isPending}
-                        onClick={() => createChatMutation.mutate()}
+                        onClick={() =>
+                          createChatMutation.mutate({
+                            contactId: contactId!,
+                          })
+                        }
                         size="sm"
                       >
                         {createChatMutation.isPending ? (
