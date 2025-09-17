@@ -40,6 +40,7 @@ import {
   useSyncUmblerCustomer,
   useCreateUmblerChat,
 } from "@/hooks/use-umbler";
+import ClientFormModal from "./client-form-modal";
 
 interface SalesManagementProps {
   isDialogOpen: boolean;
@@ -91,6 +92,7 @@ export function SalesManagementTab({
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   const { user } = useAuth();
   const isAdmin = user?.role === "administrador" || user?.role === "admin";
@@ -502,6 +504,7 @@ export function SalesManagementTab({
     deleteSaleMutation.mutate(saleId);
   };
 
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -571,9 +574,19 @@ export function SalesManagementTab({
                         )}
                         {clientSearchQuery.trim() && clients.length === 0 && (
                           <div className="border rounded-lg p-6 text-center text-sm text-gray-500 bg-gray-50">
-                            <div className="flex flex-col items-center space-y-2">
+                            <div className="flex flex-col items-center space-y-3">
                               <Search className="h-8 w-8 text-gray-300" />
                               <span>Nenhum cliente encontrado</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsClientModalOpen(true)}
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Cadastrar Cliente
+                              </Button>
                             </div>
                           </div>
                         )}
@@ -1137,6 +1150,21 @@ export function SalesManagementTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Cadastro de Cliente */}
+      <ClientFormModal
+        open={isClientModalOpen}
+        onOpenChange={(open) => {
+          setIsClientModalOpen(open);
+          if (!open) {
+            // Quando o modal fechar, recarregar a lista de clientes
+            // Se um cliente foi criado, aparecerá na nova busca
+            setTimeout(() => {
+              loadClients();
+            }, 500);
+          }
+        }}
+      />
     </div>
   );
 }
