@@ -76,6 +76,14 @@ import { createCashbackSettingsController } from "./controllers/create-cashback-
 import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
 import { getCashbackSettingsController } from "./controllers/get-cashback-settings.controller";
 import { updateCashbackSettingsController } from "./controllers/update-cashback-settings.controller";
+import { createMessageAutomationSettingsController } from "./controllers/create-message-automation-settings.controller";
+import { getMessageAutomationSettingsController } from "./controllers/get-message-automation-settings.controller";
+import { updateMessageAutomationSettingsController } from "./controllers/update-message-automation-settings.controller";
+import { deleteMessageAutomationSettingsController } from "./controllers/delete-message-automation-settings.controller";
+import { createMessageJobsLogController } from "./controllers/create-message-jobs-logs.controller";
+import { getMessageJobsLogsController } from "./controllers/get-message-jobs-logs.controller";
+import { updateMessageJobsLogController } from "./controllers/update-message-jobs-logs.controller";
+import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -3675,6 +3683,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController);
   app.get("/api/v2/cashback-settings", getCashbackSettingsController);
   app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
+
+  app.post("/api/message-automation-settings", createMessageAutomationSettingsController);
+app.get("/api/message-automation-settings", getMessageAutomationSettingsController);
+app.put("/api/message-automation-settings/:id", updateMessageAutomationSettingsController);
+app.delete("/api/message-automation-settings/:id", deleteMessageAutomationSettingsController);
+
+// Rotas para Message Jobs Logs
+app.post("/api/message-jobs-logs", createMessageJobsLogController);
+app.get("/api/message-jobs-logs", getMessageJobsLogsController);
+app.put("/api/message-jobs-logs/:id", updateMessageJobsLogController);
+app.delete("/api/message-jobs-logs/:id", deleteMessageJobsLogController);
 
   const httpServer = createServer(app);
   return httpServer;

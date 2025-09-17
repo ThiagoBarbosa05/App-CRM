@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Bookmark,
   BookMarked,
+  Bot,
   CalendarIcon,
   CircleDollarSign,
   Download,
@@ -35,6 +36,7 @@ import ClientDebtsManagement from "@/components/client-debts-management";
 import DataExportManagement from "@/components/data-export-management";
 import EventsManagement from "@/components/events-management";
 import { Separator } from "@/components/ui/separator";
+import { AutomationManagement } from "@/components/automation-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -87,49 +89,111 @@ export default function Configurations() {
             </div>
           </div>
 
-          <Tabs defaultValue="users" className="space-y-4  ">
-            <TabsList className="grid w-full grid-cols-10">
-              <TabsTrigger title="usuários" value="users">
-                <span className="hidden sm:block">Usuários</span>
-                <Users className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="categorias" value="categories">
-                <span className="hidden sm:block">Categorias</span>
-                <Tags className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="marcadores" value="markers">
-                <span className="hidden sm:block">Marcadores</span>
-                <Bookmark className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="origens" value="origins">
-                <span className="hidden sm:block">Origens</span>
-                <Tag className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="setores" value="sectors">
-                <span className="hidden sm:block">Setores</span>
-                <LayoutPanelTop className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="eventos" value="events">
-                <span className="hidden sm:block">Eventos</span>
-                <CalendarIcon className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="treinamentos" value="learning-images">
-                <span className="hidden sm:block">Treinamentos</span>
-                <GraduationCap className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="cashback" value="cashback">
-                <span className="hidden sm:block">Cashback</span>
-                <CircleDollarSign className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="dívidas" value="debts">
-                <span className="hidden sm:block">Dívidas</span>
-                <BookMarked className="size-4 sm:hidden" />
-              </TabsTrigger>
-              <TabsTrigger title="exportação" value="export">
-                <span className="hidden sm:block">Exportação</span>
-                <Download className="size-4 sm:hidden" />
-              </TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="users" className="space-y-6">
+            <div className="relative">
+              <TabsList className="w-full h-auto p-1 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-11 gap-1">
+                  <TabsTrigger 
+                    value="users" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar usuários do sistema"
+                  >
+                    <Users className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Usuários</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="categories" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar categorias"
+                  >
+                    <Tags className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Categorias</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="markers" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar marcadores"
+                  >
+                    <Bookmark className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Marcadores</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="origins" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar origens"
+                  >
+                    <Tag className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Origens</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="sectors" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar setores"
+                  >
+                    <LayoutPanelTop className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Setores</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="events" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar eventos"
+                  >
+                    <CalendarIcon className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Eventos</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="learning-images" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar treinamentos"
+                  >
+                    <GraduationCap className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Treinamentos</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="cashback" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Configurações de cashback"
+                  >
+                    <CircleDollarSign className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Cashback</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="debts" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar dívidas de clientes"
+                  >
+                    <BookMarked className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Dívidas</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="export" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Exportar dados do sistema"
+                  >
+                    <Download className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Exportação</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger 
+                    value="automation" 
+                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Configurações de automação"
+                  >
+                    <Bot className="size-4 text-gray-600 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Automação</span>
+                  </TabsTrigger>
+                </div>
+              </TabsList>
+            </div>
 
             <TabsContent value="users">
               <UsersManagement />
@@ -169,6 +233,10 @@ export default function Configurations() {
 
             <TabsContent value="export">
               <DataExportManagement />
+            </TabsContent>
+
+            <TabsContent value="automation">
+              <AutomationManagement />
             </TabsContent>
           </Tabs>
         </div>

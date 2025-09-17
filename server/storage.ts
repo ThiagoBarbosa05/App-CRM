@@ -252,6 +252,7 @@ export interface IStorage {
 
   // Birthday utility methods
   getUpcomingBirthdays(days?: number): Promise<Client[]>;
+  getClientsByBirthdayDate(targetDate: Date): Promise<Client[]>;
   createAutomaticReminders(): Promise<number>; // Returns number of reminders created
 
   // Tags methods
@@ -1594,6 +1595,43 @@ export class DatabaseStorage implements IStorage {
     return upcomingClients.sort(
       (a, b) => a.nextBirthday.getTime() - b.nextBirthday.getTime()
     );
+  }
+
+  async getClientsByBirthdayDate(targetDate: Date): Promise<Client[]> {
+    try {
+      const targetMonth = targetDate.getMonth() + 1; // getMonth() returns 0-11
+      const targetDay = targetDate.getDate();
+      
+      console.log(`[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth}`);
+      
+      // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
+      const birthdayClients = await this.db
+        .select()
+        .from(clients)
+        .where(
+          and(
+            isNotNull(clients.birthday),
+            // Use SQL bruto para comparar mês e dia do aniversário
+            sql`(
+              (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND 
+               EXTRACT(MONTH FROM ${clients.birthday}::date) = ${targetMonth} AND 
+               EXTRACT(DAY FROM ${clients.birthday}::date) = ${targetDay})
+              OR
+              (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
+               CAST(SPLIT_PART(${clients.birthday}, '/', 2) AS INTEGER) = ${targetMonth} AND
+               CAST(SPLIT_PART(${clients.birthday}, '/', 1) AS INTEGER) = ${targetDay})
+            )`
+          )
+        );
+
+      console.log(`[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) para ${targetDay}/${targetMonth}`);
+      
+      return birthdayClients;
+      
+    } catch (error) {
+      console.error("[Storage] Erro ao buscar clientes aniversariantes:", error);
+      return [];
+    }
   }
 
   async createAutomaticReminders(): Promise<number> {
