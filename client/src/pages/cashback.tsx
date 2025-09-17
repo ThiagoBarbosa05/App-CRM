@@ -356,6 +356,8 @@ export default function Cashback() {
           clientId: "",
           date: new Date().toISOString().split("T")[0],
           grossValue: "",
+          notes: "",
+          invoiceNumber: "",
         });
         setSelectedClientBalance(0);
         setSelectedClientName("");
