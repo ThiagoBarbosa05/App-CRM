@@ -1,10 +1,18 @@
 import { Request, Response } from "express";
-import { createMessageAutomationSetting, insertMessageAutomationSettingSchema } from "../db/functions/create-message-automation-settings";
+import {
+  createMessageAutomationSetting,
+  insertMessageAutomationSettingSchema,
+} from "../db/functions/create-message-automation-settings";
 import { ZodError } from "zod";
 
-export async function createMessageAutomationSettingsController(req: Request, res: Response) {
+export async function createMessageAutomationSettingsController(
+  req: Request,
+  res: Response
+) {
   try {
-    const validationResult = insertMessageAutomationSettingSchema.safeParse(req.body);
+    const validationResult = insertMessageAutomationSettingSchema.safeParse(
+      req.body
+    );
 
     if (!validationResult.success) {
       return res.status(400).json({ errors: validationResult.error.flatten() });

@@ -12,6 +12,208 @@ import { ChatResponse } from "./interfaces/chat";
 import { CustomFields } from "./interfaces/custom-fields";
 import { BotResponse } from "./interfaces/bot";
 
+// Template Message Interfaces
+export interface SendTemplateMessageRequest {
+  templateId: string;
+  chatId: string;
+  organizationId: string;
+  params?: string[];
+  skipReassign?: boolean;
+  bulkSession?: string;
+  fileId?: string;
+  carousel?: string;
+  postbackTexts?: string;
+}
+
+export interface FileData {
+  url: string;
+  contentType: string;
+  originalName: string;
+  originalSizeBytes: number;
+  data: string;
+  failDownload: boolean;
+  caption: string;
+}
+
+export interface ContactAddress {
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface ContactData {
+  name: string;
+  addresses: ContactAddress[];
+  phoneNumbers: string[];
+  company: string;
+  emails: string[];
+  profilePictureBlob: string;
+}
+
+export interface Location {
+  latitude: string;
+  longitude: string;
+  name: string;
+  address: string;
+}
+
+export interface Variable {
+  name: string;
+  example: string;
+}
+
+export interface Button {
+  _t: string;
+  text: string;
+  type: string;
+  phoneNumber: string;
+  url: string;
+  variable: Variable;
+  selected: boolean;
+  copyCode: string;
+  postbackText: string;
+}
+
+export interface Question {
+  _t: string;
+  id: string;
+  key: string;
+}
+
+export interface InReplyTo {
+  _t: string;
+  id: string;
+  chatId: string;
+  button: Button;
+}
+
+export interface OrganizationMember {
+  _t: string;
+  id: string;
+}
+
+export interface Chat {
+  _t: string;
+  id: string;
+}
+
+export interface Contact {
+  _t: string;
+  id: string;
+}
+
+export interface LatestEdit {
+  content: string;
+  senderAtUTC: string;
+  msgKey: string;
+}
+
+export interface BotInstance {
+  _t: string;
+  id: string;
+  botName: string;
+}
+
+export interface ForwardedFrom {
+  _t: string;
+  id: string;
+  eventAtUTC: string;
+}
+
+export interface ScheduledMessage {
+  _t: string;
+  id: string;
+}
+
+export interface BulkSendSession {
+  _t: string;
+  id: string;
+}
+
+export interface Mention {
+  id: string;
+  source: string;
+}
+
+export interface Ad {
+  conversionSource: string;
+  sourceUrl: string;
+  description: string;
+  title: string;
+  thumbnailUrl: string;
+  mediaUrl: string;
+  sourceType: string;
+  sourceId: string;
+  fileId: string;
+  ctWaCLId: string;
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  source: string;
+  eventAtUTC: string;
+  messageId: string;
+}
+
+export interface CarouselItem {
+  headerType: string;
+  body: string;
+  buttons: Button[];
+  fileUrl: string;
+}
+
+export interface Billable {
+  billable: boolean;
+  singlePackageId: string;
+  deductedCredits: number;
+  billingConversationWindowId: string;
+}
+
+export interface SendTemplateMessageResponse {
+  _t: string;
+  id: string;
+  createdAtUTC: string;
+  prefix: string;
+  headerContent: string;
+  content: string;
+  footer: string;
+  file: FileData;
+  thumbnail: FileData;
+  quotedStatusUpdate: FileData;
+  contacts: ContactData[];
+  messageType: string;
+  sentByOrganizationMember: OrganizationMember;
+  isPrivate: boolean;
+  location: Location;
+  question: Question;
+  source: string;
+  inReplyTo: InReplyTo;
+  messageState: string;
+  eventAtUTC: string;
+  chat: Chat;
+  fromContact: Contact;
+  templateId: string;
+  buttons: Button[];
+  latestEdit: LatestEdit;
+  botInstance: BotInstance;
+  forwardedFrom: ForwardedFrom;
+  scheduledMessage: ScheduledMessage;
+  bulkSendSession: BulkSendSession;
+  elements: string;
+  mentions: Mention[];
+  ad: Ad;
+  fileId: string;
+  reactions: Reaction[];
+  deductedAiCredits: number;
+  carousel: CarouselItem[];
+  billable: Billable;
+  contactId: string;
+}
+
 const apiEndpoint = process.env.UMBLER_ENDPOINT || "";
 const organizationId = process.env.UMBLER_ORGANIZATION_ID || "";
 const apiKey = process.env.UMBLER_API_KEY || "";
@@ -411,6 +613,48 @@ export async function updateCashback(data: {
     return await response.json();
   } catch (error) {
     console.error("Error fetching bots:", error);
+    return null;
+  }
+}
+
+export async function sendTemplateMessage(data: SendTemplateMessageRequest) {
+  try {
+    const requestBody: SendTemplateMessageRequest = {
+      templateId: data.templateId,
+      chatId: data.chatId,
+      organizationId: data.organizationId,
+      ...(data.params && { params: data.params }),
+      ...(data.skipReassign !== undefined && {
+        skipReassign: data.skipReassign,
+      }),
+      ...(data.bulkSession && { bulkSession: data.bulkSession }),
+      ...(data.fileId && { fileId: data.fileId }),
+      ...(data.carousel && { carousel: data.carousel }),
+      ...(data.postbackTexts && { postbackTexts: data.postbackTexts }),
+    };
+
+    const response = await fetch(`${apiEndpoint}/template-messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to send template message: " + JSON.stringify(error)
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("Template message sent successfully", responseData);
+
+    return responseData as SendTemplateMessageResponse;
+  } catch (error) {
+    console.error("Error sending template message:", error);
     return null;
   }
 }
