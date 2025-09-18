@@ -350,13 +350,14 @@ async function sendBirthdayTemplateMessage(
     );
 
     // Preparar parâmetros do template (nome do cliente)
-    const templateParams = [client.name, "teste", "teste2"];
+    const templateParams = [client.name];
 
     // Preparar dados para envio do template message
     const templateMessageData: SendTemplateMessageRequest = {
-      templateId: "aJD8BQpP0a78F70Z",
+      templateId: "aMmf3pAPj514EiPb",
       chatId: client.chatId,
       organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+      fileId: automation.externalFileId,
       params: templateParams,
     };
 

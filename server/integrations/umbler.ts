@@ -214,6 +214,36 @@ export interface SendTemplateMessageResponse {
   contactId: string;
 }
 
+export interface CreateFileRequest {
+  file: Buffer | Uint8Array;
+  filename: string;
+  contentType: string;
+  thumbnail?: string;
+  organizationId: string;
+}
+
+export interface CreateFileResponse {
+  id: string;
+  organization: {
+    id: string;
+  };
+  url: string;
+  contentType: string;
+  originalName: string;
+  originalSizeBytes: number;
+  data: string;
+  fileType: string;
+  useCount: number;
+  botIds: string[];
+  createdAtUTC: string;
+  thumbnail: string | null;
+  deletedAtUTC: string | null;
+  organizationMember: {
+    id: string;
+  };
+  visibility: string;
+}
+
 const apiEndpoint = process.env.UMBLER_ENDPOINT || "";
 const organizationId = process.env.UMBLER_ORGANIZATION_ID || "";
 const apiKey = process.env.UMBLER_API_KEY || "";
@@ -656,6 +686,69 @@ export async function sendTemplateMessage(data: SendTemplateMessageRequest) {
   } catch (error) {
     console.error("Error sending template message:", error);
     return null;
+  }
+}
+
+export async function createFile(data: CreateFileRequest): Promise<CreateFileResponse | null> {
+  try {
+    const formData = new FormData();
+
+    // Criar um Blob a partir do buffer/Uint8Array
+    const fileBlob = new Blob([new Uint8Array(data.file)], { type: data.contentType });
+    formData.append('File', fileBlob, data.filename);
+
+    if (data.thumbnail) {
+      formData.append('Thumbnail', data.thumbnail);
+    }
+
+    formData.append('OrganizationId', data.organizationId);
+
+    const response = await fetch(`${apiEndpoint}/organization-files`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to create file: " + JSON.stringify(error)
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("File created successfully", responseData);
+
+    return responseData as CreateFileResponse;
+  } catch (error) {
+    console.error("Error creating file:", error);
+    return null;
+  }
+}
+
+export async function deleteFile(fileId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${apiEndpoint}/organization-files/${fileId}?organizationId=${organizationId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(
+        "Failed to delete file: " + error
+      );
+    }
+
+    console.log("File deleted successfully", fileId);
+    return true;
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    return false;
   }
 }
 

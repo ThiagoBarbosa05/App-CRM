@@ -1,6 +1,6 @@
 import { desc, eq, and, count } from "drizzle-orm";
 import { db } from "server/db";
-import { messageJobsLogs } from "../../../shared/schema";
+import { messageJobsLogs, clients } from "../../../shared/schema";
 import { z } from "zod";
 
 export const GetMessageJobsLogsInput = z.object({
@@ -15,7 +15,12 @@ export type GetMessageJobsLogsInput = z.infer<typeof GetMessageJobsLogsInput>;
 
 export async function getMessageJobsLogs(input: GetMessageJobsLogsInput): Promise<
   {
-    data: (typeof messageJobsLogs.$inferSelect)[];
+    data: (typeof messageJobsLogs.$inferSelect & {
+      client: {
+        id: string;
+        name: string;
+      } | null;
+    })[];
     total: number;
     page: number;
     pageSize: number;
@@ -45,8 +50,24 @@ export async function getMessageJobsLogs(input: GetMessageJobsLogsInput): Promis
 
     // Get paginated data
     const data = await db
-      .select()
+      .select({
+        id: messageJobsLogs.id,
+        automationId: messageJobsLogs.automationId,
+        clientId: messageJobsLogs.clientId,
+        scheduledSendAt: messageJobsLogs.scheduledSendAt,
+        actualSendAt: messageJobsLogs.actualSendAt,
+        status: messageJobsLogs.status,
+        attempts: messageJobsLogs.attempts,
+        lastError: messageJobsLogs.lastError,
+        externalId: messageJobsLogs.externalId,
+        createdAt: messageJobsLogs.createdAt,
+        client: {
+          id: clients.id,
+          name: clients.name,
+        },
+      })
       .from(messageJobsLogs)
+      .leftJoin(clients, eq(messageJobsLogs.clientId, clients.id))
       .where(where.length ? and(...where) : undefined)
       .orderBy(desc(messageJobsLogs.createdAt))
       .limit(pageSize)

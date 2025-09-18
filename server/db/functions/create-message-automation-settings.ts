@@ -16,6 +16,8 @@ export const insertMessageAutomationSettingSchema = createInsertSchema(
       .number()
       .int()
       .min(0, "Os dias anteriores devem ser um número não negativo"),
+    externalFileId: z.string().optional(),
+    externalFileUrl: z.string().url("URL inválida").optional(),
   },
 );
 

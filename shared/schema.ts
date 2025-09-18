@@ -1313,6 +1313,8 @@ export const messageAutomationSettings = pgTable(
     daysBefore: integer("days_before").notNull().default(0),
     template: text("template"), // texto com placeholders: "Olá {name}..."
     externalChannelId: varchar("external_channel_id"), // canal de comunicação
+    externalFileId: varchar("external_file_id"), // arquivo de mídia (opcional)
+    externalFileUrl: text("external_file_url"), // url do arquivo de mídia (opcional)
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

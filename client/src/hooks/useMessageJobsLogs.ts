@@ -11,6 +11,10 @@ export interface MessageJobsLog {
   lastError?: string;
   externalId?: string;
   createdAt: string;
+  client: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface UseMessageJobsLogsOptions {

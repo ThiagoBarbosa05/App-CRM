@@ -48,6 +48,8 @@ import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { randomUUID } from "crypto";
+import { createFileController, uploadMiddleware } from "./controllers/create-file.controller";
+import { deleteFileController } from "./controllers/delete-file.controller";
 import {
   DeleteObjectCommand,
   PutObjectCommand,
@@ -483,6 +485,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar cashback" });
     }
   });
+
+  // File management routes
+  app.post("/api/files/upload", uploadMiddleware, createFileController);
+
+  app.delete("/api/files/:fileId", deleteFileController);
 
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
