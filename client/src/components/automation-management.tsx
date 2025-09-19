@@ -13,6 +13,8 @@ import {
   Upload,
   X,
   Image,
+  Play,
+  TestTube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +57,89 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+
+// Hook para testar automação manualmente - Teste completo
+function useTestAutomationAll() {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/birthday-automation/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Falha ao testar automação completa"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "✅ Teste completo executado",
+        description: `Automação completa testada com sucesso. ${
+          data.message || ""
+        }`,
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Erro no teste completo",
+        description:
+          error.message ||
+          "Não foi possível executar o teste da automação completa.",
+        variant: "destructive",
+        duration: 6000,
+      });
+    },
+  });
+}
+
+// Hook para testar automação manualmente - Teste agendado
+function useTestAutomationScheduled() {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch(
+        "/api/birthday-automation/trigger-scheduled",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Falha ao testar automação agendada"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "⏰ Teste agendado executado",
+        description: `Automação agendada testada com sucesso. ${
+          data.message || ""
+        }`,
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Erro no teste agendado",
+        description:
+          error.message ||
+          "Não foi possível executar o teste da automação agendada.",
+        variant: "destructive",
+        duration: 6000,
+      });
+    },
+  });
+}
 
 interface MessageAutomationSetting {
   id: string;
@@ -233,7 +318,7 @@ function useDeleteAutomation() {
         `/api/message-automation-settings/${automation.id}`,
         {
           method: "DELETE",
-        },
+        }
       );
       if (!response.ok) throw new Error("Failed to delete automation");
       return response.json();
@@ -273,7 +358,7 @@ function FileUploadComponent({
   isUploading?: boolean;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    currentFileUrl || null,
+    currentFileUrl || null
   );
   const [isDragOver, setIsDragOver] = useState(false);
   const fileUploadMutation = useFileUpload();
@@ -322,7 +407,7 @@ function FileUploadComponent({
             URL.revokeObjectURL(localPreviewUrl);
             setPreviewUrl(currentFileUrl || null);
           },
-        },
+        }
       );
     } catch (error) {
       // Error já tratado no onError do mutation
@@ -375,7 +460,7 @@ function FileUploadComponent({
 
   return (
     <div className="space-y-4">
-      <Label>Arquivo de mídia (opcional)</Label>
+      <Label>Arquivo de mídia</Label>
 
       {previewUrl ? (
         // Preview da imagem
@@ -502,7 +587,7 @@ function AutomationForm({
     enabled: automation?.enabled ?? true,
     sendTime: automation?.sendTime ?? "09:00",
     daysBefore: automation?.daysBefore ?? 0,
-    template: automation?.template,
+    template: automation?.template ?? "",
     externalChannelId: automation?.externalChannelId ?? "",
     externalFileId: automation?.externalFileId ?? "",
     externalFileUrl: automation?.externalFileUrl ?? "",
@@ -691,6 +776,8 @@ export function AutomationManagement() {
   const createMutation = useCreateAutomation();
   const updateMutation = useUpdateAutomation();
   const deleteMutation = useDeleteAutomation();
+  const testAllMutation = useTestAutomationAll();
+  const testScheduledMutation = useTestAutomationScheduled();
 
   const isLoading = isLoadingAutomations || isLoadingChannels;
 
@@ -725,7 +812,7 @@ export function AutomationManagement() {
       { id: editingAutomation.id, data },
       {
         onSuccess: () => setEditingAutomation(null),
-      },
+      }
     );
   };
 
@@ -740,10 +827,20 @@ export function AutomationManagement() {
     deleteMutation.mutate(automation);
   };
 
+  const handleTestAllAutomation = () => {
+    testAllMutation.mutate();
+  };
+
+  const handleTestScheduledAutomation = () => {
+    testScheduledMutation.mutate();
+  };
+
   const getChannelName = (channelId: string) => {
     const channel = channels.find((c) => c.id === channelId);
     return channel
-      ? `${channel.name} ${channel.phoneNumber ? `(${channel.phoneNumber})` : ""}`
+      ? `${channel.name} ${
+          channel.phoneNumber ? `(${channel.phoneNumber})` : ""
+        }`
       : "Canal não encontrado";
   };
 
@@ -863,6 +960,232 @@ export function AutomationManagement() {
         </Card>
       </div>
 
+      {/* Seção de Testes - Design Aprimorado */}
+      <Card className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-all duration-300 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
+        {/* Background decorativo */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
+
+        <CardHeader className="relative">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-lg">
+                <TestTube className="h-6 w-6" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-xl ">Testar Automações</CardTitle>
+              <CardDescription className="text-base mt-1">
+                Execute testes manuais para verificar o funcionamento das
+                automações em tempo real
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="relative space-y-6">
+          {/* Grid de Testes */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Teste Completo */}
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative bg-gradient-to-br from-background to-blue-50/50 border border-blue-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-blue-300/80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
+                      <Play className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-lg text-blue-900">
+                        Teste Completo
+                      </h4>
+                      <p className="text-sm text-blue-700">Execução global</p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Executa{" "}
+                    <span className="font-medium text-blue-600">
+                      todas as automações ativas
+                    </span>{" "}
+                    para verificar o funcionamento geral. Ideal para validar
+                    configurações após mudanças.
+                  </p>
+
+                  <div className="pt-2">
+                    <Button
+                      onClick={handleTestAllAutomation}
+                      disabled={
+                        testAllMutation.isPending || stats.activeCount === 0
+                      }
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
+                      size="lg"
+                    >
+                      {testAllMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
+                          Executando teste...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-3" />
+                          Executar Teste Completo
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Teste Agendado */}
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative bg-gradient-to-br from-background to-green-50/50 border border-green-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-green-300/80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
+                      <Clock className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-lg text-green-900">
+                        Teste Agendado
+                      </h4>
+                      <p className="text-sm text-green-700">
+                        Simulação temporal
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Executa apenas automações que{" "}
+                    <span className="font-medium text-green-600">
+                      correspondem ao horário atual
+                    </span>
+                    . Simula o comportamento da execução programada.
+                  </p>
+
+                  <div className="pt-2">
+                    <Button
+                      onClick={handleTestScheduledAutomation}
+                      disabled={
+                        testScheduledMutation.isPending ||
+                        stats.activeCount === 0
+                      }
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
+                      size="lg"
+                    >
+                      {testScheduledMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
+                          Executando teste...
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="h-4 w-4 mr-3" />
+                          Executar Teste Agendado
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Status e Alertas */}
+          <div className="space-y-4">
+            {/* Alerta quando não há automações ativas */}
+            {stats.activeCount === 0 && (
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-xl blur-lg" />
+                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-md flex-shrink-0">
+                      <Settings className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-semibold text-amber-900">
+                          Nenhuma automação ativa
+                        </h5>
+                        <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse" />
+                      </div>
+                      <p className="text-sm text-amber-800 leading-relaxed">
+                        Para testar as automações, você precisa ter pelo menos
+                        uma automação ativa.
+                        <br />
+                        <span className="font-medium">
+                          Crie uma nova automação ou ative uma existente
+                        </span>{" "}
+                        para habilitar os testes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dica informativa */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl blur-lg" />
+              <div className="relative bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-xl p-4 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md flex-shrink-0">
+                    <MessageSquare className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h5 className="font-semibold text-blue-900">
+                        💡 Dica sobre os testes
+                      </h5>
+                    </div>
+                    <div className="text-sm text-blue-800 leading-relaxed space-y-1">
+                      <p>
+                        • Os testes verificam apenas{" "}
+                        <span className="font-medium">
+                          clientes com aniversário hoje
+                        </span>
+                      </p>
+                      <p>
+                        • Resultados aparecem na seção{" "}
+                        <span className="font-medium">
+                          "Resultados das Automações"
+                        </span>{" "}
+                        abaixo
+                      </p>
+                      <p>
+                        • Use o{" "}
+                        <span className="font-medium text-blue-600">
+                          Teste Agendado
+                        </span>{" "}
+                        para simular execução em horário específico
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Indicador de status das automações ativas */}
+            {stats.activeCount > 0 && (
+              <div className="flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium text-green-800">
+                    {stats.activeCount} automação
+                    {stats.activeCount > 1 ? "ões" : ""} ativa
+                    {stats.activeCount > 1 ? "s" : ""} pronta
+                    {stats.activeCount > 1 ? "s" : ""} para teste
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Lista de automações */}
       <Card>
         <CardHeader>
@@ -870,7 +1193,9 @@ export function AutomationManagement() {
           <CardDescription>
             {automations.length === 0
               ? "Nenhuma automação configurada ainda."
-              : `${automations.length} automação${automations.length > 1 ? "ões" : ""} configurada${automations.length > 1 ? "s" : ""}.`}
+              : `${automations.length} automação${
+                  automations.length > 1 ? "ões" : ""
+                } configurada${automations.length > 1 ? "s" : ""}.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -949,7 +1274,7 @@ export function AutomationManagement() {
                             <div className="pl-6">
                               <p className="text-sm font-medium break-all">
                                 {getChannelName(
-                                  automation.externalChannelId || "",
+                                  automation.externalChannelId || ""
                                 )}
                               </p>
                             </div>
@@ -1230,16 +1555,16 @@ export function AutomationManagement() {
                                     log.status === "enviado"
                                       ? "default"
                                       : log.status === "falhou"
-                                        ? "destructive"
-                                        : "secondary"
+                                      ? "destructive"
+                                      : "secondary"
                                   }
                                   className="text-xs"
                                 >
                                   {log.status === "enviado"
                                     ? "Enviado"
                                     : log.status === "falhou"
-                                      ? "Falhou"
-                                      : "Agendado"}
+                                    ? "Falhou"
+                                    : "Agendado"}
                                 </Badge>
                               </td>
                               <td className="px-4 py-3 text-center">
@@ -1250,14 +1575,14 @@ export function AutomationManagement() {
                               <td className="px-4 py-3 text-muted-foreground">
                                 {log.scheduledSendAt
                                   ? new Date(
-                                      log.scheduledSendAt,
+                                      log.scheduledSendAt
                                     ).toLocaleString("pt-BR")
                                   : "-"}
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">
                                 {log.actualSendAt
                                   ? new Date(log.actualSendAt).toLocaleString(
-                                      "pt-BR",
+                                      "pt-BR"
                                     )
                                   : "-"}
                               </td>
@@ -1303,16 +1628,16 @@ export function AutomationManagement() {
                                 log.status === "enviado"
                                   ? "default"
                                   : log.status === "falhou"
-                                    ? "destructive"
-                                    : "secondary"
+                                  ? "destructive"
+                                  : "secondary"
                               }
                               className="text-xs ml-2"
                             >
                               {log.status === "enviado"
                                 ? "Enviado"
                                 : log.status === "falhou"
-                                  ? "Falhou"
-                                  : "Agendado"}
+                                ? "Falhou"
+                                : "Agendado"}
                             </Badge>
                           </div>
 
@@ -1332,7 +1657,7 @@ export function AutomationManagement() {
                               <div className="text-xs mt-1">
                                 {log.scheduledSendAt
                                   ? new Date(
-                                      log.scheduledSendAt,
+                                      log.scheduledSendAt
                                     ).toLocaleString("pt-BR")
                                   : "-"}
                               </div>
@@ -1346,7 +1671,7 @@ export function AutomationManagement() {
                               </span>
                               <div className="mt-1">
                                 {new Date(log.actualSendAt).toLocaleString(
-                                  "pt-BR",
+                                  "pt-BR"
                                 )}
                               </div>
                             </div>
@@ -1370,7 +1695,7 @@ export function AutomationManagement() {
                   {/* Visualização das automações com mídia - versão mobile otimizada */}
                   <div className="lg:hidden space-y-4 mt-8">
                     {automations.filter(
-                      (automation) => automation.externalFileUrl,
+                      (automation) => automation.externalFileUrl
                     ).length > 0 && (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 pb-2 border-b border-muted/30">
@@ -1381,7 +1706,7 @@ export function AutomationManagement() {
                           <Badge variant="secondary" className="ml-auto">
                             {
                               automations.filter(
-                                (automation) => automation.externalFileUrl,
+                                (automation) => automation.externalFileUrl
                               ).length
                             }
                           </Badge>
@@ -1421,7 +1746,7 @@ export function AutomationManagement() {
                                       </div>
                                       <h5 className="font-medium text-sm truncate">
                                         {getChannelName(
-                                          automation.externalChannelId || "",
+                                          automation.externalChannelId || ""
                                         )}
                                       </h5>
                                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
@@ -1430,7 +1755,7 @@ export function AutomationManagement() {
                                         <span>•</span>
                                         <span>
                                           {getDaysBeforeLabel(
-                                            automation.daysBefore,
+                                            automation.daysBefore
                                           )}
                                         </span>
                                       </div>
@@ -1509,12 +1834,12 @@ export function AutomationManagement() {
                           {
                             length: Math.min(
                               5,
-                              Math.ceil(logsData.total / logsData.pageSize),
+                              Math.ceil(logsData.total / logsData.pageSize)
                             ),
                           },
                           (_, i) => {
                             const totalPages = Math.ceil(
-                              logsData.total / logsData.pageSize,
+                              logsData.total / logsData.pageSize
                             );
                             let pageNumber;
 
@@ -1546,7 +1871,7 @@ export function AutomationManagement() {
                                 {pageNumber}
                               </Button>
                             );
-                          },
+                          }
                         )}
                       </div>
 

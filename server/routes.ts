@@ -48,7 +48,10 @@ import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { randomUUID } from "crypto";
-import { createFileController, uploadMiddleware } from "./controllers/create-file.controller";
+import {
+  createFileController,
+  uploadMiddleware,
+} from "./controllers/create-file.controller";
 import { deleteFileController } from "./controllers/delete-file.controller";
 import {
   DeleteObjectCommand,
@@ -3691,16 +3694,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v2/cashback-settings", getCashbackSettingsController);
   app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
 
-  app.post("/api/message-automation-settings", createMessageAutomationSettingsController);
-app.get("/api/message-automation-settings", getMessageAutomationSettingsController);
-app.put("/api/message-automation-settings/:id", updateMessageAutomationSettingsController);
-app.delete("/api/message-automation-settings/:id", deleteMessageAutomationSettingsController);
+  app.post(
+    "/api/message-automation-settings",
+    createMessageAutomationSettingsController
+  );
+  app.get(
+    "/api/message-automation-settings",
+    getMessageAutomationSettingsController
+  );
+  app.put(
+    "/api/message-automation-settings/:id",
+    updateMessageAutomationSettingsController
+  );
+  app.delete(
+    "/api/message-automation-settings/:id",
+    deleteMessageAutomationSettingsController
+  );
 
-// Rotas para Message Jobs Logs
-app.post("/api/message-jobs-logs", createMessageJobsLogController);
-app.get("/api/message-jobs-logs", getMessageJobsLogsController);
-app.put("/api/message-jobs-logs/:id", updateMessageJobsLogController);
-app.delete("/api/message-jobs-logs/:id", deleteMessageJobsLogController);
+  // Rotas para Message Jobs Logs
+  app.post("/api/message-jobs-logs", createMessageJobsLogController);
+  app.get("/api/message-jobs-logs", getMessageJobsLogsController);
+  app.put("/api/message-jobs-logs/:id", updateMessageJobsLogController);
+  app.delete("/api/message-jobs-logs/:id", deleteMessageJobsLogController);
+
+  // Rota para disparar automação de aniversário manualmente (para testes)
+  app.post("/api/birthday-automation/trigger", async (req, res) => {
+    try {
+      console.log(
+        "[Manual Trigger] Disparando automação de aniversário manualmente..."
+      );
+
+      const { sendBirthdayMessages } = await import(
+        "./jobs/send-birthday-mensage"
+      );
+
+      // Disparar o job principal (todas as automações ativas)
+      await sendBirthdayMessages();
+
+      res.json({
+        success: true,
+        message: "Automação de aniversário executada com sucesso",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("[Manual Trigger] Erro ao executar automação:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao executar automação de aniversário",
+        error: error instanceof Error ? error.message : "Erro desconhecido",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  // Rota para disparar automação de aniversário agendada manualmente (para testes)
+  app.post("/api/birthday-automation/trigger-scheduled", async (req, res) => {
+    try {
+      console.log(
+        "[Manual Trigger Scheduled] Disparando automação de aniversário agendada manualmente..."
+      );
+
+      const { sendBirthdayMessagesScheduled } = await import(
+        "./jobs/send-birthday-mensage"
+      );
+
+      // Disparar o job agendado (apenas automações no horário correto)
+      await sendBirthdayMessagesScheduled();
+
+      res.json({
+        success: true,
+        message: "Automação de aniversário agendada executada com sucesso",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(
+        "[Manual Trigger Scheduled] Erro ao executar automação agendada:",
+        error
+      );
+      res.status(500).json({
+        success: false,
+        message: "Erro ao executar automação de aniversário agendada",
+        error: error instanceof Error ? error.message : "Erro desconhecido",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

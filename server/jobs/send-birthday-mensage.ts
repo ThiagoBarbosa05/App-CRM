@@ -29,6 +29,57 @@ interface BirthdayJobLog {
   lastError?: string;
 }
 
+interface RetryConfig {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+}
+
+/**
+ * Utilitário para implementar retry com backoff exponencial
+ */
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  config: RetryConfig,
+  operationName: string
+): Promise<{ result: T; attempts: number }> {
+  let lastError: Error;
+
+  for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
+    try {
+      console.log(
+        `[Retry] Tentativa ${attempt}/${config.maxRetries} para ${operationName}`
+      );
+      const result = await operation();
+      return { result, attempts: attempt };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(
+        `[Retry] Tentativa ${attempt} falhou para ${operationName}:`,
+        lastError.message
+      );
+
+      // Se não é a última tentativa, aguardar antes de tentar novamente
+      if (attempt < config.maxRetries) {
+        const delay = Math.min(
+          config.baseDelayMs * Math.pow(2, attempt - 1),
+          config.maxDelayMs
+        );
+        console.log(
+          `[Retry] Aguardando ${delay}ms antes da próxima tentativa...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw new Error(
+    `Operação ${operationName} falhou após ${
+      config.maxRetries
+    } tentativas. Último erro: ${lastError!.message}`
+  );
+}
+
 /**
  * Job principal para envio de mensagens de aniversário
  * Este job é executado diariamente e processa todas as automações ativas
@@ -191,7 +242,7 @@ async function getBirthdayClients(
 }
 
 /**
- * Processa o aniversário de um cliente específico
+ * Processa o aniversário de um cliente específico com retry e backoff
  */
 async function processClientBirthday(
   automation: MessageAutomationSettings,
@@ -203,6 +254,13 @@ async function processClientBirthday(
     scheduledSendAt: new Date(),
     status: "agendado",
     attempts: 0,
+  };
+
+  // Configuração de retry
+  const retryConfig: RetryConfig = {
+    maxRetries: 3,
+    baseDelayMs: 1000, // 1 segundo
+    maxDelayMs: 10000, // 10 segundos máximo
   };
 
   try {
@@ -224,35 +282,58 @@ async function processClientBirthday(
       return;
     }
 
-    // 2. Verificar/Sincronizar contato no Umbler
-    const umblerContact = await syncClientWithUmbler(client);
-    if (!umblerContact) {
-      throw new Error("Falha ao sincronizar cliente com Umbler");
+    // 2. Verificar/Sincronizar contato no Umbler com retry
+    const umblerContactResult = await retryWithBackoff(
+      () => syncClientWithUmbler(client),
+      retryConfig,
+      `sincronização do cliente ${client.name}`
+    );
+
+    if (!umblerContactResult.result) {
+      throw new Error(
+        "Falha ao sincronizar cliente com Umbler após todas as tentativas"
+      );
     }
 
+    const umblerContact = umblerContactResult.result;
     client.contactId = umblerContact.id;
     console.log(
-      `[Birthday Job] Cliente sincronizado com Umbler - Contact ID: ${umblerContact.id}`
+      `[Birthday Job] Cliente sincronizado com Umbler - Contact ID: ${umblerContact.id} (${umblerContactResult.attempts} tentativas)`
     );
 
-    // 3. Criar chat no canal configurado
-    const chatId = await createChatForClient(
-      automation.externalChannelId!,
-      umblerContact.id
+    // 3. Criar chat no canal configurado com retry
+    const chatResult = await retryWithBackoff(
+      () =>
+        createChatForClient(automation.externalChannelId!, umblerContact.id),
+      retryConfig,
+      `criação de chat para ${client.name}`
     );
-    if (!chatId) {
-      throw new Error("Falha ao criar chat no canal configurado");
+
+    if (!chatResult.result) {
+      throw new Error(
+        "Falha ao criar chat no canal configurado após todas as tentativas"
+      );
     }
 
-    client.chatId = chatId;
-    console.log(`[Birthday Job] Chat criado - Chat ID: ${chatId}`);
+    client.chatId = chatResult.result;
+    console.log(
+      `[Birthday Job] Chat criado - Chat ID: ${chatResult.result} (${chatResult.attempts} tentativas)`
+    );
 
-    // 4. Enviar template message de aniversário
-    await sendBirthdayTemplateMessage(automation, client);
+    // 4. Enviar template message de aniversário com retry
+    const templateResult = await retryWithBackoff(
+      () => sendBirthdayTemplateMessage(automation, client),
+      retryConfig,
+      `envio de template message para ${client.name}`
+    );
 
     // 5. Marcar como enviado
     jobLog.status = "enviado";
-    jobLog.attempts = 1;
+    jobLog.attempts = Math.max(
+      umblerContactResult.attempts,
+      chatResult.attempts,
+      templateResult.attempts
+    );
 
     console.log(
       `[Birthday Job] Mensagem de aniversário enviada com sucesso para ${client.name}`
@@ -263,7 +344,7 @@ async function processClientBirthday(
       error
     );
     jobLog.status = "falhou";
-    jobLog.attempts = 1;
+    jobLog.attempts = retryConfig.maxRetries;
     jobLog.lastError =
       error instanceof Error ? error.message : "Erro desconhecido";
   } finally {
@@ -305,7 +386,7 @@ async function syncClientWithUmbler(client: ProcessedClient): Promise<any> {
       `[Birthday Job] Erro ao sincronizar cliente ${client.name} com Umbler:`,
       error
     );
-    return null;
+    throw error; // Propagar erro para permitir retry
   }
 }
 
@@ -326,10 +407,10 @@ async function createChatForClient(
       return chatResponse.id;
     }
 
-    return null;
+    throw new Error("Resposta inválida ao criar chat");
   } catch (error) {
     console.error("[Birthday Job] Erro ao criar chat:", error);
-    return null;
+    throw error; // Propagar erro para permitir retry
   }
 }
 
