@@ -696,7 +696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId as string,
         userRole as string,
       );
-      console.log("Empresas encontradas:", companies.length);
+      console.log("Empresas encontradas:", Array.isArray(companies) ? companies.length : companies.data?.length || 0);
       res.json(companies);
     } catch (error) {
       console.error("Erro ao buscar empresas:", error);
@@ -932,7 +932,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: validationError.toString() });
       }
       console.error("Erro ao criar deal:", error);
-      console.error("Stack trace:", error.stack);
+      if (error instanceof Error) {
+        console.error("Stack trace:", error.stack);
+      }
       res.status(500).json({ message: "Erro ao criar deal" });
     }
   });
