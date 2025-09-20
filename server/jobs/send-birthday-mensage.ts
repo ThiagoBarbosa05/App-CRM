@@ -41,14 +41,14 @@ interface RetryConfig {
 async function retryWithBackoff<T>(
   operation: () => Promise<T>,
   config: RetryConfig,
-  operationName: string
+  operationName: string,
 ): Promise<{ result: T; attempts: number }> {
   let lastError: Error;
 
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     try {
       console.log(
-        `[Retry] Tentativa ${attempt}/${config.maxRetries} para ${operationName}`
+        `[Retry] Tentativa ${attempt}/${config.maxRetries} para ${operationName}`,
       );
       const result = await operation();
       return { result, attempts: attempt };
@@ -56,17 +56,17 @@ async function retryWithBackoff<T>(
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(
         `[Retry] Tentativa ${attempt} falhou para ${operationName}:`,
-        lastError.message
+        lastError.message,
       );
 
       // Se não é a última tentativa, aguardar antes de tentar novamente
       if (attempt < config.maxRetries) {
         const delay = Math.min(
           config.baseDelayMs * Math.pow(2, attempt - 1),
-          config.maxDelayMs
+          config.maxDelayMs,
         );
         console.log(
-          `[Retry] Aguardando ${delay}ms antes da próxima tentativa...`
+          `[Retry] Aguardando ${delay}ms antes da próxima tentativa...`,
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -76,7 +76,7 @@ async function retryWithBackoff<T>(
   throw new Error(
     `Operação ${operationName} falhou após ${
       config.maxRetries
-    } tentativas. Último erro: ${lastError!.message}`
+    } tentativas. Último erro: ${lastError!.message}`,
   );
 }
 
@@ -86,14 +86,14 @@ async function retryWithBackoff<T>(
  */
 export async function sendBirthdayMessages(): Promise<void> {
   console.log(
-    "[Birthday Job] Iniciando job de envio de mensagens de aniversário..."
+    "[Birthday Job] Iniciando job de envio de mensagens de aniversário...",
   );
 
   try {
     // 1. Buscar todas as automações ativas
     const automations = await getAllMessageAutomationSettings();
     const activeAutomations = automations.filter(
-      (automation) => automation.enabled
+      (automation) => automation.enabled,
     );
 
     if (activeAutomations.length === 0) {
@@ -102,7 +102,7 @@ export async function sendBirthdayMessages(): Promise<void> {
     }
 
     console.log(
-      `[Birthday Job] Processando ${activeAutomations.length} automação(ões) ativa(s).`
+      `[Birthday Job] Processando ${activeAutomations.length} automação(ões) ativa(s).`,
     );
 
     // 2. Processar cada automação
@@ -111,12 +111,12 @@ export async function sendBirthdayMessages(): Promise<void> {
     }
 
     console.log(
-      "[Birthday Job] Job de envio de mensagens de aniversário concluído."
+      "[Birthday Job] Job de envio de mensagens de aniversário concluído.",
     );
   } catch (error) {
     console.error(
       "[Birthday Job] Erro no job de envio de mensagens de aniversário:",
-      error
+      error,
     );
     throw error;
   }
@@ -126,10 +126,10 @@ export async function sendBirthdayMessages(): Promise<void> {
  * Processa uma automação específica
  */
 async function processAutomation(
-  automation: MessageAutomationSettings
+  automation: MessageAutomationSettings,
 ): Promise<void> {
   console.log(
-    `[Birthday Job] Processando automação ${automation.id} - Dias antes: ${automation.daysBefore}, Horário: ${automation.sendTime}`
+    `[Birthday Job] Processando automação ${automation.id} - Dias antes: ${automation.daysBefore}, Horário: ${automation.sendTime}`,
   );
 
   try {
@@ -138,13 +138,13 @@ async function processAutomation(
 
     if (birthdayClients.length === 0) {
       console.log(
-        `[Birthday Job] Nenhum cliente aniversariante encontrado para ${automation.daysBefore} dias antes.`
+        `[Birthday Job] Nenhum cliente aniversariante encontrado para ${automation.daysBefore} dias antes.`,
       );
       return;
     }
 
     console.log(
-      `[Birthday Job] ${birthdayClients.length} cliente(s) aniversariante(s) encontrado(s).`
+      `[Birthday Job] ${birthdayClients.length} cliente(s) aniversariante(s) encontrado(s).`,
     );
 
     // 2. Processar cada cliente
@@ -154,7 +154,7 @@ async function processAutomation(
   } catch (error) {
     console.error(
       `[Birthday Job] Erro ao processar automação ${automation.id}:`,
-      error
+      error,
     );
   }
 }
@@ -164,7 +164,7 @@ async function processAutomation(
  */
 async function hasAlreadySentBirthdayMessageThisYear(
   clientId: string,
-  automationId: string
+  automationId: string,
 ): Promise<boolean> {
   try {
     const currentYear = new Date().getFullYear();
@@ -190,7 +190,7 @@ async function hasAlreadySentBirthdayMessageThisYear(
   } catch (error) {
     console.error(
       "[Birthday Job] Erro ao verificar mensagens enviadas anteriormente:",
-      error
+      error,
     );
     // Em caso de erro, assumir que não foi enviado para não bloquear o envio
     return false;
@@ -201,7 +201,7 @@ async function hasAlreadySentBirthdayMessageThisYear(
  * Busca clientes aniversariantes baseado nos dias antes configurados
  */
 async function getBirthdayClients(
-  daysBefore: number
+  daysBefore: number,
 ): Promise<ProcessedClient[]> {
   try {
     // Calcular a data alvo baseada nos dias antes
@@ -209,7 +209,7 @@ async function getBirthdayClients(
     targetDate.setDate(targetDate.getDate() + daysBefore);
 
     console.log(
-      `[Birthday Job] Buscando clientes aniversariantes para ${targetDate.toDateString()} (${daysBefore} dias antes)`
+      `[Birthday Job] Buscando clientes aniversariantes para ${targetDate.toDateString()} (${daysBefore} dias antes)`,
     );
 
     // Buscar clientes com aniversário na data alvo usando função otimizada do storage
@@ -219,7 +219,7 @@ async function getBirthdayClients(
     const validClients = birthdayClients.filter((client) => {
       if (!client.phone || client.phone.trim() === "") {
         console.log(
-          `[Birthday Job] Cliente ${client.name} não possui telefone válido - ignorando`
+          `[Birthday Job] Cliente ${client.name} não possui telefone válido - ignorando`,
         );
         return false;
       }
@@ -235,7 +235,7 @@ async function getBirthdayClients(
   } catch (error) {
     console.error(
       "[Birthday Job] Erro ao buscar clientes aniversariantes:",
-      error
+      error,
     );
     return [];
   }
@@ -246,7 +246,7 @@ async function getBirthdayClients(
  */
 async function processClientBirthday(
   automation: MessageAutomationSettings,
-  client: ProcessedClient
+  client: ProcessedClient,
 ): Promise<void> {
   const jobLog: BirthdayJobLog = {
     automationId: automation.id,
@@ -265,17 +265,17 @@ async function processClientBirthday(
 
   try {
     console.log(
-      `[Birthday Job] Processando cliente ${client.name} (${client.phone})`
+      `[Birthday Job] Processando cliente ${client.name} (${client.phone})`,
     );
 
     // 1. Verificar se já foi enviada mensagem de aniversário no ano atual
     const alreadySent = await hasAlreadySentBirthdayMessageThisYear(
       client.id,
-      automation.id
+      automation.id,
     );
     if (alreadySent) {
       console.log(
-        `[Birthday Job] Mensagem de aniversário já foi enviada para ${client.name} neste ano - pulando`
+        `[Birthday Job] Mensagem de aniversário já foi enviada para ${client.name} neste ano - pulando`,
       );
       jobLog.status = "falhou";
       jobLog.lastError = "Mensagem já enviada neste ano";
@@ -286,19 +286,19 @@ async function processClientBirthday(
     const umblerContactResult = await retryWithBackoff(
       () => syncClientWithUmbler(client),
       retryConfig,
-      `sincronização do cliente ${client.name}`
+      `sincronização do cliente ${client.name}`,
     );
 
     if (!umblerContactResult.result) {
       throw new Error(
-        "Falha ao sincronizar cliente com Umbler após todas as tentativas"
+        "Falha ao sincronizar cliente com Umbler após todas as tentativas",
       );
     }
 
     const umblerContact = umblerContactResult.result;
     client.contactId = umblerContact.id;
     console.log(
-      `[Birthday Job] Cliente sincronizado com Umbler - Contact ID: ${umblerContact.id} (${umblerContactResult.attempts} tentativas)`
+      `[Birthday Job] Cliente sincronizado com Umbler - Contact ID: ${umblerContact.id} (${umblerContactResult.attempts} tentativas)`,
     );
 
     // 3. Criar chat no canal configurado com retry
@@ -306,25 +306,25 @@ async function processClientBirthday(
       () =>
         createChatForClient(automation.externalChannelId!, umblerContact.id),
       retryConfig,
-      `criação de chat para ${client.name}`
+      `criação de chat para ${client.name}`,
     );
 
     if (!chatResult.result) {
       throw new Error(
-        "Falha ao criar chat no canal configurado após todas as tentativas"
+        "Falha ao criar chat no canal configurado após todas as tentativas",
       );
     }
 
     client.chatId = chatResult.result;
     console.log(
-      `[Birthday Job] Chat criado - Chat ID: ${chatResult.result} (${chatResult.attempts} tentativas)`
+      `[Birthday Job] Chat criado - Chat ID: ${chatResult.result} (${chatResult.attempts} tentativas)`,
     );
 
     // 4. Enviar template message de aniversário com retry
     const templateResult = await retryWithBackoff(
       () => sendBirthdayTemplateMessage(automation, client),
       retryConfig,
-      `envio de template message para ${client.name}`
+      `envio de template message para ${client.name}`,
     );
 
     // 5. Marcar como enviado
@@ -332,16 +332,16 @@ async function processClientBirthday(
     jobLog.attempts = Math.max(
       umblerContactResult.attempts,
       chatResult.attempts,
-      templateResult.attempts
+      templateResult.attempts,
     );
 
     console.log(
-      `[Birthday Job] Mensagem de aniversário enviada com sucesso para ${client.name}`
+      `[Birthday Job] Mensagem de aniversário enviada com sucesso para ${client.name}`,
     );
   } catch (error) {
     console.error(
       `[Birthday Job] Erro ao processar cliente ${client.name}:`,
-      error
+      error,
     );
     jobLog.status = "falhou";
     jobLog.attempts = retryConfig.maxRetries;
@@ -368,7 +368,7 @@ async function syncClientWithUmbler(client: ProcessedClient): Promise<any> {
 
     // 2. Criar novo contato no Umbler
     console.log(
-      `[Birthday Job] Criando novo contato no Umbler para ${client.name}`
+      `[Birthday Job] Criando novo contato no Umbler para ${client.name}`,
     );
     const newContact = await syncContact({
       phoneNumber: client.phone,
@@ -384,7 +384,7 @@ async function syncClientWithUmbler(client: ProcessedClient): Promise<any> {
   } catch (error) {
     console.error(
       `[Birthday Job] Erro ao sincronizar cliente ${client.name} com Umbler:`,
-      error
+      error,
     );
     throw error; // Propagar erro para permitir retry
   }
@@ -395,7 +395,7 @@ async function syncClientWithUmbler(client: ProcessedClient): Promise<any> {
  */
 async function createChatForClient(
   channelId: string,
-  contactId: string
+  contactId: string,
 ): Promise<string | null> {
   try {
     const chatResponse = await createChat({
@@ -419,7 +419,7 @@ async function createChatForClient(
  */
 async function sendBirthdayTemplateMessage(
   automation: any,
-  client: ProcessedClient
+  client: ProcessedClient,
 ): Promise<void> {
   try {
     if (!client.chatId) {
@@ -427,15 +427,15 @@ async function sendBirthdayTemplateMessage(
     }
 
     console.log(
-      `[Birthday Job] Enviando template message para ${client.name} - Template ID: ${automation.templateId}`
+      `[Birthday Job] Enviando template message para ${client.name} - Template ID: ${automation.externalTemplateId}`,
     );
 
     // Preparar parâmetros do template (nome do cliente)
-    const templateParams = [client.name];
+    const templateParams = [client.name.split(" ")[0]];
 
     // Preparar dados para envio do template message
     const templateMessageData: SendTemplateMessageRequest = {
-      templateId: "aMmf3pAPj514EiPb",
+      templateId: automation.externalTemplateId || "aMmf3pAPj514EiPb",
       chatId: client.chatId,
       organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
       fileId: automation.externalFileId,
@@ -450,12 +450,12 @@ async function sendBirthdayTemplateMessage(
     }
 
     console.log(
-      `[Birthday Job] Template message enviado com sucesso para ${client.name} - Message ID: ${result.id}`
+      `[Birthday Job] Template message enviado com sucesso para ${client.name} - Message ID: ${result.id}`,
     );
   } catch (error) {
     console.error(
       "[Birthday Job] Erro ao enviar template message de aniversário:",
-      error
+      error,
     );
     throw error;
   }
@@ -507,25 +507,25 @@ export function shouldRunAutomation(sendTime: string): boolean {
  */
 export async function sendBirthdayMessagesScheduled(): Promise<void> {
   console.log(
-    "[Birthday Job Scheduled] Verificando automações para execução..."
+    "[Birthday Job Scheduled] Verificando automações para execução...",
   );
 
   try {
     const automations = await getAllMessageAutomationSettings();
     const activeAutomations = automations.filter(
       (automation) =>
-        automation.enabled && shouldRunAutomation(automation.sendTime)
+        automation.enabled && shouldRunAutomation(automation.sendTime),
     );
 
     if (activeAutomations.length === 0) {
       console.log(
-        "[Birthday Job Scheduled] Nenhuma automação para executar neste horário."
+        "[Birthday Job Scheduled] Nenhuma automação para executar neste horário.",
       );
       return;
     }
 
     console.log(
-      `[Birthday Job Scheduled] Executando ${activeAutomations.length} automação(ões) no horário correto.`
+      `[Birthday Job Scheduled] Executando ${activeAutomations.length} automação(ões) no horário correto.`,
     );
 
     for (const automation of activeAutomations) {

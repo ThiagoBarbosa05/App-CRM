@@ -1301,7 +1301,6 @@ export type Sale = typeof sales.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 
-// automation
 export const messageAutomationSettings = pgTable(
   "message_automation_settings",
   {
@@ -1311,13 +1310,13 @@ export const messageAutomationSettings = pgTable(
     enabled: boolean("enabled").notNull().default(true),
     sendTime: varchar("send_time").notNull(), // "09:00" (HH:mm) OR store as time
     daysBefore: integer("days_before").notNull().default(0),
-    template: text("template"), // texto com placeholders: "Olá {name}..."
+    externalTemplateId: varchar("template_id"), // id do template de mensagem
     externalChannelId: varchar("external_channel_id"), // canal de comunicação
     externalFileId: varchar("external_file_id"), // arquivo de mídia (opcional)
     externalFileUrl: text("external_file_url"), // url do arquivo de mídia (opcional)
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
+  }
 );
 
 export const messageJobsLogs = pgTable("message_jobs_logs", {
@@ -1325,7 +1324,7 @@ export const messageJobsLogs = pgTable("message_jobs_logs", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   automationId: varchar("automation_id")
-    .references(() => messageAutomationSettings.id)
+    .references(() => messageAutomationSettings.id, { onDelete: "cascade" })
     .notNull(),
   clientId: varchar("client_id")
     .references(() => clients.id)
@@ -1340,7 +1339,6 @@ export const messageJobsLogs = pgTable("message_jobs_logs", {
   externalId: varchar("external_id"), // id retornado pelo canal externo
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-
 // Tabela de eventos
 export const events = pgTable("events", {
   id: varchar("id")

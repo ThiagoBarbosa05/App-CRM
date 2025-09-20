@@ -25,6 +25,73 @@ export interface SendTemplateMessageRequest {
   postbackTexts?: string;
 }
 
+// Template Interfaces
+export interface TemplateVariable {
+  name: string;
+  example: string;
+}
+
+export interface TemplateButton {
+  _t: string;
+  text: string;
+  type: string;
+  phoneNumber: string;
+  url: string;
+  variable: TemplateVariable;
+  selected?: boolean;
+  copyCode?: string;
+  postbackText?: string;
+}
+
+export interface TemplateHeader {
+  content: string;
+  variables: TemplateVariable[];
+}
+
+export interface TemplateCarouselItem {
+  headerType: string;
+  body: string;
+  buttons: TemplateButton[];
+}
+
+export interface TemplateChannel {
+  _t: string;
+  id: string;
+}
+
+export interface Template {
+  _t: string;
+  id: string;
+  createdAtUTC: string;
+  channel: TemplateChannel;
+  label: string;
+  category: string;
+  status: string;
+  header: TemplateHeader;
+  content: string;
+  footer: string;
+  buttons: TemplateButton[];
+  variables: TemplateVariable[];
+  templateType: string;
+  approvedAtUTC: string;
+  rejectErrorReason: string;
+  groupIds: string[];
+  carousel: TemplateCarouselItem[];
+}
+
+export interface TemplatesPage {
+  totalItems: number;
+  skipped: number;
+  took: number;
+  maxTake: number;
+  searchEngine: string;
+}
+
+export interface GetTemplatesResponse {
+  page: TemplatesPage;
+  items: Template[];
+}
+
 export interface FileData {
   url: string;
   contentType: string;
@@ -689,19 +756,23 @@ export async function sendTemplateMessage(data: SendTemplateMessageRequest) {
   }
 }
 
-export async function createFile(data: CreateFileRequest): Promise<CreateFileResponse | null> {
+export async function createFile(
+  data: CreateFileRequest
+): Promise<CreateFileResponse | null> {
   try {
     const formData = new FormData();
 
     // Criar um Blob a partir do buffer/Uint8Array
-    const fileBlob = new Blob([new Uint8Array(data.file)], { type: data.contentType });
-    formData.append('File', fileBlob, data.filename);
+    const fileBlob = new Blob([new Uint8Array(data.file)], {
+      type: data.contentType,
+    });
+    formData.append("File", fileBlob, data.filename);
 
     if (data.thumbnail) {
-      formData.append('Thumbnail', data.thumbnail);
+      formData.append("Thumbnail", data.thumbnail);
     }
 
-    formData.append('OrganizationId', data.organizationId);
+    formData.append("OrganizationId", data.organizationId);
 
     const response = await fetch(`${apiEndpoint}/organization-files`, {
       method: "POST",
@@ -713,9 +784,7 @@ export async function createFile(data: CreateFileRequest): Promise<CreateFileRes
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(
-        "Failed to create file: " + JSON.stringify(error)
-      );
+      throw new Error("Failed to create file: " + JSON.stringify(error));
     }
 
     const responseData = await response.json();
@@ -730,18 +799,19 @@ export async function createFile(data: CreateFileRequest): Promise<CreateFileRes
 
 export async function deleteFile(fileId: string): Promise<boolean> {
   try {
-    const response = await fetch(`${apiEndpoint}/organization-files/${fileId}?organizationId=${organizationId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
+    const response = await fetch(
+      `${apiEndpoint}/organization-files/${fileId}?organizationId=${organizationId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(
-        "Failed to delete file: " + error
-      );
+      throw new Error("Failed to delete file: " + error);
     }
 
     console.log("File deleted successfully", fileId);
@@ -749,6 +819,61 @@ export async function deleteFile(fileId: string): Promise<boolean> {
   } catch (error) {
     console.error("Error deleting file:", error);
     return false;
+  }
+}
+
+/**
+ * Busca todos os templates da organização na API do Umbler
+ * @returns Promise com a resposta completa dos templates ou null em caso de erro
+ */
+export async function getTemplates(): Promise<GetTemplatesResponse | null> {
+  try {
+    const response = await fetch(
+      `${apiEndpoint}/templates?organizationId=${organizationId}&queryString=ANIVERSARIO`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to fetch templates: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Templates fetched successfully");
+
+    return responseData as GetTemplatesResponse;
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    return null;
+  }
+}
+
+/**
+ * Busca apenas os templates aprovados da organização
+ * @returns Promise com array de templates aprovados ou null em caso de erro
+ */
+export async function getApprovedTemplates(): Promise<Template[] | null> {
+  try {
+    const templatesResponse = await getTemplates();
+
+    if (!templatesResponse) {
+      return null;
+    }
+
+    // Filtrar apenas templates aprovados
+    const approvedTemplates = templatesResponse.items.filter(
+      (template) => template.status === "APPROVED"
+    );
+
+    return approvedTemplates;
+  } catch (error) {
+    console.error("Error fetching approved templates:", error);
+    return null;
   }
 }
 

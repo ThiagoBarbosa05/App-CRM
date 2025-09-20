@@ -89,6 +89,7 @@ import { createMessageJobsLogController } from "./controllers/create-message-job
 import { getMessageJobsLogsController } from "./controllers/get-message-jobs-logs.controller";
 import { updateMessageJobsLogController } from "./controllers/update-message-jobs-logs.controller";
 import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
+import { getTemplatesController } from "./controllers/get-templates-controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -124,6 +125,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/umbler/channels", async (req, res) => {
     try {
       const channels = await db.select().from(serviceChannels);
+
+      res.json(channels);
+    } catch (error) {
+      console.error("Erro ao buscar canais:", error);
+      res.status(500).json({ message: "Erro ao buscar canais" });
+    }
+  });
+
+  app.get("/api/umbler/whatsapp-api/channels", async (req, res) => {
+    try {
+      const channels = await getChannels();
 
       res.json(channels);
     } catch (error) {
@@ -3716,6 +3728,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/message-jobs-logs", getMessageJobsLogsController);
   app.put("/api/message-jobs-logs/:id", updateMessageJobsLogController);
   app.delete("/api/message-jobs-logs/:id", deleteMessageJobsLogController);
+
+  // Rota para buscar templates do Umbler
+  app.get("/api/templates", getTemplatesController);
 
   // Rota para disparar automação de aniversário manualmente (para testes)
   app.post("/api/birthday-automation/trigger", async (req, res) => {

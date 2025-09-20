@@ -15,6 +15,7 @@ import {
   Image,
   Play,
   TestTube,
+  RefreshCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +58,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // Hook para testar automação manualmente - Teste completo
 function useTestAutomationAll() {
@@ -146,7 +148,7 @@ interface MessageAutomationSetting {
   enabled: boolean;
   sendTime: string;
   daysBefore: number;
-  template?: string;
+  externalTemplateId?: string;
   externalChannelId?: string;
   externalFileId?: string;
   externalFileUrl?: string;
@@ -158,13 +160,47 @@ interface UmblerChannel {
   id: string;
   name: string;
   phoneNumber?: string;
+  channelType: string;
+  state: string;
+}
+
+interface UmblerTemplate {
+  _t: string;
+  id: string;
+  createdAtUTC: string;
+  channel: {
+    _t: string;
+    id: string;
+  };
+  label: string;
+  category: string;
+  status: string;
+  header: {
+    content: string;
+    variables: Array<{
+      name: string;
+      example: string;
+    }>;
+  };
+  content: string;
+  footer: string;
+  buttons: Array<any>;
+  variables: Array<{
+    name: string;
+    example: string;
+  }>;
+  templateType: string;
+  approvedAtUTC: string;
+  rejectErrorReason?: string;
+  groupIds: string[];
+  carousel: Array<any>;
 }
 
 interface AutomationFormData {
   enabled: boolean;
   sendTime: string;
   daysBefore: number;
-  template: string;
+  externalTemplateId: string;
   externalChannelId: string;
   externalFileId?: string;
   externalFileUrl?: string;
@@ -187,9 +223,9 @@ const TIME_OPTIONS = [
 const DAYS_BEFORE_OPTIONS = [
   { value: 0, label: "No dia do aniversário" },
   { value: 1, label: "1 dia antes" },
-  { value: 5, label: "2 dias antes" },
-  { value: 10, label: "3 dias antes" },
-  { value: 15, label: "1 semana antes" },
+  { value: 5, label: "5 dias antes" },
+  { value: 10, label: "10 dias antes" },
+  { value: 15, label: "15 dias antes" },
 ];
 
 // const DEFAULT_TEMPLATE = `🎉 Parabéns pelo seu aniversário!
@@ -217,8 +253,20 @@ function useUmblerChannels() {
   return useQuery<UmblerChannel[]>({
     queryKey: ["umbler-channels"],
     queryFn: async () => {
-      const response = await fetch("/api/umbler/channels");
+      const response = await fetch("/api/umbler/whatsapp-api/channels");
       if (!response.ok) throw new Error("Failed to fetch channels");
+      return response.json();
+    },
+  });
+}
+
+// Hook para buscar templates Umbler aprovados
+function useUmblerTemplates() {
+  return useQuery<UmblerTemplate[]>({
+    queryKey: ["umbler-templates"],
+    queryFn: async () => {
+      const response = await fetch("/api/templates?approved=true");
+      if (!response.ok) throw new Error("Failed to fetch templates");
       return response.json();
     },
   });
@@ -573,12 +621,14 @@ function FileUploadComponent({
 function AutomationForm({
   automation,
   channels,
+  templates,
   onSubmit,
   onCancel,
   isLoading,
 }: {
   automation?: MessageAutomationSetting;
   channels: UmblerChannel[];
+  templates: UmblerTemplate[];
   onSubmit: (data: AutomationFormData) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -587,7 +637,7 @@ function AutomationForm({
     enabled: automation?.enabled ?? true,
     sendTime: automation?.sendTime ?? "09:00",
     daysBefore: automation?.daysBefore ?? 0,
-    template: automation?.template ?? "",
+    externalTemplateId: automation?.externalTemplateId ?? "",
     externalChannelId: automation?.externalChannelId ?? "",
     externalFileId: automation?.externalFileId ?? "",
     externalFileUrl: automation?.externalFileUrl ?? "",
@@ -604,6 +654,15 @@ function AutomationForm({
       toast({
         title: "Canal obrigatório",
         description: "Selecione um canal para envio das mensagens.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.externalTemplateId) {
+      toast({
+        title: "Template obrigatório",
+        description: "Selecione um template para as mensagens.",
         variant: "destructive",
       });
       return;
@@ -714,27 +773,67 @@ function AutomationForm({
               <SelectValue placeholder="Selecione um canal" />
             </SelectTrigger>
             <SelectContent>
-              {channels.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  {channel.name}{" "}
-                  {channel.phoneNumber && `(${channel.phoneNumber})`}
-                </SelectItem>
-              ))}
+              {channels
+                .filter(
+                  (channel) =>
+                    channel.channelType === "WhatsappApi" &&
+                    channel.state === "Live"
+                )
+                .map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}{" "}
+                    {channel.phoneNumber && `(${channel.phoneNumber})`}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* <div className="space-y-2">
-          <Label htmlFor="template">Modelo da mensagem</Label>
-          <Textarea
-            id="template"
-            placeholder="Digite o modelo da mensagem de aniversário..."
-            value={formData.template}
-            onChange={(e) =>
-              setFormData({ ...formData, template: e.target.value })
+        <div className="space-y-2">
+          <Label htmlFor="externalTemplateId">Template de Mensagem</Label>
+          <Select
+            value={formData.externalTemplateId}
+            onValueChange={(externalTemplateId) =>
+              setFormData({ ...formData, externalTemplateId })
             }
-            rows={8}
-            className="resize-none"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um template" />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.length === 0 ? (
+                <SelectItem value="empty" disabled>
+                  Nenhum template aprovado disponível
+                </SelectItem>
+              ) : (
+                templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{template.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {template.category} • {template.templateType}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            Template de mensagem que será usado para enviar as mensagens
+            automáticas de aniversário.
+          </p>
+        </div>
+
+        {/* <div className="space-y-2">
+          <Label htmlFor="externalTemplateId">ID do Template Externo</Label>
+          <Input
+            id="externalTemplateId"
+            placeholder="Digite o ID do template da API do Umbler..."
+            value={formData.externalTemplateId}
+            onChange={(e) =>
+              setFormData({ ...formData, externalTemplateId: e.target.value })
+            }
           />
           <p className="text-sm text-muted-foreground">
             Esta mensagem será enviada automaticamente para os clientes
@@ -772,6 +871,8 @@ export function AutomationManagement() {
     useMessageAutomations();
   const { data: channels = [], isLoading: isLoadingChannels } =
     useUmblerChannels();
+  const { data: templates = [], isLoading: isLoadingTemplates } =
+    useUmblerTemplates();
 
   const createMutation = useCreateAutomation();
   const updateMutation = useUpdateAutomation();
@@ -779,7 +880,8 @@ export function AutomationManagement() {
   const testAllMutation = useTestAutomationAll();
   const testScheduledMutation = useTestAutomationScheduled();
 
-  const isLoading = isLoadingAutomations || isLoadingChannels;
+  const isLoading =
+    isLoadingAutomations || isLoadingChannels || isLoadingTemplates;
 
   // Logs de automação (paginados)
   const [logsPage, setLogsPage] = useState(1);
@@ -787,7 +889,13 @@ export function AutomationManagement() {
     string | null
   >(null);
   const pageSize = 20;
-  const { data: logsData, isLoading: isLoadingLogs } = useMessageJobsLogs({
+  const {
+    data: logsData,
+    isLoading: isLoadingLogs,
+
+    isFetching: isFetchingLogs,
+    refetch: refetchLogs,
+  } = useMessageJobsLogs({
     automationId: selectedAutomationId || undefined,
     page: logsPage,
     pageSize,
@@ -844,6 +952,13 @@ export function AutomationManagement() {
       : "Canal não encontrado";
   };
 
+  const getTemplateName = (templateId: string) => {
+    const template = templates.find((t) => t.id === templateId);
+    return template
+      ? `${template.label} (${template.category})`
+      : "Template não encontrado";
+  };
+
   const getDaysBeforeLabel = (days: number) => {
     const option = DAYS_BEFORE_OPTIONS.find((o) => o.value === days);
     return option?.label || `${days} dias antes`;
@@ -892,6 +1007,7 @@ export function AutomationManagement() {
             </DialogHeader>
             <AutomationForm
               channels={channels}
+              templates={templates}
               onSubmit={handleCreateAutomation}
               onCancel={() => setIsCreateDialogOpen(false)}
               isLoading={createMutation.isPending}
@@ -1280,6 +1396,28 @@ export function AutomationManagement() {
                             </div>
                           </div>
 
+                          {automation.externalTemplateId && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-primary/10 rounded flex items-center justify-center">
+                                  <span className="text-xs text-primary font-bold">
+                                    T
+                                  </span>
+                                </div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Template
+                                </span>
+                              </div>
+                              <div className="pl-6">
+                                <p className="text-sm font-medium break-all">
+                                  {getTemplateName(
+                                    automation.externalTemplateId
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Arquivo de mídia */}
                           {automation.externalFileUrl && (
                             <div className="space-y-2">
@@ -1322,7 +1460,7 @@ export function AutomationManagement() {
                         </div>
 
                         {/* Modelo da mensagem */}
-                        {/* {automation.template && (
+                        {/* {automation.externalTemplateId && (
                           <div className="space-y-2 mt-4 pt-4 border-t border-muted/30">
                             <div className="flex items-center gap-2">
                               <div className="w-4 h-4 bg-primary/10 rounded flex items-center justify-center">
@@ -1331,18 +1469,13 @@ export function AutomationManagement() {
                                 </span>
                               </div>
                               <span className="text-sm font-medium text-muted-foreground">
-                                Modelo da mensagem
+                                ID do Template
                               </span>
                             </div>
                             <div className="pl-6">
                               <div className="bg-muted/30 border border-muted/50 rounded-lg p-4 max-h-24 overflow-y-auto">
                                 <p className="text-sm text-foreground/80 leading-relaxed">
-                                  {automation.template.substring(0, 200)}
-                                  {automation.template.length > 200 && (
-                                    <span className="text-muted-foreground">
-                                      ... (mostrar mais)
-                                    </span>
-                                  )}
+                                  {automation.externalTemplateId}
                                 </p>
                               </div>
                             </div>
@@ -1428,9 +1561,22 @@ export function AutomationManagement() {
       {/* Logs/resultados das automações */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Resultados das Automações
+          <CardTitle className="flex items- justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Resultados das Automações
+            </div>
+
+            <Button variant="outline" size="sm" onClick={() => refetchLogs()}>
+              <RefreshCcw
+                className={cn(
+                  "h-4 w-4",
+
+                  isFetchingLogs && "animate-spin"
+                )}
+              />
+              {isFetchingLogs ? "Atualizando..." : "Atualizar"}
+            </Button>
           </CardTitle>
           <CardDescription>
             Veja o histórico de mensagens disparadas pelas automações.
@@ -1913,6 +2059,7 @@ export function AutomationManagement() {
             <AutomationForm
               automation={editingAutomation}
               channels={channels}
+              templates={templates}
               onSubmit={handleUpdateAutomation}
               onCancel={() => setEditingAutomation(null)}
               isLoading={updateMutation.isPending}
