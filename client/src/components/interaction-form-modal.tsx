@@ -199,64 +199,74 @@ export default function InteractionFormModal({
 
   const selectedType = interactionTypes.find(t => t.value === form.watch("type"));
 
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocalização não é suportada por este navegador.");
-      return;
-    }
+  const getCurrentLocation = async () => {
+    try {
+      if (!navigator.geolocation) {
+        setLocationError("Geolocalização não é suportada por este navegador.");
+        return;
+      }
 
-    setIsGettingLocation(true);
-    setLocationError(null);
+      setIsGettingLocation(true);
+      setLocationError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        form.setValue("latitude", latitude);
-        form.setValue("longitude", longitude);
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      });
 
-        // Tentar obter o endereço usando reverse geocoding
-        try {
-          // Verificar se existe API key configurada
-          const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
+      const { latitude, longitude } = position.coords;
+      form.setValue("latitude", latitude);
+      form.setValue("longitude", longitude);
+
+      // Tentar obter o endereço usando reverse geocoding
+      try {
+        // Verificar se existe API key configurada
+        const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
+        
+        if (apiKey && apiKey !== 'YOUR_API_KEY') {
+          const response = await fetch(
+            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt&no_annotations=1`
+          );
           
-          if (apiKey && apiKey !== 'YOUR_API_KEY') {
-            const response = await fetch(
-              `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt&no_annotations=1`
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.results && data.results.length > 0) {
-                const address = data.results[0].formatted;
-                form.setValue("address", address);
-              } else {
-                // Se não há resultados, usar coordenadas
-                form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
-              }
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              const address = data.results[0].formatted;
+              form.setValue("address", address);
             } else {
-              throw new Error('Falha na API de geocoding');
+              // Se não há resultados, usar coordenadas
+              form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
             }
           } else {
-            // Se não há API key, usar as coordenadas como endereço
-            console.log("API key do OpenCage não configurada, usando coordenadas como endereço");
-            form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+            throw new Error('Falha na API de geocoding');
           }
-        } catch (error) {
-          console.log("Erro ao obter endereço:", error);
-          // Define um endereço genérico com as coordenadas
+        } else {
+          // Se não há API key, usar as coordenadas como endereço
+          console.log("API key do OpenCage não configurada, usando coordenadas como endereço");
           form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
         }
+      } catch (geocodingError) {
+        console.log("Erro ao obter endereço:", geocodingError);
+        // Define um endereço genérico com as coordenadas
+        form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      }
 
-        setIsGettingLocation(false);
-        toast({
-          title: "Localização capturada",
-          description: "Localização atual foi registrada com sucesso.",
-        });
-      },
-      (error) => {
-        setIsGettingLocation(false);
-        let errorMessage = "Erro ao obter localização.";
-        
+      toast({
+        title: "Localização capturada",
+        description: "Localização atual foi registrada com sucesso.",
+      });
+
+    } catch (error: any) {
+      let errorMessage = "Erro ao obter localização.";
+      
+      if (error.code) {
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage = "Permissão de localização negada pelo usuário.";
@@ -268,20 +278,17 @@ export default function InteractionFormModal({
             errorMessage = "Tempo limite para obter localização excedido.";
             break;
         }
-        
-        setLocationError(errorMessage);
-        toast({
-          title: "Erro de localização",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
       }
-    );
+      
+      setLocationError(errorMessage);
+      toast({
+        title: "Erro de localização",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGettingLocation(false);
+    }
   };
 
   const clearLocation = () => {
