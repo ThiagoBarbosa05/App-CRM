@@ -421,17 +421,28 @@ function FileUploadComponent({
     });
 
     // Validar se o arquivo tem extensão de imagem se o tipo MIME não for detectado
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const hasImageExtension = imageExtensions.some(ext => 
       file.name.toLowerCase().endsWith(ext)
     );
+
+    // Bloquear SVG explicitamente por questões de segurança
+    if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+      console.error('SVG rejeitado por questões de segurança:', file.type, 'Nome:', file.name);
+      toast({
+        title: "Tipo de arquivo não permitido",
+        description: "Arquivos SVG não são aceitos por questões de segurança. Use PNG, JPG, GIF ou WebP.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validar tipo de arquivo - aceitar se tipo MIME for image/* ou se extensão for de imagem
     if (!file.type.startsWith("image/") && !hasImageExtension) {
       console.error('Tipo de arquivo rejeitado:', file.type, 'Nome:', file.name);
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Por favor, selecione apenas arquivos de imagem (PNG, JPG, GIF, WebP, SVG).",
+        description: "Por favor, selecione apenas arquivos de imagem (PNG, JPG, GIF, WebP).",
         variant: "destructive",
       });
       return;
@@ -454,44 +465,37 @@ function FileUploadComponent({
     // Fazer upload com nome do arquivo explícito
     try {
       console.log('Iniciando upload do arquivo:', file.name);
-      await fileUploadMutation.mutateAsync(
-        { 
-          file,
-          filename: file.name
-        },
-        {
-          onSuccess: (response) => {
-            console.log('Upload bem-sucedido:', response);
-            if (response.success && response.data) {
-              onFileUpload(response.data.id, response.data.url);
-              // Limpar preview local e usar URL da resposta
-              URL.revokeObjectURL(localPreviewUrl);
-              setPreviewUrl(response.data.url);
-            }
-          },
-          onError: (error: any) => {
-            console.error('Erro no upload:', error);
-            // Limpar preview em caso de erro
-            URL.revokeObjectURL(localPreviewUrl);
-            setPreviewUrl(currentFileUrl || null);
-          },
-        }
-      );
+      const response = await fileUploadMutation.mutateAsync({ 
+        file,
+        filename: file.name
+      });
+      
+      console.log('Upload bem-sucedido:', response);
+      if (response.success && response.data) {
+        onFileUpload(response.data.id, response.data.url);
+        // Limpar preview local e usar URL da resposta
+        URL.revokeObjectURL(localPreviewUrl);
+        setPreviewUrl(response.data.url);
+      }
     } catch (error) {
-      // Error já tratado no onError do mutation
-      console.error("Erro no upload (catch):", error);
+      console.error("Erro no upload:", error);
+      // Limpar preview em caso de erro
+      URL.revokeObjectURL(localPreviewUrl);
+      setPreviewUrl(currentFileUrl || null);
     }
   };
 
   const handleFileRemove = async () => {
     if (currentFileId) {
       // Deletar arquivo do servidor
-      await fileDeleteMutation.mutateAsync(currentFileId, {
-        onSuccess: () => {
-          onFileRemove();
-          setPreviewUrl(null);
-        },
-      });
+      try {
+        await fileDeleteMutation.mutateAsync(currentFileId);
+        onFileRemove();
+        setPreviewUrl(null);
+      } catch (error) {
+        console.error("Erro ao deletar arquivo:", error);
+        // Toast de erro já é exibido pelo hook useFileDelete
+      }
     } else {
       // Apenas remover preview local
       onFileRemove();
@@ -610,7 +614,7 @@ function FileUploadComponent({
             <div className="relative">
               <Input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.gif,.webp"
                 onChange={handleFileInputChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={fileUploadMutation.isPending}
