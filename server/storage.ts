@@ -1774,6 +1774,9 @@ export class DatabaseStorage implements IStorage {
         callResult: clientInteractions.callResult,
         status: clientInteractions.status,
         attachments: clientInteractions.attachments,
+        latitude: clientInteractions.latitude,
+        longitude: clientInteractions.longitude,
+        address: clientInteractions.address,
         createdAt: clientInteractions.createdAt,
         updatedAt: clientInteractions.updatedAt,
         user: {
