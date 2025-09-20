@@ -216,21 +216,35 @@ export default function InteractionFormModal({
 
         // Tentar obter o endereço usando reverse geocoding
         try {
-          const response = await fetch(
-            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY&language=pt&no_annotations=1`
-          );
+          // Verificar se existe API key configurada
+          const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
           
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-              const address = data.results[0].formatted;
-              form.setValue("address", address);
+          if (apiKey && apiKey !== 'YOUR_API_KEY') {
+            const response = await fetch(
+              `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt&no_annotations=1`
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.results && data.results.length > 0) {
+                const address = data.results[0].formatted;
+                form.setValue("address", address);
+              } else {
+                // Se não há resultados, usar coordenadas
+                form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
+              }
+            } else {
+              throw new Error('Falha na API de geocoding');
             }
+          } else {
+            // Se não há API key, usar as coordenadas como endereço
+            console.log("API key do OpenCage não configurada, usando coordenadas como endereço");
+            form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
           }
         } catch (error) {
           console.log("Erro ao obter endereço:", error);
           // Define um endereço genérico com as coordenadas
-          form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
+          form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
         }
 
         setIsGettingLocation(false);
