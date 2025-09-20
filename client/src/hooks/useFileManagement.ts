@@ -32,6 +32,14 @@ export function useFileUpload() {
 
   return useMutation({
     mutationFn: async (data: { file: File; filename?: string; thumbnail?: string }): Promise<FileUploadResponse> => {
+      console.log('useFileUpload: Dados recebidos:', {
+        fileName: data.file.name,
+        fileType: data.file.type,
+        fileSize: data.file.size,
+        providedFilename: data.filename,
+        thumbnail: data.thumbnail
+      });
+
       const formData = new FormData();
       formData.append("file", data.file);
 
@@ -43,16 +51,24 @@ export function useFileUpload() {
         formData.append("thumbnail", data.thumbnail);
       }
 
+      console.log('useFileUpload: FormData criado, enviando para /api/files/upload');
+
       const response = await fetch("/api/files/upload", {
         method: "POST",
         body: formData,
       });
 
+      console.log('useFileUpload: Resposta recebida:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error("Falha ao fazer upload do arquivo");
+        const errorData = await response.json().catch(() => ({}));
+        console.error('useFileUpload: Erro na resposta:', errorData);
+        throw new Error(errorData.message || "Falha ao fazer upload do arquivo");
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('useFileUpload: Upload bem-sucedido:', result);
+      return result;
     },
     onSuccess: (data) => {
       if (data.success) {

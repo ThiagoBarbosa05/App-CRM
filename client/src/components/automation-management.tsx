@@ -413,11 +413,25 @@ function FileUploadComponent({
   const fileDeleteMutation = useFileDelete();
 
   const handleFileSelect = async (file: File) => {
-    // Validar tipo de arquivo
-    if (!file.type.startsWith("image/")) {
+    console.log('Arquivo selecionado:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
+
+    // Validar se o arquivo tem extensão de imagem se o tipo MIME não for detectado
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    const hasImageExtension = imageExtensions.some(ext => 
+      file.name.toLowerCase().endsWith(ext)
+    );
+
+    // Validar tipo de arquivo - aceitar se tipo MIME for image/* ou se extensão for de imagem
+    if (!file.type.startsWith("image/") && !hasImageExtension) {
+      console.error('Tipo de arquivo rejeitado:', file.type, 'Nome:', file.name);
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Por favor, selecione apenas arquivos de imagem.",
+        description: "Por favor, selecione apenas arquivos de imagem (PNG, JPG, GIF, WebP, SVG).",
         variant: "destructive",
       });
       return;
@@ -437,12 +451,17 @@ function FileUploadComponent({
     const localPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(localPreviewUrl);
 
-    // Fazer upload
+    // Fazer upload com nome do arquivo explícito
     try {
+      console.log('Iniciando upload do arquivo:', file.name);
       await fileUploadMutation.mutateAsync(
-        { file },
+        { 
+          file,
+          filename: file.name
+        },
         {
           onSuccess: (response) => {
+            console.log('Upload bem-sucedido:', response);
             if (response.success && response.data) {
               onFileUpload(response.data.id, response.data.url);
               // Limpar preview local e usar URL da resposta
@@ -450,7 +469,8 @@ function FileUploadComponent({
               setPreviewUrl(response.data.url);
             }
           },
-          onError: () => {
+          onError: (error: any) => {
+            console.error('Erro no upload:', error);
             // Limpar preview em caso de erro
             URL.revokeObjectURL(localPreviewUrl);
             setPreviewUrl(currentFileUrl || null);
@@ -459,7 +479,7 @@ function FileUploadComponent({
       );
     } catch (error) {
       // Error já tratado no onError do mutation
-      console.error("Erro no upload:", error);
+      console.error("Erro no upload (catch):", error);
     }
   };
 
