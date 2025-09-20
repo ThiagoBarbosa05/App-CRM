@@ -404,6 +404,9 @@ export const clientInteractions = pgTable("client_interactions", {
     .notNull()
     .default("completed"),
   attachments: text("attachments").array().default([]),
+  latitude: numeric("latitude", { precision: 10, scale: 8 }),
+  longitude: numeric("longitude", { precision: 11, scale: 8 }),
+  address: text("address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

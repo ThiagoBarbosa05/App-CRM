@@ -1814,6 +1814,8 @@ export class DatabaseStorage implements IStorage {
         typeof insertInteraction.date === "string"
           ? new Date(insertInteraction.date)
           : insertInteraction.date,
+      latitude: insertInteraction.latitude ? String(insertInteraction.latitude) : undefined,
+      longitude: insertInteraction.longitude ? String(insertInteraction.longitude) : undefined,
     };
 
     const [interaction] = await this.db
@@ -1834,6 +1836,8 @@ export class DatabaseStorage implements IStorage {
         updateData.date && typeof updateData.date === "string"
           ? new Date(updateData.date)
           : updateData.date,
+      latitude: updateData.latitude ? String(updateData.latitude) : undefined,
+      longitude: updateData.longitude ? String(updateData.longitude) : undefined,
       updatedAt: new Date(),
     };
 

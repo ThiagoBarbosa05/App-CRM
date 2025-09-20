@@ -181,6 +181,31 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
 
                     <p className="text-gray-700 mb-3">{interaction.description}</p>
 
+                    {interaction.address && interaction.type === "visit" && (
+                      <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-1 text-sm text-blue-800">
+                          <MapPin className="h-3 w-3" />
+                          <span className="font-medium">Local da visita:</span>
+                        </div>
+                        <p className="text-sm text-blue-700 mt-1">{interaction.address}</p>
+                        {interaction.latitude && interaction.longitude && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-blue-600">
+                              Coordenadas: {Number(interaction.latitude).toFixed(6)}, {Number(interaction.longitude).toFixed(6)}
+                            </span>
+                            <a
+                              href={`https://www.google.com/maps?q=${interaction.latitude},${interaction.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Ver no mapa
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className={typeConfig.color}>

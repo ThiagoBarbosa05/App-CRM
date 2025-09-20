@@ -29,15 +29,18 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { X, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote } from "lucide-react";
+import { X, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote, Navigation } from "lucide-react";
 import { z } from "zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Extends the base schema for form-specific validation
 const interactionFormSchema = baseInsertClientInteractionSchema.extend({
   date: z.string().min(1, "Data é obrigatória"),
   subject: z.string().min(1, "Assunto é obrigatório"),
   description: z.string().min(1, "Descrição é obrigatória"),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  address: z.string().optional(),
 });
 
 type InteractionFormData = z.infer<typeof interactionFormSchema>;
@@ -86,6 +89,8 @@ export default function InteractionFormModal({
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
 
   const form = useForm<InteractionFormData>({
@@ -101,6 +106,9 @@ export default function InteractionFormModal({
       callResult: undefined,
       status: "completed",
       attachments: [],
+      latitude: undefined,
+      longitude: undefined,
+      address: undefined,
     },
   });
 
@@ -120,6 +128,9 @@ export default function InteractionFormModal({
         callResult: interaction?.callResult || undefined,
         status: interaction?.status || "completed",
         attachments: interaction?.attachments || [],
+        latitude: interaction?.latitude ? Number(interaction.latitude) : undefined,
+        longitude: interaction?.longitude ? Number(interaction.longitude) : undefined,
+        address: interaction?.address || undefined,
       });
     }
   }, [open, interaction, target, user, form]);
@@ -167,6 +178,9 @@ export default function InteractionFormModal({
         date: new Date(data.date).toISOString(),
         // Ensure empty strings for optional fields are not sent
         callResult: data.callResult || undefined,
+        latitude: data.latitude || undefined,
+        longitude: data.longitude || undefined,
+        address: data.address || undefined,
       };
 
       const method = interaction ? "PUT" : "POST";
@@ -184,6 +198,84 @@ export default function InteractionFormModal({
   };
 
   const selectedType = interactionTypes.find(t => t.value === form.watch("type"));
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocalização não é suportada por este navegador.");
+      return;
+    }
+
+    setIsGettingLocation(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        form.setValue("latitude", latitude);
+        form.setValue("longitude", longitude);
+
+        // Tentar obter o endereço usando reverse geocoding
+        try {
+          const response = await fetch(
+            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY&language=pt&no_annotations=1`
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              const address = data.results[0].formatted;
+              form.setValue("address", address);
+            }
+          }
+        } catch (error) {
+          console.log("Erro ao obter endereço:", error);
+          // Define um endereço genérico com as coordenadas
+          form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
+        }
+
+        setIsGettingLocation(false);
+        toast({
+          title: "Localização capturada",
+          description: "Localização atual foi registrada com sucesso.",
+        });
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        let errorMessage = "Erro ao obter localização.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Permissão de localização negada pelo usuário.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Informações de localização não estão disponíveis.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Tempo limite para obter localização excedido.";
+            break;
+        }
+        
+        setLocationError(errorMessage);
+        toast({
+          title: "Erro de localização",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const clearLocation = () => {
+    form.setValue("latitude", undefined);
+    form.setValue("longitude", undefined);
+    form.setValue("address", undefined);
+    setLocationError(null);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -335,6 +427,73 @@ export default function InteractionFormModal({
                   </FormItem>
                 )}
               />
+
+              {form.watch("type") === "visit" && (
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-900">Localização da Visita</h4>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={getCurrentLocation}
+                        disabled={isGettingLocation}
+                        className="text-sm"
+                      >
+                        <Navigation className="h-4 w-4 mr-1" />
+                        {isGettingLocation ? "Obtendo..." : "Capturar Localização"}
+                      </Button>
+                      {(form.watch("latitude") || form.watch("longitude")) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearLocation}
+                          className="text-sm text-red-600 hover:text-red-700"
+                        >
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {locationError && (
+                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                      {locationError}
+                    </div>
+                  )}
+
+                  {form.watch("address") && (
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <strong>Endereço:</strong> {form.watch("address")}
+                    </div>
+                  )}
+
+                  {(form.watch("latitude") && form.watch("longitude")) && (
+                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                      <strong>Coordenadas:</strong> {form.watch("latitude")?.toFixed(6)}, {form.watch("longitude")?.toFixed(6)}
+                    </div>
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço (opcional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Digite o endereço manualmente se necessário..."
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
