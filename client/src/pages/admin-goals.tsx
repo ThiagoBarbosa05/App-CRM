@@ -128,6 +128,27 @@ interface ClientRegistrationGoal {
   updatedAt: string;
 }
 
+interface MarkerGoal {
+  id: string;
+  userId: string;
+  markerName: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface MarkerStats {
+  markerName: string;
+  totalClients: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+}
+
 interface WeeklyResult {
   id: string;
   goalId: string;

@@ -58,6 +58,8 @@ import {
   telemarketingWeeklyResults,
   clientRegistrationGoals,
   clientRegistrationWeeklyResults,
+  markerGoals,
+  markerWeeklyResults,
   learningImages,
   cashbackSettings,
   type CashbackSetting,
@@ -92,6 +94,10 @@ import {
   type Event,
   type InsertEventParticipant,
   type EventParticipant,
+  type InsertMarkerGoal,
+  type MarkerGoal,
+  type InsertMarkerWeeklyResult,
+  type MarkerWeeklyResult,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -408,13 +414,13 @@ export interface IStorage {
   getClientRegistrationGoals(
     userId?: string,
     userRole?: string
-  ): Promise<any[]>;
+  ): Promise<ClientRegistrationGoal[]>;
   getClientRegistrationGoalsByMonthYear(
     month: number,
     year: number,
     userId?: string,
     userRole?: string
-  ): Promise<any[]>;
+  ): Promise<ClientRegistrationGoal[]>;
   createClientRegistrationGoal(
     insertGoal: InsertClientRegistrationGoal
   ): Promise<ClientRegistrationGoal>;
@@ -436,6 +442,28 @@ export interface IStorage {
     id: string,
     result: Partial<InsertClientRegistrationWeeklyResult>
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
+
+  // Marker Goals methods
+  getMarkerGoals(
+    userId?: string,
+    userRole?: string
+  ): Promise<MarkerGoal[]>;
+  getMarkerGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string
+  ): Promise<MarkerGoal[]>;
+  createMarkerGoal(data: InsertMarkerGoal): Promise<MarkerGoal>;
+  updateMarkerGoal(
+    id: string,
+    data: Partial<InsertMarkerGoal>
+  ): Promise<MarkerGoal>;
+  deleteMarkerGoal(id: string): Promise<boolean>;
+  getMarkerStatsByPeriod(
+    month: number,
+    year: number
+  ): Promise<{ markerName: string; totalClients: number; userId: string; userName: string; userEmail: string }[]>;
 
   // Method to get clients without recent contact
   getClientsWithoutRecentContact(
@@ -1070,6 +1098,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sales Funnel methods
+  async getSalesFunnels(): Promise<SalesFunnelWithStages[]>;
   async getSalesFunnels(): Promise<SalesFunnelWithStages[]> {
     const funnels = await this.db
       .select()
@@ -1099,6 +1128,7 @@ export class DatabaseStorage implements IStorage {
     return funnelsWithStages;
   }
 
+  async getSalesFunnel(id: string): Promise<SalesFunnelWithStages | undefined>;
   async getSalesFunnel(id: string): Promise<SalesFunnelWithStages | undefined> {
     const [funnel] = await this.db
       .select()
@@ -1157,6 +1187,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Funnel Stage methods
+  async getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
   async getFunnelStages(funnelId: string): Promise<FunnelStage[]> {
     return await this.db
       .select()
@@ -1238,6 +1269,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean>;
   async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean> {
     try {
       await this.db.transaction(async (tx) => {
@@ -1555,7 +1587,7 @@ export class DatabaseStorage implements IStorage {
         if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
           // Format: YYYY-MM-DD
           birthday = new Date(client.birthday);
-        } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        } else if (client.birthday.match(/^\d{2}\/\d{2}/\d{4}$/)) {
           // Format: DD/MM/YYYY
           const [day, month, year] = client.birthday.split("/");
           birthday = new Date(
@@ -1601,9 +1633,9 @@ export class DatabaseStorage implements IStorage {
     try {
       const targetMonth = targetDate.getMonth() + 1; // getMonth() returns 0-11
       const targetDay = targetDate.getDate();
-      
+
       console.log(`[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth}`);
-      
+
       // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
       const birthdayClients = await this.db
         .select()
@@ -1613,8 +1645,8 @@ export class DatabaseStorage implements IStorage {
             isNotNull(clients.birthday),
             // Use SQL bruto para comparar mês e dia do aniversário
             sql`(
-              (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND 
-               EXTRACT(MONTH FROM ${clients.birthday}::date) = ${targetMonth} AND 
+              (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
+               EXTRACT(MONTH FROM ${clients.birthday}::date) = ${targetMonth} AND
                EXTRACT(DAY FROM ${clients.birthday}::date) = ${targetDay})
               OR
               (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
@@ -1625,9 +1657,9 @@ export class DatabaseStorage implements IStorage {
         );
 
       console.log(`[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) para ${targetDay}/${targetMonth}`);
-      
+
       return birthdayClients;
-      
+
     } catch (error) {
       console.error("[Storage] Erro ao buscar clientes aniversariantes:", error);
       return [];
@@ -1712,6 +1744,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Tags methods
+  async getTags(): Promise<Tag[]>;
   async getTags(): Promise<Tag[]> {
     const result = await this.db.select().from(tags).orderBy(tags.createdAt);
     return result.reverse();
@@ -1759,6 +1792,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Interactions methods
+  async getClientInteractions(
+    clientId: string
+  ): Promise<ClientInteractionWithUser[]>;
   async getClientInteractions(
     clientId: string
   ): Promise<ClientInteractionWithUser[]> {
@@ -1860,6 +1896,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Email Campaign methods
+  async getEmailCampaigns(): Promise<any[]>;
   async getEmailCampaigns(): Promise<any[]> {
     const campaigns = await this.db
       .select({
@@ -1997,6 +2034,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User Goals methods
+  async getUserGoals(): Promise<any[]>;
   async getUserGoals(): Promise<any[]> {
     const result = await this.db
       .select({
@@ -2125,6 +2163,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Weekly Results methods
+  async getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   async getWeeklyResultsByGoalId(goalId: string): Promise<any[]> {
     const results = await this.db
       .select()
@@ -2186,6 +2225,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Learning Images methods
+  async getLearningImages(): Promise<LearningImage[]>;
   async getLearningImages(): Promise<LearningImage[]> {
     const result = await this.db
       .select()
@@ -2233,6 +2273,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Cashback Settings methods
+  async getCashbackSettings(): Promise<CashbackSetting[]>;
   async getCashbackSettings(): Promise<CashbackSetting[]> {
     const result = await this.db
       .select()
@@ -2863,6 +2904,9 @@ export class DatabaseStorage implements IStorage {
   // Telemarketing Weekly Results methods
   async getTelemarketingWeeklyResults(
     goalId: string
+  ): Promise<TelemarketingWeeklyResult[]>;
+  async getTelemarketingWeeklyResults(
+    goalId: string
   ): Promise<TelemarketingWeeklyResult[]> {
     return await this.db
       .select()
@@ -2972,31 +3016,18 @@ export class DatabaseStorage implements IStorage {
   async getClientRegistrationGoals(
     userId?: string,
     userRole?: string
-  ): Promise<any[]> {
-    let query = this.db
-      .select({
-        id: clientRegistrationGoals.id,
-        userId: clientRegistrationGoals.userId,
-        targetQuantity: clientRegistrationGoals.targetQuantity,
-        month: clientRegistrationGoals.month,
-        year: clientRegistrationGoals.year,
-        createdAt: clientRegistrationGoals.createdAt,
-        updatedAt: clientRegistrationGoals.updatedAt,
-        userName: users.name,
-        userEmail: users.email,
-      })
-      .from(clientRegistrationGoals)
-      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id));
+  ): Promise<ClientRegistrationGoal[]>;
+  async getClientRegistrationGoals(
+    userId?: string,
+    userRole?: string
+  ): Promise<ClientRegistrationGoal[]> {
+    let query = this.db.select().from(clientRegistrationGoals);
 
-    // Vendedores só veem suas próprias metas
-    if (userRole === "vendedor" && userId) {
-      query = query.where(
-        eq(clientRegistrationGoals.userId, userId)
-      ) as typeof query;
+    if (userRole !== "admin" && userRole !== "administrador" && userId) {
+      query = query.where(eq(clientRegistrationGoals.userId, userId));
     }
 
-    const goals = await query.orderBy(desc(clientRegistrationGoals.createdAt));
-    return goals;
+    return query;
   }
 
   async getClientRegistrationGoalsByMonthYear(
@@ -3004,40 +3035,24 @@ export class DatabaseStorage implements IStorage {
     year: number,
     userId?: string,
     userRole?: string
-  ): Promise<any[]> {
+  ): Promise<ClientRegistrationGoal[]>;
+  async getClientRegistrationGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string
+  ): Promise<ClientRegistrationGoal[]> {
     let query = this.db
-      .select({
-        id: clientRegistrationGoals.id,
-        userId: clientRegistrationGoals.userId,
-        targetQuantity: clientRegistrationGoals.targetQuantity,
-        month: clientRegistrationGoals.month,
-        year: clientRegistrationGoals.year,
-        createdAt: clientRegistrationGoals.createdAt,
-        updatedAt: clientRegistrationGoals.updatedAt,
-        userName: users.name,
-        userEmail: users.email,
-      })
+      .select()
       .from(clientRegistrationGoals)
-      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id));
-
-    // Aplicar filtros
-    let whereConditions = and(
-      eq(clientRegistrationGoals.month, month),
-      eq(clientRegistrationGoals.year, year)
-    );
+      .where(and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year)));
 
     // Vendedores só veem suas próprias metas
-    if (userRole === "vendedor" && userId) {
-      whereConditions = and(
-        whereConditions,
-        eq(clientRegistrationGoals.userId, userId)
-      );
+    if (userRole !== "admin" && userRole !== "administrador" && userId) {
+      query = query.where(eq(clientRegistrationGoals.userId, userId));
     }
 
-    const goals = await query
-      .where(whereConditions)
-      .orderBy(desc(clientRegistrationGoals.createdAt));
-    return goals;
+    return query;
   }
 
   async createClientRegistrationGoal(
@@ -3127,6 +3142,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Client Registration Weekly Results methods
+  async getClientRegistrationWeeklyResults(
+    goalId: string
+  ): Promise<ClientRegistrationWeeklyResult[]>;
   async getClientRegistrationWeeklyResults(
     goalId: string
   ): Promise<ClientRegistrationWeeklyResult[]> {
@@ -3558,6 +3576,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sales Methods
+  async getSales(): Promise<Sale[]>;
   async getSales(): Promise<Sale[]> {
     const salesData = await this.db
       .select({
@@ -3754,60 +3773,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get interactions for a company (through company deals and interactions)
-  // async getCompanyInteractions(
-  //   companyId: string
-  // ): Promise<ClientInteractionWithUser[]> {
-  //   // First, get all deals for this company
-  //   const companyDeals = await this.db
-  //     .select({ clientId: deals.clientId })
-  //     .from(deals)
-  //     .where(eq(deals.companyId, companyId));
-
-  //   if (companyDeals.length === 0) {
-  //     return [];
-  //   }
-
-  //   // Get unique client IDs
-  //   const clientIds = [
-  //     ...new Set(companyDeals.map((deal) => deal.clientId).filter(Boolean)),
-  //   ];
-
-  //   if (clientIds.length === 0) {
-  //     return [];
-  //   }
-
-  //   // Get interactions for these clients
-  //   const interactions = await this.db
-  //     .select({
-  //       id: clientInteractions.id,
-  //       clientId: clientInteractions.clientId,
-  //       userId: clientInteractions.userId,
-  //       type: clientInteractions.type,
-  //       subject: clientInteractions.subject,
-  //       description: clientInteractions.description,
-  //       date: clientInteractions.date,
-  //       callResult: clientInteractions.callResult,
-  //       status: clientInteractions.status,
-  //       attachments: clientInteractions.attachments,
-  //       createdAt: clientInteractions.createdAt,
-  //       updatedAt: clientInteractions.updatedAt,
-  //       user: {
-  //         id: users.id,
-  //         name: users.name,
-  //         email: users.email,
-  //         role: users.role,
-  //       },
-  //     })
-  //     .from(clientInteractions)
-  //     .innerJoin(users, eq(clientInteractions.userId, users.id))
-  //     .where(inArray(clientInteractions.clientId, clientIds))
-  //     .orderBy(clientInteractions.date);
-
-  //   return interactions.map((interaction) => ({
-  //     ...interaction,
-  //     user: interaction.user as User,
-  //   })) as ClientInteractionWithUser[];
-  // }
   async getCompanyInteractions(
     companyId: string
   ): Promise<ClientInteractionWithUser[]> {
@@ -3848,30 +3813,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Products Methods
-  // async getProducts() {
-  //   try {
-  //     const productsList = await this.db
-  //       .select({
-  //         id: products.id,
-  //         name: products.name,
-  //         country: products.country,
-  //         volume: products.volume,
-  //         type: products.type,
-  //         negotiatedPrice: products.negotiatedPrice,
-  //         createdByName: users.name,
-  //         createdAt: products.createdAt,
-  //       })
-  //       .from(products)
-  //       .leftJoin(users, eq(products.createdBy, users.id))
-  //       .orderBy(desc(products.createdAt));
-
-  //     return productsList;
-  //   } catch (error) {
-  //     console.error("Error fetching products:", error);
-  //     throw error;
-  //   }
-  // }
-
   async createProduct(productData: any) {
     try {
       const [product] = await this.db
@@ -4190,6 +4131,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Events methods
+  async getEvents(userId?: string, userRole?: string): Promise<Event[]>;
   async getEvents(userId?: string, userRole?: string): Promise<Event[]> {
     try {
       const baseQuery = this.db
@@ -4210,8 +4152,8 @@ export class DatabaseStorage implements IStorage {
           updatedAt: events.updatedAt,
           creatorName: users.name,
           participantCount: sql<number>`(
-            SELECT COALESCE(SUM(${eventParticipants.numberOfParticipants}), 0)::int 
-            FROM ${eventParticipants} 
+            SELECT COALESCE(SUM(${eventParticipants.numberOfParticipants}), 0)::int
+            FROM ${eventParticipants}
             WHERE ${eventParticipants.eventId} = ${events.id}
             AND ${eventParticipants.status} != 'cancelado'
           )`,

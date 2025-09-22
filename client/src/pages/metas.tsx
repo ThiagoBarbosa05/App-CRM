@@ -102,6 +102,27 @@ interface ClientRegistrationStats {
   totalRegistrations: number;
 }
 
+interface MarkerGoal {
+  id: string;
+  userId: string;
+  markerName: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface MarkerStats {
+  markerName: string;
+  totalClients: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+}
+
 export default function Metas() {
   const { user } = useAuth();
 
@@ -146,6 +167,16 @@ export default function Metas() {
     queryKey: [
       `/api/client-registration-stats/${selectedMonth}/${selectedYear}`,
     ],
+  });
+
+  // Buscar metas de marcadores
+  const { data: markerGoals = [] } = useQuery<MarkerGoal[]>({
+    queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de marcadores
+  const { data: markerStats = [] } = useQuery<MarkerStats[]>({
+    queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
   });
 
   // Função para calcular percentual atingido
@@ -194,6 +225,12 @@ export default function Metas() {
     user?.role === "admin" || user?.role === "gerente"
       ? clientRegistrationGoals
       : clientRegistrationGoals.filter((goal) => goal.userId === user?.id);
+
+  // Filtrar metas de marcadores do usuário logado ou mostrar todas se for admin/gerente
+  const filteredMarkerGoals =
+    user?.role === "admin" || user?.role === "gerente"
+      ? markerGoals
+      : markerGoals.filter((goal) => goal.userId === user?.id);
 
   // Função auxiliar para garantir weeklyResults sempre é um array
   const getWeeklyResults = (goal: UserGoal) => {
@@ -706,6 +743,154 @@ export default function Metas() {
                                 <div className="flex items-center justify-center">
                                   {percentage >= 100 ? (
                                     <div className="flex items-center gap-2 text-emerald-600">
+                                      <Trophy className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Meta Atingida!
+                                      </span>
+                                    </div>
+                                  ) : percentage >= 75 ? (
+                                    <div className="flex items-center gap-2 text-yellow-600">
+                                      <TrendingUp className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Quase lá!
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                      <Target className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Em progresso
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Informações da Meta */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                    Período:
+                                  </span>
+                                  <span className="font-medium">
+                                    {new Date(
+                                      0,
+                                      goal.month - 1,
+                                    ).toLocaleDateString("pt-BR", {
+                                      month: "long",
+                                    })}{" "}
+                                    {goal.year}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Restam:</span>
+                                  <span className="font-medium">
+                                    {Math.max(
+                                      0,
+                                      goal.targetQuantity - achieved,
+                                    )}{" "}
+                                    clientes
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Seção de Metas de Marcadores */}
+              {filteredMarkerGoals.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Badge className="h-8 w-8 text-orange-600" />
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Metas de Marcadores
+                      </h2>
+                      <p className="text-gray-600">
+                        Acompanhe as metas por marcadores em{" "}
+                        {format(
+                          new Date(selectedYear, selectedMonth - 1),
+                          "MMMM 'de' yyyy",
+                          { locale: ptBR },
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredMarkerGoals.map((goal) => {
+                      // Buscar estatísticas do marcador para o usuário
+                      const userMarkerStats = markerStats.find(
+                        (stat) => stat.userId === goal.userId && stat.markerName === goal.markerName
+                      );
+                      const achieved = userMarkerStats
+                        ? userMarkerStats.totalClients
+                        : 0;
+                      const percentage =
+                        goal.targetQuantity > 0
+                          ? calculatePercentage(achieved, goal.targetQuantity)
+                          : 0;
+
+                      return (
+                        <Card
+                          key={goal.id}
+                          className="relative border-orange-200 hover:shadow-lg transition-shadow"
+                        >
+                          <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg text-orange-900">
+                                {goal.userName}
+                              </CardTitle>
+                              <Badge
+                                variant="outline"
+                                className="bg-white border-orange-300 text-orange-700"
+                              >
+                                <Badge className="h-3 w-3 mr-1" />
+                                {goal.markerName}
+                              </Badge>
+                            </div>
+                            <CardDescription className="text-orange-700">
+                              {goal.userEmail}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-6">
+                            {/* Progresso da Meta */}
+                            <div className="space-y-4">
+                              <div>
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-sm font-medium text-orange-900">
+                                    Clientes com "{goal.markerName}"
+                                  </span>
+                                  <span className="text-sm text-orange-600">
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                  <div
+                                    className="bg-orange-600 h-3 rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${Math.min(percentage, 100)}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                  <span>Alcançado: {achieved} clientes</span>
+                                  <span>
+                                    Meta: {goal.targetQuantity} clientes
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Status da Meta */}
+                              <div className="mt-4 pt-4 border-t">
+                                <div className="flex items-center justify-center">
+                                  {percentage >= 100 ? (
+                                    <div className="flex items-center gap-2 text-orange-600">
                                       <Trophy className="h-5 w-5" />
                                       <span className="font-medium">
                                         Meta Atingida!

@@ -616,6 +616,46 @@ export const clientRegistrationWeeklyResults = pgTable(
   }
 );
 
+// Tabela de metas de marcadores de clientes
+export const markerGoals = pgTable(
+  "marker_goals",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id)
+      .notNull(),
+    markerName: text("marker_name").notNull(), // Nome do marcador alvo
+    targetQuantity: integer("target_quantity").notNull(), // Quantidade de clientes com este marcador
+    month: integer("month").notNull(), // Mês da meta (1-12)
+    year: integer("year").notNull(), // Ano da meta
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    // Constraint composta: um usuário só pode ter uma meta por marcador/mês/ano
+    uniqueUserMarkerMonthYear: sql`UNIQUE (${table.userId}, ${table.markerName}, ${table.month}, ${table.year})`,
+  })
+);
+
+// Tabela de resultados semanais das metas de marcadores
+export const markerWeeklyResults = pgTable(
+  "marker_weekly_results",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    markerGoalId: varchar("marker_goal_id")
+      .references(() => markerGoals.id, { onDelete: "cascade" })
+      .notNull(),
+    week: integer("week").notNull(), // Semana do mês (1-4)
+    quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes com o marcador
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  }
+);
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(
   birthdayReminders,
@@ -848,6 +888,22 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   updatedAt: true,
 });
 
+export const insertMarkerGoalSchema = createInsertSchema(
+  markerGoals
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMarkerWeeklyResultSchema = createInsertSchema(
+  markerWeeklyResults
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertCompanyProductSchema = createInsertSchema(
   companyProducts
 ).omit({
@@ -927,6 +983,10 @@ export type InsertClientRegistrationWeeklyResult = z.infer<
 >;
 export type ClientRegistrationWeeklyResult =
   typeof clientRegistrationWeeklyResults.$inferSelect;
+export type InsertMarkerGoal = z.infer<typeof insertMarkerGoalSchema>;
+export type MarkerGoal = typeof markerGoals.$inferSelect;
+export type InsertMarkerWeeklyResult = z.infer<typeof insertMarkerWeeklyResultSchema>;
+export type MarkerWeeklyResult = typeof markerWeeklyResults.$inferSelect;
 
 export type InsertTrainingAttachment = z.infer<typeof insertTrainingAttachment>;
 export type TrainingAttachment = typeof trainingAttachments.$inferSelect;

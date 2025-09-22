@@ -33,6 +33,9 @@ import {
   insertProductSchema,
   insertEventSchema,
   insertEventParticipantSchema,
+  insertMarkerGoalSchema,
+  markerGoals,
+  markerWeeklyResults,
   clientInteractions,
   clients,
   users,
@@ -557,7 +560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para a página de Acompanhamento
+  // Rota da página de Acompanhamento
   app.get("/api/acompanhamento", async (req, res) => {
     try {
       const userId = req.headers["x-user-id"] as string;
@@ -1658,10 +1661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.query.userRole as string) ||
         (req.headers["x-user-role"] as string);
 
-      const transactions = await storage.getCashbackTransactions(
-        userId,
-        userRole
-      );
+      const transactions = await storage.getCashbackTransactions(userId, userRole);
       res.json(transactions);
     } catch (error) {
       console.error("Erro ao buscar transações:", error);
