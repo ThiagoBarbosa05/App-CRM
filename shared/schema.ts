@@ -208,7 +208,7 @@ export const userServiceChannel = pgTable("user_service_channel", {
     .default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
   serviceChannelId: text("service_channel_id").references(
-    () => serviceChannels.id,
+    () => serviceChannels.id
   ),
 });
 
@@ -229,7 +229,7 @@ export const salesFunnelsRelations = relations(
     }),
     stages: many(funnelStages),
     deals: many(deals),
-  }),
+  })
 );
 
 export const funnelStagesRelations = relations(
@@ -240,7 +240,7 @@ export const funnelStagesRelations = relations(
       references: [salesFunnels.id],
     }),
     deals: many(deals),
-  }),
+  })
 );
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -284,7 +284,7 @@ export const companyProductsRelations = relations(
       fields: [companyProducts.addedBy],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 export const dealsRelations = relations(deals, ({ one }) => ({
@@ -428,7 +428,7 @@ export const clientInteractionsRelations = relations(
       fields: [clientInteractions.companyId],
       references: [companies.id],
     }),
-  }),
+  })
 );
 
 // Email Marketing Campaign tables
@@ -505,7 +505,7 @@ export const userGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  }),
+  })
 );
 
 // Tabela de resultados semanais das metas
@@ -557,7 +557,7 @@ export const telemarketingGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por resultado/mês/ano
     uniqueUserResultMonthYear: sql`UNIQUE (${table.userId}, ${table.targetResult}, ${table.month}, ${table.year})`,
-  }),
+  })
 );
 
 // Tabela de resultados semanais das metas de telemarketing
@@ -574,7 +574,7 @@ export const telemarketingWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de chamadas alcançadas com o resultado
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
+  }
 );
 
 // Tabela de metas de cadastros de clientes
@@ -596,7 +596,7 @@ export const clientRegistrationGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  }),
+  })
 );
 
 // Tabela de resultados semanais das metas de cadastros
@@ -613,7 +613,7 @@ export const clientRegistrationWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes cadastrados
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
+  }
 );
 
 // Birthday reminder relations
@@ -628,7 +628,7 @@ export const birthdayRemindersRelations = relations(
       fields: [birthdayReminders.createdBy],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 // Schemas de inserção
@@ -682,7 +682,7 @@ export const insertDealSchema = createInsertSchema(deals)
     {
       message: "Cliente ou empresa é obrigatório",
       path: ["clientId"],
-    },
+    }
   );
 
 // Schema para atualizações - sem validação restritiva
@@ -698,7 +698,7 @@ export const updateDealSchema = createInsertSchema(deals)
   .partial();
 
 export const insertBirthdayReminderSchema = createInsertSchema(
-  birthdayReminders,
+  birthdayReminders
 ).omit({
   id: true,
   createdAt: true,
@@ -706,7 +706,7 @@ export const insertBirthdayReminderSchema = createInsertSchema(
 });
 
 export const insertBirthdayReminderSettingsSchema = createInsertSchema(
-  birthdayReminderSettings,
+  birthdayReminderSettings
 ).omit({
   id: true,
   createdAt: true,
@@ -734,7 +734,7 @@ export const insertMarkerSchema = insertTagSchema.omit({ type: true });
 export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
 export const baseInsertClientInteractionSchema = createInsertSchema(
-  clientInteractions,
+  clientInteractions
 )
   .omit({
     id: true,
@@ -752,6 +752,25 @@ export const baseInsertClientInteractionSchema = createInsertSchema(
       .optional()
       .nullable()
       .transform((val) => (val === "" ? null : val)),
+    // Fix latitude and longitude to accept both string and number
+    latitude: z
+      .union([z.string(), z.number()])
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (val === null || val === undefined || val === "") return null;
+        const num = typeof val === "string" ? parseFloat(val) : val;
+        return isNaN(num) ? null : num.toString();
+      }),
+    longitude: z
+      .union([z.string(), z.number()])
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (val === null || val === undefined || val === "") return null;
+        const num = typeof val === "string" ? parseFloat(val) : val;
+        return isNaN(num) ? null : num.toString();
+      }),
   });
 
 export const insertClientInteractionSchema =
@@ -761,10 +780,10 @@ export const insertClientInteractionSchema =
       message:
         "A interação deve estar associada a um cliente ou a uma empresa.",
       path: ["clientId"],
-    },
+    }
   );
 export const insertEmailCampaignSchema = createInsertSchema(
-  emailCampaigns,
+  emailCampaigns
 ).omit({
   id: true,
   createdAt: true,
@@ -772,7 +791,7 @@ export const insertEmailCampaignSchema = createInsertSchema(
 });
 
 export const insertEmailCampaignRecipientSchema = createInsertSchema(
-  emailCampaignRecipients,
+  emailCampaignRecipients
 ).omit({
   id: true,
   createdAt: true,
@@ -791,7 +810,7 @@ export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
 });
 
 export const insertTelemarketingGoalSchema = createInsertSchema(
-  telemarketingGoals,
+  telemarketingGoals
 ).omit({
   id: true,
   createdAt: true,
@@ -799,7 +818,7 @@ export const insertTelemarketingGoalSchema = createInsertSchema(
 });
 
 export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
-  telemarketingWeeklyResults,
+  telemarketingWeeklyResults
 ).omit({
   id: true,
   createdAt: true,
@@ -807,7 +826,7 @@ export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertClientRegistrationGoalSchema = createInsertSchema(
-  clientRegistrationGoals,
+  clientRegistrationGoals
 ).omit({
   id: true,
   createdAt: true,
@@ -815,14 +834,14 @@ export const insertClientRegistrationGoalSchema = createInsertSchema(
 });
 
 export const insertTrainingAttachment = createInsertSchema(
-  trainingAttachments,
+  trainingAttachments
 ).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
-  clientRegistrationWeeklyResults,
+  clientRegistrationWeeklyResults
 ).omit({
   id: true,
   createdAt: true,
@@ -830,7 +849,7 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertCompanyProductSchema = createInsertSchema(
-  companyProducts,
+  companyProducts
 ).omit({
   id: true,
   addedAt: true,
@@ -1110,7 +1129,7 @@ export const insertCashbackTransactionSchema = z.object({
     .optional(),
 });
 export const insertClientCashbackBalanceSchema = createInsertSchema(
-  clientCashbackBalance,
+  clientCashbackBalance
 ).omit({
   id: true,
 });
@@ -1118,7 +1137,7 @@ export const insertCashbackUsageSchema = createInsertSchema(cashbackUsage).omit(
   {
     id: true,
     createdAt: true,
-  },
+  }
 );
 
 export type LearningImage = typeof learningImages.$inferSelect;
@@ -1420,7 +1439,7 @@ export const eventParticipantsRelations = relations(
       fields: [eventParticipants.registeredBy],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 // Schemas de inserção para eventos
@@ -1431,7 +1450,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
 });
 
 export const insertEventParticipantSchema = createInsertSchema(
-  eventParticipants,
+  eventParticipants
 )
   .omit({
     id: true,

@@ -2,7 +2,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ClientInteraction, insertClientInteractionSchema, baseInsertClientInteractionSchema } from "@shared/schema";
+import {
+  ClientInteraction,
+  insertClientInteractionSchema,
+  baseInsertClientInteractionSchema,
+} from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -29,17 +33,46 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { X, Clock, Phone, Mail, MessageSquare, Users, MapPin, StickyNote, Navigation } from "lucide-react";
+import {
+  X,
+  Clock,
+  Phone,
+  Mail,
+  MessageSquare,
+  Users,
+  MapPin,
+  StickyNote,
+  Navigation,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 // Extends the base schema for form-specific validation
 const interactionFormSchema = baseInsertClientInteractionSchema.extend({
   date: z.string().min(1, "Data é obrigatória"),
   subject: z.string().min(1, "Assunto é obrigatório"),
   description: z.string().min(1, "Descrição é obrigatória"),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .transform((val) => {
+      if (val === null || val === undefined || val === "") return undefined;
+      const num = typeof val === "string" ? parseFloat(val) : val;
+      return isNaN(num) ? undefined : num;
+    }),
+  longitude: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .transform((val) => {
+      if (val === null || val === undefined || val === "") return undefined;
+      const num = typeof val === "string" ? parseFloat(val) : val;
+      return isNaN(num) ? undefined : num;
+    }),
   address: z.string().optional(),
 });
 
@@ -50,7 +83,7 @@ interface InteractionFormModalProps {
   onOpenChange: (open: boolean) => void;
   target: {
     id: string;
-    type: 'client' | 'company';
+    type: "client" | "company";
   };
   interaction?: ClientInteraction;
 }
@@ -80,11 +113,11 @@ const callResultOptions = [
   { value: "OUTROS", label: "OUTROS" },
 ];
 
-export default function InteractionFormModal({ 
-  open, 
-  onOpenChange, 
-  target, 
-  interaction 
+export default function InteractionFormModal({
+  open,
+  onOpenChange,
+  target,
+  interaction,
 }: InteractionFormModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -92,17 +125,20 @@ export default function InteractionFormModal({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // Refs to track form initialization and cache geocoding results
+  const formInitialized = useRef(false);
+  const addressCache = useRef<Map<string, string>>(new Map());
 
   const form = useForm<InteractionFormData>({
     resolver: zodResolver(interactionFormSchema),
     defaultValues: {
-      clientId: target?.type === 'client' ? target.id : undefined,
-      companyId: target?.type === 'company' ? target.id : undefined,
-      userId: user?.id || "",
+      clientId: "",
+      companyId: "",
+      userId: "",
       type: "note",
       subject: "",
       description: "",
-      date: new Date().toISOString().slice(0, 16),
+      date: "",
       callResult: undefined,
       status: "completed",
       attachments: [],
@@ -112,38 +148,86 @@ export default function InteractionFormModal({
     },
   });
 
-
-  // Effect to update form when interaction or target changes
-  useEffect(() => {
-    if (open) {
+  // Memoized function to get default values
+  const getDefaultValues = useCallback(
+    (
+      targetData: typeof target,
+      userData: typeof user,
+      interactionData?: ClientInteraction
+    ) => {
       const defaultDate = new Date().toISOString().slice(0, 16);
-      form.reset({
-        clientId: target?.type === 'client' ? target.id : undefined,
-        companyId: target?.type === 'company' ? target.id : undefined,
-        userId: user?.id || "",
-        type: interaction?.type || "note",
-        subject: interaction?.subject || "",
-        description: interaction?.description || "",
-        date: interaction?.date ? new Date(interaction.date).toISOString().slice(0, 16) : defaultDate,
-        callResult: interaction?.callResult || undefined,
-        status: interaction?.status || "completed",
-        attachments: interaction?.attachments || [],
-        latitude: interaction?.latitude ? Number(interaction.latitude) : undefined,
-        longitude: interaction?.longitude ? Number(interaction.longitude) : undefined,
-        address: interaction?.address || undefined,
-      });
+      return {
+        clientId: targetData?.type === "client" ? targetData.id : undefined,
+        companyId: targetData?.type === "company" ? targetData.id : undefined,
+        userId: userData?.id || "",
+        type: interactionData?.type || "note",
+        subject: interactionData?.subject || "",
+        description: interactionData?.description || "",
+        date: interactionData?.date
+          ? new Date(interactionData.date).toISOString().slice(0, 16)
+          : defaultDate,
+        callResult: interactionData?.callResult || undefined,
+        status: interactionData?.status || "completed",
+        attachments: interactionData?.attachments || [],
+        latitude: interactionData?.latitude
+          ? Number(interactionData.latitude)
+          : undefined,
+        longitude: interactionData?.longitude
+          ? Number(interactionData.longitude)
+          : undefined,
+        address: interactionData?.address || undefined,
+      };
+    },
+    []
+  );
+
+  // Effect to initialize form when modal opens
+  useEffect(() => {
+    if (open && target && user) {
+      const defaultValues = getDefaultValues(target, user, interaction);
+      form.reset(defaultValues);
+      formInitialized.current = true;
+      setLocationError(null);
+    } else if (!open) {
+      formInitialized.current = false;
     }
-  }, [open, interaction, target, user, form]);
+  }, [
+    open,
+    target?.id,
+    target?.type,
+    user?.id,
+    interaction?.id,
+    form,
+    getDefaultValues,
+    interaction,
+  ]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (!open) {
+        setIsGettingLocation(false);
+        setLocationError(null);
+        formInitialized.current = false;
+      }
+    };
+  }, [open]);
 
   const handleMutationSuccess = (isUpdate: boolean) => {
     // Invalidate relevant queries
-    if (target?.type === 'client') {
-      queryClient.invalidateQueries({ queryKey: ['interactions', 'client', target.id] });
-      queryClient.invalidateQueries({ queryKey: ['clients', target.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", target.id, "interactions"] });
-    } else if (target?.type === 'company') {
-      queryClient.invalidateQueries({ queryKey: ['interactions', 'company', target.id] });
-      queryClient.invalidateQueries({ queryKey: ['companies', target.id] });
+    if (target?.type === "client") {
+      queryClient.invalidateQueries({
+        queryKey: ["interactions", "client", target.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["clients", target.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/clients", target.id, "interactions"],
+      });
+    } else if (target?.type === "company") {
+      queryClient.invalidateQueries({
+        queryKey: ["interactions", "company", target.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["companies", target.id] });
     }
 
     // Invalidate general stats if a call was logged
@@ -157,8 +241,10 @@ export default function InteractionFormModal({
     }
 
     toast({
-      title: `Interação ${isUpdate ? 'atualizada' : 'criada'}`,
-      description: `A interação foi ${isUpdate ? 'atualizada' : 'adicionada'} com sucesso.`,
+      title: `Interação ${isUpdate ? "atualizada" : "criada"}`,
+      description: `A interação foi ${
+        isUpdate ? "atualizada" : "adicionada"
+      } com sucesso.`,
     });
     onOpenChange(false);
   };
@@ -166,7 +252,9 @@ export default function InteractionFormModal({
   const handleMutationError = (error: any, isUpdate: boolean) => {
     toast({
       title: "Erro",
-      description: error.message || `Não foi possível ${isUpdate ? 'atualizar' : 'criar'} a interação.`,
+      description:
+        error.message ||
+        `Não foi possível ${isUpdate ? "atualizar" : "criar"} a interação.`,
       variant: "destructive",
     });
   };
@@ -176,15 +264,31 @@ export default function InteractionFormModal({
       const payload = {
         ...data,
         date: new Date(data.date).toISOString(),
-        // Ensure empty strings for optional fields are not sent
+        // Ensure proper handling of optional fields
         callResult: data.callResult || undefined,
-        latitude: data.latitude || undefined,
-        longitude: data.longitude || undefined,
-        address: data.address || undefined,
+        // Convert coordinates to strings for backend compatibility
+        latitude:
+          data.latitude !== undefined && data.latitude !== null
+            ? String(data.latitude)
+            : undefined,
+        longitude:
+          data.longitude !== undefined && data.longitude !== null
+            ? String(data.longitude)
+            : undefined,
+        address: data.address?.trim() || undefined,
       };
 
+      // Remove undefined values to avoid sending them
+      Object.keys(payload).forEach((key) => {
+        if (payload[key as keyof typeof payload] === undefined) {
+          delete payload[key as keyof typeof payload];
+        }
+      });
+
       const method = interaction ? "PUT" : "POST";
-      const endpoint = interaction ? `/api/interactions/${interaction.id}` : "/api/interactions";
+      const endpoint = interaction
+        ? `/api/interactions/${interaction.id}`
+        : "/api/interactions";
 
       const response = await apiRequest(method, endpoint, payload);
       return response.json();
@@ -197,75 +301,174 @@ export default function InteractionFormModal({
     mutation.mutate(data);
   };
 
-  const selectedType = interactionTypes.find(t => t.value === form.watch("type"));
+  const selectedType = interactionTypes.find(
+    (t) => t.value === form.watch("type")
+  );
 
-  const getCurrentLocation = async () => {
+  // Function to get address from coordinates with caching
+  // This prevents unnecessary API calls for the same coordinates
+  const getAddressFromCoordinates = useCallback(
+    async (latitude: number, longitude: number): Promise<string> => {
+      const cacheKey = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+
+      // Check cache first to avoid redundant API calls
+      if (addressCache.current.has(cacheKey)) {
+        return addressCache.current.get(cacheKey)!;
+      }
+
+      const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
+
+      if (!apiKey || apiKey === "YOUR_API_KEY") {
+        const fallbackAddress = `Localização: ${latitude.toFixed(
+          6
+        )}, ${longitude.toFixed(6)}`;
+        addressCache.current.set(cacheKey, fallbackAddress);
+        return fallbackAddress;
+      }
+
+      try {
+        const response = await fetch(
+          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt&no_annotations=1&limit=1`,
+          {
+            signal: AbortSignal.timeout(8000), // 8 second timeout to prevent hanging
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Validate OpenCage API response format
+        if (data.status?.code !== 200) {
+          throw new Error(
+            `API Error: ${data.status?.message || "Unknown error"}`
+          );
+        }
+
+        let address: string;
+        if (
+          data.results &&
+          data.results.length > 0 &&
+          data.results[0].formatted
+        ) {
+          address = data.results[0].formatted;
+        } else {
+          address = `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(
+            6
+          )}`;
+        }
+
+        // Cache the result for future use
+        addressCache.current.set(cacheKey, address);
+        return address;
+      } catch (error) {
+        console.warn("Erro ao obter endereço:", error);
+        const fallbackAddress = `Localização: ${latitude.toFixed(
+          6
+        )}, ${longitude.toFixed(6)}`;
+        addressCache.current.set(cacheKey, fallbackAddress);
+        return fallbackAddress;
+      }
+    },
+    []
+  );
+
+  const getCurrentLocation = useCallback(async () => {
+    // Prevent multiple simultaneous location requests to avoid race conditions
+    if (isGettingLocation) {
+      return;
+    }
+
     try {
       if (!navigator.geolocation) {
-        setLocationError("Geolocalização não é suportada por este navegador.");
-        return;
+        throw new Error("Geolocalização não é suportada por este navegador.");
       }
 
       setIsGettingLocation(true);
       setLocationError(null);
 
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      });
+      // Get current position with enhanced error handling
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error("Tempo limite excedido"));
+          }, 15000);
+
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(timeoutId);
+              resolve(pos);
+            },
+            (error) => {
+              clearTimeout(timeoutId);
+              reject(error);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 60000, // Accept cached position up to 1 minute old for better UX
+            }
+          );
+        }
+      );
 
       const { latitude, longitude } = position.coords;
-      form.setValue("latitude", latitude);
-      form.setValue("longitude", longitude);
 
-      // Tentar obter o endereço usando reverse geocoding
+      // Validate coordinates to ensure they're within valid ranges
+      if (
+        !isFinite(latitude) ||
+        !isFinite(longitude) ||
+        Math.abs(latitude) > 90 ||
+        Math.abs(longitude) > 180
+      ) {
+        throw new Error("Coordenadas inválidas recebidas");
+      }
+
+      // Update form with coordinates immediately to prevent form reset issues
+      form.setValue("latitude", latitude, { shouldValidate: true });
+      form.setValue("longitude", longitude, { shouldValidate: true });
+
+      // Get address in background without blocking the UI
       try {
-        // Verificar se existe API key configurada
-        const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
-        
-        if (apiKey && apiKey !== 'YOUR_API_KEY') {
-          const response = await fetch(
-            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt&no_annotations=1`
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-              const address = data.results[0].formatted;
-              form.setValue("address", address);
-            } else {
-              // Se não há resultados, usar coordenadas
-              form.setValue("address", `Lat: ${latitude.toFixed(6)}, Long: ${longitude.toFixed(6)}`);
-            }
-          } else {
-            throw new Error('Falha na API de geocoding');
-          }
-        } else {
-          // Se não há API key, usar as coordenadas como endereço
-          console.log("API key do OpenCage não configurada, usando coordenadas como endereço");
-          form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        const address = await getAddressFromCoordinates(latitude, longitude);
+        // Only update if form is still mounted and coordinates haven't changed
+        // This prevents race conditions when user rapidly clicks location button
+        if (
+          formInitialized.current &&
+          form.getValues("latitude") === latitude &&
+          form.getValues("longitude") === longitude
+        ) {
+          form.setValue("address", address, { shouldValidate: true });
         }
-      } catch (geocodingError) {
-        console.log("Erro ao obter endereço:", geocodingError);
-        // Define um endereço genérico com as coordenadas
-        form.setValue("address", `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      } catch (addressError) {
+        console.warn(
+          "Erro ao obter endereço, mas coordenadas foram salvas:",
+          addressError
+        );
+        // Set fallback address if coordinates are still the same
+        if (
+          formInitialized.current &&
+          form.getValues("latitude") === latitude &&
+          form.getValues("longitude") === longitude
+        ) {
+          form.setValue(
+            "address",
+            `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+            { shouldValidate: true }
+          );
+        }
       }
 
       toast({
         title: "Localização capturada",
         description: "Localização atual foi registrada com sucesso.",
       });
-
     } catch (error: any) {
       let errorMessage = "Erro ao obter localização.";
-      
+
+      // Provide specific error messages based on GeolocationPositionError codes
       if (error.code) {
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -277,9 +480,13 @@ export default function InteractionFormModal({
           case error.TIMEOUT:
             errorMessage = "Tempo limite para obter localização excedido.";
             break;
+          default:
+            errorMessage = error.message || errorMessage;
         }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-      
+
       setLocationError(errorMessage);
       toast({
         title: "Erro de localização",
@@ -289,14 +496,14 @@ export default function InteractionFormModal({
     } finally {
       setIsGettingLocation(false);
     }
-  };
+  }, [isGettingLocation, form, getAddressFromCoordinates, toast]);
 
-  const clearLocation = () => {
-    form.setValue("latitude", undefined);
-    form.setValue("longitude", undefined);
-    form.setValue("address", undefined);
+  const clearLocation = useCallback(() => {
+    form.setValue("latitude", undefined, { shouldValidate: true });
+    form.setValue("longitude", undefined, { shouldValidate: true });
+    form.setValue("address", undefined, { shouldValidate: true });
     setLocationError(null);
-  };
+  }, [form]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -383,7 +590,10 @@ export default function InteractionFormModal({
                   <FormItem className="md:col-span-2">
                     <FormLabel>Assunto *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o assunto da interação" {...field} />
+                      <Input
+                        placeholder="Digite o assunto da interação"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -411,7 +621,10 @@ export default function InteractionFormModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Resultado da Chamada</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione o resultado..." />
@@ -438,10 +651,10 @@ export default function InteractionFormModal({
                   <FormItem className="md:col-span-2">
                     <FormLabel>Descrição *</FormLabel>
                     <FormControl>
-                      <Textarea 
+                      <Textarea
                         placeholder="Descreva os detalhes da interação..."
                         className="min-h-[100px]"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -452,7 +665,10 @@ export default function InteractionFormModal({
               {form.watch("type") === "visit" && (
                 <div className="md:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-gray-900">Localização da Visita</h4>
+                    <h4 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Localização da Visita
+                    </h4>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -462,8 +678,17 @@ export default function InteractionFormModal({
                         disabled={isGettingLocation}
                         className="text-sm"
                       >
-                        <Navigation className="h-4 w-4 mr-1" />
-                        {isGettingLocation ? "Obtendo..." : "Capturar Localização"}
+                        {isGettingLocation ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Obtendo...
+                          </>
+                        ) : (
+                          <>
+                            <Navigation className="h-4 w-4 mr-1" />
+                            Capturar Localização
+                          </>
+                        )}
                       </Button>
                       {(form.watch("latitude") || form.watch("longitude")) && (
                         <Button
@@ -473,6 +698,7 @@ export default function InteractionFormModal({
                           onClick={clearLocation}
                           className="text-sm text-red-600 hover:text-red-700"
                         >
+                          <X className="h-4 w-4 mr-1" />
                           Limpar
                         </Button>
                       )}
@@ -480,20 +706,38 @@ export default function InteractionFormModal({
                   </div>
 
                   {locationError && (
-                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                      {locationError}
+                    <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 p-3 rounded-md">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium">Erro de localização</div>
+                        <div>{locationError}</div>
+                      </div>
                     </div>
                   )}
 
-                  {form.watch("address") && (
-                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                      <strong>Endereço:</strong> {form.watch("address")}
-                    </div>
-                  )}
+                  {form.watch("latitude") && form.watch("longitude") && (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-md">
+                        <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium">
+                            Localização capturada com sucesso
+                          </div>
+                          <div className="text-xs text-green-600 mt-1">
+                            Coordenadas: {form.watch("latitude")?.toFixed(6)},{" "}
+                            {form.watch("longitude")?.toFixed(6)}
+                          </div>
+                        </div>
+                      </div>
 
-                  {(form.watch("latitude") && form.watch("longitude")) && (
-                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                      <strong>Coordenadas:</strong> {form.watch("latitude")?.toFixed(6)}, {form.watch("longitude")?.toFixed(6)}
+                      {form.watch("address") && (
+                        <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 p-3 rounded-md">
+                          <div className="font-medium text-gray-900 mb-1">
+                            Endereço identificado:
+                          </div>
+                          <div>{form.watch("address")}</div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -502,11 +746,16 @@ export default function InteractionFormModal({
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Endereço (opcional)</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          Endereço
+                          <span className="text-xs text-gray-500">
+                            (opcional - será preenchido automaticamente)
+                          </span>
+                        </FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             placeholder="Digite o endereço manualmente se necessário..."
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -531,7 +780,11 @@ export default function InteractionFormModal({
                 disabled={mutation.isPending}
                 className="bg-primary hover:bg-primary-dark text-white"
               >
-                {mutation.isPending ? "Salvando..." : interaction ? "Atualizar Interação" : "Salvar Interação"}
+                {mutation.isPending
+                  ? "Salvando..."
+                  : interaction
+                  ? "Atualizar Interação"
+                  : "Salvar Interação"}
               </Button>
             </div>
           </form>
