@@ -26,7 +26,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useForm } from "react-hook-form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -339,6 +346,11 @@ export default function AdminGoals() {
     queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
   });
 
+  // Buscar marcadores cadastrados
+  const { data: availableMarkers = [] } = useQuery<{id: string; name: string; color: string;}[]>({
+    queryKey: ["/api/markers"],
+  });
+
   // Form para telemarketing
   const {
     register: registerTelemarketing,
@@ -367,9 +379,14 @@ export default function AdminGoals() {
     handleSubmit: handleSubmitMarker,
     reset: resetMarker,
     setValue: setValueMarker,
+    watch: watchMarker,
+    control: formMarkerControl,
     formState: { errors: markerErrors },
   } = useForm<MarkerGoalFormData>({
     resolver: zodResolver(markerGoalSchema),
+    defaultValues: {
+      markerName: "",
+    },
   });
 
   // Mutation para criar/atualizar meta
@@ -2143,12 +2160,38 @@ export default function AdminGoals() {
 
             <div className="space-y-2">
               <Label htmlFor="markerName">Nome do Marcador</Label>
-              <Input
-                id="markerName"
-                type="text"
-                placeholder="Ex: Cliente VIP, Prospect, etc."
-                {...registerMarker("markerName")}
-                data-testid="input-marker-name"
+              <Controller
+                name="markerName"
+                control={formMarkerControl}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    data-testid="select-marker-name"
+                    disabled={availableMarkers.length === 0}
+                  >
+                    <SelectTrigger id="markerName">
+                      <SelectValue placeholder={
+                        availableMarkers.length === 0
+                          ? "Carregando marcadores..."
+                          : "Selecione um marcador"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableMarkers.map((marker) => (
+                        <SelectItem key={marker.id} value={marker.name}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: marker.color }}
+                            />
+                            {marker.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
               {markerErrors.markerName && (
                 <p className="text-sm text-red-600">
