@@ -253,7 +253,7 @@ export default function EventParticipantsModal({
 
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
-    mutationFn: async (data: { status: string; notes: string }) => {
+    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${editingParticipant?.id}`,
         {
@@ -350,8 +350,8 @@ export default function EventParticipantsModal({
     addParticipantMutation.mutate(newParticipant);
   };
 
-  const handleUpdateParticipant = (status: string, notes: string) => {
-    updateParticipantMutation.mutate({ status, notes });
+  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number) => {
+    updateParticipantMutation.mutate({ status, notes, numberOfParticipants });
   };
 
   if (!event) return null;
@@ -711,6 +711,25 @@ export default function EventParticipantsModal({
               </div>
 
               <div>
+                <Label>Número de Participantes</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editingParticipant.numberOfParticipants}
+                  onChange={(e) =>
+                    setEditingParticipant((prev) =>
+                      prev ? { 
+                        ...prev, 
+                        numberOfParticipants: Math.max(1, parseInt(e.target.value) || 1) 
+                      } : null
+                    )
+                  }
+                  placeholder="Quantos participantes..."
+                  data-testid="input-edit-number-participants"
+                />
+              </div>
+
+              <div>
                 <Label>Observações</Label>
                 <Textarea
                   value={editingParticipant.notes || ""}
@@ -738,7 +757,8 @@ export default function EventParticipantsModal({
                 editingParticipant &&
                 handleUpdateParticipant(
                   editingParticipant.status,
-                  editingParticipant.notes || ""
+                  editingParticipant.notes || "",
+                  editingParticipant.numberOfParticipants
                 )
               }
               disabled={updateParticipantMutation.isPending}
