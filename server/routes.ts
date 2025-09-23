@@ -2744,6 +2744,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Marker Goals routes
+  app.get("/api/marker-goals", async (req, res) => {
+    try {
+      const { userId, userRole } = req.query;
+      const goals = await storage.getMarkerGoals(
+        userId as string,
+        userRole as string
+      );
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de marcadores:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de marcadores" });
+    }
+  });
+
+  app.get("/api/marker-goals/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const { userId, userRole } = req.query;
+      const goals = await storage.getMarkerGoalsByMonthYear(
+        parseInt(month),
+        parseInt(year),
+        userId as string,
+        userRole as string
+      );
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de marcadores:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de marcadores" });
+    }
+  });
+
+  app.post("/api/marker-goals", async (req, res) => {
+    try {
+      const validatedData = insertMarkerGoalSchema.parse(req.body);
+      const goal = await storage.createMarkerGoal(validatedData);
+      res.status(201).json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar meta de marcadores:", error);
+      res.status(500).json({ message: "Erro ao criar meta de marcadores" });
+    }
+  });
+
+  app.put("/api/marker-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertMarkerGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateMarkerGoal(id, validatedData);
+      res.json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar meta de marcadores:", error);
+      res.status(500).json({ message: "Erro ao atualizar meta de marcadores" });
+    }
+  });
+
+  app.delete("/api/marker-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteMarkerGoal(id);
+      if (success === false) {
+        return res.status(404).json({ message: "Meta de marcadores não encontrada" });
+      }
+      res.json({ message: "Meta de marcadores excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir meta de marcadores:", error);
+      res.status(500).json({ message: "Erro ao excluir meta de marcadores" });
+    }
+  });
+
+  // Marker statistics route
+  app.get("/api/marker-stats/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const stats = await storage.getMarkerStatsByPeriod(
+        parseInt(month),
+        parseInt(year)
+      );
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de marcadores:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de marcadores" });
+    }
+  });
+
   // Client import route
   app.post("/api/clients/import", upload.single("file"), async (req, res) => {
     try {

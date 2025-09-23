@@ -1587,7 +1587,7 @@ export class DatabaseStorage implements IStorage {
         if (client.birthday.match(/^\d{4}-\d{2}-\d{2}$/)) {
           // Format: YYYY-MM-DD
           birthday = new Date(client.birthday);
-        } else if (client.birthday.match(/^\d{2}\/\d{2}/\d{4}$/)) {
+        } else if (client.birthday.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
           // Format: DD/MM/YYYY
           const [day, month, year] = client.birthday.split("/");
           birthday = new Date(
@@ -3199,6 +3199,116 @@ export class DatabaseStorage implements IStorage {
       .where(eq(telemarketingWeeklyResults.id, id))
       .returning();
     return updatedResult || undefined;
+  }
+
+  // Marker Goals methods
+  async getMarkerGoals(
+    userId?: string,
+    userRole?: string
+  ): Promise<MarkerGoal[]> {
+    let query = this.db
+      .select({
+        id: markerGoals.id,
+        userId: markerGoals.userId,
+        markerName: markerGoals.markerName,
+        targetQuantity: markerGoals.targetQuantity,
+        month: markerGoals.month,
+        year: markerGoals.year,
+        createdAt: markerGoals.createdAt,
+        updatedAt: markerGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(markerGoals)
+      .leftJoin(users, eq(markerGoals.userId, users.id));
+
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      query = query.where(
+        eq(markerGoals.userId, userId)
+      ) as typeof query;
+    }
+
+    const goals = await query.orderBy(desc(markerGoals.createdAt));
+    return goals as MarkerGoal[];
+  }
+
+  async getMarkerGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string
+  ): Promise<MarkerGoal[]> {
+    let query = this.db
+      .select({
+        id: markerGoals.id,
+        userId: markerGoals.userId,
+        markerName: markerGoals.markerName,
+        targetQuantity: markerGoals.targetQuantity,
+        month: markerGoals.month,
+        year: markerGoals.year,
+        createdAt: markerGoals.createdAt,
+        updatedAt: markerGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(markerGoals)
+      .leftJoin(users, eq(markerGoals.userId, users.id));
+
+    // Aplicar filtros
+    let whereConditions = and(
+      eq(markerGoals.month, month),
+      eq(markerGoals.year, year)
+    );
+
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      whereConditions = and(
+        whereConditions,
+        eq(markerGoals.userId, userId)
+      );
+    }
+
+    const goals = await query
+      .where(whereConditions)
+      .orderBy(desc(markerGoals.createdAt));
+    return goals as MarkerGoal[];
+  }
+
+  async createMarkerGoal(data: InsertMarkerGoal): Promise<MarkerGoal> {
+    const [goal] = await this.db
+      .insert(markerGoals)
+      .values(data)
+      .returning();
+    return goal;
+  }
+
+  async updateMarkerGoal(
+    id: string,
+    data: Partial<InsertMarkerGoal>
+  ): Promise<MarkerGoal> {
+    const [goal] = await this.db
+      .update(markerGoals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(markerGoals.id, id))
+      .returning();
+    return goal;
+  }
+
+  async deleteMarkerGoal(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(markerGoals)
+      .where(eq(markerGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getMarkerStatsByPeriod(
+    month: number,
+    year: number
+  ): Promise<{ markerName: string; totalClients: number; userId: string; userName: string; userEmail: string }[]> {
+    // This method should get actual statistics of how many clients each user has with each marker
+    // For now, returning empty array as marker implementation needs client-marker relationship
+    return [];
   }
 
   async createTraining(data: InsertTraining) {
