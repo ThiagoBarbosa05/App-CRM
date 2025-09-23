@@ -97,11 +97,26 @@ const clientRegistrationGoalSchema = z.object({
   year: z.string().min(1, "Ano é obrigatório"),
 });
 
+const markerGoalSchema = z.object({
+  userId: z.string().min(1, "Usuário é obrigatório"),
+  markerName: z.string().min(1, "Nome do marcador é obrigatório"),
+  targetQuantity: z
+    .string()
+    .min(1, "Quantidade é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
+  month: z.string().min(1, "Mês é obrigatório"),
+  year: z.string().min(1, "Ano é obrigatório"),
+});
+
 type GoalFormData = z.infer<typeof goalSchema>;
 type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
 type ClientRegistrationGoalFormData = z.infer<
   typeof clientRegistrationGoalSchema
 >;
+type MarkerGoalFormData = z.infer<typeof markerGoalSchema>;
 
 interface TelemarketingGoal {
   id: string;
@@ -232,6 +247,10 @@ export default function AdminGoals() {
   const [editingClientRegistrationGoal, setEditingClientRegistrationGoal] =
     useState<ClientRegistrationGoal | null>(null);
 
+  // Estado para metas de marcadores
+  const [isMarkerGoalModalOpen, setIsMarkerGoalModalOpen] = useState(false);
+  const [editingMarkerGoal, setEditingMarkerGoal] = useState<MarkerGoal | null>(null);
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -310,6 +329,16 @@ export default function AdminGoals() {
     ],
   });
 
+  // Buscar metas de marcadores
+  const { data: markerGoals = [] } = useQuery<MarkerGoal[]>({
+    queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de marcadores
+  const { data: markerStats = [] } = useQuery<MarkerStats[]>({
+    queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
+  });
+
   // Form para telemarketing
   const {
     register: registerTelemarketing,
@@ -330,6 +359,17 @@ export default function AdminGoals() {
     formState: { errors: clientRegistrationErrors },
   } = useForm<ClientRegistrationGoalFormData>({
     resolver: zodResolver(clientRegistrationGoalSchema),
+  });
+
+  // Form para metas de marcadores
+  const {
+    register: registerMarker,
+    handleSubmit: handleSubmitMarker,
+    reset: resetMarker,
+    setValue: setValueMarker,
+    formState: { errors: markerErrors },
+  } = useForm<MarkerGoalFormData>({
+    resolver: zodResolver(markerGoalSchema),
   });
 
   // Mutation para criar/atualizar meta
@@ -570,6 +610,79 @@ export default function AdminGoals() {
     },
   });
 
+  // Mutation para metas de marcadores
+  const markerGoalMutation = useMutation({
+    mutationFn: async (data: MarkerGoalFormData) => {
+      const goalData = {
+        userId: data.userId,
+        markerName: data.markerName,
+        targetQuantity: parseInt(data.targetQuantity),
+        month: parseInt(data.month),
+        year: parseInt(data.year),
+      };
+
+      if (editingMarkerGoal) {
+        return apiRequest(
+          "PUT",
+          `/api/marker-goals/${editingMarkerGoal.id}`,
+          goalData
+        );
+      } else {
+        return apiRequest("POST", "/api/marker-goals", goalData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: editingMarkerGoal
+          ? "Meta de marcadores atualizada"
+          : "Meta de marcadores criada",
+        description: `Meta de marcadores foi ${editingMarkerGoal ? "atualizada" : "criada"} com sucesso.`,
+      });
+      handleCloseMarkerGoalModal();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description:
+          error.message ||
+          `Erro ao ${editingMarkerGoal ? "atualizar" : "criar"} meta de marcadores.`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para deletar meta de marcadores
+  const deleteMarkerGoalMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest("DELETE", `/api/marker-goals/${goalId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: "Meta de marcadores excluída",
+        description: "Meta de marcadores foi excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir meta de marcadores.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteGoal = (goal: UserGoal) => {
     if (confirm(`Tem certeza que deseja excluir a meta de ${goal.userName}?`)) {
       deleteMutation.mutate(goal.id);
@@ -701,6 +814,37 @@ export default function AdminGoals() {
 
   const onSubmitClientRegistration = (data: ClientRegistrationGoalFormData) => {
     clientRegistrationGoalMutation.mutate(data);
+  };
+
+  // Handlers para metas de marcadores
+  const handleEditMarkerGoal = (goal: MarkerGoal) => {
+    setEditingMarkerGoal(goal);
+    setValueMarker("userId", goal.userId);
+    setValueMarker("markerName", goal.markerName);
+    setValueMarker("targetQuantity", goal.targetQuantity.toString());
+    setValueMarker("month", goal.month.toString());
+    setValueMarker("year", goal.year.toString());
+    setIsMarkerGoalModalOpen(true);
+  };
+
+  const handleCloseMarkerGoalModal = () => {
+    setIsMarkerGoalModalOpen(false);
+    setEditingMarkerGoal(null);
+    resetMarker();
+  };
+
+  const handleDeleteMarkerGoal = (goal: MarkerGoal) => {
+    if (
+      confirm(
+        `Deseja realmente excluir a meta de marcadores para ${goal.userName}?`
+      )
+    ) {
+      deleteMarkerGoalMutation.mutate(goal.id);
+    }
+  };
+
+  const onSubmitMarkerGoal = (data: MarkerGoalFormData) => {
+    markerGoalMutation.mutate(data);
   };
 
   return (
@@ -851,9 +995,9 @@ export default function AdminGoals() {
             </Card>
           </div>
 
-          {/* Tabs para Metas de Vendas, Telemarketing e Cadastros */}
+          {/* Tabs para Metas de Vendas, Telemarketing, Cadastros e Marcadores */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
                 Metas de Vendas
@@ -865,6 +1009,10 @@ export default function AdminGoals() {
               <TabsTrigger value="metas-cadastros">
                 <Users className="h-4 w-4 mr-2" />
                 Metas de Cadastros
+              </TabsTrigger>
+              <TabsTrigger value="metas-marcadores">
+                <Package className="h-4 w-4 mr-2" />
+                Metas de Marcadores
               </TabsTrigger>
             </TabsList>
 
@@ -1254,6 +1402,144 @@ export default function AdminGoals() {
                                     >
                                       <Trash2 className="h-4 w-4 mr-1" />
                                       Excluir
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab de Metas de Marcadores */}
+            <TabsContent
+              value="metas-marcadores"
+              className="w-full overflow-hidden"
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-2xl">
+                    <Package className="h-5 w-5" />
+                    Metas de Marcadores
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Gerencie as metas de marcadores dos usuários
+                  </CardDescription>
+                  <div className="pt-4">
+                    <Button
+                      onClick={() => {
+                        setValueMarker("month", selectedMonth.toString());
+                        setValueMarker("year", selectedYear.toString());
+                        setIsMarkerGoalModalOpen(true);
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700"
+                      data-testid="button-new-marker-goal"
+                    >
+                      <Package className="mr-2 h-4 w-4" />
+                      Nova Meta de Marcadores
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="overflow-hidden">
+                  {markerGoals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">
+                        Nenhuma meta de marcadores cadastrada
+                      </p>
+                      <p className="text-sm">
+                        Comece definindo metas de marcadores para os usuários
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Marcador</TableHead>
+                            <TableHead>Meta</TableHead>
+                            <TableHead>Período</TableHead>
+                            <TableHead>Atual</TableHead>
+                            <TableHead>Progresso</TableHead>
+                            <TableHead>Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {markerGoals.map((goal) => {
+                            const stats = markerStats.find(
+                              (s) => s.userId === goal.userId && s.markerName === goal.markerName
+                            );
+                            const currentCount = stats?.totalClients || 0;
+                            const progressPercentage = goal.targetQuantity > 0 
+                              ? Math.min((currentCount / goal.targetQuantity) * 100, 100)
+                              : 0;
+
+                            return (
+                              <TableRow key={goal.id}>
+                                <TableCell data-testid={`text-user-${goal.id}`}>
+                                  <div>
+                                    <div className="font-medium">{goal.userName}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {goal.userEmail}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell data-testid={`text-marker-${goal.id}`}>
+                                  <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
+                                    {goal.markerName}
+                                  </span>
+                                </TableCell>
+                                <TableCell data-testid={`text-target-${goal.id}`}>
+                                  <span className="font-medium">{goal.targetQuantity}</span>
+                                </TableCell>
+                                <TableCell data-testid={`text-period-${goal.id}`}>
+                                  {new Date(0, goal.month - 1).toLocaleDateString("pt-BR", {
+                                    month: "long",
+                                  })}/{goal.year}
+                                </TableCell>
+                                <TableCell data-testid={`text-current-${goal.id}`}>
+                                  <span className="font-medium">{currentCount}</span>
+                                </TableCell>
+                                <TableCell data-testid={`text-progress-${goal.id}`}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-amber-600 h-2 rounded-full transition-all duration-300"
+                                        style={{
+                                          width: `${progressPercentage}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-sm font-medium min-w-[50px]">
+                                      {progressPercentage.toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      onClick={() => handleEditMarkerGoal(goal)}
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 w-8 p-0"
+                                      data-testid={`button-edit-marker-${goal.id}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleDeleteMarkerGoal(goal)}
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                                      data-testid={`button-delete-marker-${goal.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -1806,6 +2092,159 @@ export default function AdminGoals() {
                 {clientRegistrationGoalMutation.isPending
                   ? "Salvando..."
                   : editingClientRegistrationGoal
+                    ? "Atualizar Meta"
+                    : "Criar Meta"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de metas de marcadores */}
+      <Dialog
+        open={isMarkerGoalModalOpen}
+        onOpenChange={handleCloseMarkerGoalModal}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMarkerGoal
+                ? "Editar Meta de Marcadores"
+                : "Nova Meta de Marcadores"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={handleSubmitMarker(onSubmitMarkerGoal)}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="markerUserId">Usuário</Label>
+              <select
+                id="markerUserId"
+                {...registerMarker("userId")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                disabled={!!editingMarkerGoal}
+                data-testid="select-marker-user"
+              >
+                <option value="">Selecione um usuário</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              {markerErrors.userId && (
+                <p className="text-sm text-red-600">
+                  {markerErrors.userId.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="markerName">Nome do Marcador</Label>
+              <Input
+                id="markerName"
+                type="text"
+                placeholder="Ex: Cliente VIP, Prospect, etc."
+                {...registerMarker("markerName")}
+                data-testid="input-marker-name"
+              />
+              {markerErrors.markerName && (
+                <p className="text-sm text-red-600">
+                  {markerErrors.markerName.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="markerTargetQuantity">Quantidade Meta</Label>
+              <Input
+                id="markerTargetQuantity"
+                type="number"
+                min="1"
+                placeholder="10"
+                {...registerMarker("targetQuantity")}
+                data-testid="input-marker-quantity"
+              />
+              {markerErrors.targetQuantity && (
+                <p className="text-sm text-red-600">
+                  {markerErrors.targetQuantity.message}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="markerMonth">Mês</Label>
+                <select
+                  id="markerMonth"
+                  {...registerMarker("month")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  disabled={!!editingMarkerGoal}
+                  data-testid="select-marker-month"
+                >
+                  <option value="">Selecione o mês</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
+                    </option>
+                  ))}
+                </select>
+                {markerErrors.month && (
+                  <p className="text-sm text-red-600">
+                    {markerErrors.month.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="markerYear">Ano</Label>
+                <select
+                  id="markerYear"
+                  {...registerMarker("year")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  disabled={!!editingMarkerGoal}
+                  data-testid="select-marker-year"
+                >
+                  <option value="">Selecione o ano</option>
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                {markerErrors.year && (
+                  <p className="text-sm text-red-600">
+                    {markerErrors.year.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseMarkerGoalModal}
+                data-testid="button-cancel-marker"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={markerGoalMutation.isPending}
+                className="bg-amber-600 hover:bg-amber-700"
+                data-testid="button-submit-marker"
+              >
+                {markerGoalMutation.isPending
+                  ? "Salvando..."
+                  : editingMarkerGoal
                     ? "Atualizar Meta"
                     : "Criar Meta"}
               </Button>
