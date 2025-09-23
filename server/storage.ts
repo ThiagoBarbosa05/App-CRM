@@ -3306,9 +3306,67 @@ export class DatabaseStorage implements IStorage {
     month: number,
     year: number
   ): Promise<{ markerName: string; totalClients: number; userId: string; userName: string; userEmail: string }[]> {
-    // This method should get actual statistics of how many clients each user has with each marker
-    // For now, returning empty array as marker implementation needs client-marker relationship
-    return [];
+    try {
+      // Since unnest is complex with Drizzle, get all clients with markers in the period
+      // and process them in JavaScript
+      const clientsWithMarkers = await this.db
+        .select({
+          id: clients.id,
+          markers: clients.markers,
+          responsavelId: clients.responsavelId,
+          createdAt: clients.createdAt,
+          userName: users.name,
+          userEmail: users.email,
+        })
+        .from(clients)
+        .leftJoin(users, eq(clients.responsavelId, users.id))
+        .where(
+          and(
+            sql`array_length(${clients.markers}, 1) > 0`,
+            isNotNull(clients.responsavelId),
+            sql`extract(month from ${clients.createdAt}) = ${month}`,
+            sql`extract(year from ${clients.createdAt}) = ${year}`
+          )
+        );
+
+      // Process the results in JavaScript to count markers per user
+      const markerStats: { [key: string]: { 
+        markerName: string; 
+        totalClients: number; 
+        userId: string; 
+        userName: string; 
+        userEmail: string 
+      } } = {};
+
+      clientsWithMarkers.forEach(client => {
+        if (client.markers && client.responsavelId) {
+          client.markers.forEach((marker: string) => {
+            const key = `${marker}-${client.responsavelId}`;
+            if (!markerStats[key]) {
+              markerStats[key] = {
+                markerName: marker,
+                totalClients: 0,
+                userId: client.responsavelId || '',
+                userName: client.userName || '',
+                userEmail: client.userEmail || ''
+              };
+            }
+            markerStats[key].totalClients++;
+          });
+        }
+      });
+
+      // Convert to array and sort
+      return Object.values(markerStats).sort((a, b) => {
+        if (a.markerName !== b.markerName) {
+          return a.markerName.localeCompare(b.markerName);
+        }
+        return b.totalClients - a.totalClients;
+      });
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de marcadores:', error);
+      return [];
+    }
   }
 
   async createTraining(data: InsertTraining) {
