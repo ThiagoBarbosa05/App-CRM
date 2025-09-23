@@ -416,6 +416,10 @@ export default function ClientImportModal({
       setImportResult(result);
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      // Invalidate marker stats cache to update goal calculations
+      queryClient.invalidateQueries({ 
+        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      });
 
       if (result.success > 0) {
         toast({

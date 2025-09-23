@@ -167,6 +167,10 @@ export default function ClientFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      // Invalidate marker stats cache to update goal calculations
+      queryClient.invalidateQueries({ 
+        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      });
       toast({
         title: "Cliente criado",
         description: "Cliente foi adicionado com sucesso.",
@@ -191,6 +195,10 @@ export default function ClientFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      // Invalidate marker stats cache to update goal calculations
+      queryClient.invalidateQueries({ 
+        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      });
       toast({
         title: "Cliente atualizado",
         description: "Cliente foi atualizado com sucesso.",

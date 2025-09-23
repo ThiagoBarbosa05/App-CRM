@@ -91,6 +91,10 @@ export default function MarkersManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
+      // Invalidate marker stats cache since marker name changes can affect goal calculations
+      queryClient.invalidateQueries({ 
+        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      });
       setEditingMarker(null);
       setFormData({ name: "", color: "#10B981" });
       toast({
@@ -115,6 +119,10 @@ export default function MarkersManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
+      // Invalidate marker stats cache since deleting a marker affects goal calculations
+      queryClient.invalidateQueries({ 
+        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      });
       setMarkerToDelete(null);
       toast({
         title: "Sucesso",
