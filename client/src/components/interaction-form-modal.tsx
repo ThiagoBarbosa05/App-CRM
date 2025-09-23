@@ -228,6 +228,9 @@ export default function InteractionFormModal({
         queryKey: ["interactions", "company", target.id],
       });
       queryClient.invalidateQueries({ queryKey: ["companies", target.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/companies", target.id, "interactions"],
+      });
     }
 
     // Invalidate general stats if a call was logged
@@ -318,8 +321,11 @@ export default function InteractionFormModal({
 
       const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
 
-      if (!apiKey || apiKey === "YOUR_API_KEY") {
-        const fallbackAddress = `Localização: ${latitude.toFixed(
+      if (!apiKey) {
+        console.warn(
+          "VITE_OPENCAGE_API_KEY não configurada. Configure para obter endereços reais."
+        );
+        const fallbackAddress = `Coordenadas: ${latitude.toFixed(
           6
         )}, ${longitude.toFixed(6)}`;
         addressCache.current.set(cacheKey, fallbackAddress);
@@ -355,7 +361,7 @@ export default function InteractionFormModal({
         ) {
           address = data.results[0].formatted;
         } else {
-          address = `Localização: ${latitude.toFixed(6)}, ${longitude.toFixed(
+          address = `Coordenadas: ${latitude.toFixed(6)}, ${longitude.toFixed(
             6
           )}`;
         }
@@ -365,7 +371,7 @@ export default function InteractionFormModal({
         return address;
       } catch (error) {
         console.warn("Erro ao obter endereço:", error);
-        const fallbackAddress = `Localização: ${latitude.toFixed(
+        const fallbackAddress = `Coordenadas: ${latitude.toFixed(
           6
         )}, ${longitude.toFixed(6)}`;
         addressCache.current.set(cacheKey, fallbackAddress);
