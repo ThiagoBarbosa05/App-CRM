@@ -1475,6 +1475,30 @@ export const eventParticipants = pgTable("event_participants", {
     .notNull(),
 });
 
+// Tabela de convidados dos eventos (pessoas não registradas como clientes)
+export const eventGuests = pgTable("event_guests", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  registrationDate: timestamp("registration_date").defaultNow().notNull(),
+  status: text("status", {
+    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],
+  })
+    .notNull()
+    .default("confirmado"), // Convidados começam como "confirmado"
+  numberOfParticipants: integer("number_of_participants").notNull().default(1),
+  notes: text("notes"),
+  registeredBy: varchar("registered_by")
+    .references(() => users.id)
+    .notNull(),
+});
+
 // Relações para eventos
 export const eventsRelations = relations(events, ({ one, many }) => ({
   creator: one(users, {
@@ -1482,6 +1506,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [users.id],
   }),
   participants: many(eventParticipants),
+  guests: many(eventGuests),
 }));
 
 export const eventParticipantsRelations = relations(
@@ -1497,6 +1522,20 @@ export const eventParticipantsRelations = relations(
     }),
     registeredByUser: one(users, {
       fields: [eventParticipants.registeredBy],
+      references: [users.id],
+    }),
+  })
+);
+
+export const eventGuestsRelations = relations(
+  eventGuests,
+  ({ one }) => ({
+    event: one(events, {
+      fields: [eventGuests.eventId],
+      references: [events.id],
+    }),
+    registeredByUser: one(users, {
+      fields: [eventGuests.registeredBy],
       references: [users.id],
     }),
   })
