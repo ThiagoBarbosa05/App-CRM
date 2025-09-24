@@ -126,10 +126,10 @@ interface MarkerStats {
 export default function Metas() {
   const { user } = useAuth();
 
-  // Estado para controlar mês/ano - iniciando com agosto 2025 onde existem metas
+  // Estado para controlar mês/ano - iniciando com a data atual
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(8);
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Buscar metas do mês/ano selecionado
   const { data: userGoals = [], isLoading } = useQuery<UserGoal[]>({
