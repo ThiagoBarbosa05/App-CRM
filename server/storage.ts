@@ -60,6 +60,8 @@ import {
   clientRegistrationWeeklyResults,
   markerGoals,
   markerWeeklyResults,
+  interactionGoals,
+  interactionWeeklyResults,
   learningImages,
   cashbackSettings,
   type CashbackSetting,
@@ -98,6 +100,10 @@ import {
   type MarkerGoal,
   type InsertMarkerWeeklyResult,
   type MarkerWeeklyResult,
+  type InsertInteractionGoal,
+  type InteractionGoal,
+  type InsertInteractionWeeklyResult,
+  type InteractionWeeklyResult,
 } from "@shared/schema";
 import { db } from "./db";
 import {
@@ -3327,6 +3333,164 @@ export class DatabaseStorage implements IStorage {
       .delete(markerGoals)
       .where(eq(markerGoals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Interaction Goals CRUD operations
+  async getInteractionGoals(
+    userId?: string,
+    userRole?: string
+  ): Promise<InteractionGoal[]> {
+    let query = this.db
+      .select({
+        id: interactionGoals.id,
+        userId: interactionGoals.userId,
+        interactionType: interactionGoals.interactionType,
+        targetQuantity: interactionGoals.targetQuantity,
+        month: interactionGoals.month,
+        year: interactionGoals.year,
+        createdAt: interactionGoals.createdAt,
+        updatedAt: interactionGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(interactionGoals)
+      .leftJoin(users, eq(interactionGoals.userId, users.id));
+
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      query = query.where(
+        eq(interactionGoals.userId, userId)
+      ) as typeof query;
+    }
+
+    const goals = await query.orderBy(desc(interactionGoals.createdAt));
+    return goals as InteractionGoal[];
+  }
+
+  async getInteractionGoalsByMonthYear(
+    month: number,
+    year: number,
+    userId?: string,
+    userRole?: string
+  ): Promise<InteractionGoal[]> {
+    let query = this.db
+      .select({
+        id: interactionGoals.id,
+        userId: interactionGoals.userId,
+        interactionType: interactionGoals.interactionType,
+        targetQuantity: interactionGoals.targetQuantity,
+        month: interactionGoals.month,
+        year: interactionGoals.year,
+        createdAt: interactionGoals.createdAt,
+        updatedAt: interactionGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(interactionGoals)
+      .leftJoin(users, eq(interactionGoals.userId, users.id));
+
+    // Aplicar filtros
+    let whereConditions = and(
+      eq(interactionGoals.month, month),
+      eq(interactionGoals.year, year)
+    );
+
+    // Vendedores só veem suas próprias metas
+    if (userRole === "vendedor" && userId) {
+      whereConditions = and(
+        whereConditions,
+        eq(interactionGoals.userId, userId)
+      );
+    }
+
+    const goals = await query
+      .where(whereConditions)
+      .orderBy(desc(interactionGoals.createdAt));
+    return goals as InteractionGoal[];
+  }
+
+  async createInteractionGoal(data: InsertInteractionGoal): Promise<InteractionGoal> {
+    const [goal] = await this.db
+      .insert(interactionGoals)
+      .values(data)
+      .returning();
+    return goal;
+  }
+
+  async updateInteractionGoal(
+    id: string,
+    data: Partial<InsertInteractionGoal>
+  ): Promise<InteractionGoal> {
+    const [goal] = await this.db
+      .update(interactionGoals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(interactionGoals.id, id))
+      .returning();
+    return goal;
+  }
+
+  async deleteInteractionGoal(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(interactionGoals)
+      .where(eq(interactionGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getInteractionStatsByPeriod(
+    month: number,
+    year: number
+  ): Promise<{ interactionType: string; totalInteractions: number; userId: string; userName: string; userEmail: string }[]> {
+    try {
+      // Get all interactions in the period
+      const interactionsInPeriod = await this.db
+        .select({
+          id: clientInteractions.id,
+          type: clientInteractions.type,
+          userId: clientInteractions.userId,
+          createdAt: clientInteractions.createdAt,
+          userName: users.name,
+          userEmail: users.email,
+        })
+        .from(clientInteractions)
+        .leftJoin(users, eq(clientInteractions.userId, users.id))
+        .where(
+          and(
+            isNotNull(clientInteractions.userId),
+            sql`extract(month from ${clientInteractions.createdAt}) = ${month}`,
+            sql`extract(year from ${clientInteractions.createdAt}) = ${year}`
+          )
+        );
+
+      // Process the results in JavaScript to count interactions per user and type
+      const interactionStats: { [key: string]: { 
+        interactionType: string; 
+        totalInteractions: number; 
+        userId: string; 
+        userName: string; 
+        userEmail: string 
+      } } = {};
+
+      interactionsInPeriod.forEach(interaction => {
+        if (interaction.type && interaction.userId) {
+          const key = `${interaction.type}-${interaction.userId}`;
+          if (!interactionStats[key]) {
+            interactionStats[key] = {
+              interactionType: interaction.type,
+              totalInteractions: 0,
+              userId: interaction.userId,
+              userName: interaction.userName || '',
+              userEmail: interaction.userEmail || '',
+            };
+          }
+          interactionStats[key].totalInteractions++;
+        }
+      });
+
+      return Object.values(interactionStats);
+    } catch (error) {
+      console.error('Error getting interaction stats by period:', error);
+      throw error;
+    }
   }
 
   async getMarkerStatsByPeriod(
