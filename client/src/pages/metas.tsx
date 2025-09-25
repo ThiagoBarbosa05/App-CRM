@@ -20,6 +20,7 @@ import {
   Medal,
   Award,
   Phone,
+  MessageSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -123,6 +124,27 @@ interface MarkerStats {
   userEmail: string;
 }
 
+interface InteractionGoal {
+  id: string;
+  userId: string;
+  interactionType: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface InteractionStats {
+  interactionType: string;
+  totalInteractions: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+}
+
 export default function Metas() {
   const { user } = useAuth();
 
@@ -179,6 +201,16 @@ export default function Metas() {
     queryKey: [`/api/marker-stats/${selectedMonth}/${selectedYear}`],
   });
 
+  // Buscar metas de interações
+  const { data: interactionGoals = [] } = useQuery<InteractionGoal[]>({
+    queryKey: [`/api/interaction-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de interações
+  const { data: interactionStats = [] } = useQuery<InteractionStats[]>({
+    queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
+  });
+
   // Função para calcular percentual atingido
   const calculatePercentage = (achieved: number, goal: number) => {
     if (goal === 0) return 0;
@@ -232,11 +264,31 @@ export default function Metas() {
       ? markerGoals
       : markerGoals.filter((goal) => goal.userId === user?.id);
 
+  // Filtrar metas de interações do usuário logado ou mostrar todas se for admin/gerente
+  const filteredInteractionGoals =
+    user?.role === "admin" || user?.role === "gerente"
+      ? interactionGoals
+      : interactionGoals.filter((goal) => goal.userId === user?.id);
+
   // Função auxiliar para garantir weeklyResults sempre é um array
   const getWeeklyResults = (goal: UserGoal) => {
     return goal.weeklyResults && Array.isArray(goal.weeklyResults)
       ? goal.weeklyResults
       : [];
+  };
+
+  // Função para traduzir tipos de interação
+  const getInteractionTypeLabel = (type: string) => {
+    const types: Record<string, string> = {
+      telemarketing: "Ligação",
+      email: "E-mail",
+      meeting: "Reunião",
+      whatsapp: "WhatsApp",
+      visit: "Visita",
+      note: "Anotação",
+      other: "Outro"
+    };
+    return types[type] || type;
   };
 
   return (
@@ -938,6 +990,157 @@ export default function Metas() {
                                       goal.targetQuantity - achieved,
                                     )}{" "}
                                     clientes
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Seção de Metas de Interações */}
+              {filteredInteractionGoals.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center gap-3 mb-6">
+                    <MessageSquare className="h-8 w-8 text-indigo-600" />
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Metas de Interações
+                      </h2>
+                      <p className="text-gray-600">
+                        Acompanhe as metas de interação com clientes em{" "}
+                        {format(
+                          new Date(selectedYear, selectedMonth - 1),
+                          "MMMM 'de' yyyy",
+                          { locale: ptBR },
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredInteractionGoals.map((goal) => {
+                      // Buscar estatísticas do usuário para este tipo de interação
+                      const userStats = interactionStats.find(
+                        (stat) => stat.userId === goal.userId && stat.interactionType === goal.interactionType
+                      );
+                      const achieved = userStats ? userStats.totalInteractions : 0;
+                      const percentage = goal.targetQuantity > 0
+                        ? calculatePercentage(achieved, goal.targetQuantity)
+                        : 0;
+
+                      return (
+                        <Card
+                          key={goal.id}
+                          className="relative border-indigo-200 hover:shadow-lg transition-shadow"
+                        >
+                          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg text-indigo-900">
+                                {goal.userName}
+                              </CardTitle>
+                              <Badge
+                                variant="outline"
+                                className="bg-white border-indigo-300 text-indigo-700"
+                              >
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                {getInteractionTypeLabel(goal.interactionType)}
+                              </Badge>
+                            </div>
+                            <CardDescription className="text-indigo-700">
+                              {goal.userEmail}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-6">
+                            {/* Progresso da Meta */}
+                            <div className="space-y-4">
+                              <div>
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-sm font-medium text-indigo-900">
+                                    {getInteractionTypeLabel(goal.interactionType)} Realizadas
+                                  </span>
+                                  <span className="text-sm text-indigo-600">
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                  <div
+                                    className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${Math.min(percentage, 100)}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                  <span>Realizado: {achieved} interações</span>
+                                  <span>
+                                    Meta: {goal.targetQuantity} interações
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Status da Meta */}
+                              <div className="mt-4 pt-4 border-t">
+                                <div className="flex items-center justify-center">
+                                  {percentage >= 100 ? (
+                                    <div className="flex items-center gap-2 text-indigo-600">
+                                      <Trophy className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Meta Atingida!
+                                      </span>
+                                    </div>
+                                  ) : percentage >= 75 ? (
+                                    <div className="flex items-center gap-2 text-yellow-600">
+                                      <TrendingUp className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Quase lá!
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                      <Target className="h-5 w-5" />
+                                      <span className="font-medium">
+                                        Em progresso
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Informações da Meta */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                    Período:
+                                  </span>
+                                  <span className="font-medium">
+                                    {new Date(
+                                      0,
+                                      goal.month - 1,
+                                    ).toLocaleDateString("pt-BR", {
+                                      month: "long",
+                                    })}{" "}
+                                    {goal.year}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Restam:</span>
+                                  <span className="font-medium">
+                                    {Math.max(
+                                      0,
+                                      goal.targetQuantity - achieved,
+                                    )}{" "}
+                                    interações
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Tipo:</span>
+                                  <span className="font-medium">
+                                    {getInteractionTypeLabel(goal.interactionType)}
                                   </span>
                                 </div>
                               </div>
