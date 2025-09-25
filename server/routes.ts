@@ -34,8 +34,11 @@ import {
   insertEventSchema,
   insertEventParticipantSchema,
   insertMarkerGoalSchema,
+  insertInteractionGoalSchema,
   markerGoals,
   markerWeeklyResults,
+  interactionGoals,
+  interactionWeeklyResults,
   clientInteractions,
   clients,
   users,
@@ -2833,6 +2836,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar estatísticas de marcadores:", error);
       res.status(500).json({ message: "Erro ao buscar estatísticas de marcadores" });
+    }
+  });
+
+  // Interaction Goals routes
+  app.get("/api/interaction-goals", async (req, res) => {
+    try {
+      const { userId, userRole } = req.query;
+      const goals = await storage.getInteractionGoals(
+        userId as string,
+        userRole as string
+      );
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de interações:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de interações" });
+    }
+  });
+
+  app.get("/api/interaction-goals/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const { userId, userRole } = req.query;
+      const goals = await storage.getInteractionGoalsByMonthYear(
+        parseInt(month),
+        parseInt(year),
+        userId as string,
+        userRole as string
+      );
+      res.json(goals);
+    } catch (error) {
+      console.error("Erro ao buscar metas de interações:", error);
+      res.status(500).json({ message: "Erro ao buscar metas de interações" });
+    }
+  });
+
+  app.post("/api/interaction-goals", async (req, res) => {
+    try {
+      const validatedData = insertInteractionGoalSchema.parse(req.body);
+      const goal = await storage.createInteractionGoal(validatedData);
+      res.status(201).json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar meta de interações:", error);
+      res.status(500).json({ message: "Erro ao criar meta de interações" });
+    }
+  });
+
+  app.put("/api/interaction-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertInteractionGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateInteractionGoal(id, validatedData);
+      res.json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar meta de interações:", error);
+      res.status(500).json({ message: "Erro ao atualizar meta de interações" });
+    }
+  });
+
+  app.delete("/api/interaction-goals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteInteractionGoal(id);
+      if (success === false) {
+        return res.status(404).json({ message: "Meta de interações não encontrada" });
+      }
+      res.json({ message: "Meta de interações excluída com sucesso" });
+    } catch (error) {
+      console.error("Erro ao excluir meta de interações:", error);
+      res.status(500).json({ message: "Erro ao excluir meta de interações" });
+    }
+  });
+
+  // Interaction statistics route
+  app.get("/api/interaction-stats/:month/:year", async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const stats = await storage.getInteractionStatsByPeriod(
+        parseInt(month),
+        parseInt(year)
+      );
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de interações:", error);
+      res.status(500).json({ message: "Erro ao buscar estatísticas de interações" });
     }
   });
 
