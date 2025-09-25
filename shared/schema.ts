@@ -944,6 +944,22 @@ export const insertMarkerWeeklyResultSchema = createInsertSchema(
   updatedAt: true,
 });
 
+export const insertInteractionGoalSchema = createInsertSchema(
+  interactionGoals
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInteractionWeeklyResultSchema = createInsertSchema(
+  interactionWeeklyResults
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertCompanyProductSchema = createInsertSchema(
   companyProducts
 ).omit({
@@ -1027,6 +1043,10 @@ export type InsertMarkerGoal = z.infer<typeof insertMarkerGoalSchema>;
 export type MarkerGoal = typeof markerGoals.$inferSelect;
 export type InsertMarkerWeeklyResult = z.infer<typeof insertMarkerWeeklyResultSchema>;
 export type MarkerWeeklyResult = typeof markerWeeklyResults.$inferSelect;
+export type InsertInteractionGoal = z.infer<typeof insertInteractionGoalSchema>;
+export type InteractionGoal = typeof interactionGoals.$inferSelect;
+export type InsertInteractionWeeklyResult = z.infer<typeof insertInteractionWeeklyResultSchema>;
+export type InteractionWeeklyResult = typeof interactionWeeklyResults.$inferSelect;
 
 export type InsertTrainingAttachment = z.infer<typeof insertTrainingAttachment>;
 export type TrainingAttachment = typeof trainingAttachments.$inferSelect;
