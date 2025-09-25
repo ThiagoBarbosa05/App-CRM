@@ -2329,10 +2329,11 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string
   ): Promise<CashbackTransactionWithClient[]> {
-    // Sempre fazer join com clientes para mostrar o nome
-    let transactionsQuery = this.db
+    // Sempre fazer join com clientes para mostrar o nome e responsável
+    let baseQuery = this.db
       .select({
-        id: cashbackTransactions.id,
+        // Campos da transação
+        transactionId: cashbackTransactions.id,
         clientId: cashbackTransactions.clientId,
         dealId: cashbackTransactions.dealId,
         purchaseAmount: cashbackTransactions.purchaseAmount,
@@ -2345,25 +2346,51 @@ export class DatabaseStorage implements IStorage {
         notes: cashbackTransactions.notes,
         createdAt: cashbackTransactions.createdAt,
         updatedAt: cashbackTransactions.updatedAt,
-        clients: {
-          id: clients.id,
-          name: clients.name,
-          email: clients.email,
-        },
+        // Dados do cliente
+        clientName: clients.name,
+        clientEmail: clients.email,
+        // Dados do responsável
+        responsibleId: users.id,
+        responsibleName: users.name,
       })
       .from(cashbackTransactions)
-      .leftJoin(clients, eq(clients.id, cashbackTransactions.clientId));
+      .leftJoin(clients, eq(clients.id, cashbackTransactions.clientId))
+      .leftJoin(users, eq(users.id, clients.responsavelId));
 
     // Se for vendedor, filtrar apenas transações de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
-      transactionsQuery = transactionsQuery.where(
-        eq(clients.responsavelId, userId)
-      );
+      baseQuery = baseQuery.where(eq(clients.responsavelId, userId));
     }
 
-    const transactions = await transactionsQuery.orderBy(
-      cashbackTransactions.createdAt
-    );
+    const rawTransactions = await baseQuery.orderBy(cashbackTransactions.createdAt);
+
+    // Transformar os dados para o formato esperado
+    const transactions = rawTransactions.map(row => ({
+      id: row.transactionId,
+      clientId: row.clientId,
+      dealId: row.dealId,
+      purchaseAmount: row.purchaseAmount,
+      cashbackAmount: row.cashbackAmount,
+      cashbackRate: row.cashbackRate,
+      status: row.status,
+      expiresAt: row.expiresAt,
+      processedBy: row.processedBy,
+      settingId: row.settingId,
+      notes: row.notes,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      // Manter estrutura do cliente para compatibilidade
+      clients: {
+        id: row.clientId,
+        name: row.clientName,
+        email: row.clientEmail,
+      },
+      // Adicionar informações do responsável
+      responsible: row.responsibleId ? {
+        id: row.responsibleId,
+        name: row.responsibleName,
+      } : null,
+    })) as any;
 
     return transactions;
   }
