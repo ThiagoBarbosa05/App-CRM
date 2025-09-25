@@ -1174,7 +1174,7 @@ export default function AdminGoals() {
 
           {/* Tabs para Metas de Vendas, Telemarketing, Cadastros, Marcadores e Interações */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 lg:grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
                 Metas de Vendas
