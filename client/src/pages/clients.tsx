@@ -6,8 +6,9 @@ import ClientFilters, {
 } from "@/components/client-filters";
 import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
+import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download, Upload, Loader2 } from "lucide-react";
+import { Plus, Search, Download, Upload, Loader2, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ export default function Clients() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isBulkDealModalOpen, setIsBulkDealModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<Client[]>([]); // Tipagem melhorada
@@ -226,6 +228,17 @@ export default function Clients() {
                     </Button>
                   </div>
                 )}
+                {selectedClients.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsBulkDealModalOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                    data-testid="button-bulk-deals"
+                  >
+                    <Briefcase className="h-4 w-4 mr-2" />
+                    Criar Negócios em Lote ({selectedClients.length})
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => setIsExportModalOpen(true)}
@@ -299,6 +312,12 @@ export default function Clients() {
         clients={clientsForExport}
         selectedClients={selectedClients}
         users={usersArray}
+      />
+
+      <BulkDealCreationModalForClients
+        open={isBulkDealModalOpen}
+        onOpenChange={setIsBulkDealModalOpen}
+        clients={selectedClients}
       />
     </div>
   );
