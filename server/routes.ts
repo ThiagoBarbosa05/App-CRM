@@ -1423,6 +1423,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk deal creation for clients
+  app.post("/api/deals/bulk-clients", async (req, res) => {
+    try {
+      console.log(
+        "=== BULK DEALS CLIENTS - BODY COMPLETO ===",
+        JSON.stringify(req.body, null, 2)
+      );
+      const { clients, funnelId, stageId, value, assignedTo, notes, title } =
+        req.body;
+
+      console.log("=== BULK DEALS CLIENTS - DADOS EXTRAIDOS ===", {
+        clients: clients?.length,
+        funnelId,
+        stageId,
+        value,
+        assignedTo,
+        notes,
+        title,
+      });
+
+      if (!clients || !Array.isArray(clients) || clients.length === 0) {
+        return res.status(400).json({ message: "Clientes são obrigatórios" });
+      }
+
+      // Verificar se assignedTo está definido
+      if (!assignedTo) {
+        return res.status(400).json({ message: "Responsável é obrigatório" });
+      }
+
+      const deals = [];
+      const errors = [];
+
+      for (const clientId of clients) {
+        try {
+          const client = await storage.getClient(clientId);
+          if (!client) {
+            errors.push(`Cliente com ID ${clientId} não encontrado`);
+            continue;
+          }
+
+          const dealTitle = title || `Negócio - ${client.name}`;
+
+          const dealData = {
+            clientId,
+            funnelId,
+            stageId,
+            value,
+            assignedTo: assignedTo || "87dddc4d-2b4a-4cdd-8b5f-d2ab72ba7aca", // Fallback para admin user
+            notes,
+            title: dealTitle,
+            createdBy: assignedTo || "87dddc4d-2b4a-4cdd-8b5f-d2ab72ba7aca", // Fallback para admin user
+          };
+
+          const validatedData = insertDealSchema.parse(dealData);
+          const deal = await storage.createDeal(validatedData);
+          deals.push(deal);
+        } catch (error) {
+          errors.push(
+            `Erro ao criar negócio para cliente ${clientId}: ${
+              error instanceof Error ? error.message : "Erro desconhecido"
+            }`
+          );
+        }
+      }
+
+      if (deals.length === 0) {
+        return res.status(400).json({
+          message: "Nenhum negócio foi criado",
+          errors,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        created: deals.length,
+        total: clients.length,
+        errors: errors.length,
+        errorDetails: errors.length > 0 ? errors : undefined,
+        deals,
+      });
+    } catch (error) {
+      console.error("Erro na criação de negócios em lote para clientes:", error);
+      res.status(500).json({ message: "Erro ao criar negócios em lote para clientes" });
+    }
+  });
+
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
