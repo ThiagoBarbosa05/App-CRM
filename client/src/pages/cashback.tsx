@@ -750,9 +750,9 @@ export default function Cashback() {
                                 <div>
                                   <p className="font-medium">
                                     {client.name || "Cliente"}
-                                    {item.responsible?.name && (
+                                    {item.responsibleName && (
                                       <span className="text-sm text-gray-500 ml-2">
-                                        • Resp: {item.responsible.name}
+                                        • Resp: {item.responsibleName}
                                       </span>
                                     )}
                                   </p>
