@@ -45,6 +45,7 @@ import {
   Package,
   Trash2,
   Phone,
+  MessageSquare,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -118,12 +119,27 @@ const markerGoalSchema = z.object({
   year: z.string().min(1, "Ano é obrigatório"),
 });
 
+const interactionGoalSchema = z.object({
+  userId: z.string().min(1, "Usuário é obrigatório"),
+  interactionType: z.string().min(1, "Tipo de interação é obrigatório"),
+  targetQuantity: z
+    .string()
+    .min(1, "Quantidade é obrigatória")
+    .refine(
+      (val) => !isNaN(Number(val)) && Number(val) >= 1,
+      "Deve ser pelo menos 1",
+    ),
+  month: z.string().min(1, "Mês é obrigatório"),
+  year: z.string().min(1, "Ano é obrigatório"),
+});
+
 type GoalFormData = z.infer<typeof goalSchema>;
 type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
 type ClientRegistrationGoalFormData = z.infer<
   typeof clientRegistrationGoalSchema
 >;
 type MarkerGoalFormData = z.infer<typeof markerGoalSchema>;
+type InteractionGoalFormData = z.infer<typeof interactionGoalSchema>;
 
 interface TelemarketingGoal {
   id: string;
@@ -154,6 +170,19 @@ interface MarkerGoal {
   id: string;
   userId: string;
   markerName: string;
+  targetQuantity: number;
+  month: number;
+  year: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface InteractionGoal {
+  id: string;
+  userId: string;
+  interactionType: string;
   targetQuantity: number;
   month: number;
   year: number;
@@ -258,6 +287,10 @@ export default function AdminGoals() {
   const [isMarkerGoalModalOpen, setIsMarkerGoalModalOpen] = useState(false);
   const [editingMarkerGoal, setEditingMarkerGoal] = useState<MarkerGoal | null>(null);
 
+  // Estado para metas de interações
+  const [isInteractionGoalModalOpen, setIsInteractionGoalModalOpen] = useState(false);
+  const [editingInteractionGoal, setEditingInteractionGoal] = useState<InteractionGoal | null>(null);
+
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -351,6 +384,18 @@ export default function AdminGoals() {
     queryKey: ["/api/markers"],
   });
 
+  // Buscar metas de interações
+  const { data: interactionGoals = [] } = useQuery<InteractionGoal[]>({
+    queryKey: [`/api/interaction-goals/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Buscar estatísticas de interações
+  const { data: interactionStats = [] } = useQuery<
+    { interactionType: string; totalInteractions: number; userId: string; userName: string; userEmail: string }[]
+  >({
+    queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
+  });
+
   // Form para telemarketing
   const {
     register: registerTelemarketing,
@@ -387,6 +432,17 @@ export default function AdminGoals() {
     defaultValues: {
       markerName: "",
     },
+  });
+
+  // Form para metas de interações
+  const {
+    register: registerInteraction,
+    handleSubmit: handleSubmitInteraction,
+    reset: resetInteraction,
+    setValue: setValueInteraction,
+    formState: { errors: interactionErrors },
+  } = useForm<InteractionGoalFormData>({
+    resolver: zodResolver(interactionGoalSchema),
   });
 
   // Mutation para criar/atualizar meta
@@ -700,6 +756,79 @@ export default function AdminGoals() {
     },
   });
 
+  // Mutation para metas de interações
+  const interactionGoalMutation = useMutation({
+    mutationFn: async (data: InteractionGoalFormData) => {
+      const goalData = {
+        userId: data.userId,
+        interactionType: data.interactionType,
+        targetQuantity: parseInt(data.targetQuantity),
+        month: parseInt(data.month),
+        year: parseInt(data.year),
+      };
+
+      if (editingInteractionGoal) {
+        return apiRequest(
+          "PUT",
+          `/api/interaction-goals/${editingInteractionGoal.id}`,
+          goalData
+        );
+      } else {
+        return apiRequest("POST", "/api/interaction-goals", goalData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/interaction-goals/${selectedMonth}/${selectedYear}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: editingInteractionGoal
+          ? "Meta de interações atualizada"
+          : "Meta de interações criada",
+        description: `Meta de interações foi ${editingInteractionGoal ? "atualizada" : "criada"} com sucesso.`,
+      });
+      handleCloseInteractionGoalModal();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description:
+          error.message ||
+          `Erro ao ${editingInteractionGoal ? "atualizar" : "criar"} meta de interações.`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para deletar meta de interações
+  const deleteInteractionGoalMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest("DELETE", `/api/interaction-goals/${goalId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/interaction-goals/${selectedMonth}/${selectedYear}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
+      });
+      toast({
+        title: "Meta de interações excluída",
+        description: "Meta de interações foi excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir meta de interações.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteGoal = (goal: UserGoal) => {
     if (confirm(`Tem certeza que deseja excluir a meta de ${goal.userName}?`)) {
       deleteMutation.mutate(goal.id);
@@ -864,6 +993,37 @@ export default function AdminGoals() {
     markerGoalMutation.mutate(data);
   };
 
+  // Handlers para metas de interações
+  const handleEditInteractionGoal = (goal: InteractionGoal) => {
+    setEditingInteractionGoal(goal);
+    setValueInteraction("userId", goal.userId);
+    setValueInteraction("interactionType", goal.interactionType);
+    setValueInteraction("targetQuantity", goal.targetQuantity.toString());
+    setValueInteraction("month", goal.month.toString());
+    setValueInteraction("year", goal.year.toString());
+    setIsInteractionGoalModalOpen(true);
+  };
+
+  const handleCloseInteractionGoalModal = () => {
+    setIsInteractionGoalModalOpen(false);
+    setEditingInteractionGoal(null);
+    resetInteraction();
+  };
+
+  const handleDeleteInteractionGoal = (goal: InteractionGoal) => {
+    if (
+      confirm(
+        `Deseja realmente excluir a meta de interações para ${goal.userName}?`
+      )
+    ) {
+      deleteInteractionGoalMutation.mutate(goal.id);
+    }
+  };
+
+  const onSubmitInteractionGoal = (data: InteractionGoalFormData) => {
+    interactionGoalMutation.mutate(data);
+  };
+
   return (
     <div>
       <div className="flex-1 ml-0 ">
@@ -1012,9 +1172,9 @@ export default function AdminGoals() {
             </Card>
           </div>
 
-          {/* Tabs para Metas de Vendas, Telemarketing, Cadastros e Marcadores */}
+          {/* Tabs para Metas de Vendas, Telemarketing, Cadastros, Marcadores e Interações */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="admin-metas">
                 <Target className="h-4 w-4 mr-2" />
                 Metas de Vendas
@@ -1030,6 +1190,10 @@ export default function AdminGoals() {
               <TabsTrigger value="metas-marcadores">
                 <Package className="h-4 w-4 mr-2" />
                 Metas de Marcadores
+              </TabsTrigger>
+              <TabsTrigger value="metas-interacoes">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Metas de Interações
               </TabsTrigger>
             </TabsList>
 
@@ -1557,6 +1721,176 @@ export default function AdminGoals() {
                                       data-testid={`button-delete-marker-${goal.id}`}
                                     >
                                       <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab Content: Metas de Interações */}
+            <TabsContent
+              value="metas-interacoes"
+              className="w-full overflow-hidden"
+            >
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row items-start gap-2 sm:items-center justify-between">
+                    <div>
+                      <CardTitle className="flex text-sm sm:text-2xl items-center gap-2">
+                        <MessageSquare className="size-4 sm:size-5" />
+                        Metas de Interações por Usuário
+                      </CardTitle>
+                      <CardDescription className="text-xs sm:text-base">
+                        Gestão de metas baseadas em tipos de interação com clientes
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setValueInteraction("month", selectedMonth.toString());
+                        setValueInteraction("year", selectedYear.toString());
+                        setIsInteractionGoalModalOpen(true);
+                      }}
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      data-testid="button-new-interaction-goal"
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Nova Meta de Interação
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {interactionGoals.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">
+                        Nenhuma meta de interação cadastrada
+                      </p>
+                      <p className="text-sm">
+                        Comece definindo metas de interação para os usuários
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Usuário</TableHead>
+                            <TableHead>Tipo de Interação</TableHead>
+                            <TableHead>Meta</TableHead>
+                            <TableHead>Período</TableHead>
+                            <TableHead>Realizadas</TableHead>
+                            <TableHead>Progresso</TableHead>
+                            <TableHead>Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {interactionGoals.map((goal) => {
+                            // Buscar estatísticas do usuário para este tipo de interação
+                            const stats = interactionStats.find(
+                              (stat) => stat.userId === goal.userId && stat.interactionType === goal.interactionType
+                            );
+                            const totalInteractions = stats?.totalInteractions || 0;
+                            const progressPercentage = goal.targetQuantity > 0 
+                              ? Math.min((totalInteractions / goal.targetQuantity) * 100, 100)
+                              : 0;
+
+                            // Função para traduzir tipos de interação
+                            const getInteractionTypeLabel = (type: string) => {
+                              const types: Record<string, string> = {
+                                telemarketing: "Ligação",
+                                email: "E-mail",
+                                meeting: "Reunião",
+                                whatsapp: "WhatsApp",
+                                visit: "Visita",
+                                note: "Anotação",
+                                other: "Outro"
+                              };
+                              return types[type] || type;
+                            };
+
+                            return (
+                              <TableRow key={goal.id}>
+                                <TableCell className="font-medium">
+                                  {goal.userName}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    {getInteractionTypeLabel(goal.interactionType)}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="font-medium text-indigo-600">
+                                  {goal.targetQuantity}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {new Date(0, goal.month - 1).toLocaleDateString(
+                                    "pt-BR",
+                                    { month: "long" }
+                                  )}{" "}
+                                  {goal.year}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  <span className={`${
+                                    progressPercentage >= 100 
+                                      ? "text-green-600" 
+                                      : progressPercentage >= 75 
+                                        ? "text-blue-600" 
+                                        : progressPercentage >= 50 
+                                          ? "text-orange-600" 
+                                          : "text-red-600"
+                                  }`}>
+                                    {totalInteractions}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className={`h-2 rounded-full ${
+                                          progressPercentage >= 100
+                                            ? "bg-green-600"
+                                            : progressPercentage >= 75
+                                              ? "bg-blue-600"
+                                              : progressPercentage >= 50
+                                                ? "bg-orange-600"
+                                                : "bg-red-600"
+                                        }`}
+                                        style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-sm font-medium min-w-fit">
+                                      {progressPercentage.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditInteractionGoal(goal)}
+                                      data-testid={`button-edit-interaction-${goal.id}`}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteInteractionGoal(goal)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      disabled={deleteInteractionGoalMutation.isPending}
+                                      data-testid={`button-delete-interaction-${goal.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Excluir
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -2288,6 +2622,167 @@ export default function AdminGoals() {
                 {markerGoalMutation.isPending
                   ? "Salvando..."
                   : editingMarkerGoal
+                    ? "Atualizar Meta"
+                    : "Criar Meta"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de metas de interações */}
+      <Dialog
+        open={isInteractionGoalModalOpen}
+        onOpenChange={handleCloseInteractionGoalModal}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingInteractionGoal
+                ? "Editar Meta de Interações"
+                : "Nova Meta de Interações"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={handleSubmitInteraction(onSubmitInteractionGoal)}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="interactionUserId">Usuário</Label>
+              <select
+                id="interactionUserId"
+                {...registerInteraction("userId")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                disabled={!!editingInteractionGoal}
+                data-testid="select-interaction-user"
+              >
+                <option value="">Selecione um usuário</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              {interactionErrors.userId && (
+                <p className="text-sm text-red-600">
+                  {interactionErrors.userId.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="interactionType">Tipo de Interação</Label>
+              <select
+                id="interactionType"
+                {...registerInteraction("interactionType")}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                data-testid="select-interaction-type"
+              >
+                <option value="">Selecione o tipo de interação</option>
+                <option value="telemarketing">Ligação</option>
+                <option value="email">E-mail</option>
+                <option value="meeting">Reunião</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="visit">Visita</option>
+                <option value="note">Anotação</option>
+                <option value="other">Outro</option>
+              </select>
+              {interactionErrors.interactionType && (
+                <p className="text-sm text-red-600">
+                  {interactionErrors.interactionType.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="interactionTargetQuantity">Quantidade Meta</Label>
+              <Input
+                id="interactionTargetQuantity"
+                type="number"
+                min="1"
+                placeholder="50"
+                {...registerInteraction("targetQuantity")}
+                data-testid="input-interaction-quantity"
+              />
+              {interactionErrors.targetQuantity && (
+                <p className="text-sm text-red-600">
+                  {interactionErrors.targetQuantity.message}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="interactionMonth">Mês</Label>
+                <select
+                  id="interactionMonth"
+                  {...registerInteraction("month")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  disabled={!!editingInteractionGoal}
+                  data-testid="select-interaction-month"
+                >
+                  <option value="">Selecione o mês</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                        month: "long",
+                      })}
+                    </option>
+                  ))}
+                </select>
+                {interactionErrors.month && (
+                  <p className="text-sm text-red-600">
+                    {interactionErrors.month.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="interactionYear">Ano</Label>
+                <select
+                  id="interactionYear"
+                  {...registerInteraction("year")}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  disabled={!!editingInteractionGoal}
+                  data-testid="select-interaction-year"
+                >
+                  <option value="">Selecione o ano</option>
+                  {Array.from(
+                    { length: 5 },
+                    (_, i) => currentDate.getFullYear() - 2 + i,
+                  ).map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+                {interactionErrors.year && (
+                  <p className="text-sm text-red-600">
+                    {interactionErrors.year.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseInteractionGoalModal}
+                data-testid="button-cancel-interaction"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={interactionGoalMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700"
+                data-testid="button-submit-interaction"
+              >
+                {interactionGoalMutation.isPending
+                  ? "Salvando..."
+                  : editingInteractionGoal
                     ? "Atualizar Meta"
                     : "Criar Meta"}
               </Button>
