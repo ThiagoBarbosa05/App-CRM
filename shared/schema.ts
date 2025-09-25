@@ -656,6 +656,46 @@ export const markerWeeklyResults = pgTable(
   }
 );
 
+// Tabela de metas de interações com clientes
+export const interactionGoals = pgTable(
+  "interaction_goals",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id)
+      .notNull(),
+    interactionType: text("interaction_type").notNull(), // Tipo de interação (telemarketing, email, meeting, whatsapp, visit, note, other)
+    targetQuantity: integer("target_quantity").notNull(), // Quantidade de interações alvo
+    month: integer("month").notNull(), // Mês da meta (1-12)
+    year: integer("year").notNull(), // Ano da meta
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    // Constraint composta: um usuário só pode ter uma meta por tipo de interação/mês/ano
+    uniqueUserInteractionMonthYear: sql`UNIQUE (${table.userId}, ${table.interactionType}, ${table.month}, ${table.year})`,
+  })
+);
+
+// Tabela de resultados semanais das metas de interações
+export const interactionWeeklyResults = pgTable(
+  "interaction_weekly_results",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    interactionGoalId: varchar("interaction_goal_id")
+      .references(() => interactionGoals.id, { onDelete: "cascade" })
+      .notNull(),
+    week: integer("week").notNull(), // Semana do mês (1-4)
+    quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de interações realizadas
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  }
+);
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(
   birthdayReminders,
