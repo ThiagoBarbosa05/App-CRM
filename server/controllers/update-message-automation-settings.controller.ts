@@ -1,14 +1,22 @@
 import { Request, Response } from "express";
-import { updateMessageAutomationSetting, updateMessageAutomationSettingSchema } from "../db/functions/update-message-automation-settings";
+import {
+  updateMessageAutomationSetting,
+  updateMessageAutomationSettingSchema,
+} from "../db/functions/update-message-automation-settings";
+import { reconfigureBirthdayScheduler } from "../jobs/reconfigure-scheduler";
 
-export async function updateMessageAutomationSettingsController(req: Request, res: Response) {
+export async function updateMessageAutomationSettingsController(
+  req: Request,
+  res: Response
+) {
   try {
     const dataToValidate = {
       id: req.params.id,
       ...req.body,
     };
 
-    const validationResult = updateMessageAutomationSettingSchema.safeParse(dataToValidate);
+    const validationResult =
+      updateMessageAutomationSettingSchema.safeParse(dataToValidate);
 
     if (!validationResult.success) {
       return res.status(400).json({
@@ -17,11 +25,30 @@ export async function updateMessageAutomationSettingsController(req: Request, re
       });
     }
 
-    const updatedSetting = await updateMessageAutomationSetting(validationResult.data);
+    const updatedSetting = await updateMessageAutomationSetting(
+      validationResult.data
+    );
+
+    // Reconfigurar schedulers após atualização
+    try {
+      await reconfigureBirthdayScheduler();
+      console.log(
+        "[Update Controller] Schedulers reconfigurados após atualização da configuração"
+      );
+    } catch (schedulerError) {
+      console.error(
+        "[Update Controller] Erro ao reconfigurar schedulers:",
+        schedulerError
+      );
+      // Não falhar a resposta por erro no scheduler, apenas logar
+    }
 
     return res.status(200).json(updatedSetting);
   } catch (error) {
-    console.error(`[PATCH /api/message-automation-settings/:id] - Error:`, error);
+    console.error(
+      `[PATCH /api/message-automation-settings/:id] - Error:`,
+      error
+    );
     if (error instanceof Error) {
       if (error.message.includes("not found")) {
         return res.status(404).json({ message: error.message });

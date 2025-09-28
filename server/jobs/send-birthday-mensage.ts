@@ -160,7 +160,8 @@ async function processAutomation(
 }
 
 /**
- * Verifica se já foi enviada mensagem de aniversário para o cliente no ano atual
+ * Verifica se já foi enviada mensagem de aniversário para o cliente na automação específica no ano atual
+ * Cada automação (no dia vs dias antes) é tratada independentemente
  */
 async function hasAlreadySentBirthdayMessageThisYear(
   clientId: string,
@@ -171,20 +172,38 @@ async function hasAlreadySentBirthdayMessageThisYear(
     const yearStart = new Date(currentYear, 0, 1); // 1º de janeiro
     const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59); // 31 de dezembro
 
-    // Buscar logs de mensagens enviadas para este cliente nesta automação no ano atual
+    console.log(
+      `[Birthday Job] Verificando se já foi enviada mensagem para cliente ${clientId} na automação ${automationId} no ano ${currentYear}`
+    );
+
+    // Buscar logs de mensagens enviadas para este cliente nesta automação específica no ano atual
     const logs = await getMessageJobsLogs({
       clientId,
       automationId,
       status: "enviado",
       page: 1,
-      pageSize: 1,
+      pageSize: 10, // Aumentar para garantir que encontramos registros
     });
 
     // Verificar se existe algum log de envio bem-sucedido no ano atual
     const hasMessageThisYear = logs.data.some((log) => {
       const logDate = new Date(log.actualSendAt || log.scheduledSendAt);
-      return logDate >= yearStart && logDate <= yearEnd;
+      const isThisYear = logDate >= yearStart && logDate <= yearEnd;
+
+      if (isThisYear) {
+        console.log(
+          `[Birthday Job] Encontrado envio anterior em ${logDate.toDateString()} para cliente ${clientId} na automação ${automationId}`
+        );
+      }
+
+      return isThisYear;
     });
+
+    console.log(
+      `[Birthday Job] Cliente ${clientId} na automação ${automationId}: ${
+        hasMessageThisYear ? "JÁ RECEBEU" : "AINDA NÃO RECEBEU"
+      } mensagem neste ano`
+    );
 
     return hasMessageThisYear;
   } catch (error) {
@@ -205,11 +224,19 @@ async function getBirthdayClients(
 ): Promise<ProcessedClient[]> {
   try {
     // Calcular a data alvo baseada nos dias antes
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + daysBefore);
+    const today = new Date();
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + daysBefore);
+
+    const description =
+      daysBefore === 0
+        ? "hoje (dia do aniversário)"
+        : daysBefore === 1
+        ? "amanhã (1 dia antes)"
+        : `em ${daysBefore} dias (${daysBefore} dias antes)`;
 
     console.log(
-      `[Birthday Job] Buscando clientes aniversariantes para ${targetDate.toDateString()} (${daysBefore} dias antes)`
+      `[Birthday Job] Buscando clientes que fazem aniversário ${description} - Data alvo: ${targetDate.toDateString()}`
     );
 
     // Buscar clientes com aniversário na data alvo usando função otimizada do storage
@@ -483,70 +510,22 @@ async function createJobLog(log: BirthdayJobLog): Promise<void> {
 
 /**
  * Função utilitária para verificar se é hora de executar uma automação
+ * @deprecated Esta função não é mais necessária com o novo sistema de cron dinâmico
  */
 export function shouldRunAutomation(sendTime: string): boolean {
-  const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}`;
-
   console.log(
-    `[Birthday Job] Verificando horário - Atual: ${currentTime}, Configurado: ${sendTime}`
+    `[Birthday Job] DEPRECATED: shouldRunAutomation() não é mais necessária. O horário ${sendTime} agora é controlado pelo cron scheduler.`
   );
-
-  // Permite uma janela de 5 minutos para execução
-  const targetTime = new Date();
-  const [hours, minutes] = sendTime.split(":").map(Number);
-  targetTime.setHours(hours, minutes, 0, 0);
-
-  const timeDiff = Math.abs(now.getTime() - targetTime.getTime());
-  const fiveMinutes = 5 * 60 * 1000; // 5 minutos em millisegundos
-
-  const shouldRun = timeDiff <= fiveMinutes;
-  console.log(
-    `[Birthday Job] Diferença de tempo: ${Math.round(
-      timeDiff / 1000
-    )}s, Deve executar: ${shouldRun}`
-  );
-
-  return shouldRun;
+  return true; // Sempre retorna true pois o controle é feito pelo cron
 }
 
 /**
  * Função para executar apenas automações no horário correto
+ * @deprecated Use sendBirthdayMessages() instead. O controle de horário agora é feito pelo cron scheduler.
  */
 export async function sendBirthdayMessagesScheduled(): Promise<void> {
   console.log(
-    "[Birthday Job Scheduled] Verificando automações para execução..."
+    "[Birthday Job Scheduled] DEPRECATED: Use sendBirthdayMessages() instead. Redirecionando..."
   );
-
-  try {
-    const automations = await getAllMessageAutomationSettings();
-    console.log(
-      `[Birthday Job Scheduled] ${automations.length} automação(ões) encontrada(s) no banco de dados.`
-    );
-    const activeAutomations = automations.filter(
-      (automation) =>
-        automation.enabled && shouldRunAutomation(automation.sendTime)
-    );
-
-    if (activeAutomations.length === 0) {
-      console.log(
-        "[Birthday Job Scheduled] Nenhuma automação para executar neste horário."
-      );
-      return;
-    }
-
-    console.log(
-      `[Birthday Job Scheduled] Executando ${activeAutomations.length} automação(ões) no horário correto.`
-    );
-
-    for (const automation of activeAutomations) {
-      await processAutomation(automation);
-    }
-  } catch (error) {
-    console.error("[Birthday Job Scheduled] Erro no job agendado:", error);
-    throw error;
-  }
+  await sendBirthdayMessages();
 }
