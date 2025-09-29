@@ -58,21 +58,21 @@ const goalSchema = z.object({
     .min(1, "Meta de vendas é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo",
+      "Valor deve ser um número positivo"
     ),
   averageTicket: z
     .string()
     .min(1, "Ticket médio é obrigatório")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo",
+      "Valor deve ser um número positivo"
     ),
   itemsPerSale: z
     .string()
     .min(1, "Itens por venda é obrigatório")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
@@ -86,7 +86,7 @@ const telemarketingGoalSchema = z.object({
     .min(1, "Quantidade é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
@@ -99,7 +99,7 @@ const clientRegistrationGoalSchema = z.object({
     .min(1, "Quantidade é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
@@ -113,7 +113,7 @@ const markerGoalSchema = z.object({
     .min(1, "Quantidade é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
@@ -127,7 +127,7 @@ const interactionGoalSchema = z.object({
     .min(1, "Quantidade é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   month: z.string().min(1, "Mês é obrigatório"),
   year: z.string().min(1, "Ano é obrigatório"),
@@ -233,28 +233,28 @@ const weeklyResultSchema = z.object({
     .min(1, "Semana é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
   salesAchieved: z
     .string()
     .min(1, "Vendas atingidas é obrigatória")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo",
+      "Valor deve ser um número positivo"
     ),
   ticketAchieved: z
     .string()
     .min(1, "Ticket atingido é obrigatório")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo",
+      "Valor deve ser um número positivo"
     ),
   itemsAchieved: z
     .string()
     .min(1, "Itens atingidos é obrigatório")
     .refine(
       (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1",
+      "Deve ser pelo menos 1"
     ),
 });
 
@@ -285,16 +285,20 @@ export default function AdminGoals() {
 
   // Estado para metas de marcadores
   const [isMarkerGoalModalOpen, setIsMarkerGoalModalOpen] = useState(false);
-  const [editingMarkerGoal, setEditingMarkerGoal] = useState<MarkerGoal | null>(null);
+  const [editingMarkerGoal, setEditingMarkerGoal] = useState<MarkerGoal | null>(
+    null
+  );
 
   // Estado para metas de interações
-  const [isInteractionGoalModalOpen, setIsInteractionGoalModalOpen] = useState(false);
-  const [editingInteractionGoal, setEditingInteractionGoal] = useState<InteractionGoal | null>(null);
+  const [isInteractionGoalModalOpen, setIsInteractionGoalModalOpen] =
+    useState(false);
+  const [editingInteractionGoal, setEditingInteractionGoal] =
+    useState<InteractionGoal | null>(null);
 
   // Estado para controlar mês/ano atual
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
-    currentDate.getMonth() + 1,
+    currentDate.getMonth() + 1
   );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
@@ -380,7 +384,9 @@ export default function AdminGoals() {
   });
 
   // Buscar marcadores cadastrados
-  const { data: availableMarkers = [] } = useQuery<{id: string; name: string; color: string;}[]>({
+  const { data: availableMarkers = [] } = useQuery<
+    { id: string; name: string; color: string }[]
+  >({
     queryKey: ["/api/markers"],
   });
 
@@ -391,7 +397,13 @@ export default function AdminGoals() {
 
   // Buscar estatísticas de interações
   const { data: interactionStats = [] } = useQuery<
-    { interactionType: string; totalInteractions: number; userId: string; userName: string; userEmail: string }[]
+    {
+      interactionType: string;
+      totalInteractions: number;
+      userId: string;
+      userName: string;
+      userEmail: string;
+    }[]
   >({
     queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
   });
@@ -471,7 +483,9 @@ export default function AdminGoals() {
       });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
-        description: `Meta do usuário foi ${editingGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `Meta do usuário foi ${
+          editingGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       handleCloseModal();
     },
@@ -561,7 +575,7 @@ export default function AdminGoals() {
         return apiRequest(
           "PUT",
           `/api/telemarketing-goals/${editingTelemarketingGoal.id}`,
-          goalData,
+          goalData
         );
       } else {
         return apiRequest("POST", "/api/telemarketing-goals", goalData);
@@ -575,7 +589,9 @@ export default function AdminGoals() {
         title: editingTelemarketingGoal
           ? "Meta de telemarketing atualizada"
           : "Meta de telemarketing criada",
-        description: `Meta de telemarketing foi ${editingTelemarketingGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `Meta de telemarketing foi ${
+          editingTelemarketingGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       handleCloseTelemarketingModal();
     },
@@ -584,7 +600,9 @@ export default function AdminGoals() {
         title: "Erro",
         description:
           error.message ||
-          `Erro ao ${editingTelemarketingGoal ? "atualizar" : "criar"} meta de telemarketing.`,
+          `Erro ao ${
+            editingTelemarketingGoal ? "atualizar" : "criar"
+          } meta de telemarketing.`,
         variant: "destructive",
       });
     },
@@ -627,7 +645,7 @@ export default function AdminGoals() {
         return apiRequest(
           "PUT",
           `/api/client-registration-goals/${editingClientRegistrationGoal.id}`,
-          goalData,
+          goalData
         );
       } else {
         return apiRequest("POST", "/api/client-registration-goals", goalData);
@@ -643,7 +661,9 @@ export default function AdminGoals() {
         title: editingClientRegistrationGoal
           ? "Meta de cadastros atualizada"
           : "Meta de cadastros criada",
-        description: `Meta de cadastros foi ${editingClientRegistrationGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `Meta de cadastros foi ${
+          editingClientRegistrationGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       handleCloseClientRegistrationModal();
     },
@@ -652,7 +672,9 @@ export default function AdminGoals() {
         title: "Erro",
         description:
           error.message ||
-          `Erro ao ${editingClientRegistrationGoal ? "atualizar" : "criar"} meta de cadastros.`,
+          `Erro ao ${
+            editingClientRegistrationGoal ? "atualizar" : "criar"
+          } meta de cadastros.`,
         variant: "destructive",
       });
     },
@@ -715,7 +737,9 @@ export default function AdminGoals() {
         title: editingMarkerGoal
           ? "Meta de marcadores atualizada"
           : "Meta de marcadores criada",
-        description: `Meta de marcadores foi ${editingMarkerGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `Meta de marcadores foi ${
+          editingMarkerGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       handleCloseMarkerGoalModal();
     },
@@ -724,7 +748,9 @@ export default function AdminGoals() {
         title: "Erro",
         description:
           error.message ||
-          `Erro ao ${editingMarkerGoal ? "atualizar" : "criar"} meta de marcadores.`,
+          `Erro ao ${
+            editingMarkerGoal ? "atualizar" : "criar"
+          } meta de marcadores.`,
         variant: "destructive",
       });
     },
@@ -788,7 +814,9 @@ export default function AdminGoals() {
         title: editingInteractionGoal
           ? "Meta de interações atualizada"
           : "Meta de interações criada",
-        description: `Meta de interações foi ${editingInteractionGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `Meta de interações foi ${
+          editingInteractionGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       handleCloseInteractionGoalModal();
     },
@@ -797,7 +825,9 @@ export default function AdminGoals() {
         title: "Erro",
         description:
           error.message ||
-          `Erro ao ${editingInteractionGoal ? "atualizar" : "criar"} meta de interações.`,
+          `Erro ao ${
+            editingInteractionGoal ? "atualizar" : "criar"
+          } meta de interações.`,
         variant: "destructive",
       });
     },
@@ -867,7 +897,7 @@ export default function AdminGoals() {
   // Função para calcular o total alcançado até o momento
   const getTotalAchieved = (
     weeklyResults: WeeklyResult[],
-    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
+    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved"
   ) => {
     return weeklyResults.reduce((sum, result) => {
       if (field === "itemsAchieved") {
@@ -879,7 +909,7 @@ export default function AdminGoals() {
 
   // Obter usuários sem metas para novo cadastro
   const usersWithoutGoals = users.filter(
-    (user) => !userGoals.some((goal) => goal.userId === user.id),
+    (user) => !userGoals.some((goal) => goal.userId === user.id)
   );
 
   const handleOpenResultModal = (goal: UserGoal) => {
@@ -918,7 +948,7 @@ export default function AdminGoals() {
   const handleDeleteTelemarketingGoal = (goal: TelemarketingGoal) => {
     if (
       confirm(
-        `Deseja realmente excluir a meta de telemarketing para ${goal.userName}?`,
+        `Deseja realmente excluir a meta de telemarketing para ${goal.userName}?`
       )
     ) {
       deleteTelemarketingMutation.mutate(goal.id);
@@ -935,7 +965,7 @@ export default function AdminGoals() {
     setValueClientRegistration("userId", goal.userId);
     setValueClientRegistration(
       "targetQuantity",
-      goal.targetQuantity.toString(),
+      goal.targetQuantity.toString()
     );
     setValueClientRegistration("month", goal.month.toString());
     setValueClientRegistration("year", goal.year.toString());
@@ -951,7 +981,7 @@ export default function AdminGoals() {
   const handleDeleteClientRegistrationGoal = (goal: ClientRegistrationGoal) => {
     if (
       confirm(
-        `Deseja realmente excluir a meta de cadastros para ${goal.userName}?`,
+        `Deseja realmente excluir a meta de cadastros para ${goal.userName}?`
       )
     ) {
       deleteClientRegistrationMutation.mutate(goal.id);
@@ -1027,73 +1057,95 @@ export default function AdminGoals() {
   return (
     <div>
       <div className="flex-1 ml-0 ">
-        <div className="max-w-7xl  mx-auto">
-          <div className="mb-8 flex flex-col items-start gap-4">
-            <div>
-              <h1 className="text-3xl text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Target className="h-8 w-8 shrink-0 text-blue-600" />
-                Administração de Metas
-              </h1>
-              <p className="text-gray-600 text-sm sm:text-base mt-2">
-                Gerencie as metas de vendas, ticket médio e itens por venda de
-                todos os usuários do sistema
-              </p>
-            </div>
-
-            <div className="flex items-center flex-wrap flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="month-select">Mês:</Label>
-                <select
-                  id="month-select"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                    <option key={month} value={month}>
-                      {new Date(0, month - 1).toLocaleDateString("pt-BR", {
-                        month: "long",
-                      })}
-                    </option>
-                  ))}
-                </select>
+        <div className="">
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                <Target className="size-6 shrink-0 text-blue-600" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                    Administração de Metas
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1 overflow-hidden">
+                    Gerencie as metas de vendas, ticket médio e itens por venda
+                    de todos os usuários do sistema
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Label htmlFor="year-select">Ano:</Label>
-                <select
-                  id="year-select"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                <div className="flex  xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="month-select"
+                      className="text-sm font-medium whitespace-nowrap"
+                    >
+                      Mês:
+                    </Label>
+                    <select
+                      id="month-select"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                        (month) => (
+                          <option key={month} value={month}>
+                            {new Date(0, month - 1).toLocaleDateString(
+                              "pt-BR",
+                              {
+                                month: "long",
+                              }
+                            )}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="year-select"
+                      className="text-sm font-medium whitespace-nowrap"
+                    >
+                      Ano:
+                    </Label>
+                    <select
+                      id="year-select"
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(Number(e.target.value))}
+                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {Array.from(
+                        { length: 5 },
+                        (_, i) => currentDate.getFullYear() - 2 + i
+                      ).map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    setValue("month", selectedMonth.toString());
+                    setValue("year", selectedYear.toString());
+                    setIsModalOpen(true);
+                  }}
+                  disabled={usersWithoutGoals.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto shrink-0"
                 >
-                  {Array.from(
-                    { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
-                  ).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
+                  <Target className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">Nova Meta</span>
+                </Button>
               </div>
-              <Button
-                onClick={() => {
-                  setValue("month", selectedMonth.toString());
-                  setValue("year", selectedYear.toString());
-                  setIsModalOpen(true);
-                }}
-                disabled={usersWithoutGoals.length === 0}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Target className="mr-2 h-4 w-4" />
-                Nova Meta
-              </Button>
             </div>
           </div>
 
           {/* Cards com estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 mt-6 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -1136,7 +1188,7 @@ export default function AdminGoals() {
                   {formatCurrency(
                     userGoals
                       .reduce((sum, goal) => sum + Number(goal.salesGoal), 0)
-                      .toString(),
+                      .toString()
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -1159,9 +1211,9 @@ export default function AdminGoals() {
                         (
                           userGoals.reduce(
                             (sum, goal) => sum + Number(goal.averageTicket),
-                            0,
+                            0
                           ) / userGoals.length
-                        ).toString(),
+                        ).toString()
                       )
                     : "R$ 0,00"}
                 </div>
@@ -1243,7 +1295,7 @@ export default function AdminGoals() {
                           {userGoals.map((goal) => {
                             const totalSalesAchieved = getTotalAchieved(
                               goal.weeklyResults || [],
-                              "salesAchieved",
+                              "salesAchieved"
                             );
                             const progressPercentage =
                               Number(goal.salesGoal) > 0
@@ -1251,7 +1303,7 @@ export default function AdminGoals() {
                                     (totalSalesAchieved /
                                       Number(goal.salesGoal)) *
                                       100,
-                                    100,
+                                    100
                                   )
                                 : 0;
 
@@ -1263,7 +1315,7 @@ export default function AdminGoals() {
                                 <TableCell className="font-medium">
                                   {new Date(
                                     0,
-                                    goal.month - 1,
+                                    goal.month - 1
                                   ).toLocaleDateString("pt-BR", {
                                     month: "long",
                                   })}{" "}
@@ -1275,10 +1327,18 @@ export default function AdminGoals() {
                                 <TableCell className="font-semibold">
                                   <div className="flex flex-col gap-1">
                                     <span
-                                      className={`${progressPercentage >= 100 ? "text-green-600" : progressPercentage >= 75 ? "text-blue-600" : progressPercentage >= 50 ? "text-orange-600" : "text-red-600"}`}
+                                      className={`${
+                                        progressPercentage >= 100
+                                          ? "text-green-600"
+                                          : progressPercentage >= 75
+                                          ? "text-blue-600"
+                                          : progressPercentage >= 50
+                                          ? "text-orange-600"
+                                          : "text-red-600"
+                                      }`}
                                     >
                                       {formatCurrency(
-                                        totalSalesAchieved.toString(),
+                                        totalSalesAchieved.toString()
                                       )}
                                     </span>
                                     <span className="text-xs text-gray-500">
@@ -1356,7 +1416,7 @@ export default function AdminGoals() {
                       onClick={() => {
                         setValueTelemarketing(
                           "month",
-                          selectedMonth.toString(),
+                          selectedMonth.toString()
                         );
                         setValueTelemarketing("year", selectedYear.toString());
                         setIsTelemarketingModalOpen(true);
@@ -1400,7 +1460,7 @@ export default function AdminGoals() {
                               <TableCell className="font-medium">
                                 {new Date(0, goal.month - 1).toLocaleDateString(
                                   "pt-BR",
-                                  { month: "long" },
+                                  { month: "long" }
                                 )}{" "}
                                 {goal.year}
                               </TableCell>
@@ -1465,11 +1525,11 @@ export default function AdminGoals() {
                       onClick={() => {
                         setValueClientRegistration(
                           "month",
-                          selectedMonth.toString(),
+                          selectedMonth.toString()
                         );
                         setValueClientRegistration(
                           "year",
-                          selectedYear.toString(),
+                          selectedYear.toString()
                         );
                         setIsClientRegistrationModalOpen(true);
                       }}
@@ -1508,7 +1568,7 @@ export default function AdminGoals() {
                           {clientRegistrationGoals.map((goal) => {
                             // Buscar estatísticas do usuário
                             const userStats = clientRegistrationStats.find(
-                              (stat) => stat.userId === goal.userId,
+                              (stat) => stat.userId === goal.userId
                             );
                             const achieved = userStats
                               ? userStats.totalRegistrations
@@ -1539,7 +1599,10 @@ export default function AdminGoals() {
                                       <div
                                         className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                                         style={{
-                                          width: `${Math.min(percentage, 100)}%`,
+                                          width: `${Math.min(
+                                            percentage,
+                                            100
+                                          )}%`,
                                         }}
                                       />
                                     </div>
@@ -1551,8 +1614,8 @@ export default function AdminGoals() {
                                       percentage >= 100
                                         ? "text-emerald-600"
                                         : percentage >= 50
-                                          ? "text-yellow-600"
-                                          : "text-red-600"
+                                        ? "text-yellow-600"
+                                        : "text-red-600"
                                     }`}
                                   >
                                     {percentage.toFixed(1)}%
@@ -1654,40 +1717,66 @@ export default function AdminGoals() {
                         <TableBody>
                           {markerGoals.map((goal) => {
                             const stats = markerStats.find(
-                              (s) => s.userId === goal.userId && s.markerName === goal.markerName
+                              (s) =>
+                                s.userId === goal.userId &&
+                                s.markerName === goal.markerName
                             );
                             const currentCount = stats?.totalClients || 0;
-                            const progressPercentage = goal.targetQuantity > 0 
-                              ? Math.min((currentCount / goal.targetQuantity) * 100, 100)
-                              : 0;
+                            const progressPercentage =
+                              goal.targetQuantity > 0
+                                ? Math.min(
+                                    (currentCount / goal.targetQuantity) * 100,
+                                    100
+                                  )
+                                : 0;
 
                             return (
                               <TableRow key={goal.id}>
                                 <TableCell data-testid={`text-user-${goal.id}`}>
                                   <div>
-                                    <div className="font-medium">{goal.userName}</div>
+                                    <div className="font-medium">
+                                      {goal.userName}
+                                    </div>
                                     <div className="text-sm text-gray-500">
                                       {goal.userEmail}
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell data-testid={`text-marker-${goal.id}`}>
+                                <TableCell
+                                  data-testid={`text-marker-${goal.id}`}
+                                >
                                   <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
                                     {goal.markerName}
                                   </span>
                                 </TableCell>
-                                <TableCell data-testid={`text-target-${goal.id}`}>
-                                  <span className="font-medium">{goal.targetQuantity}</span>
+                                <TableCell
+                                  data-testid={`text-target-${goal.id}`}
+                                >
+                                  <span className="font-medium">
+                                    {goal.targetQuantity}
+                                  </span>
                                 </TableCell>
-                                <TableCell data-testid={`text-period-${goal.id}`}>
-                                  {new Date(0, goal.month - 1).toLocaleDateString("pt-BR", {
+                                <TableCell
+                                  data-testid={`text-period-${goal.id}`}
+                                >
+                                  {new Date(
+                                    0,
+                                    goal.month - 1
+                                  ).toLocaleDateString("pt-BR", {
                                     month: "long",
-                                  })}/{goal.year}
+                                  })}
+                                  /{goal.year}
                                 </TableCell>
-                                <TableCell data-testid={`text-current-${goal.id}`}>
-                                  <span className="font-medium">{currentCount}</span>
+                                <TableCell
+                                  data-testid={`text-current-${goal.id}`}
+                                >
+                                  <span className="font-medium">
+                                    {currentCount}
+                                  </span>
                                 </TableCell>
-                                <TableCell data-testid={`text-progress-${goal.id}`}>
+                                <TableCell
+                                  data-testid={`text-progress-${goal.id}`}
+                                >
                                   <div className="flex items-center gap-2">
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                       <div
@@ -1714,7 +1803,9 @@ export default function AdminGoals() {
                                       <Edit className="h-4 w-4" />
                                     </Button>
                                     <Button
-                                      onClick={() => handleDeleteMarkerGoal(goal)}
+                                      onClick={() =>
+                                        handleDeleteMarkerGoal(goal)
+                                      }
                                       size="sm"
                                       variant="outline"
                                       className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
@@ -1749,7 +1840,8 @@ export default function AdminGoals() {
                         Metas de Interações por Usuário
                       </CardTitle>
                       <CardDescription className="text-xs sm:text-base">
-                        Gestão de metas baseadas em tipos de interação com clientes
+                        Gestão de metas baseadas em tipos de interação com
+                        clientes
                       </CardDescription>
                     </div>
                     <Button
@@ -1795,12 +1887,20 @@ export default function AdminGoals() {
                           {interactionGoals.map((goal) => {
                             // Buscar estatísticas do usuário para este tipo de interação
                             const stats = interactionStats.find(
-                              (stat) => stat.userId === goal.userId && stat.interactionType === goal.interactionType
+                              (stat) =>
+                                stat.userId === goal.userId &&
+                                stat.interactionType === goal.interactionType
                             );
-                            const totalInteractions = stats?.totalInteractions || 0;
-                            const progressPercentage = goal.targetQuantity > 0 
-                              ? Math.min((totalInteractions / goal.targetQuantity) * 100, 100)
-                              : 0;
+                            const totalInteractions =
+                              stats?.totalInteractions || 0;
+                            const progressPercentage =
+                              goal.targetQuantity > 0
+                                ? Math.min(
+                                    (totalInteractions / goal.targetQuantity) *
+                                      100,
+                                    100
+                                  )
+                                : 0;
 
                             // Função para traduzir tipos de interação
                             const getInteractionTypeLabel = (type: string) => {
@@ -1811,7 +1911,7 @@ export default function AdminGoals() {
                                 whatsapp: "WhatsApp",
                                 visit: "Visita",
                                 note: "Anotação",
-                                other: "Outro"
+                                other: "Outro",
                               };
                               return types[type] || type;
                             };
@@ -1823,29 +1923,35 @@ export default function AdminGoals() {
                                 </TableCell>
                                 <TableCell>
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                    {getInteractionTypeLabel(goal.interactionType)}
+                                    {getInteractionTypeLabel(
+                                      goal.interactionType
+                                    )}
                                   </span>
                                 </TableCell>
                                 <TableCell className="font-medium text-indigo-600">
                                   {goal.targetQuantity}
                                 </TableCell>
                                 <TableCell className="font-medium">
-                                  {new Date(0, goal.month - 1).toLocaleDateString(
-                                    "pt-BR",
-                                    { month: "long" }
-                                  )}{" "}
+                                  {new Date(
+                                    0,
+                                    goal.month - 1
+                                  ).toLocaleDateString("pt-BR", {
+                                    month: "long",
+                                  })}{" "}
                                   {goal.year}
                                 </TableCell>
                                 <TableCell className="font-medium">
-                                  <span className={`${
-                                    progressPercentage >= 100 
-                                      ? "text-green-600" 
-                                      : progressPercentage >= 75 
-                                        ? "text-blue-600" 
-                                        : progressPercentage >= 50 
-                                          ? "text-orange-600" 
-                                          : "text-red-600"
-                                  }`}>
+                                  <span
+                                    className={`${
+                                      progressPercentage >= 100
+                                        ? "text-green-600"
+                                        : progressPercentage >= 75
+                                        ? "text-blue-600"
+                                        : progressPercentage >= 50
+                                        ? "text-orange-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
                                     {totalInteractions}
                                   </span>
                                 </TableCell>
@@ -1857,12 +1963,17 @@ export default function AdminGoals() {
                                           progressPercentage >= 100
                                             ? "bg-green-600"
                                             : progressPercentage >= 75
-                                              ? "bg-blue-600"
-                                              : progressPercentage >= 50
-                                                ? "bg-orange-600"
-                                                : "bg-red-600"
+                                            ? "bg-blue-600"
+                                            : progressPercentage >= 50
+                                            ? "bg-orange-600"
+                                            : "bg-red-600"
                                         }`}
-                                        style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                                        style={{
+                                          width: `${Math.min(
+                                            progressPercentage,
+                                            100
+                                          )}%`,
+                                        }}
                                       />
                                     </div>
                                     <span className="text-sm font-medium min-w-fit">
@@ -1875,7 +1986,9 @@ export default function AdminGoals() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleEditInteractionGoal(goal)}
+                                      onClick={() =>
+                                        handleEditInteractionGoal(goal)
+                                      }
                                       data-testid={`button-edit-interaction-${goal.id}`}
                                     >
                                       <Edit className="h-4 w-4 mr-1" />
@@ -1884,9 +1997,13 @@ export default function AdminGoals() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleDeleteInteractionGoal(goal)}
+                                      onClick={() =>
+                                        handleDeleteInteractionGoal(goal)
+                                      }
                                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      disabled={deleteInteractionGoalMutation.isPending}
+                                      disabled={
+                                        deleteInteractionGoalMutation.isPending
+                                      }
                                       data-testid={`button-delete-interaction-${goal.id}`}
                                     >
                                       <Trash2 className="h-4 w-4 mr-1" />
@@ -2030,7 +2147,7 @@ export default function AdminGoals() {
                   <option value="">Selecione o ano</option>
                   {Array.from(
                     { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
+                    (_, i) => currentDate.getFullYear() - 2 + i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -2059,8 +2176,8 @@ export default function AdminGoals() {
                 {goalMutation.isPending
                   ? "Salvando..."
                   : editingGoal
-                    ? "Atualizar Meta"
-                    : "Criar Meta"}
+                  ? "Atualizar Meta"
+                  : "Criar Meta"}
               </Button>
             </div>
           </form>
@@ -2277,7 +2394,7 @@ export default function AdminGoals() {
                   <option value="">Selecione o ano</option>
                   {Array.from(
                     { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
+                    (_, i) => currentDate.getFullYear() - 2 + i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -2308,8 +2425,8 @@ export default function AdminGoals() {
                 {telemarketingGoalMutation.isPending
                   ? "Salvando..."
                   : editingTelemarketingGoal
-                    ? "Atualizar Meta"
-                    : "Criar Meta"}
+                  ? "Atualizar Meta"
+                  : "Criar Meta"}
               </Button>
             </div>
           </form>
@@ -2332,7 +2449,7 @@ export default function AdminGoals() {
 
           <form
             onSubmit={handleSubmitClientRegistration(
-              onSubmitClientRegistration,
+              onSubmitClientRegistration
             )}
             className="space-y-4"
           >
@@ -2412,7 +2529,7 @@ export default function AdminGoals() {
                   <option value="">Selecione o ano</option>
                   {Array.from(
                     { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
+                    (_, i) => currentDate.getFullYear() - 2 + i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -2443,8 +2560,8 @@ export default function AdminGoals() {
                 {clientRegistrationGoalMutation.isPending
                   ? "Salvando..."
                   : editingClientRegistrationGoal
-                    ? "Atualizar Meta"
-                    : "Criar Meta"}
+                  ? "Atualizar Meta"
+                  : "Criar Meta"}
               </Button>
             </div>
           </form>
@@ -2505,11 +2622,13 @@ export default function AdminGoals() {
                     disabled={availableMarkers.length === 0}
                   >
                     <SelectTrigger id="markerName">
-                      <SelectValue placeholder={
-                        availableMarkers.length === 0
-                          ? "Carregando marcadores..."
-                          : "Selecione um marcador"
-                      } />
+                      <SelectValue
+                        placeholder={
+                          availableMarkers.length === 0
+                            ? "Carregando marcadores..."
+                            : "Selecione um marcador"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {availableMarkers.map((marker) => (
@@ -2589,7 +2708,7 @@ export default function AdminGoals() {
                   <option value="">Selecione o ano</option>
                   {Array.from(
                     { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
+                    (_, i) => currentDate.getFullYear() - 2 + i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -2622,8 +2741,8 @@ export default function AdminGoals() {
                 {markerGoalMutation.isPending
                   ? "Salvando..."
                   : editingMarkerGoal
-                    ? "Atualizar Meta"
-                    : "Criar Meta"}
+                  ? "Atualizar Meta"
+                  : "Criar Meta"}
               </Button>
             </div>
           </form>
@@ -2750,7 +2869,7 @@ export default function AdminGoals() {
                   <option value="">Selecione o ano</option>
                   {Array.from(
                     { length: 5 },
-                    (_, i) => currentDate.getFullYear() - 2 + i,
+                    (_, i) => currentDate.getFullYear() - 2 + i
                   ).map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -2783,8 +2902,8 @@ export default function AdminGoals() {
                 {interactionGoalMutation.isPending
                   ? "Salvando..."
                   : editingInteractionGoal
-                    ? "Atualizar Meta"
-                    : "Criar Meta"}
+                  ? "Atualizar Meta"
+                  : "Criar Meta"}
               </Button>
             </div>
           </form>

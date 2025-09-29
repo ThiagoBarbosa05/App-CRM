@@ -8,7 +8,15 @@ import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download, Upload, Loader2, Briefcase } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Download,
+  Upload,
+  Loader2,
+  Briefcase,
+  Users,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -168,12 +176,16 @@ export default function Clients() {
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
           <div className="flex items-center gap-2 flex-wrap justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
-              <p className="text-gray-600 mt-1">
-                Gerencie seus clientes e informações de contato
-              </p>
+            <div className="flex items-center gap-4">
+              <Users className="size-6 shrink-0 text-blue-600" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
+                <p className="text-gray-600 mt-1">
+                  Gerencie seus clientes e informações de contato
+                </p>
+              </div>
             </div>
+
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
@@ -262,22 +274,54 @@ export default function Clients() {
         </div>
 
         {/* Clients Table */}
-        <div className="bg-white rounded-lg">
-          {/* Informações de paginação */}
-          <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Mostrando {clientsArray.length} de {itemsPerPage} clientes por
-                página
-              </span>
-              <span>
-                Página {currentPage}
-                {totalPages && ` de ${totalPages}`}
-              </span>
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          {/* Header da tabela com informações de paginação */}
+          <div className="bg-gradient-to-r from-gray-50 to-slate-50 px-6 py-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    Lista de Clientes
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Mostrando {clientsArray.length} de {itemsPerPage} clientes
+                    por página
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Badge de status da busca */}
+                {(debouncedSearchQuery ||
+                  Object.values(clientFilters).some(
+                    (value) => value && value !== "all"
+                  )) && (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg">
+                    <Search className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700">
+                      Filtros ativos
+                    </span>
+                  </div>
+                )}
+
+                {/* Informação de paginação */}
+                <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg shadow-sm">
+                  <span className="text-sm font-medium text-gray-700">
+                    Página {currentPage}
+                    {totalPages && (
+                      <span className="text-gray-500"> de {totalPages}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg relative">
+          {/* Container da tabela com loading overlay */}
+          <div className="relative min-h-[400px]">
             <ClientsTableWithSelection
               clients={clientsArray}
               onSelectionChange={handleSelectionChange}
@@ -286,13 +330,81 @@ export default function Clients() {
               hasNextPage={hasNextPage}
             />
 
+            {/* Loading overlay aprimorado */}
             {isFetching && (
-              <div className="absolute h-full inset-0 justify-center items-center flex flex-col p-6 space-y-4 backdrop-blur-sm bg-white/30">
-                <Loader2 className="animate-spin text-primary" />
-                <p className="text-sm text-gray-600">Carregando clientes...</p>
+              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-lg">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mx-4">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
+                      <Loader2 className="absolute top-0 left-0 w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-medium text-gray-900 mb-1">
+                        Carregando clientes...
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Aguarde enquanto buscamos os dados
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Empty state quando não há clientes */}
+            {!isFetching && clientsArray.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <div className="bg-gray-50 rounded-full w-20 h-20 flex items-center justify-center mb-6">
+                  <Users className="h-10 w-10 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Nenhum cliente encontrado
+                </h3>
+                <p className="text-gray-500 text-center max-w-md mb-6">
+                  {debouncedSearchQuery ||
+                  Object.values(clientFilters).some(
+                    (value) => value && value !== "all"
+                  )
+                    ? "Tente ajustar os filtros ou termos de busca para encontrar clientes."
+                    : "Comece adicionando seu primeiro cliente ao sistema."}
+                </p>
+                {!debouncedSearchQuery &&
+                  !Object.values(clientFilters).some(
+                    (value) => value && value !== "all"
+                  ) && (
+                    <Button
+                      onClick={() => setIsClientModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Primeiro Cliente
+                    </Button>
+                  )}
               </div>
             )}
           </div>
+
+          {/* Footer da tabela com resumo */}
+          {!isFetching && clientsArray.length > 0 && (
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>
+                    {clientsArray.length} cliente(s) carregado(s) nesta página
+                  </span>
+                </div>
+
+                {hasNextPage && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <span>Há mais clientes disponíveis</span>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

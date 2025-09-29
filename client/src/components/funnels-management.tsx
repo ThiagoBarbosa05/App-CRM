@@ -79,10 +79,10 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
-    null,
+    null
   );
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
-    "list",
+    "list"
   );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
   const [updateFunnelModal, setUpdateFunnelModal] = useState<boolean>(false);
@@ -195,25 +195,53 @@ export default function FunnelsManagement() {
   if (viewMode === "kanban" && selectedFunnel) {
     return (
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setViewMode("list");
-                setSelectedFunnel(null);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar aos Funis
-            </Button>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedFunnel.name}
-              </h2>
-              <p className="text-gray-600 mt-1">
-                Board Kanban - Gerencie seus deals
-              </p>
+        <div className="mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setViewMode("list");
+                      setSelectedFunnel(null);
+                    }}
+                    className="border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Voltar aos Funis
+                  </Button>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <GitBranch className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900">
+                        {selectedFunnel.name}
+                      </h2>
+                      <p className="text-gray-600 text-sm mt-1">
+                        Board Kanban - Gerencie seus deals e oportunidades
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      selectedFunnel.isActive === "true"
+                        ? "default"
+                        : "secondary"
+                    }
+                    className={
+                      selectedFunnel.isActive === "true"
+                        ? "bg-green-100 text-green-700 border-green-200"
+                        : ""
+                    }
+                  >
+                    {selectedFunnel.isActive === "true" ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -257,62 +285,87 @@ export default function FunnelsManagement() {
   return (
     <div>
       <div className="flex items-center flex-wrap gap-4 justify-between mb-6">
-        <div>
+        <div className="bg-white border-b w-full border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2 flex-wrap justify-between">
+            <div className="flex items-center gap-4">
+              <GitBranch className="size-6 shrink-0 text-blue-600" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Funis de Vendas
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Configure e gerencie seus funis de vendas
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Dialog
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button className="bg-primary hover:bg-primary-dark text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Funil
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Novo Funil</DialogTitle>
+                    <DialogDescription>
+                      Configure um novo funil de vendas para sua equipe
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Nome do Funil</Label>
+                      <Input
+                        id="name"
+                        value={newFunnelName}
+                        onChange={(e) => setNewFunnelName(e.target.value)}
+                        placeholder="Ex: Vendas Online"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="description">Descrição (opcional)</Label>
+                      <Textarea
+                        id="description"
+                        value={newFunnelDescription}
+                        onChange={(e) =>
+                          setNewFunnelDescription(e.target.value)
+                        }
+                        placeholder="Descreva o objetivo deste funil de vendas"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsCreateModalOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleCreateFunnel}
+                      disabled={createFunnelMutation.isPending}
+                    >
+                      {createFunnelMutation.isPending
+                        ? "Criando..."
+                        : "Criar Funil"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+        {/* <div>
           <h2 className="text-2xl font-bold text-gray-900">Funis de Vendas</h2>
           <p className="text-gray-600 mt-1">
             Configure e gerencie seus funis de vendas
           </p>
-        </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary-dark text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Funil
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Novo Funil</DialogTitle>
-              <DialogDescription>
-                Configure um novo funil de vendas para sua equipe
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Funil</Label>
-                <Input
-                  id="name"
-                  value={newFunnelName}
-                  onChange={(e) => setNewFunnelName(e.target.value)}
-                  placeholder="Ex: Vendas Online"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descrição (opcional)</Label>
-                <Textarea
-                  id="description"
-                  value={newFunnelDescription}
-                  onChange={(e) => setNewFunnelDescription(e.target.value)}
-                  placeholder="Descreva o objetivo deste funil de vendas"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateModalOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleCreateFunnel}
-                disabled={createFunnelMutation.isPending}
-              >
-                {createFunnelMutation.isPending ? "Criando..." : "Criar Funil"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        </div> */}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

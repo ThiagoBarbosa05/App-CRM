@@ -243,9 +243,15 @@ export default function AIAssistant() {
       const messageTemplates = {
         prospeccao: `Olá ${clientName}! 🍷\n\nSou especialista em vinhos e gostaria de apresentar nossa seleção exclusiva de rótulos premium. Temos opções que se adequam a diferentes paladares e ocasiões especiais.\n\nPodemos agendar uma conversa para conhecer suas preferências? Tenho certeza que encontraremos o vinho perfeito para você!\n\nUm brinde aos bons momentos! 🥂`,
 
-        followup: `Oi ${clientName}! 😊\n\nEspero que esteja aproveitando o vinho que adquiriu conosco! Como foi a experiência?\n\n${messageContext ? `Lembrei que você mencionou interesse em ${messageContext}, ` : ""}Tenho algumas novidades que podem te interessar:\n\n🍷 Novos rótulos chegaram\n🎯 Ofertas especiais para clientes fiéis\n📚 Dicas de harmonização\n\nQue tal conversarmos sobre suas próximas escolhas?`,
+        followup: `Oi ${clientName}! 😊\n\nEspero que esteja aproveitando o vinho que adquiriu conosco! Como foi a experiência?\n\n${
+          messageContext
+            ? `Lembrei que você mencionou interesse em ${messageContext}, `
+            : ""
+        }Tenho algumas novidades que podem te interessar:\n\n🍷 Novos rótulos chegaram\n🎯 Ofertas especiais para clientes fiéis\n📚 Dicas de harmonização\n\nQue tal conversarmos sobre suas próximas escolhas?`,
 
-        oferta: `${clientName}, oportunidade especial! 🌟\n\nTemos uma seleção limitada de vinhos premium com condições exclusivas:\n\n🍷 Descontos especiais\n📦 Frete grátis para compras acima de R$ 200\n🎁 Brinde surpresa\n\n${messageContext ? `Considerando seu gosto por ${messageContext}, ` : ""}Separei algumas opções que vão te surpreender!\n\nOferta válida por tempo limitado. Vamos conversar?`,
+        oferta: `${clientName}, oportunidade especial! 🌟\n\nTemos uma seleção limitada de vinhos premium com condições exclusivas:\n\n🍷 Descontos especiais\n📦 Frete grátis para compras acima de R$ 200\n🎁 Brinde surpresa\n\n${
+          messageContext ? `Considerando seu gosto por ${messageContext}, ` : ""
+        }Separei algumas opções que vão te surpreender!\n\nOferta válida por tempo limitado. Vamos conversar?`,
 
         aniversario: `Parabéns, ${clientName}! 🎉🍷\n\nUm brinde ao seu dia especial! Para celebrar esta data única, que tal um vinho excepcional?\n\nTenho sugestões perfeitas para tornar sua comemoração ainda mais especial:\n\n🥂 Espumantes premium\n🍾 Vinhos de safras especiais\n🎁 Embalagem gift exclusiva\n\nSeu aniversário merece um brinde à altura! Vamos escolher juntos?`,
       };
@@ -289,16 +295,20 @@ export default function AIAssistant() {
   return (
     <div className="flex">
       <div className="flex-1">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-6 w-6 text-wine-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Assistente de IA
-              </h1>
-              <p className="text-gray-600">
-                Ferramentas inteligentes para seu negócio de vinhos
-              </p>
+        <div className="space-y-6">
+          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 flex-wrap justify-between">
+              <div className="flex items-center gap-4">
+                <Sparkles className="size-6 shrink-0 text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Assistente de IA
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Ferramentas inteligentes para seu negócio de vinhos
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -451,7 +461,7 @@ export default function AIAssistant() {
                         className="cursor-pointer hover:bg-wine-50"
                         onClick={() =>
                           setChatInput(
-                            "Qual a temperatura ideal para servir vinho branco?",
+                            "Qual a temperatura ideal para servir vinho branco?"
                           )
                         }
                       >
@@ -471,7 +481,7 @@ export default function AIAssistant() {
                         className="cursor-pointer hover:bg-wine-50"
                         onClick={() =>
                           setChatInput(
-                            "Quais regiões produzem os melhores vinhos tintos?",
+                            "Quais regiões produzem os melhores vinhos tintos?"
                           )
                         }
                       >
@@ -482,7 +492,7 @@ export default function AIAssistant() {
                         className="cursor-pointer hover:bg-wine-50"
                         onClick={() =>
                           setChatInput(
-                            "Qual vinho combina com comida japonesa?",
+                            "Qual vinho combina com comida japonesa?"
                           )
                         }
                       >
@@ -493,7 +503,7 @@ export default function AIAssistant() {
                         className="cursor-pointer hover:bg-wine-50"
                         onClick={() =>
                           setChatInput(
-                            "Como identificar um vinho de qualidade?",
+                            "Como identificar um vinho de qualidade?"
                           )
                         }
                       >
@@ -606,7 +616,7 @@ export default function AIAssistant() {
                                     onClick={() =>
                                       copyToClipboard(
                                         message.content,
-                                        message.id,
+                                        message.id
                                       )
                                     }
                                     className="h-8 w-8 p-0"

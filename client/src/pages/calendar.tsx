@@ -30,6 +30,7 @@ import {
   Bell,
   MessageSquare,
   User,
+  Calendar,
 } from "lucide-react";
 import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -39,8 +40,6 @@ import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StartBirthdayBot } from "@/components/start-birthday-bot";
-
-
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -235,8 +234,36 @@ export default function CalendarPage() {
     <>
       <div className="flex">
         <div className="flex-1 overflow-auto">
-          <div className="container mx-auto space-y-6">
-            <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
+          <div className="space-y-6">
+            <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+              <div className="flex items-center gap-2 flex-wrap justify-between">
+                <div className="flex items-center gap-4">
+                  <Calendar className="size-6 shrink-0 text-blue-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Aniversários
+                    </h2>
+                    <p className="text-gray-600 mt-1">
+                      Visualize os aniversários dos seus clientes
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => createAutoRemindersMutation.mutate()}
+                    disabled={createAutoRemindersMutation.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {createAutoRemindersMutation.isPending
+                      ? "Criando..."
+                      : "Criar Lembretes Automáticos"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {/* <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <CalendarIcon className="h-8 w-8 text-wine-600" />
                 <div>
@@ -260,7 +287,7 @@ export default function CalendarPage() {
                     : "Criar Lembretes Automáticos"}
                 </Button>
               </div>
-            </div>
+            </div> */}
 
             <div className="grid grid-cols-1  lg:grid-cols-2 gap-6">
               {/* Calendário */}
@@ -693,7 +720,7 @@ export default function CalendarPage() {
                                 className="text-xs p-1 h-auto"
                                 onClick={() => {
                                   setClientStartBot(client);
-                                  setBirthdayBot(true)
+                                  setBirthdayBot(true);
                                 }}
                               >
                                 <MessageSquare className="h-3 w-3" />

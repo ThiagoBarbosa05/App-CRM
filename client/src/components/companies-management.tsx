@@ -22,6 +22,13 @@ import {
   Upload,
   ChevronUp,
   ChevronDown,
+  Building2,
+  FileText,
+  CreditCard,
+  Phone,
+  Mail,
+  User,
+  Settings,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -101,8 +108,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-      if (debouncedNomeFantasiaFilter) params.append("nomeFantasia", debouncedNomeFantasiaFilter);
-      if (debouncedRazaoSocialFilter) params.append("razaoSocial", debouncedRazaoSocialFilter);
+      if (debouncedNomeFantasiaFilter)
+        params.append("nomeFantasia", debouncedNomeFantasiaFilter);
+      if (debouncedRazaoSocialFilter)
+        params.append("razaoSocial", debouncedRazaoSocialFilter);
       if (debouncedCnpjFilter) params.append("cnpj", debouncedCnpjFilter);
       if (responsavelFilter) params.append("responsavelId", responsavelFilter);
       params.append("page", page.toString());
@@ -296,12 +305,16 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
     <div className="w-full">
       <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
         <div className="flex items-center gap-2 flex-wrap justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Empresas</h2>
-            <p className="text-gray-600 mt-1">
-              Gerencie as empresas cadastradas no sistema
-            </p>
+          <div className="flex items-center gap-4">
+            <Building2 className="size-6 text-blue-600" />
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Empresas</h2>
+              <p className="text-gray-600 mt-1">
+                Gerencie as empresas cadastradas no sistema
+              </p>
+            </div>
           </div>
+
           <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
@@ -328,7 +341,8 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                     // TODO: Implementar edição em lote
                     toast({
                       title: "Funcionalidade em desenvolvimento",
-                      description: "A edição em lote será implementada em breve.",
+                      description:
+                        "A edição em lote será implementada em breve.",
                     });
                   }}
                   className="w-full sm:w-fit"
@@ -377,7 +391,6 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               className="pl-8 w-full border-gray-400 md:w-[480px]"
             />
           </div>
-
         </div>
         <div className="grid mt-5 grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -454,200 +467,322 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           </div>
         )}
 
-        <div className="mt-10">
+        <div className="mt-10 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
           {isLoading || isFetching ? (
-            <div className="text-center py-8">
-              <p>Carregando empresas...</p>
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+              <p className="text-gray-600 font-medium">
+                Carregando empresas...
+              </p>
+              <p className="text-gray-500 text-sm mt-1">Aguarde um momento</p>
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          selectedCompanies.length === sortedCompanies.length &&
-                          sortedCompanies.length > 0
-                        }
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => handleSort("nomeFantasia")}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Nome Fantasia
-                        {sortField === "nomeFantasia" &&
-                          (sortDirection === "asc" ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          ))}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button
-                        onClick={() => handleSort("razaoSocial")}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Razão Social
-                        {sortField === "razaoSocial" &&
-                          (sortDirection === "asc" ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          ))}
-                      </button>
-                    </TableHead>
-                    <TableHead>CNPJ</TableHead>
-                    <TableHead>Celular</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedCompanies.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          {searchQuery
-                            ? "Nenhuma empresa encontrada com os critérios de busca."
-                            : "Nenhuma empresa cadastrada."}
-                        </p>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-blue-100 hover:bg-gradient-to-r hover:from-gray-100 hover:to-blue-100">
+                      <TableHead className="w-12 py-4 px-6">
+                        <Checkbox
+                          checked={
+                            selectedCompanies.length ===
+                              sortedCompanies.length &&
+                            sortedCompanies.length > 0
+                          }
+                          onCheckedChange={handleSelectAll}
+                          className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        />
+                      </TableHead>
+                      <TableHead className="py-4 px-6">
+                        <button
+                          onClick={() => handleSort("nomeFantasia")}
+                          className="flex items-center gap-2 font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 group"
+                        >
+                          <Building2 className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
+                          Nome Fantasia
+                          {sortField === "nomeFantasia" &&
+                            (sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4 text-blue-600" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-blue-600" />
+                            ))}
+                        </button>
+                      </TableHead>
+                      <TableHead className="py-4 px-6">
+                        <button
+                          onClick={() => handleSort("razaoSocial")}
+                          className="flex items-center gap-2 font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 group"
+                        >
+                          <FileText className="h-4 w-4 text-purple-500 group-hover:text-purple-600" />
+                          Razão Social
+                          {sortField === "razaoSocial" &&
+                            (sortDirection === "asc" ? (
+                              <ChevronUp className="h-4 w-4 text-blue-600" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-blue-600" />
+                            ))}
+                        </button>
+                      </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-green-500" />
+                          CNPJ
+                        </div>
+                      </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-orange-500" />
+                          Celular
+                        </div>
+                      </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-indigo-500" />
+                          Email
+                        </div>
+                      </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-cyan-500" />
+                          Responsável
+                        </div>
+                      </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Badge className="h-4 w-4 text-emerald-500" />
+                          Status
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-right py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center justify-end gap-2">
+                          <Settings className="h-4 w-4 text-gray-500" />
+                          Ações
+                        </div>
+                      </TableHead>
                     </TableRow>
-                  ) : (
-                    sortedCompanies.map((company: Company) => (
-                      <TableRow key={company.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedCompanies.includes(company.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectCompany(
-                                company.id,
-                                checked as boolean
-                              )
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <button
-                            onClick={() => handleCompanyClick(company)}
-                            className="text-blue-600 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap hover:text-blue-800 hover:underline transition-colors"
-                          >
-                            {company.nomeFantasia}
-                          </button>
-                        </TableCell>
-                        <TableCell>{company.razaoSocial}</TableCell>
-                        <TableCell>{company.cnpj || "-"}</TableCell>
-                        <TableCell>
-                          {company.phone ? (
-                            <div className="flex items-center gap-2">
-                              <span>{company.phone}</span>
-                              <a
-                                href={`https://wa.me/${company.phone.replace(
-                                  /\D/g,
-                                  ""
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-green-600 hover:text-green-700 transition-colors"
-                                title="Abrir no WhatsApp"
-                              >
-                                <FaWhatsapp className="h-4 w-4" />
-                              </a>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedCompanies.length === 0 ? (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={9} className="text-center py-16">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="p-4 bg-gray-100 rounded-full">
+                              <Building2 className="h-8 w-8 text-gray-400" />
                             </div>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell>{company.email || "-"}</TableCell>
-                        <TableCell>
-                          {getResponsavelName(company.responsavelId)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={company.active ? "default" : "secondary"}
-                          >
-                            {company.active ? "Ativa" : "Inativa"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(company)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Deseja excluir esta empresa?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir esta empresa?
-                                    Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>
-                                    Cancelar
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(company.id)}
-                                  >
-                                    Confirmar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="text-center">
+                              <p className="text-gray-900 font-medium text-lg mb-2">
+                                {searchQuery
+                                  ? "Nenhuma empresa encontrada"
+                                  : "Nenhuma empresa cadastrada"}
+                              </p>
+                              <p className="text-gray-500">
+                                {searchQuery
+                                  ? "Tente ajustar os filtros de busca para encontrar o que procura."
+                                  : "Comece criando sua primeira empresa no sistema."}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              <div className="flex items-center flex-wrap gap-2 justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Mostrando {companies.length} de {totalItems} empresas.
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="text-sm">
-                    Página {page} de {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
-                  >
-                    Próxima
-                  </Button>
+                    ) : (
+                      sortedCompanies.map((company: Company, index: number) => (
+                        <TableRow
+                          key={company.id}
+                          className={`transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-b border-gray-100 ${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                          } ${
+                            selectedCompanies.includes(company.id)
+                              ? "bg-blue-50 border-blue-200"
+                              : ""
+                          }`}
+                        >
+                          <TableCell className="py-4 px-6">
+                            <Checkbox
+                              checked={selectedCompanies.includes(company.id)}
+                              onCheckedChange={(checked) =>
+                                handleSelectCompany(
+                                  company.id,
+                                  checked as boolean
+                                )
+                              }
+                              className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            />
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            <button
+                              onClick={() => handleCompanyClick(company)}
+                              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-all duration-200 text-left max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap block"
+                            >
+                              {company.nomeFantasia}
+                            </button>
+                          </TableCell>
+                          <TableCell className="py-4 px-6 text-gray-700 font-medium">
+                            {company.razaoSocial}
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            {company.cnpj ? (
+                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-700">
+                                {company.cnpj}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 italic">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            {company.phone ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-gray-700">
+                                  {company.phone}
+                                </span>
+                                <a
+                                  href={`https://wa.me/${company.phone.replace(
+                                    /\D/g,
+                                    ""
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 bg-green-100 hover:bg-green-200 rounded-lg text-green-600 hover:text-green-700 transition-all duration-200 hover:scale-110"
+                                  title="Abrir no WhatsApp"
+                                >
+                                  <FaWhatsapp className="h-4 w-4" />
+                                </a>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 italic">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4 px-6 text-gray-700">
+                            {company.email ? (
+                              <a
+                                href={`mailto:${company.email}`}
+                                className="text-gray-700 hover:text-blue-600 transition-colors duration-200"
+                              >
+                                {company.email}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 italic">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-cyan-100 rounded-lg">
+                                <User className="h-3 w-3 text-cyan-600" />
+                              </div>
+                              <span className="text-gray-700 font-medium">
+                                {getResponsavelName(company.responsavelId)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            <Badge
+                              className={`px-3 py-1 font-semibold ${
+                                company.active
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : "bg-red-100 text-red-800 border-red-200"
+                              }`}
+                              variant="outline"
+                            >
+                              {company.active ? "Ativa" : "Inativa"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right py-4 px-6">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(company)}
+                                className="p-2 hover:bg-blue-100 hover:text-blue-700 transition-all duration-200 rounded-lg"
+                                title="Editar empresa"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-2 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-lg"
+                                    title="Excluir empresa"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Deseja excluir esta empresa?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir esta
+                                      empresa? Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(company.id)}
+                                    >
+                                      Confirmar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-t border-gray-200 p-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building2 className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">
+                        Mostrando {companies.length} de {totalItems} empresas
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {selectedCompanies.length > 0 &&
+                          `${selectedCompanies.length} selecionada(s)`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 shadow-sm p-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPage(page - 1)}
+                        disabled={page === 1}
+                        className="px-3 py-2 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        <ChevronUp className="h-4 w-4 rotate-[-90deg]" />
+                        <span className="hidden sm:inline ml-1">Anterior</span>
+                      </Button>
+
+                      <div className="px-4 py-2 bg-blue-50 rounded text-sm font-semibold text-blue-700 border border-blue-200">
+                        {page} de {totalPages}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPage(page + 1)}
+                        disabled={page === totalPages}
+                        className="px-3 py-2 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        <span className="hidden sm:inline mr-1">Próxima</span>
+                        <ChevronUp className="h-4 w-4 rotate-90" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
@@ -676,7 +811,9 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       <BulkDealCreationModal
         open={isBulkDealModalOpen}
         onOpenChange={setIsBulkDealModalOpen}
-        companies={companies.filter(company => selectedCompanies.includes(company.id))}
+        companies={companies.filter((company: Company) =>
+          selectedCompanies.includes(company.id)
+        )}
       />
     </div>
   );

@@ -42,7 +42,7 @@ interface ClientsTableWithSelectionProps {
   clients: Client[];
   onSelectionChange?: (
     selectedIds: string[],
-    selectedClients: Client[],
+    selectedClients: Client[]
   ) => void;
   currentPage: number;
   setCurrentPage: (page: number | ((prev: number) => number)) => void;
@@ -61,8 +61,8 @@ export default function ClientsTableWithSelection({
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'categoria' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<"name" | "categoria" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -126,7 +126,7 @@ export default function ClientsTableWithSelection({
     } else {
       const currentPageIds = clients.map((client) => client.id);
       setSelectedClientIds((prev) =>
-        prev.filter((id) => !currentPageIds.includes(id)),
+        prev.filter((id) => !currentPageIds.includes(id))
       );
     }
   };
@@ -149,33 +149,33 @@ export default function ClientsTableWithSelection({
     setShowDeleteDialog(false);
   };
 
-  const handleSort = (field: 'name' | 'categoria') => {
+  const handleSort = (field: "name" | "categoria") => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
   // Aplicar ordenação aos clientes
   const sortedClients = [...clients].sort((a, b) => {
     if (!sortField) return 0;
-    
+
     let aValue: string;
     let bValue: string;
-    
-    if (sortField === 'name') {
+
+    if (sortField === "name") {
       aValue = a.name.toLowerCase();
       bValue = b.name.toLowerCase();
-    } else if (sortField === 'categoria') {
-      aValue = a.categoria?.toLowerCase() || '';
-      bValue = b.categoria?.toLowerCase() || '';
+    } else if (sortField === "categoria") {
+      aValue = a.categoria?.toLowerCase() || "";
+      bValue = b.categoria?.toLowerCase() || "";
     } else {
       return 0;
     }
-    
-    if (sortDirection === 'asc') {
+
+    if (sortDirection === "asc") {
       return aValue.localeCompare(bValue);
     } else {
       return bValue.localeCompare(aValue);
@@ -185,7 +185,7 @@ export default function ClientsTableWithSelection({
   useEffect(() => {
     if (onSelectionChange) {
       const selectedClients = clients.filter((client) =>
-        selectedClientIds.includes(client.id),
+        selectedClientIds.includes(client.id)
       );
       onSelectionChange(selectedClientIds, selectedClients);
     }
@@ -196,12 +196,22 @@ export default function ClientsTableWithSelection({
     clients.every((client) => selectedClientIds.includes(client.id));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {selectedClientIds.length > 0 && (
-        <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium">
-            {selectedClientIds.length} cliente(s) selecionado(s)
-          </span>
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <User className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <span className="font-semibold text-blue-900">
+                {selectedClientIds.length} cliente(s) selecionado(s)
+              </span>
+              <p className="text-xs text-blue-700 mt-1">
+                Use as ações em lote para gerenciar os clientes selecionados
+              </p>
+            </div>
+          </div>
           {isAdmin && (
             <Button
               variant="destructive"
@@ -209,77 +219,112 @@ export default function ClientsTableWithSelection({
               onClick={handleDeleteSelected}
               disabled={deleteClientsMutation.isPending}
               title="Excluir clientes selecionados (apenas administradores)"
+              className="bg-red-600 hover:bg-red-700 text-white shadow-sm transition-all duration-200"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Excluir Selecionados
+              <span className="hidden sm:inline">Excluir Selecionados</span>
+              <span className="sm:hidden">Excluir</span>
             </Button>
           )}
         </div>
       )}
 
-      <div className="bg-white rounded-lg">
-        <div className="overflow-x-auto rounded-lg shadow-lg">
-          <table className="w-full overflow-hidden rounded-lg">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-white">
-                <th className="p-4 text-left">
-                  <Checkbox
-                    checked={allCurrentPageSelected}
-                    onCheckedChange={handleSelectAll}
-                  />
+              <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b-2 border-gray-200">
+                <th className="p-4 text-left w-12">
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allCurrentPageSelected}
+                      onCheckedChange={handleSelectAll}
+                      className="border-2 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                  </div>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[250px]">
                   <button
-                    onClick={() => handleSort('name')}
-                    className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    onClick={() => handleSort("name")}
+                    className="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200 group"
                   >
+                    <User className="h-4 w-4 text-gray-500 group-hover:text-blue-600" />
                     Cliente
-                    {sortField === 'name' && (
-                      sortDirection === 'asc' ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )
+                    {sortField === "name" && (
+                      <div className="p-1 bg-blue-100 rounded-full">
+                        {sortDirection === "asc" ? (
+                          <ChevronUp className="h-3 w-3 text-blue-600" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 text-blue-600" />
+                        )}
+                      </div>
                     )}
                   </button>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
-                  Contato
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-gray-500" />
+                    Contato
+                  </div>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
-                  Responsável
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[150px]">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    Responsável
+                  </div>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[120px]">
                   <button
-                    onClick={() => handleSort('categoria')}
-                    className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    onClick={() => handleSort("categoria")}
+                    className="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200 group"
                   >
+                    <Tag className="h-4 w-4 text-gray-500 group-hover:text-blue-600" />
                     Categoria
-                    {sortField === 'categoria' && (
-                      sortDirection === 'asc' ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )
+                    {sortField === "categoria" && (
+                      <div className="p-1 bg-blue-100 rounded-full">
+                        {sortDirection === "asc" ? (
+                          <ChevronUp className="h-3 w-3 text-blue-600" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 text-blue-600" />
+                        )}
+                      </div>
                     )}
                   </button>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
-                  Marcadores
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[130px]">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-gray-500" />
+                    Marcadores
+                  </div>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
-                  Aniversário
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[130px]">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    Aniversário
+                  </div>
                 </th>
-                <th className="p-4 text-left font-medium text-gray-900">
-                  Ações
+                <th className="p-4 text-left font-semibold text-gray-700 w-28">
+                  <div className="flex items-center gap-2">
+                    <Edit className="h-4 w-4 text-gray-500" />
+                    Ações
+                  </div>
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {sortedClients.map((client) => (
+            <tbody className="divide-y divide-gray-100">
+              {sortedClients.map((client, index) => (
                 <tr
                   key={client.id}
-                  className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
+                  className={`
+                    group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 
+                    cursor-pointer transition-all duration-200 ease-in-out
+                    ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}
+                    ${
+                      selectedClientIds.includes(client.id)
+                        ? "bg-blue-50 border-l-4 border-l-blue-500"
+                        : ""
+                    }
+                  `}
                   onClick={(e) => {
                     if (
                       (e.target as HTMLElement).closest("button") ||
@@ -291,38 +336,45 @@ export default function ClientsTableWithSelection({
                   }}
                 >
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedClientIds.includes(client.id)}
-                      onCheckedChange={(checked) =>
-                        handleSelectClient(client.id, checked as boolean)
-                      }
-                    />
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={selectedClientIds.includes(client.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectClient(client.id, checked as boolean)
+                        }
+                        className="border-2 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      />
+                    </div>
                   </td>
-                  <td className="p-4 min-w-[240px]">
+                  <td className="p-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-wine-100 flex items-center justify-center">
-                          <User className="h-5 w-5 text-wine-600" />
+                        <div className="p-1 rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center border border-blue-200 shadow-sm">
+                          <User className="h-4 w-4 text-blue-600" />
                         </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-900 truncate text-base group-hover:text-blue-700 transition-colors">
                           {client.name}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          <MapPin className="inline h-3 w-3 mr-1" />
-                          {client.city}, {client.state}
+                        <div className="flex items-center text-sm text-gray-500 mt-1">
+                          <MapPin className="h-3 w-3 mr-1 shrink-0 text-gray-400" />
+                          <span className="truncate">
+                            {client.city}, {client.state}
+                          </span>
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <div className="flex items-center text-sm">
-                        <Phone className="h-3 w-3 mr-2 text-gray-400" />
+                        <div className="p-1 bg-green-100 rounded-md mr-2">
+                          <Phone className="h-3 w-3 text-green-600" />
+                        </div>
                         <a
                           href={`tel:${client.phone}`}
-                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
                           title="Clique para ligar"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -330,65 +382,91 @@ export default function ClientsTableWithSelection({
                         </a>
                       </div>
                       {client.email && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Mail className="h-3 w-3 mr-2 text-gray-400" />
-                          {client.email}
+                        <div className="flex items-center text-sm text-gray-600">
+                          <div className="p-1 bg-gray-100 rounded-md mr-2">
+                            <Mail className="h-3 w-3 text-gray-500" />
+                          </div>
+                          <span className="truncate" title={client.email}>
+                            {client.email}
+                          </span>
                         </div>
                       )}
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="text-sm text-gray-900">
-                      {(() => {
-                        const user = users.find(
-                          (u) => u.id === client.responsavelId,
-                        );
-                        return user
-                          ? user.name
-                          : client.responsavelId
-                          ? "Usuário não encontrado"
-                          : "Não atribuído";
-                      })()}
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-purple-100 rounded-md">
+                        <User className="h-3 w-3 text-purple-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900 truncate">
+                        {(() => {
+                          const user = users.find(
+                            (u) => u.id === client.responsavelId
+                          );
+                          return user
+                            ? user.name
+                            : client.responsavelId
+                            ? "Usuário não encontrado"
+                            : "Não atribuído";
+                        })()}
+                      </span>
                     </div>
                   </td>
                   <td className="p-4">
-                    <Badge variant="outline" className="capitalize">
+                    <Badge
+                      variant="outline"
+                      className="capitalize bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium px-3 py-1"
+                    >
                       {client.categoria}
                     </Badge>
                   </td>
                   <td className="p-4">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 max-w-[120px]">
                       {client.markers && client.markers.length > 0 ? (
-                        client.markers.map((marker, index) => (
+                        client.markers.slice(0, 2).map((marker, index) => (
                           <Badge
                             key={index}
                             variant="secondary"
-                            className="text-xs"
+                            className="text-xs bg-gradient-to-r from-violet-100 to-purple-100 border-violet-200 text-violet-800 px-2 py-1"
                           >
                             <Tag className="h-3 w-3 mr-1" />
                             {marker}
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-sm text-gray-400">-</span>
+                        <span className="text-sm text-gray-400 italic">
+                          Sem marcadores
+                        </span>
+                      )}
+                      {client.markers && client.markers.length > 2 && (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-gray-100 text-gray-600"
+                        >
+                          +{client.markers.length - 2}
+                        </Badge>
                       )}
                     </div>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center text-sm">
-                      <Calendar className="h-3 w-3 mr-2 text-gray-400" />
-                      {client.birthday
-                        ? formatDate(client.birthday)
-                        : "Não informado"}
+                      <div className="p-1 bg-blue-100 rounded-md mr-2">
+                        <Calendar className="h-3 w-3 text-blue-600" />
+                      </div>
+                      <span className="font-medium text-gray-700">
+                        {client.birthday
+                          ? formatDate(client.birthday)
+                          : "Não informado"}
+                      </span>
                     </div>
                   </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setSaleClient(client)}
-                        className="text-green-600 hover:text-green-900"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-green-100 text-green-600 hover:text-green-700 transition-colors shadow-sm"
                         title="Lançar Venda"
                       >
                         <DollarSign className="h-4 w-4" />
@@ -397,6 +475,8 @@ export default function ClientsTableWithSelection({
                         variant="ghost"
                         size="sm"
                         onClick={() => setEditingClient(client)}
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors shadow-sm"
+                        title="Editar Cliente"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -406,8 +486,20 @@ export default function ClientsTableWithSelection({
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-gray-500">
-                    Nenhum cliente encontrado
+                  <td colSpan={8} className="p-16 text-center">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="p-4 bg-gray-100 rounded-full">
+                        <User className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          Nenhum cliente encontrado
+                        </h3>
+                        <p className="text-gray-500">
+                          Tente ajustar os filtros ou adicione novos clientes
+                        </p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -417,46 +509,64 @@ export default function ClientsTableWithSelection({
       </div>
 
       {(currentPage > 1 || hasNextPage) && (
-        <div className="flex items-center flex-wrap gap-1 justify-between py-3 bg-white border-t border-gray-200">
-          <div className="flex items-center text-xs sm:text-sm text-gray-700">
-            <span>Mostrando {clients.length} clientes</span>
-            <span className="mx-2">•</span>
-            <span>Página {currentPage}</span>
-          </div>
-          <div className="flex items-center w-full gap-2">
-            <Button
-              variant="outline"
-              title="Primeira página"
-              size="sm"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronsLeft className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Primeira</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              title="Página anterior"
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Anterior</span>
-            </Button>
-            <span className="px-3 flex-1 text-center py-1 text-xs sm:text-sm">
-              Página {currentPage}
-            </span>
-            <Button
-              variant="outline"
-              title="Próxima página"
-              size="sm"
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={!hasNextPage}
-            >
-              <ChevronRight className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Próxima</span>
-            </Button>
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="text-sm">
+                <span className="font-medium text-gray-900">
+                  Mostrando {clients.length} clientes
+                </span>
+                <span className="text-gray-500 ml-2">
+                  • Página {currentPage}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                title="Primeira página"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="hover:bg-blue-50 hover:border-blue-300 transition-colors shadow-sm"
+              >
+                <ChevronsLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Primeira</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                title="Página anterior"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="hover:bg-blue-50 hover:border-blue-300 transition-colors shadow-sm"
+              >
+                <ChevronLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Anterior</span>
+              </Button>
+
+              <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <span className="text-sm font-medium text-gray-700">
+                  Página {currentPage}
+                </span>
+              </div>
+
+              <Button
+                variant="outline"
+                title="Próxima página"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={!hasNextPage}
+                className="hover:bg-blue-50 hover:border-blue-300 transition-colors shadow-sm"
+              >
+                <span className="hidden sm:inline">Próxima</span>
+                <ChevronRight className="h-4 w-4 sm:ml-2" />
+              </Button>
+            </div>
           </div>
         </div>
       )}

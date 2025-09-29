@@ -77,7 +77,22 @@ export default function Configurations() {
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-auto">
         <div className="flex-1 flex flex-col">
-          <div className="flex items-center gap-3 mb-6">
+          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 flex-wrap justify-between">
+              <div className="flex items-center gap-4">
+                <Settings className="size-6 shrink-0 text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Configurações
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Gerencie as configurações do sistema
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* <div className="flex items-center gap-3 mb-6">
             <Settings className="h-8 w-8 text-wine-600" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
@@ -87,109 +102,109 @@ export default function Configurations() {
                 Gerencie as configurações do sistema
               </p>
             </div>
-          </div>
+          </div> */}
 
-          <Tabs defaultValue="users" className="space-y-6">
+          <Tabs defaultValue="users" className="space-y-6 mt-6">
             <div className="relative">
-              <TabsList className="w-full h-auto p-1 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <TabsList className="w-full h-auto p-1 bg-white shadow-sm dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-11 gap-1">
-                  <TabsTrigger 
-                    value="users" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="users"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar usuários do sistema"
                   >
-                    <Users className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Usuários</span>
+                    <Users className="size-4 " />
+                    <span className="text-xs font-medium ">Usuários</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="categories" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="categories"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar categorias"
                   >
-                    <Tags className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Categorias</span>
+                    <Tags className="size-4" />
+                    <span className="text-xs font-medium ">Categorias</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="markers" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="markers"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar marcadores"
                   >
-                    <Bookmark className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Marcadores</span>
+                    <Bookmark className="size-4" />
+                    <span className="text-xs font-medium ">Marcadores</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="origins" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="origins"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar origens"
                   >
-                    <Tag className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Origens</span>
+                    <Tag className="size-4" />
+                    <span className="text-xs font-medium ">Origens</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="sectors" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="sectors"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar setores"
                   >
-                    <LayoutPanelTop className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Setores</span>
+                    <LayoutPanelTop className="size-4" />
+                    <span className="text-xs font-medium ">Setores</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="events" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="events"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar eventos"
                   >
-                    <CalendarIcon className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Eventos</span>
+                    <CalendarIcon className="size-4" />
+                    <span className="text-xs font-medium ">Eventos</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="learning-images" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="learning-images"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar treinamentos"
                   >
-                    <GraduationCap className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Treinamentos</span>
+                    <GraduationCap className="size-4" />
+                    <span className="text-xs font-medium ">Treinamentos</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="cashback" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="cashback"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Configurações de cashback"
                   >
-                    <CircleDollarSign className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Cashback</span>
+                    <CircleDollarSign className="size-4" />
+                    <span className="text-xs font-medium ">Cashback</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="debts" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="debts"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Gerenciar dívidas de clientes"
                   >
-                    <BookMarked className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Dívidas</span>
+                    <BookMarked className="size-4" />
+                    <span className="text-xs font-medium ">Dívidas</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="export" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="export"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Exportar dados do sistema"
                   >
-                    <Download className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Exportação</span>
+                    <Download className="size-4" />
+                    <span className="text-xs font-medium ">Exportação</span>
                   </TabsTrigger>
 
-                  <TabsTrigger 
-                    value="automation" 
-                    className="flex flex-col items-center justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                  <TabsTrigger
+                    value="automation"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
                     title="Configurações de automação"
                   >
-                    <Bot className="size-4 text-gray-600 dark:text-gray-400" />
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Automação</span>
+                    <Bot className="size-4" />
+                    <span className="text-xs font-medium ">Automação</span>
                   </TabsTrigger>
                 </div>
               </TabsList>

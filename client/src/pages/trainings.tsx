@@ -31,6 +31,7 @@ import {
   ArrowUp,
   ArrowDown,
   MoreVertical,
+  GraduationCap,
 } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -248,12 +249,12 @@ DICAS DE PRONÚNCIA
   const updateCard = (
     cardId: string,
     field: keyof LearningCard,
-    value: string | boolean,
+    value: string | boolean
   ) => {
     setLearningCards((prev) =>
       prev.map((card) =>
-        card.id === cardId ? { ...card, [field]: value } : card,
-      ),
+        card.id === cardId ? { ...card, [field]: value } : card
+      )
     );
   };
 
@@ -288,7 +289,7 @@ DICAS DE PRONÚNCIA
   };
 
   const handleUploadComplete = (
-    result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
+    result: UploadResult<Record<string, unknown>, Record<string, unknown>>
   ) => {
     if (result.successful && result.successful.length > 0) {
       const uploadedFile = result.successful[0];
@@ -476,13 +477,15 @@ ATENDIMENTO AO CLIENTE
       return videos.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        
+
         if (orderA !== orderB) {
           return orderA - orderB;
         }
-        
+
         // If same order (or both null), sort by creation date
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       });
     },
   });
@@ -497,13 +500,15 @@ ATENDIMENTO AO CLIENTE
       return documents.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        
+
         if (orderA !== orderB) {
           return orderA - orderB;
         }
-        
+
         // If same order (or both null), sort by creation date
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       });
     },
   });
@@ -520,13 +525,15 @@ ATENDIMENTO AO CLIENTE
       return scripts.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        
+
         if (orderA !== orderB) {
           return orderA - orderB;
         }
-        
+
         // If same order (or both null), sort by creation date
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       });
     },
   });
@@ -538,32 +545,41 @@ ATENDIMENTO AO CLIENTE
   const isAdmin = user?.role === "admin";
 
   // Função para mover treinamentos
-  const moveTraining = async (trainingId: string, direction: 'up' | 'down', type: string) => {
+  const moveTraining = async (
+    trainingId: string,
+    direction: "up" | "down",
+    type: string
+  ) => {
     try {
       const response = await fetch(`/api/trainings/${trainingId}/order`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ direction, type }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update training order');
+        throw new Error(errorData.message || "Failed to update training order");
       }
 
       // Invalidar queries para atualizar a lista
       // As queries já estão sendo invalidadas automaticamente pelo React Query
       toast({
         title: "Ordem atualizada",
-        description: `Item movido para ${direction === 'up' ? 'cima' : 'baixo'} com sucesso.`,
+        description: `Item movido para ${
+          direction === "up" ? "cima" : "baixo"
+        } com sucesso.`,
       });
     } catch (error) {
       console.error("Erro ao atualizar ordem:", error);
       toast({
         title: "Erro ao atualizar ordem",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -593,7 +609,22 @@ ATENDIMENTO AO CLIENTE
   return (
     <div>
       <div>
-        <div className="flex items-start gap-2 mb-5">
+        <div className="bg-white border-b border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2 flex-wrap justify-between">
+            <div className="flex items-center gap-4">
+              <GraduationCap className="size-6 shrink-0 text-blue-600" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Centro de Treinamento
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Vídeos, documentos e recursos para aprimorar suas habilidades
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* <div className="flex items-start gap-2 mb-5">
           <Video className="h-8 w-8 text-wine-600" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">
@@ -603,7 +634,7 @@ ATENDIMENTO AO CLIENTE
               Vídeos, documentos e recursos para aprimorar suas habilidades
             </p>
           </div>
-        </div>
+        </div> */}
 
         <Tabs defaultValue="videos" className="space-y-6">
           <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
@@ -660,7 +691,7 @@ ATENDIMENTO AO CLIENTE
                       <iframe
                         src={
                           selectedVideo.attachmentUrl?.includes(
-                            "www.youtube.com",
+                            "www.youtube.com"
                           ) && !selectedVideo.attachmentUrl.includes("embed")
                             ? getYouTubeEmbedUrl(selectedVideo.attachmentUrl)
                             : selectedVideo.attachmentUrl || ""
@@ -689,16 +720,28 @@ ATENDIMENTO AO CLIENTE
                         <div className="absolute top-2 right-2 z-10">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="bg-white/90 hover:bg-white">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-white/90 hover:bg-white"
+                              >
                                 <MoreVertical className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => moveTraining(video.id, 'up', 'video')}>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  moveTraining(video.id, "up", "video")
+                                }
+                              >
                                 <ArrowUp className="mr-2 size-4" />
                                 Mover para cima
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => moveTraining(video.id, 'down', 'video')}>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  moveTraining(video.id, "down", "video")
+                                }
+                              >
                                 <ArrowDown className="mr-2 size-4" />
                                 Mover para baixo
                               </DropdownMenuItem>
@@ -706,7 +749,7 @@ ATENDIMENTO AO CLIENTE
                           </DropdownMenu>
                         </div>
                       )}
-                      <div 
+                      <div
                         onClick={() => setSelectedVideo(video)}
                         className="cursor-pointer flex-1"
                       >
@@ -722,7 +765,7 @@ ATENDIMENTO AO CLIENTE
                           allowFullScreen
                         />
                       </div>
-                      <div 
+                      <div
                         onClick={() => setSelectedVideo(video)}
                         className="p-4 flex-1 space-y-5 cursor-pointer"
                       >
@@ -748,8 +791,12 @@ ATENDIMENTO AO CLIENTE
             <div className="flex flex-col gap-6">
               {/* Cabeçalho da seção */}
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-gray-900">Documentos e Manuais</h2>
-                <p className="text-gray-600">Material de apoio e documentação técnica</p>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Documentos e Manuais
+                </h2>
+                <p className="text-gray-600">
+                  Material de apoio e documentação técnica
+                </p>
               </div>
 
               {/* Lista de documentos */}
@@ -791,11 +838,27 @@ ATENDIMENTO AO CLIENTE
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => moveTraining(training.id, 'up', 'document')}>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      moveTraining(
+                                        training.id,
+                                        "up",
+                                        "document"
+                                      )
+                                    }
+                                  >
                                     <ArrowUp className="mr-2 size-4" />
                                     Mover para cima
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => moveTraining(training.id, 'down', 'document')}>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      moveTraining(
+                                        training.id,
+                                        "down",
+                                        "document"
+                                      )
+                                    }
+                                  >
                                     <ArrowDown className="mr-2 size-4" />
                                     Mover para baixo
                                   </DropdownMenuItem>
@@ -842,7 +905,8 @@ ATENDIMENTO AO CLIENTE
                       Nenhum documento encontrado
                     </h3>
                     <p className="text-gray-500">
-                      Os documentos de treinamento aparecerão aqui quando forem adicionados.
+                      Os documentos de treinamento aparecerão aqui quando forem
+                      adicionados.
                     </p>
                   </div>
                 )}
@@ -873,11 +937,19 @@ ATENDIMENTO AO CLIENTE
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => moveTraining(script.id, 'up', 'script')}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              moveTraining(script.id, "up", "script")
+                            }
+                          >
                             <ArrowUp className="mr-2 size-4" />
                             Mover para cima
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => moveTraining(script.id, 'down', 'script')}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              moveTraining(script.id, "down", "script")
+                            }
+                          >
                             <ArrowDown className="mr-2 size-4" />
                             Mover para baixo
                           </DropdownMenuItem>

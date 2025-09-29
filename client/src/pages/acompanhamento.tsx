@@ -492,6 +492,7 @@ import {
   Users,
   BarChart3,
   Loader2,
+  ClipboardList,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import InteractionFormModal from "@/components/interaction-form-modal";
@@ -540,7 +541,7 @@ export default function Acompanhamento() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedClient, setSelectedClient] = useState<ClientWithStats | null>(
-    null,
+    null
   );
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
 
@@ -649,31 +650,39 @@ export default function Acompanhamento() {
   return (
     <div className="space-y-6 pb-6">
       {/* Header */}
-      <div className="bg-white  border-b border-gray-200  px-6 py-4 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Acompanhamento
-            </h2>
-            <p className="text-gray-600  mt-1">
-              Clientes que precisam ser contactados
-            </p>
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <ClipboardList className="size-6 shrink-0 text-blue-600" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                Acompanhamento
+              </h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 overflow-hidden text-ellipsis">
+                Clientes que precisam ser contactados
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto">
             <div className="text-right">
-              <div className="text-2xl font-bold text-primary">
+              <div className="text-xl sm:text-2xl font-bold text-primary">
                 {stats.totalPendentes}
               </div>
-              <div className="text-sm text-gray-500">Clientes pendentes</div>
+              <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                Clientes pendentes
+              </div>
             </div>
-            <AlertCircle className="h-8 w-8 text-orange-500" />
+            <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 shrink-0" />
           </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="bg-white  border border-gray-200 
-        px-6 py-4 rounded-lg shadow-sm">
+      <div
+        className="bg-white  border border-gray-200 
+        px-6 py-4 rounded-lg shadow-sm"
+      >
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
@@ -828,10 +837,7 @@ export default function Acompanhamento() {
               ) : (
                 <div className="divide-y divide-gray-200 ">
                   {clients.map((client) => (
-                    <div
-                      key={client.id}
-                      className="p-6 hover:bg-gray-50"
-                    >
+                    <div key={client.id} className="p-6 hover:bg-gray-50">
                       <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -858,7 +864,9 @@ export default function Acompanhamento() {
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             <Badge
-                              className={`${getPriorityColor(client.daysSinceCreated)} border`}
+                              className={`${getPriorityColor(
+                                client.daysSinceCreated
+                              )} border`}
                             >
                               {getPriorityLabel(client.daysSinceCreated)}
                             </Badge>
@@ -868,7 +876,10 @@ export default function Acompanhamento() {
                           </div>
                           <div className="flex items-center gap-2">
                             <a
-                              href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
+                              href={`https://wa.me/${client.phone.replace(
+                                /\D/g,
+                                ""
+                              )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
@@ -928,7 +939,7 @@ export default function Acompanhamento() {
                         onClick={(e) => {
                           e.preventDefault();
                           setPage((p) =>
-                            Math.min(p + 1, pagination.totalPages),
+                            Math.min(p + 1, pagination.totalPages)
                           );
                         }}
                         className={

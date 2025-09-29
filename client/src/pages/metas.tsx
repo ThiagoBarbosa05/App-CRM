@@ -150,7 +150,9 @@ export default function Metas() {
 
   // Estado para controlar mês/ano - iniciando com a data atual
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.getMonth() + 1
+  );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Buscar metas do mês/ano selecionado
@@ -220,7 +222,7 @@ export default function Metas() {
   // Função para somar resultados semanais
   const getTotalAchieved = (
     weeklyResults: WeeklyResult[],
-    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
+    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved"
   ) => {
     if (!weeklyResults || !Array.isArray(weeklyResults)) {
       return 0;
@@ -286,7 +288,7 @@ export default function Metas() {
       whatsapp: "WhatsApp",
       visit: "Visita",
       note: "Anotação",
-      other: "Outro"
+      other: "Outro",
     };
     return types[type] || type;
   };
@@ -294,8 +296,69 @@ export default function Metas() {
   return (
     <div className="flex">
       <div className="flex-1 overflow-auto">
-        <div className="container mx-auto space-y-6">
-          <div className="flex items-center flex-col sm:flex-row gap-4 justify-between mb-6">
+        <div className="space-y-6">
+          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 flex-wrap justify-between">
+              <div className="flex items-center gap-4">
+                <Target className="size-6 shrink-0 text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Análise de Metas
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Acompanhe o progresso das metas de vendas em{" "}
+                    {format(
+                      new Date(selectedYear, selectedMonth - 1),
+                      "MMMM 'de' yyyy",
+                      { locale: ptBR }
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="month-select">Mês:</Label>
+                  <select
+                    id="month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                      (month) => (
+                        <option key={month} value={month}>
+                          {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                            month: "long",
+                          })}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="year-select">Ano:</Label>
+                  <select
+                    id="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from(
+                      { length: 5 },
+                      (_, i) => currentDate.getFullYear() - 2 + i
+                    ).map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* <div className="flex items-center flex-col sm:flex-row gap-4 justify-between mb-6">
             <div className="flex items-start gap-2">
               <Target className="h-8 w-8 text-blue-600" />
               <div>
@@ -351,7 +414,7 @@ export default function Metas() {
                 </select>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Nota informativa para vendedores */}
           {user?.role === "vendedor" && (
@@ -385,11 +448,11 @@ export default function Metas() {
                   const weeklyResults = getWeeklyResults(goal);
                   const totalSalesAchieved = getTotalAchieved(
                     weeklyResults,
-                    "salesAchieved",
+                    "salesAchieved"
                   );
                   const totalItemsAchieved = getTotalAchieved(
                     weeklyResults,
-                    "itemsAchieved",
+                    "itemsAchieved"
                   );
                   const avgTicketAchieved =
                     weeklyResults.length > 0
@@ -399,15 +462,15 @@ export default function Metas() {
 
                   const salesPercentage = calculatePercentage(
                     totalSalesAchieved,
-                    Number(goal.salesGoal),
+                    Number(goal.salesGoal)
                   );
                   const ticketPercentage = calculatePercentage(
                     avgTicketAchieved,
-                    Number(goal.averageTicket),
+                    Number(goal.averageTicket)
                   );
                   const itemsPercentage = calculatePercentage(
                     totalItemsAchieved,
-                    goal.itemsPerSale,
+                    goal.itemsPerSale
                   );
 
                   return (
@@ -508,7 +571,7 @@ export default function Metas() {
                           <div className="grid grid-cols-4 gap-1">
                             {[1, 2, 3, 4].map((week) => {
                               const weekResult = weeklyResults.find(
-                                (r) => r.week === week,
+                                (r) => r.week === week
                               );
                               return (
                                 <div
@@ -545,7 +608,7 @@ export default function Metas() {
                         {format(
                           new Date(selectedYear, selectedMonth - 1),
                           "MMMM 'de' yyyy",
-                          { locale: ptBR },
+                          { locale: ptBR }
                         )}
                       </p>
                     </div>
@@ -555,7 +618,7 @@ export default function Metas() {
                     {filteredTelemarketingGoals.map((goal) => {
                       // Buscar estatísticas do usuário
                       const userStats = telemarketingStats.find(
-                        (stat) => stat.userId === goal.userId,
+                        (stat) => stat.userId === goal.userId
                       );
                       const achieved = userStats
                         ? userStats[
@@ -566,7 +629,7 @@ export default function Metas() {
                         goal.targetQuantity > 0
                           ? calculatePercentage(
                               Number(achieved),
-                              goal.targetQuantity,
+                              goal.targetQuantity
                             )
                           : 0;
 
@@ -664,7 +727,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {new Date(
                                       0,
-                                      goal.month - 1,
+                                      goal.month - 1
                                     ).toLocaleDateString("pt-BR", {
                                       month: "long",
                                     })}{" "}
@@ -679,17 +742,16 @@ export default function Metas() {
                                         goal.targetResult === "COM SUCESSO"
                                           ? "bg-green-100 text-green-800"
                                           : goal.targetResult === "NÃO ATENDIDA"
-                                            ? "bg-yellow-100 text-yellow-800"
-                                            : goal.targetResult ===
-                                                "SEM INTERESSE"
-                                              ? "bg-red-100 text-red-800"
-                                              : goal.targetResult ===
-                                                  "NÃO LIGAR MAIS"
-                                                ? "bg-red-100 text-red-800"
-                                                : goal.targetResult ===
-                                                    "EM OCUPADO"
-                                                  ? "bg-orange-100 text-orange-800"
-                                                  : "bg-gray-100 text-gray-800"
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : goal.targetResult ===
+                                            "SEM INTERESSE"
+                                          ? "bg-red-100 text-red-800"
+                                          : goal.targetResult ===
+                                            "NÃO LIGAR MAIS"
+                                          ? "bg-red-100 text-red-800"
+                                          : goal.targetResult === "EM OCUPADO"
+                                          ? "bg-orange-100 text-orange-800"
+                                          : "bg-gray-100 text-gray-800"
                                       }`}
                                     >
                                       {goal.targetResult}
@@ -720,7 +782,7 @@ export default function Metas() {
                         {format(
                           new Date(selectedYear, selectedMonth - 1),
                           "MMMM 'de' yyyy",
-                          { locale: ptBR },
+                          { locale: ptBR }
                         )}
                       </p>
                     </div>
@@ -730,7 +792,7 @@ export default function Metas() {
                     {filteredClientRegistrationGoals.map((goal) => {
                       // Buscar estatísticas do usuário
                       const userStats = clientRegistrationStats.find(
-                        (stat) => stat.userId === goal.userId,
+                        (stat) => stat.userId === goal.userId
                       );
                       const achieved = userStats
                         ? userStats.totalRegistrations
@@ -827,7 +889,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {new Date(
                                       0,
-                                      goal.month - 1,
+                                      goal.month - 1
                                     ).toLocaleDateString("pt-BR", {
                                       month: "long",
                                     })}{" "}
@@ -839,7 +901,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {Math.max(
                                       0,
-                                      goal.targetQuantity - achieved,
+                                      goal.targetQuantity - achieved
                                     )}{" "}
                                     clientes
                                   </span>
@@ -868,7 +930,7 @@ export default function Metas() {
                         {format(
                           new Date(selectedYear, selectedMonth - 1),
                           "MMMM 'de' yyyy",
-                          { locale: ptBR },
+                          { locale: ptBR }
                         )}
                       </p>
                     </div>
@@ -878,7 +940,9 @@ export default function Metas() {
                     {filteredMarkerGoals.map((goal) => {
                       // Buscar estatísticas do marcador para o usuário
                       const userMarkerStats = markerStats.find(
-                        (stat) => stat.userId === goal.userId && stat.markerName === goal.markerName
+                        (stat) =>
+                          stat.userId === goal.userId &&
+                          stat.markerName === goal.markerName
                       );
                       const achieved = userMarkerStats
                         ? userMarkerStats.totalClients
@@ -975,7 +1039,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {new Date(
                                       0,
-                                      goal.month - 1,
+                                      goal.month - 1
                                     ).toLocaleDateString("pt-BR", {
                                       month: "long",
                                     })}{" "}
@@ -987,7 +1051,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {Math.max(
                                       0,
-                                      goal.targetQuantity - achieved,
+                                      goal.targetQuantity - achieved
                                     )}{" "}
                                     clientes
                                   </span>
@@ -1016,7 +1080,7 @@ export default function Metas() {
                         {format(
                           new Date(selectedYear, selectedMonth - 1),
                           "MMMM 'de' yyyy",
-                          { locale: ptBR },
+                          { locale: ptBR }
                         )}
                       </p>
                     </div>
@@ -1026,12 +1090,17 @@ export default function Metas() {
                     {filteredInteractionGoals.map((goal) => {
                       // Buscar estatísticas do usuário para este tipo de interação
                       const userStats = interactionStats.find(
-                        (stat) => stat.userId === goal.userId && stat.interactionType === goal.interactionType
+                        (stat) =>
+                          stat.userId === goal.userId &&
+                          stat.interactionType === goal.interactionType
                       );
-                      const achieved = userStats ? userStats.totalInteractions : 0;
-                      const percentage = goal.targetQuantity > 0
-                        ? calculatePercentage(achieved, goal.targetQuantity)
+                      const achieved = userStats
+                        ? userStats.totalInteractions
                         : 0;
+                      const percentage =
+                        goal.targetQuantity > 0
+                          ? calculatePercentage(achieved, goal.targetQuantity)
+                          : 0;
 
                       return (
                         <Card
@@ -1061,7 +1130,10 @@ export default function Metas() {
                               <div>
                                 <div className="flex justify-between items-center mb-2">
                                   <span className="text-sm font-medium text-indigo-900">
-                                    {getInteractionTypeLabel(goal.interactionType)} Realizadas
+                                    {getInteractionTypeLabel(
+                                      goal.interactionType
+                                    )}{" "}
+                                    Realizadas
                                   </span>
                                   <span className="text-sm text-indigo-600">
                                     {percentage.toFixed(1)}%
@@ -1120,7 +1192,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {new Date(
                                       0,
-                                      goal.month - 1,
+                                      goal.month - 1
                                     ).toLocaleDateString("pt-BR", {
                                       month: "long",
                                     })}{" "}
@@ -1132,7 +1204,7 @@ export default function Metas() {
                                   <span className="font-medium">
                                     {Math.max(
                                       0,
-                                      goal.targetQuantity - achieved,
+                                      goal.targetQuantity - achieved
                                     )}{" "}
                                     interações
                                   </span>
@@ -1140,7 +1212,9 @@ export default function Metas() {
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-600">Tipo:</span>
                                   <span className="font-medium">
-                                    {getInteractionTypeLabel(goal.interactionType)}
+                                    {getInteractionTypeLabel(
+                                      goal.interactionType
+                                    )}
                                   </span>
                                 </div>
                               </div>
