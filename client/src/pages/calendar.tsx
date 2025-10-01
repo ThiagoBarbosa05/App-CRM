@@ -232,9 +232,9 @@ export default function CalendarPage() {
 
   return (
     <>
-      <div className="flex">
+      <div className="flex min-h-0 w-full">
         <div className="flex-1 overflow-auto">
-          <div className="space-y-6">
+          <div className="space-y-6 ">
             <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
               <div className="flex items-center gap-2 flex-wrap justify-between">
                 <div className="flex items-center gap-4">
@@ -263,85 +263,89 @@ export default function CalendarPage() {
                 </div>
               </div>
             </div>
-            {/* <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-8 w-8 text-wine-600" />
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Aniversários
-                  </h1>
-                  <p className="text-gray-600">
-                    Visualize os aniversários dos seus clientes
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => createAutoRemindersMutation.mutate()}
-                  disabled={createAutoRemindersMutation.isPending}
-                  className="flex items-center gap-2"
-                >
-                  <Bell className="h-4 w-4" />
-                  {createAutoRemindersMutation.isPending
-                    ? "Criando..."
-                    : "Criar Lembretes Automáticos"}
-                </Button>
-              </div>
-            </div> */}
-
-            <div className="grid grid-cols-1  lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
               {/* Calendário */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarIcon className="h-5 w-5 text-wine-600" />
-                    Aniversários
+              <Card className="border border-gray-200 hover:border-gray-300 transition-colors min-w-0 overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-wine-100">
+                      <CalendarIcon className="h-4 w-4 text-wine-600" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        Calendário
+                      </div>
+                      <div className="text-sm text-gray-600 font-normal">
+                        Selecione uma data
+                      </div>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="flex justify-center max-h-[480px] overflow-y-auto">
-                  <UICalendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        startTransition(() => {
-                          setSelectedDate(date);
-                        });
-                      }
-                    }}
-                    locale={ptBR}
-                    modifiers={dayModifiers}
-                    modifiersClassNames={dayModifiersClassNames}
-                    className="rounded-md border"
-                  />
+                <CardContent className="flex justify-center max-h-[480px] overflow-y-auto p-4 sm:p-6 min-w-0">
+                  <div className="max-w-full overflow-hidden">
+                    <UICalendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          startTransition(() => {
+                            setSelectedDate(date);
+                          });
+                        }
+                      }}
+                      locale={ptBR}
+                      modifiers={dayModifiers}
+                      modifiersClassNames={dayModifiersClassNames}
+                      className="rounded-md border max-w-full"
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Detalhes da data selecionada */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5 text-amber-600" />
-                    {format(selectedDate, "dd 'de' MMMM 'de' yyyy", {
-                      locale: ptBR,
-                    })}
+              <Card className="border border-gray-200 hover:border-gray-300 transition-colors min-w-0 overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-100">
+                      <Gift className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-lg font-semibold text-gray-900 truncate">
+                        {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                      </div>
+                      <div className="text-sm text-gray-600 font-normal">
+                        {format(selectedDate, "yyyy", { locale: ptBR })}
+                      </div>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="max-h-[480px] overflow-y-auto">
+                <CardContent className="max-h-[480px] overflow-y-auto p-4 sm:p-6">
                   {selectedDateClients.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Gift className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-gray-500">
-                        Nenhum aniversário nesta data
-                      </p>
+                    <div className="text-center py-8 px-4">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                          <Gift className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 mb-1">
+                            Nenhum aniversário
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Não há aniversários nesta data
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 mb-4">
                         <Badge
                           variant="default"
-                          className="bg-amber-100 text-amber-800"
+                          className="bg-amber-100 text-amber-800 border border-amber-200"
                         >
+                          <div className="flex h-3 w-3 items-center justify-center rounded bg-amber-200 mr-1">
+                            <Gift className="h-2 w-2 text-amber-700" />
+                          </div>
                           {selectedDateClients.length} aniversariante
                           {selectedDateClients.length > 1 ? "s" : ""}
                         </Badge>
@@ -356,83 +360,98 @@ export default function CalendarPage() {
                           <>
                             <div
                               key={client.id}
-                              className="p-4 bg-gradient-to-r from-amber-50 to-wine-50 rounded-lg border border-amber-200"
+                              className="p-4 sm:p-6 bg-gradient-to-r from-amber-50 to-wine-50 hover:from-amber-100 hover:to-wine-100 rounded-lg border border-amber-200 hover:border-amber-300 transition-all duration-200 hover:shadow-sm min-w-0 overflow-hidden"
                             >
-                              <div className="flex items-start flex-col sm:flex-row gap-y-2 justify-between">
-                                <div className="flex-1">
-                                  <h3 className="font-semibold text-gray-900 text-lg">
-                                    {client.name}
-                                  </h3>
-                                  <p className="text-sm text-gray-600 mb-3">
-                                    Completando {age} anos 🎉
-                                  </p>
+                              <div className="flex items-start flex-col sm:flex-row gap-3 sm:gap-4 justify-between">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-200 flex-shrink-0">
+                                    <Gift className="h-6 w-6 text-amber-600" />
+                                  </div>
 
-                                  <div className="space-y-2">
-                                    {client.phone && (
-                                      <div className="flex items-center gap-2 text-sm">
-                                        <Phone className="h-4 w-4 text-gray-500" />
-                                        <a
-                                          href={`tel:${client.phone}`}
-                                          className="text-blue-600 hover:text-blue-800 hover:underline"
-                                          title="Clique para ligar"
-                                        >
-                                          {client.phone}
-                                        </a>
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <div>
+                                      <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">
+                                        {client.name}
+                                      </h3>
+                                      <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                                        🎉 Completando {age} anos
+                                      </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      {client.phone && (
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                          <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100">
+                                            <Phone className="h-2 w-2 text-green-600" />
+                                          </div>
+                                          <a
+                                            href={`tel:${client.phone}`}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors"
+                                            title="Clique para ligar"
+                                          >
+                                            {client.phone}
+                                          </a>
+                                        </div>
+                                      )}
+
+                                      {client.email && (
+                                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                          <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100">
+                                            <Mail className="h-2 w-2 text-blue-600" />
+                                          </div>
+                                          <a
+                                            href={`mailto:${client.email}`}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline truncate transition-colors"
+                                            title="Clique para enviar email"
+                                          >
+                                            {client.email}
+                                          </a>
+                                        </div>
+                                      )}
+
+                                      {/* Nome do responsável */}
+                                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                        <div className="flex h-3 w-3 items-center justify-center rounded bg-gray-100">
+                                          <User className="h-2 w-2 text-gray-600" />
+                                        </div>
+                                        <span className="text-gray-600 truncate">
+                                          Responsável:{" "}
+                                          {(() => {
+                                            const user = users.find(
+                                              (u) =>
+                                                u.id === client.responsavelId
+                                            );
+                                            return user
+                                              ? user.name
+                                              : client.responsavelId
+                                              ? "Usuário não encontrado"
+                                              : "Não atribuído";
+                                          })()}
+                                        </span>
                                       </div>
-                                    )}
-
-                                    {client.email && (
-                                      <div className="flex items-center gap-2 text-sm">
-                                        <Mail className="h-4 w-4 text-gray-500" />
-                                        <a
-                                          href={`mailto:${client.email}`}
-                                          className="text-blue-600 hover:text-blue-800 hover:underline"
-                                          title="Clique para enviar email"
-                                        >
-                                          {client.email}
-                                        </a>
-                                      </div>
-                                    )}
-
-                                    {/* Nome do responsável */}
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <User className="h-4 w-4 text-gray-500" />
-                                      <span className="text-gray-600">
-                                        Responsável:{" "}
-                                        {(() => {
-                                          const user = users.find(
-                                            (u) => u.id === client.responsavelId
-                                          );
-                                          return user
-                                            ? user.name
-                                            : client.responsavelId
-                                            ? "Usuário não encontrado"
-                                            : "Não atribuído";
-                                        })()}
-                                      </span>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="text-center flex sm:flex-col gap-1 items-center">
-                                  <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                                    <Gift className="h-6 w-6 text-amber-600" />
-                                  </div>
+                                <div className="flex flex-col items-center gap-2 sm:items-end">
                                   <Badge
                                     variant="secondary"
-                                    className="text-xs"
+                                    className="text-xs bg-amber-100 text-amber-700 border border-amber-200"
                                   >
+                                    <div className="flex h-3 w-3 items-center justify-center rounded bg-amber-200 mr-1">
+                                      <CalendarIcon className="h-2 w-2 text-amber-700" />
+                                    </div>
                                     {formatDate(client.birthday!)}
                                   </Badge>
                                 </div>
                               </div>
 
-                              <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-2">
+                              <div className="mt-4 flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 border-t border-gray-100 pt-4 min-w-0">
                                 {client.phone && (
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs"
+                                    className="text-xs border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                     onClick={() =>
                                       window.open(
                                         `tel:${client.phone}`,
@@ -440,7 +459,9 @@ export default function CalendarPage() {
                                       )
                                     }
                                   >
-                                    <Phone className="h-3 w-3 mr-1" />
+                                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 mr-1.5">
+                                      <Phone className="h-2 w-2 text-green-600" />
+                                    </div>
                                     Ligar
                                   </Button>
                                 )}
@@ -449,7 +470,7 @@ export default function CalendarPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs"
+                                    className="text-xs border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                     onClick={() =>
                                       window.open(
                                         `mailto:${client.email}`,
@@ -457,7 +478,9 @@ export default function CalendarPage() {
                                       )
                                     }
                                   >
-                                    <Mail className="h-3 w-3 mr-1" />
+                                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 mr-1.5">
+                                      <Mail className="h-2 w-2 text-blue-600" />
+                                    </div>
                                     Email
                                   </Button>
                                 )}
@@ -465,13 +488,15 @@ export default function CalendarPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs"
+                                  className="text-xs border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                   onClick={() => {
                                     setClientStartBot(client);
                                     setBirthdayBot(true);
                                   }}
                                 >
-                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 mr-1.5">
+                                    <MessageSquare className="h-2 w-2 text-green-600" />
+                                  </div>
                                   WhatsApp
                                 </Button>
 
@@ -483,10 +508,12 @@ export default function CalendarPage() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="text-xs"
+                                      className="text-xs border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                                       onClick={() => setSelectedClient(client)}
                                     >
-                                      <Bell className="h-3 w-3 mr-1" />
+                                      <div className="flex h-3 w-3 items-center justify-center rounded bg-amber-100 mr-1.5">
+                                        <Bell className="h-2 w-2 text-amber-600" />
+                                      </div>
                                       Lembrete
                                     </Button>
                                   </DialogTrigger>
@@ -602,15 +629,24 @@ export default function CalendarPage() {
                   )}
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5 text-wine-600" />
-                    Estatísticas
+              <Card className="border border-gray-200 hover:border-gray-300 transition-colors min-w-0 overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-wine-100">
+                      <Gift className="h-4 w-4 text-wine-600" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        Estatísticas
+                      </div>
+                      <div className="text-sm text-gray-600 font-normal">
+                        Resumo de aniversários
+                      </div>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="max-h-[480px] overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="max-h-[480px] overflow-y-auto p-4 sm:p-6">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {["Hoje", "Amanhã", "Esta semana", "Este mês"].map(
                       (period, index) => {
                         const today = new Date();
@@ -644,12 +680,17 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={period}
-                            className="text-center p-4 bg-gray-50 rounded-lg"
+                            className="text-center p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-wine-50 hover:to-wine-100 rounded-lg border border-gray-200 hover:border-wine-200 transition-all duration-200 hover:shadow-sm"
                           >
-                            <div className="text-2xl font-bold text-wine-600">
+                            <div className="flex justify-center mb-2">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-wine-100 border border-wine-200">
+                                <Gift className="h-4 w-4 text-wine-600" />
+                              </div>
+                            </div>
+                            <div className="text-xl sm:text-2xl font-bold text-wine-600 mb-1">
                               {count}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-xs sm:text-sm text-gray-600 font-medium">
                               {period}
                             </div>
                           </div>
@@ -659,14 +700,23 @@ export default function CalendarPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="max-h-[480px] overflow-y-auto">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-amber-600" />
-                    Próximos Aniversários (30 dias)
+              <Card className="max-h-[480px] overflow-y-auto border border-gray-200 hover:border-gray-300 transition-colors min-w-0 overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-100">
+                      <Bell className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        Próximos Aniversários
+                      </div>
+                      <div className="text-sm text-gray-600 font-normal">
+                        30 dias
+                      </div>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 sm:p-6">
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {upcomingBirthdays.slice(0, 10).map((client: any) => {
                       const birthdayDate = parseISO(client.birthday);
@@ -681,49 +731,81 @@ export default function CalendarPage() {
                       return (
                         <div
                           key={client.id}
-                          className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 rounded-lg border border-amber-200 hover:border-amber-300 transition-all duration-200 hover:shadow-sm min-w-0 overflow-hidden"
                         >
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">
-                              {client.name}
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-200 flex-shrink-0">
+                              <Gift className="h-5 w-5 text-amber-600" />
                             </div>
-                            <div className="text-sm text-gray-600">
-                              {formatDate(client.birthday!)} - {age} anos
-                            </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              Responsável:{" "}
-                              {(() => {
-                                const user = users.find(
-                                  (u) => u.id === client.responsavelId
-                                );
-                                return user
-                                  ? user.name
-                                  : client.responsavelId
-                                  ? "Usuário não encontrado"
-                                  : "Não atribuído";
-                              })()}
+
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="font-semibold text-sm sm:text-base text-gray-900 truncate">
+                                {client.name}
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100">
+                                  <CalendarIcon className="h-2 w-2 text-blue-600" />
+                                </div>
+                                <span className="truncate">
+                                  {formatDate(client.birthday!)} - {age} anos
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <div className="flex h-3 w-3 items-center justify-center rounded bg-gray-100">
+                                  <User className="h-2 w-2 text-gray-600" />
+                                </div>
+                                <span className="truncate">
+                                  Responsável:{" "}
+                                  {(() => {
+                                    const user = users.find(
+                                      (u) => u.id === client.responsavelId
+                                    );
+                                    return user
+                                      ? user.name
+                                      : client.responsavelId
+                                      ? "Usuário não encontrado"
+                                      : "Não atribuído";
+                                  })()}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-amber-600">
-                              {daysUntil === 0
-                                ? "Hoje!"
-                                : daysUntil === 1
-                                ? "Amanhã"
-                                : `${daysUntil} dias`}
+
+                          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                            <div className="flex flex-col items-start sm:items-end">
+                              <div
+                                className={`text-xs sm:text-sm font-semibold px-2 py-1 rounded-full ${
+                                  daysUntil === 0
+                                    ? "bg-red-100 text-red-700 border border-red-200"
+                                    : daysUntil <= 3
+                                    ? "bg-orange-100 text-orange-700 border border-orange-200"
+                                    : "bg-amber-100 text-amber-700 border border-amber-200"
+                                }`}
+                              >
+                                {daysUntil === 0
+                                  ? "🎉 Hoje!"
+                                  : daysUntil === 1
+                                  ? "🎂 Amanhã"
+                                  : `⏰ ${daysUntil} dias`}
+                              </div>
                             </div>
+
                             {client.phone && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="text-xs p-1 h-auto"
+                                variant="outline"
+                                className="h-8 w-8 p-0 border-green-200 hover:bg-green-50 hover:border-green-300 transition-colors"
                                 onClick={() => {
                                   setClientStartBot(client);
                                   setBirthdayBot(true);
                                 }}
+                                title="Enviar mensagem de aniversário via WhatsApp"
                               >
-                                <MessageSquare className="h-3 w-3" />
+                                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100">
+                                  <MessageSquare className="h-3 w-3 text-green-600" />
+                                </div>
                               </Button>
                             )}
                           </div>
@@ -731,8 +813,20 @@ export default function CalendarPage() {
                       );
                     })}
                     {upcomingBirthdays.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        Nenhum aniversário nos próximos 30 dias
+                      <div className="text-center py-8 px-4">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                            <Bell className="h-6 w-6 text-gray-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 mb-1">
+                              Nenhum aniversário próximo
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Não há aniversários nos próximos 30 dias
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1272,20 +1272,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const dealId = req.params.dealId;
       const data = updateDealSchema.parse(req.body);
-      let rawValue: string;
 
-      if (data.value) {
-        rawValue = data.value!.replace(/\./g, "").replace(",", ".");
-        const numeric = parseFloat(rawValue);
-        const deals = await storage.updateDeal(dealId, {
-          ...data,
-          value: numeric.toString(),
-        });
-        res.json(deals);
-      } else {
-        const deals = await storage.updateDeal(dealId, data);
-        res.json(deals);
+      // Validar o valor se estiver presente
+      if (data.value !== undefined && data.value !== null) {
+        const numeric = parseFloat(data.value.toString());
+
+        if (isNaN(numeric)) {
+          return res.status(400).json({ message: "Valor inválido" });
+        }
+
+        data.value = numeric.toString();
       }
+
+      const deals = await storage.updateDeal(dealId, data);
+      res.json(deals);
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: "Erro ao atualizar deals" });
@@ -1307,6 +1307,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/deals", async (req, res) => {
     try {
       const validatedData = insertDealSchema.parse(req.body);
+
+      // Validar o valor se estiver presente
+      if (validatedData.value !== undefined && validatedData.value !== null) {
+        const numeric = parseFloat(validatedData.value.toString());
+
+        if (isNaN(numeric)) {
+          return res.status(400).json({ message: "Valor inválido" });
+        }
+
+        validatedData.value = numeric.toString();
+      }
 
       // If no title is provided, generate one based on client/company name
       if (!validatedData.title) {
@@ -1504,8 +1515,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deals,
       });
     } catch (error) {
-      console.error("Erro na criação de negócios em lote para clientes:", error);
-      res.status(500).json({ message: "Erro ao criar negócios em lote para clientes" });
+      console.error(
+        "Erro na criação de negócios em lote para clientes:",
+        error
+      );
+      res
+        .status(500)
+        .json({ message: "Erro ao criar negócios em lote para clientes" });
     }
   });
 
@@ -1750,7 +1766,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.query.userRole as string) ||
         (req.headers["x-user-role"] as string);
 
-      const transactions = await storage.getCashbackTransactions(userId, userRole);
+      const transactions = await storage.getCashbackTransactions(
+        userId,
+        userRole
+      );
       res.json(transactions);
     } catch (error) {
       console.error("Erro ao buscar transações:", error);
@@ -2901,7 +2920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const success = await storage.deleteMarkerGoal(id);
       if (success === false) {
-        return res.status(404).json({ message: "Meta de marcadores não encontrada" });
+        return res
+          .status(404)
+          .json({ message: "Meta de marcadores não encontrada" });
       }
       res.json({ message: "Meta de marcadores excluída com sucesso" });
     } catch (error) {
@@ -2921,7 +2942,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       console.error("Erro ao buscar estatísticas de marcadores:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de marcadores" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de marcadores" });
     }
   });
 
@@ -2975,7 +2998,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/interaction-goals/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertInteractionGoalSchema.partial().parse(req.body);
+      const validatedData = insertInteractionGoalSchema
+        .partial()
+        .parse(req.body);
       const goal = await storage.updateInteractionGoal(id, validatedData);
       res.json(goal);
     } catch (error) {
@@ -2993,7 +3018,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const success = await storage.deleteInteractionGoal(id);
       if (success === false) {
-        return res.status(404).json({ message: "Meta de interações não encontrada" });
+        return res
+          .status(404)
+          .json({ message: "Meta de interações não encontrada" });
       }
       res.json({ message: "Meta de interações excluída com sucesso" });
     } catch (error) {
@@ -3013,7 +3040,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       console.error("Erro ao buscar estatísticas de interações:", error);
-      res.status(500).json({ message: "Erro ao buscar estatísticas de interações" });
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de interações" });
     }
   });
 

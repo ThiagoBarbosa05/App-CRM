@@ -90,19 +90,30 @@ export default function CompanyDetailsModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="border-b border-gray-100 bg-gray-50 -m-6 mb-6 p-6">
           <div className="flex items-center flex-col sm:flex-row gap-4 justify-between">
-            <div>
-              <DialogTitle className="flex items-center gap-2 text-xl">
-                <Building2 className="h-5 w-5 text-wine-600" />
-                {company.nomeFantasia}
-              </DialogTitle>
-              <DialogDescription className="text-left">
-                {company.razaoSocial}
-              </DialogDescription>
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-100">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-gray-900">
+                  {company.nomeFantasia}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-gray-600 mt-1">
+                  {company.razaoSocial}
+                </DialogDescription>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={company.active ? "default" : "secondary"}>
+              <Badge
+                variant={company.active ? "default" : "secondary"}
+                className={
+                  company.active
+                    ? "bg-green-100 text-green-700 border-green-200"
+                    : "bg-gray-100 text-gray-600 border-gray-200"
+                }
+              >
                 {company.active ? "Ativa" : "Inativa"}
               </Badge>
               {onEdit && (
@@ -110,8 +121,11 @@ export default function CompanyDetailsModal({
                   variant="outline"
                   size="sm"
                   onClick={() => onEdit(company)}
+                  className="border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 mr-2">
+                    <Edit className="h-3 w-3 text-gray-600" />
+                  </div>
                   Editar
                 </Button>
               )}
@@ -120,20 +134,32 @@ export default function CompanyDetailsModal({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="info" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-50 p-1 rounded-lg">
+            <TabsTrigger
+              value="info"
+              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <Building2 className="h-4 w-4" />
               Informações
             </TabsTrigger>
-            <TabsTrigger value="carta" className="flex items-center gap-2">
+            <TabsTrigger
+              value="carta"
+              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <Wine className="h-4 w-4" />
               Carta de Vinhos
             </TabsTrigger>
-            <TabsTrigger value="interactions" className="flex items-center gap-2">
+            <TabsTrigger
+              value="interactions"
+              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <MessageSquare className="h-4 w-4" />
               Interações
             </TabsTrigger>
-            <TabsTrigger value="funnels" className="flex items-center gap-2">
+            <TabsTrigger
+              value="funnels"
+              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <Target className="h-4 w-4" />
               Funis
             </TabsTrigger>
@@ -142,199 +168,218 @@ export default function CompanyDetailsModal({
           <TabsContent value="info" className="space-y-6 mt-6">
             <div className="space-y-6">
               {/* Informações básicas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-5 w-5" />
-                Informações da Empresa
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {company.cnpj && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      CNPJ
-                    </p>
-                    <p className="font-mono">{company.cnpj}</p>
-                  </div>
-                )}
-
-                {company.inscricaoEstadual && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Inscrição Estadual
-                    </p>
-                    <p className="font-mono">{company.inscricaoEstadual}</p>
-                  </div>
-                )}
-
-                {company.nomeComprador && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Nome do Comprador
-                    </p>
-                    <p>{company.nomeComprador}</p>
-                  </div>
-                )}
-
-                {sector && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Setor
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Tag
-                        className="h-4 w-4"
-                        style={{ color: sector.color }}
-                      />
-                      <span>{sector.name}</span>
+              <Card>
+                <CardHeader className="border-b border-gray-100 bg-gray-50">
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100">
+                      <Building2 className="h-4 w-4 text-blue-600" />
                     </div>
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Cadastrada em
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{formatDate(company.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Contato */}
-          {(company.email || company.phone || company.website) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Phone className="h-5 w-5" />
-                  Contato
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  {company.email && (
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold text-gray-900">
+                      Informações da Empresa
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 mt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {company.cnpj && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">
-                          Email
+                          CNPJ
                         </p>
-                        <a
-                          href={`mailto:${company.email}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {company.email}
-                        </a>
+                        <p className="font-mono">{company.cnpj}</p>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {company.phone && (
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
+                    {company.inscricaoEstadual && (
+                      <div>
                         <p className="text-sm font-medium text-muted-foreground">
-                          Celular
+                          Inscrição Estadual
+                        </p>
+                        <p className="font-mono">{company.inscricaoEstadual}</p>
+                      </div>
+                    )}
+
+                    {company.nomeComprador && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Nome do Comprador
+                        </p>
+                        <p>{company.nomeComprador}</p>
+                      </div>
+                    )}
+
+                    {sector && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Setor
                         </p>
                         <div className="flex items-center gap-2">
-                          <a
-                            href={`tel:${company.phone}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {company.phone}
-                          </a>
-                          <a
-                            href={`https://wa.me/${company.phone.replace(/\D/g, "")}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-600 hover:text-green-700 transition-colors"
-                            title="Abrir no WhatsApp"
-                          >
-                            <FaWhatsapp className="h-4 w-4" />
-                          </a>
+                          <Tag
+                            className="h-4 w-4"
+                            style={{ color: sector.color }}
+                          />
+                          <span>{sector.name}</span>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {company.website && (
-                    <div className="flex items-center gap-3">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Website
-                        </p>
-                        <a
-                          href={company.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {company.website}
-                        </a>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Cadastrada em
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span>{formatDate(company.createdAt)}</span>
                       </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Endereço */}
-          {(company.address ||
-            company.city ||
-            company.state ||
-            company.cep) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <MapPin className="h-5 w-5" />
-                  Endereço
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {company.address && <p>{company.address}</p>}
-                  {company.neighborhood && (
-                    <p className="text-sm text-muted-foreground">
-                      Bairro: {company.neighborhood}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {company.city && <span>{company.city}</span>}
-                    {company.city && company.state && <span>-</span>}
-                    {company.state && <span>{company.state}</span>}
-                    {company.cep && (
-                      <>
-                        <span>•</span>
-                        <span>CEP: {company.cep}</span>
-                      </>
-                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
 
-          {/* Observações */}
-          {company.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5" />
-                  Observações
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{company.notes}</p>
-              </CardContent>
-            </Card>
-          )}
+              {/* Contato */}
+              {(company.email || company.phone || company.website) && (
+                <Card>
+                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100">
+                        <Phone className="h-4 w-4 text-green-600" />
+                      </div>
+                      <span className="font-semibold text-gray-900">
+                        Contato
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 mt-2">
+                    <div className="grid grid-cols-1 gap-4">
+                      {company.email && (
+                        <div className="flex items-center gap-3">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Email
+                            </p>
+                            <a
+                              href={`mailto:${company.email}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {company.email}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {company.phone && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Celular
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`tel:${company.phone}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {company.phone}
+                              </a>
+                              <a
+                                href={`https://wa.me/${company.phone.replace(
+                                  /\D/g,
+                                  ""
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-600 hover:text-green-700 transition-colors"
+                                title="Abrir no WhatsApp"
+                              >
+                                <FaWhatsapp className="h-4 w-4" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {company.website && (
+                        <div className="flex items-center gap-3">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Website
+                            </p>
+                            <a
+                              href={company.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {company.website}
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Endereço */}
+              {(company.address ||
+                company.city ||
+                company.state ||
+                company.cep) && (
+                <Card>
+                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-100">
+                        <MapPin className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <span className="font-semibold text-gray-900">
+                        Endereço
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {company.address && <p>{company.address}</p>}
+                      {company.neighborhood && (
+                        <p className="text-sm text-muted-foreground">
+                          Bairro: {company.neighborhood}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {company.city && <span>{company.city}</span>}
+                        {company.city && company.state && <span>-</span>}
+                        {company.state && <span>{company.state}</span>}
+                        {company.cep && (
+                          <>
+                            <span>•</span>
+                            <span>CEP: {company.cep}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Observações */}
+              {company.notes && (
+                <Card>
+                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-100">
+                        <FileText className="h-4 w-4 text-orange-600" />
+                      </div>
+                      <span className="font-semibold text-gray-900">
+                        Observações
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="whitespace-pre-wrap">{company.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
@@ -378,7 +423,7 @@ export default function CompanyDetailsModal({
                         Ver carta completa
                       </Button>
                     </div>
-                    
+
                     {/* Mostrar até 3 produtos como preview */}
                     <div className="space-y-2">
                       {companyProducts.slice(0, 3).map((item: any) => (
@@ -387,31 +432,42 @@ export default function CompanyDetailsModal({
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
                         >
                           <div className="flex-1">
-                            <p className="font-medium text-sm">{item.product?.name || 'Nome não disponível'}</p>
+                            <p className="font-medium text-sm">
+                              {item.product?.name || "Nome não disponível"}
+                            </p>
                             <p className="text-xs text-gray-500">
-                              {item.product?.country || 'País não informado'} - {item.product?.volume || 'Volume não informado'}
+                              {item.product?.country || "País não informado"} -{" "}
+                              {item.product?.volume || "Volume não informado"}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-gray-400">
-                                Tabela: R$ {parseFloat(item.product?.tablePrice || '0').toFixed(2)}
+                                Tabela: R${" "}
+                                {parseFloat(
+                                  item.product?.tablePrice || "0"
+                                ).toFixed(2)}
                               </span>
                               <span className="text-xs text-blue-600">
-                                Padrão: R$ {parseFloat(item.product?.negotiatedPrice || '0').toFixed(2)}
+                                Padrão: R${" "}
+                                {parseFloat(
+                                  item.product?.negotiatedPrice || "0"
+                                ).toFixed(2)}
                               </span>
                               <span className="text-xs text-green-600 font-semibold">
-                                Cliente: R$ {parseFloat(item.customNegotiatedPrice || item.product?.negotiatedPrice || '0').toFixed(2)}
+                                Cliente: R${" "}
+                                {parseFloat(
+                                  item.customNegotiatedPrice ||
+                                    item.product?.negotiatedPrice ||
+                                    "0"
+                                ).toFixed(2)}
                               </span>
                             </div>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className="text-xs ml-2"
-                          >
-                            {item.product?.type || 'Tipo não informado'}
+                          <Badge variant="outline" className="text-xs ml-2">
+                            {item.product?.type || "Tipo não informado"}
                           </Badge>
                         </div>
                       ))}
-                      
+
                       {companyProducts.length > 3 && (
                         <p className="text-xs text-gray-500 text-center">
                           e mais {companyProducts.length - 3} vinho(s)...

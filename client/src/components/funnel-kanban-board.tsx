@@ -115,28 +115,28 @@ export default function FunnelKanbanBoard({
           console.log("👤 USER DATA:", user.id, user.role);
           const response = await apiRequest(
             "GET",
-            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
+            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`
           );
           const data = await response.json();
           console.log(
             "🎯 DEALS CARREGADOS (com user):",
             data.length,
             "deals para funil",
-            funnelId,
+            funnelId
           );
           return data;
         }
         console.log("⚠️ SEM USER DATA - usando query básica");
         const response = await apiRequest(
           "GET",
-          `/api/deals?funnelId=${funnelId}`,
+          `/api/deals?funnelId=${funnelId}`
         );
         const data = await response.json();
         console.log(
           "🎯 DEALS CARREGADOS (sem user):",
           data.length,
           "deals para funil",
-          funnelId,
+          funnelId
         );
         return data;
       } catch (error) {
@@ -268,13 +268,13 @@ export default function FunnelKanbanBoard({
   const getDealsForStage = (stageId: string) => {
     if (!deals || !Array.isArray(deals)) return [];
     let filteredDeals = deals.filter(
-      (deal: DealWithClient) => deal.stageId === stageId,
+      (deal: DealWithClient) => deal.stageId === stageId
     );
 
     // Aplicar filtro por responsável se selecionado
     if (selectedUserId && selectedUserId !== "all") {
       filteredDeals = filteredDeals.filter(
-        (deal: DealWithClient) => deal.assignedTo === selectedUserId,
+        (deal: DealWithClient) => deal.assignedTo === selectedUserId
       );
     }
 
@@ -307,299 +307,355 @@ export default function FunnelKanbanBoard({
 
   return (
     <>
-      <div className="flex-1 overflow-auto bg-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold">Pipeline de Vendas</h3>
-            <p className="text-gray-600">
-              Gerencie seus negócios através do funil
-              {hasActiveFilters && (
-                <span className="ml-2 text-sm">
-                  ({filteredDeals.length} de {deals.length} deals)
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="relative">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtros
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="bg-white rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 flex-shrink-0">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                  Pipeline de Vendas
+                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
+                  <p className="text-gray-600 text-xs sm:text-sm">
+                    Gerencie seus negócios através do funil
+                  </p>
                   {hasActiveFilters && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Filtrar Deals</h4>
-                    {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FilterX className="h-4 w-4 mr-1" />
-                        Limpar
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="search">Buscar</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="search"
-                          placeholder="Título ou descrição..."
-                          value={filters.search}
-                          onChange={(e) =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              search: e.target.value,
-                            }))
-                          }
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="valueMin">Valor Mín.</Label>
-                        <Input
-                          id="valueMin"
-                          type="number"
-                          placeholder="0"
-                          value={filters.valueMin}
-                          onChange={(e) =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              valueMin: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="valueMax">Valor Máx.</Label>
-                        <Input
-                          id="valueMax"
-                          type="number"
-                          placeholder="999999"
-                          value={filters.valueMax}
-                          onChange={(e) =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              valueMax: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="assignedUser">Responsável</Label>
-                      <Select
-                        value={filters.assignedUser}
-                        onValueChange={(value) =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            assignedUser: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Todos os usuários" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os usuários</SelectItem>
-                          {users.map((user: any) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="dateFrom">Data Início</Label>
-                        <Input
-                          id="dateFrom"
-                          type="date"
-                          value={filters.dateFrom}
-                          onChange={(e) =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              dateFrom: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="dateTo">Data Fim</Label>
-                        <Input
-                          id="dateTo"
-                          type="date"
-                          value={filters.dateTo}
-                          onChange={(e) =>
-                            setFilters((prev) => ({
-                              ...prev,
-                              dateTo: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Dialog
-              open={isCreateModalOpen}
-              onOpenChange={setIsCreateModalOpen}
-            >
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Deal
-                </Button>
-              </DialogTrigger>
-              <DealFormModal
-                open={isCreateModalOpen}
-                onOpenChange={setIsCreateModalOpen}
-                funnelId={funnelId}
-              />
-            </Dialog>
-          </div>
-        </div>
-
-        <div
-          className="grid gap-6 h-full"
-          style={{
-            gridTemplateColumns: `repeat(${funnel.stages?.length || 1}, 1fr)`,
-          }}
-        >
-          {funnel.stages?.map((stage) => {
-            const stageDeals = filteredDeals.filter(
-              (deal: any) => deal.stageId === stage.id,
-            );
-            const totalValue = stageDeals.reduce(
-              (sum: number, deal: any) => sum + parseFloat(deal.value || "0"),
-              0,
-            );
-
-            console.log(
-              `🏁 ESTÁGIO "${stage.name}" (${stage.id}):`,
-              stageDeals.length,
-              "deals",
-            );
-
-            return (
-              <div
-                key={stage.id}
-                className="bg-white rounded-lg card-shadow p-4 kanban-column"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, stage.id)}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900 flex items-center">
-                    <div
-                      className="w-3 h-3 rounded-full mr-2"
-                      style={{ backgroundColor: stage.color }}
-                    />
-                    {stage.name}
-                  </h3>
-                  <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                    {stageDeals.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {stageDeals.map((deal: DealWithClient) => (
-                    <div
-                      key={deal.id}
-                      draggable
-                      onDragStart={() => handleDragStart(deal)}
-                      onClick={() => setSelectedDeal(deal)}
-                      className="kanban-card bg-white border border-gray-200 rounded-lg p-4 card-shadow cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium text-gray-900 text-sm leading-tight">
-                          {deal.title}
-                        </h4>
-                        <div className="deal-actions">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingDeal(deal);
-                            }}
-                            className="deal-action-btn hover:bg-gray-100"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingDeal(deal);
-                            }}
-                            className="deal-action-btn hover:bg-red-100 text-red-600"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-600">
-                          Responsável:  <strong className="block">{deal.assignedUser?.name}</strong> 
-                          {/* <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedClient(deal.client);
-                            }}
-                            className="text-wine-600 hover:text-wine-800 underline font-medium"
-                          >
-                            {deal.client?.name}
-                          </button> */}
-                        </p>
-                        <p className="text-sm font-semibold text-green-600">
-                          {formatCurrency(parseFloat(deal.value))}
-                        </p>
-                        {deal.notes && (
-                          <p className="text-xs text-gray-500 line-clamp-2">
-                            {deal.notes}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400">
-                          {formatDate(deal.createdAt.toString())}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {stageDeals.length === 0 && (
-                    <div className="text-center py-8 text-gray-400">
-                      <p className="text-sm">Nenhum deal neste estágio</p>
-                    </div>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full w-fit">
+                      {filteredDeals.length} de {deals.length} deals
+                    </span>
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="relative border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors flex-1 sm:flex-none"
+                  >
+                    <Filter className="h-4 w-4 text-gray-600 sm:mr-2" />
+                    <span className="hidden sm:inline">Filtros</span>
+                    {hasActiveFilters && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Filtrar Deals</h4>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearFilters}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FilterX className="h-4 w-4 mr-1" />
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
 
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="search">Buscar</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="search"
+                            placeholder="Título ou descrição..."
+                            value={filters.search}
+                            onChange={(e) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                search: e.target.value,
+                              }))
+                            }
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label htmlFor="valueMin">Valor Mín.</Label>
+                          <Input
+                            id="valueMin"
+                            type="number"
+                            placeholder="0"
+                            value={filters.valueMin}
+                            onChange={(e) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                valueMin: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="valueMax">Valor Máx.</Label>
+                          <Input
+                            id="valueMax"
+                            type="number"
+                            placeholder="999999"
+                            value={filters.valueMax}
+                            onChange={(e) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                valueMax: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="assignedUser">Responsável</Label>
+                        <Select
+                          value={filters.assignedUser}
+                          onValueChange={(value) =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              assignedUser: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Todos os usuários" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">
+                              Todos os usuários
+                            </SelectItem>
+                            {Array.isArray(users) &&
+                              users.map((user: any) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label htmlFor="dateFrom">Data Início</Label>
+                          <Input
+                            id="dateFrom"
+                            type="date"
+                            value={filters.dateFrom}
+                            onChange={(e) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                dateFrom: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dateTo">Data Fim</Label>
+                          <Input
+                            id="dateTo"
+                            type="date"
+                            value={filters.dateTo}
+                            onChange={(e) =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                dateTo: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Dialog
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
+                  >
+                    <Plus className="h-4 w-4 text-white sm:mr-2" />
+                    <span className="hidden sm:inline">Novo Deal</span>
+                    <span className="sm:hidden">Novo</span>
+                  </Button>
+                </DialogTrigger>
+                <DealFormModal
+                  open={isCreateModalOpen}
+                  onOpenChange={setIsCreateModalOpen}
+                  funnelId={funnelId}
+                />
+              </Dialog>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto pb-4 pt-4">
+            <div
+              className="flex gap-4 sm:gap-6 min-w-max"
+              style={{
+                minWidth: `${(funnel.stages?.length || 1) * 280}px`,
+              }}
+            >
+              {funnel.stages?.map((stage) => {
+                const stageDeals = filteredDeals.filter(
+                  (deal: any) => deal.stageId === stage.id
+                );
+                const totalValue = stageDeals.reduce(
+                  (sum: number, deal: any) =>
+                    sum + parseFloat(deal.value || "0"),
+                  0
+                );
+
+                console.log(
+                  `🏁 ESTÁGIO "${stage.name}" (${stage.id}):`,
+                  stageDeals.length,
+                  "deals"
+                );
+
+                return (
+                  <div
+                    key={stage.id}
+                    className="bg-white rounded-lg shadow-sm border border-gray-200 kanban-column min-h-[500px] sm:min-h-[600px] w-72 sm:w-80 flex-shrink-0"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, stage.id)}
+                  >
+                    <div className="border-b border-gray-100 bg-gray-50 p-3 sm:p-4 rounded-t-lg sticky top-0 z-10">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-gray-900 flex items-center gap-2 min-w-0 flex-1">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: stage.color }}
+                          />
+                          <span className="text-sm sm:text-base">
+                            {stage.name}
+                          </span>
+                        </h3>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="bg-white text-gray-600 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                            {stageDeals.length}
+                          </span>
+                          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium hidden sm:inline">
+                            {formatCurrency(totalValue)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="sm:hidden mt-2">
+                        <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+                          {formatCurrency(totalValue)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      className="p-3 sm:p-4 overflow-y-auto"
+                      style={{ maxHeight: "calc(100vh - 300px)" }}
+                    >
+                      <div className="space-y-3">
+                        {stageDeals.map((deal: DealWithClient) => (
+                          <div
+                            key={deal.id}
+                            draggable
+                            onDragStart={() => handleDragStart(deal)}
+                            onClick={() => setSelectedDeal(deal)}
+                            className="kanban-card bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+                          >
+                            <div className="flex items-start justify-between mb-3 gap-2">
+                              <h4 className="font-semibold text-gray-900 text-sm leading-tight flex-1 min-w-0">
+                                <span className="line-clamp-2">
+                                  {deal.title}
+                                </span>
+                              </h4>
+                              <div className="deal-actions flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingDeal(deal);
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-blue-100 rounded touch-manipulation"
+                                >
+                                  <Edit className="h-3 w-3 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingDeal(deal);
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-red-100 text-red-600 rounded ml-1 touch-manipulation"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="bg-gray-50 rounded-lg p-2 border-l-3 border-blue-400">
+                                <p className="text-xs text-gray-600 mb-1">
+                                  Responsável:
+                                </p>
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {deal.assignedUser?.name || "Não atribuído"}
+                                </p>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <p className="text-base sm:text-lg font-bold text-green-600">
+                                  {formatCurrency(parseFloat(deal.value))}
+                                </p>
+                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full w-fit">
+                                  {formatDate(deal.createdAt.toString())}
+                                </span>
+                              </div>
+
+                              {deal.notes && (
+                                <div className="bg-yellow-50 border-l-3 border-yellow-400 p-2 rounded-r-lg">
+                                  <p className="text-xs text-gray-700 line-clamp-3 sm:line-clamp-2">
+                                    {deal.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {stageDeals.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center px-2">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                              <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium mb-1">
+                              Nenhum deal
+                            </p>
+                            <p className="text-xs text-gray-400 text-center leading-tight">
+                              Arraste um deal ou <br className="sm:hidden" />
+                              <span className="sm:inline">crie um novo</span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>{" "}
       {editingDeal && (
         <DealFormModal
           open={!!editingDeal}
@@ -608,7 +664,6 @@ export default function FunnelKanbanBoard({
           funnelId={funnelId}
         />
       )}
-
       {isCreateModalOpen && (
         <DealFormModal
           open={isCreateModalOpen}
@@ -616,9 +671,8 @@ export default function FunnelKanbanBoard({
           funnelId={funnelId}
         />
       )}
-
       <ClientDetailsCard
-        client={selectedClient}
+        client={selectedClient || null}
         open={!!selectedClient}
         onOpenChange={(open) => !open && setSelectedClient(null)}
         onEdit={(client) => {
@@ -626,7 +680,6 @@ export default function FunnelKanbanBoard({
           setEditingClient(client);
         }}
       />
-
       {editingClient && (
         <ClientFormModal
           open={!!editingClient}
@@ -634,9 +687,8 @@ export default function FunnelKanbanBoard({
           client={editingClient}
         />
       )}
-
       <CompanyDetailsModal
-        company={selectedCompany}
+        company={selectedCompany || null}
         isOpen={!!selectedCompany}
         onClose={() => setSelectedCompany(null)}
         onEdit={(company) => {
@@ -644,7 +696,6 @@ export default function FunnelKanbanBoard({
           setEditingCompany(company);
         }}
       />
-
       <DealDetailsModal
         deal={selectedDeal}
         isOpen={!!selectedDeal}
@@ -666,7 +717,6 @@ export default function FunnelKanbanBoard({
           setSelectedCompany(company);
         }}
       />
-
       <AlertDialog
         open={!!deletingDeal}
         onOpenChange={() => setDeletingDeal(null)}

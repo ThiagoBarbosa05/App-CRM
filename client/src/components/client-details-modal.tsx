@@ -177,648 +177,646 @@ export default function ClientDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <User className="h-5 w-5 text-wine-600" />
-            {client.name}
-          </DialogTitle>
-          <DialogDescription className="text-left">
-            Informações detalhadas do cliente
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Header moderno e limpo */}
+        <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
+          <DialogHeader className="space-y-0">
+            <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-gray-900 mb-2">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <span className="block">{client.name}</span>
+                <DialogDescription className="text-sm text-gray-600 mt-1">
+                  Informações completas e interações do cliente
+                </DialogDescription>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="info" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Informações
-            </TabsTrigger>
-            <TabsTrigger value="negocio" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Funis
-            </TabsTrigger>
-            <TabsTrigger
-              value="interactions"
-              className="flex items-center gap-2"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Interações
-            </TabsTrigger>
-            <TabsTrigger value="cashback" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Cashback
-            </TabsTrigger>
-          </TabsList>
+        {/* Conteúdo do modal */}
+        <div className="px-6 py-4">
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 bg-white border border-gray-200 rounded-lg p-1 mb-6">
+              <TabsTrigger
+                value="info"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 transition-colors"
+              >
+                <User className="h-4 w-4" />
+                Informações
+              </TabsTrigger>
+              <TabsTrigger
+                value="negocio"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 transition-colors"
+              >
+                <User className="h-4 w-4" />
+                Funis
+              </TabsTrigger>
+              <TabsTrigger
+                value="interactions"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 transition-colors"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Interações
+              </TabsTrigger>
+              <TabsTrigger
+                value="cashback"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 transition-colors"
+              >
+                <Wallet className="h-4 w-4" />
+                Cashback
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="info" className="space-y-6 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Informações Pessoais
-                  </div>
-                  <Button
-                    onClick={() => {
-                      if (onEdit) {
-                        onEdit(client);
-                        onClose();
-                      }
-                    }}
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
-                    size="sm"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Editar</span>
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-gray-500" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600">Telefone</p>
-                      <a
-                        href={`tel:${client.phone}`}
-                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                        title="Clique para ligar"
-                      >
-                        {formatPhone(client.phone)}
-                      </a>
-                    </div>
-                  </div>
-
-                  {client.email && (
+            <TabsContent value="info" className="space-y-6 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <p className="text-sm text-gray-600">E-mail</p>
-                        <p className="font-medium">{client.email}</p>
+                      <User className="h-4 w-4" />
+                      Informações Pessoais
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (onEdit) {
+                          onEdit(client);
+                          onClose();
+                        }
+                      }}
+                      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+                      size="sm"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span>Editar</span>
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Telefone</p>
+                        <a
+                          href={`tel:${client.phone}`}
+                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          title="Clique para ligar"
+                        >
+                          {formatPhone(client.phone)}
+                        </a>
                       </div>
                     </div>
-                  )}
 
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">CPF</p>
-                      <p className="font-medium">
-                        {formatCPF(client.cpf || "")}
-                      </p>
-                    </div>
-                  </div>
+                    {client.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">E-mail</p>
+                          <p className="font-medium">{client.email}</p>
+                        </div>
+                      </div>
+                    )}
 
-                  {client.birthday && (
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <CreditCard className="h-4 w-4 text-gray-500" />
                       <div>
-                        <p className="text-sm text-gray-600">Aniversário</p>
+                        <p className="text-sm text-gray-600">CPF</p>
                         <p className="font-medium">
-                          {formatBirthday(client.birthday)}
+                          {formatCPF(client.cpf || "")}
                         </p>
                       </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FaWhatsapp className="h-4 w-4 text-green-600" />
-                  WhatsApp
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {isLoadingContact ? (
-                  <p className="text-sm text-gray-500">
-                    Verificando status do WhatsApp...
-                  </p>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-4">
-                      {umblerContact ? (
-                        <Badge
-                          className="bg-green-100 border-green-200 py-1 text-green-800"
-                          variant="outline"
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Sincronizado
-                        </Badge>
-                      ) : (
-                        <Button
-                          size={"sm"}
-                          variant={"outline"}
-                          disabled={syncCustomer.isPending}
-                          onClick={() => {
-                            syncCustomer.mutate({
-                              phoneNumber: client.phone,
-                              organizationId: "aGx7Jh43-au36EGi",
-                              name: client.name,
-                              email: client.email!,
-                            });
-                          }}
-                          className="bg-green-100 border-green-200 hover:bg-green-200"
-                        >
-                          <RefreshCw
-                            className={cn(
-                              "h-4 w-4 mr-2",
-                              syncCustomer.isPending && "animate-spin"
-                            )}
-                          />
-                          {syncCustomer.isPending
-                            ? "Sincronizando..."
-                            : "Sincronizar com WhatsApp"}
-                        </Button>
+                    {client.birthday && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">Aniversário</p>
+                          <p className="font-medium">
+                            {formatBirthday(client.birthday)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FaWhatsapp className="h-4 w-4 text-green-600" />
+                    WhatsApp
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isLoadingContact ? (
+                    <p className="text-sm text-gray-500">
+                      Verificando status do WhatsApp...
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-4">
+                        {umblerContact ? (
+                          <Badge
+                            className="bg-green-100 border-green-200 py-1 text-green-800"
+                            variant="outline"
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Sincronizado
+                          </Badge>
+                        ) : (
+                          <Button
+                            size={"sm"}
+                            variant={"outline"}
+                            disabled={syncCustomer.isPending}
+                            onClick={() => {
+                              syncCustomer.mutate({
+                                phoneNumber: client.phone,
+                                organizationId: "aGx7Jh43-au36EGi",
+                                name: client.name,
+                                email: client.email!,
+                              });
+                            }}
+                            className="bg-green-100 border-green-200 hover:bg-green-200"
+                          >
+                            <RefreshCw
+                              className={cn(
+                                "h-4 w-4 mr-2",
+                                syncCustomer.isPending && "animate-spin"
+                              )}
+                            />
+                            {syncCustomer.isPending
+                              ? "Sincronizando..."
+                              : "Sincronizar com WhatsApp"}
+                          </Button>
+                        )}
+                      </div>
+
+                      {umblerContact && (
+                        <div className="mt-4">
+                          {isLoadingChats ? (
+                            <p className="text-sm text-gray-500">
+                              Carregando conversas...
+                            </p>
+                          ) : (
+                            <>
+                              {contactChat && contactChat.items.length > 0 ? (
+                                <div className="space-y-4">
+                                  <div>
+                                    <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
+                                      <MessageSquareMore className="h-4 w-4" />
+                                      Última mensagem enviada:
+                                    </p>
+                                    {contactChat.items[0].lastMessage ? (
+                                      <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                                        <p className="text-sm text-gray-800 italic">
+                                          "
+                                          {
+                                            contactChat.items[0].lastMessage
+                                              .content
+                                          }
+                                          "
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-gray-400 italic">
+                                        Nenhuma mensagem enviada ainda
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <p className="text-sm text-gray-600">
+                                      Envie uma nova mensagem:
+                                    </p>
+                                    <Textarea
+                                      value={message}
+                                      onChange={(e) =>
+                                        setMessage(e.target.value)
+                                      }
+                                      placeholder="Digite sua mensagem para o cliente..."
+                                      className="border-green-500 focus:ring-green-500"
+                                      rows={3}
+                                    />
+                                    <div className="flex justify-end flex-col sm:flex-row gap-2 sm:items-center">
+                                      <div className="flex-1">
+                                        {isLoadingInactiveBot &&
+                                        isLoadingWelcomeBot ? (
+                                          <Skeleton className="w[240px] h-[40px] bg-gray-200" />
+                                        ) : (
+                                          <div className="flex sm:items-center flex-col sm:flex-row gap-2">
+                                            {welcomeBot?.result
+                                              .filter(
+                                                (bot: any) =>
+                                                  bot.title ===
+                                                  "Fluxo BOAS VINDAS"
+                                              )
+                                              .map((bot: any) => (
+                                                <Button
+                                                  key={bot.id}
+                                                  onClick={async () =>
+                                                    startBotOnChatMutation.mutateAsync(
+                                                      {
+                                                        botId: bot.id,
+                                                        chatId:
+                                                          contactChat.items[0]
+                                                            .id,
+                                                        triggerName:
+                                                          "Boas vindas",
+                                                      }
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    startBotOnChatMutation.isPending
+                                                  }
+                                                  size={"sm"}
+                                                  variant={"outline"}
+                                                >
+                                                  <Bot />
+                                                  {startBotOnChatMutation.isPending
+                                                    ? "iniciando bot..."
+                                                    : `${bot.title}`}
+                                                </Button>
+                                              ))}
+
+                                            {inactiveBot?.result
+                                              .filter(
+                                                (bot: any) =>
+                                                  bot.title ===
+                                                  "campanha INATIVOS"
+                                              )
+                                              .map((bot: any) => (
+                                                <Button
+                                                  key={bot.id}
+                                                  onClick={async () =>
+                                                    startBotOnChatMutation.mutateAsync(
+                                                      {
+                                                        botId: bot.id,
+                                                        chatId:
+                                                          contactChat.items[0]
+                                                            .id,
+                                                        triggerName: "Início",
+                                                      }
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    startBotOnChatMutation.isPending
+                                                  }
+                                                  size={"sm"}
+                                                  variant={"outline"}
+                                                >
+                                                  <Bot />
+                                                  {startBotOnChatMutation.isPending
+                                                    ? "iniciando bot..."
+                                                    : `${bot.title}`}
+                                                </Button>
+                                              ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <Button
+                                        onClick={() =>
+                                          sendMessageMutation.mutate({
+                                            chatId: contactChat?.items[0]?.id,
+                                            message,
+                                          })
+                                        }
+                                        disabled={
+                                          sendMessageMutation.isPending ||
+                                          !message
+                                        }
+                                        className="bg-green-600 text-white hover:bg-green-700 disabled:bg-opacity-70"
+                                      >
+                                        <Send className="h-4 w-4 mr-2" />
+                                        {sendMessageMutation.isPending
+                                          ? "Enviando..."
+                                          : "Enviar Mensagem"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="py-4 flex items-center justify-center">
+                                  <Button
+                                    disabled={createChatMutation.isPending}
+                                    onClick={async () =>
+                                      createChatMutation.mutateAsync({
+                                        contactId: umblerContact?.id,
+                                      })
+                                    }
+                                    className="bg-green-500 text-white font-medium"
+                                  >
+                                    <MessageSquareMore className="size-5 mr-2" />
+                                    {createChatMutation.isPending
+                                      ? "Criando chat..."
+                                      : "Criar chat no WhatsApp"}
+                                  </Button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {(client.address || client.cep) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Endereço
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {client.address && (
+                        <p className="flex items-start gap-2">
+                          <span className="text-sm text-gray-600 min-w-[80px]">
+                            Endereço:
+                          </span>
+                          <span className="font-medium">
+                            {client.address}
+                            {client.number && `, ${client.number}`}
+                          </span>
+                        </p>
+                      )}
+
+                      {client.neighborhood && (
+                        <p className="flex items-start gap-2">
+                          <span className="text-sm text-gray-600 min-w-[80px]">
+                            Bairro:
+                          </span>
+                          <span className="font-medium">
+                            {client.neighborhood}
+                          </span>
+                        </p>
+                      )}
+
+                      {client.city && (
+                        <p className="flex items-start gap-2">
+                          <span className="text-sm text-gray-600 min-w-[80px]">
+                            Cidade:
+                          </span>
+                          <span className="font-medium">
+                            {client.city}
+                            {client.state && `, ${client.state}`}
+                          </span>
+                        </p>
+                      )}
+
+                      {client.cep && (
+                        <p className="flex items-start gap-2">
+                          <span className="text-sm text-gray-600 min-w-[80px]">
+                            CEP:
+                          </span>
+                          <span className="font-medium">{client.cep}</span>
+                        </p>
                       )}
                     </div>
 
-                    {umblerContact && (
-                      <div className="mt-4">
-                        {isLoadingChats ? (
-                          <p className="text-sm text-gray-500">
-                            Carregando conversas...
-                          </p>
-                        ) : (
-                          <>
-                            {contactChat && contactChat.items.length > 0 ? (
-                              <div className="space-y-4">
-                                <div>
-                                  <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
-                                    <MessageSquareMore className="h-4 w-4" />
-                                    Última mensagem enviada:
-                                  </p>
-                                  {contactChat.items[0].lastMessage ? (
-                                    <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                                      <p className="text-sm text-gray-800 italic">
-                                        "
-                                        {
-                                          contactChat.items[0].lastMessage
-                                            .content
-                                        }
-                                        "
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm text-gray-400 italic">
-                                      Nenhuma mensagem enviada ainda
-                                    </p>
-                                  )}
-                                </div>
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const addressParts = [
+                            client.address,
+                            client.number && `${client.number}`,
+                            client.neighborhood,
+                            client.city,
+                            client.state,
+                            client.cep && `CEP: ${client.cep}`,
+                          ].filter(Boolean);
 
-                                <div className="space-y-2">
-                                  <p className="text-sm text-gray-600">
-                                    Envie uma nova mensagem:
-                                  </p>
-                                  <Textarea
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Digite sua mensagem para o cliente..."
-                                    className="border-green-500 focus:ring-green-500"
-                                    rows={3}
-                                  />
-                                  <div className="flex justify-end flex-col sm:flex-row gap-2 sm:items-center">
-                                    <div className="flex-1">
-                                      {isLoadingInactiveBot &&
-                                      isLoadingWelcomeBot ? (
-                                        <Skeleton className="w[240px] h-[40px] bg-gray-200" />
-                                      ) : (
-                                        <div className="flex sm:items-center flex-col sm:flex-row gap-2">
-                                          {welcomeBot?.result
-                                            .filter(
-                                              (bot) =>
-                                                bot.title ===
-                                                "Fluxo BOAS VINDAS"
-                                            )
-                                            .map((bot) => (
-                                              <Button
-                                                key={bot.id}
-                                                onClick={async () =>
-                                                  startBotOnChatMutation.mutateAsync(
-                                                    {
-                                                      botId: bot.id,
-                                                      chatId:
-                                                        contactChat.items[0].id,
-                                                      triggerName:
-                                                        "Boas vindas",
-                                                    }
-                                                  )
-                                                }
-                                                disabled={
-                                                  startBotOnChatMutation.isPending
-                                                }
-                                                size={"sm"}
-                                                variant={"outline"}
-                                              >
-                                                <Bot />
-                                                {startBotOnChatMutation.isPending
-                                                  ? "iniciando bot..."
-                                                  : `${bot.title}`}
-                                              </Button>
-                                            ))}
+                          const fullAddress = addressParts.join(", ");
+                          const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            fullAddress
+                          )}`;
+                          window.open(mapsUrl, "_blank");
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        Ver no Mapa
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                                          {inactiveBot?.result
-                                            .filter(
-                                              (bot) =>
-                                                bot.title ===
-                                                "campanha INATIVOS"
-                                            )
-                                            .map((bot) => (
-                                              <Button
-                                                key={bot.id}
-                                                onClick={async () =>
-                                                  startBotOnChatMutation.mutateAsync(
-                                                    {
-                                                      botId: bot.id,
-                                                      chatId:
-                                                        contactChat.items[0].id,
-                                                      triggerName: "Início",
-                                                    }
-                                                  )
-                                                }
-                                                disabled={
-                                                  startBotOnChatMutation.isPending
-                                                }
-                                                size={"sm"}
-                                                variant={"outline"}
-                                              >
-                                                <Bot />
-                                                {startBotOnChatMutation.isPending
-                                                  ? "iniciando bot..."
-                                                  : `${bot.title}`}
-                                              </Button>
-                                            ))}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <Button
-                                      onClick={() =>
-                                        sendMessageMutation.mutate({
-                                          chatId: contactChat?.items[0]?.id,
-                                          message,
-                                        })
-                                      }
-                                      disabled={
-                                        sendMessageMutation.isPending ||
-                                        !message
-                                      }
-                                      className="bg-green-600 text-white hover:bg-green-700 disabled:bg-opacity-70"
-                                    >
-                                      <Send className="h-4 w-4 mr-2" />
-                                      {sendMessageMutation.isPending
-                                        ? "Enviando..."
-                                        : "Enviar Mensagem"}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="py-4 flex items-center justify-center">
-                                <Button
-                                  disabled={createChatMutation.isPending}
-                                  onClick={async () =>
-                                    createChatMutation.mutateAsync({
-                                      contactId: umblerContact?.id,
-                                    })
-                                  }
-                                  className="bg-green-500 text-white font-medium"
-                                >
-                                  <MessageSquareMore className="size-5 mr-2" />
-                                  {createChatMutation.isPending
-                                    ? "Criando chat..."
-                                    : "Criar chat no WhatsApp"}
-                                </Button>
-                              </div>
-                            )}
-                          </>
-                        )}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    Informações Comerciais
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {client.categoria && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Categoria</p>
+                        <Badge variant="secondary" className="capitalize">
+                          {client.categoria}
+                        </Badge>
                       </div>
                     )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
 
-            {(client.address || client.cep) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Endereço
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {client.address && (
-                      <p className="flex items-start gap-2">
-                        <span className="text-sm text-gray-600 min-w-[80px]">
-                          Endereço:
-                        </span>
-                        <span className="font-medium">
-                          {client.address}
-                          {client.number && `, ${client.number}`}
-                        </span>
-                      </p>
-                    )}
-
-                    {client.neighborhood && (
-                      <p className="flex items-start gap-2">
-                        <span className="text-sm text-gray-600 min-w-[80px]">
-                          Bairro:
-                        </span>
-                        <span className="font-medium">
-                          {client.neighborhood}
-                        </span>
-                      </p>
-                    )}
-
-                    {client.city && (
-                      <p className="flex items-start gap-2">
-                        <span className="text-sm text-gray-600 min-w-[80px]">
-                          Cidade:
-                        </span>
-                        <span className="font-medium">
-                          {client.city}
-                          {client.state && `, ${client.state}`}
-                        </span>
-                      </p>
-                    )}
-
-                    {client.cep && (
-                      <p className="flex items-start gap-2">
-                        <span className="text-sm text-gray-600 min-w-[80px]">
-                          CEP:
-                        </span>
-                        <span className="font-medium">{client.cep}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const addressParts = [
-                          client.address,
-                          client.number && `${client.number}`,
-                          client.neighborhood,
-                          client.city,
-                          client.state,
-                          client.cep && `CEP: ${client.cep}`,
-                        ].filter(Boolean);
-
-                        const fullAddress = addressParts.join(", ");
-                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          fullAddress
-                        )}`;
-                        window.open(mapsUrl, "_blank");
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <MapPin className="h-4 w-4" />
-                      Ver no Mapa
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  Informações Comerciais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {client.categoria && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Categoria</p>
-                      <Badge variant="secondary" className="capitalize">
-                        {client.categoria}
-                      </Badge>
-                    </div>
-                  )}
-
-                  {client.origem && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Origem</p>
-                      <Badge variant="outline" className="capitalize">
-                        {client.origem}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {client.markers && client.markers.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
-                      <Tag className="h-3 w-3" />
-                      Marcadores
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {client.markers.map((marker, index) => (
-                        <Badge
-                          key={index}
-                          variant="default"
-                          className="text-xs"
-                        >
-                          {marker}
+                    {client.origem && (
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Origem</p>
+                        <Badge variant="outline" className="capitalize">
+                          {client.origem}
                         </Badge>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Informações do Sistema
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <p className="flex items-center gap-2">
-                    <span className="text-gray-600 min-w-[120px]">
-                      Data de cadastro:
-                    </span>
-                    <span className="font-medium">
-                      {formatDate(String(client.createdAt))}
-                    </span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-gray-600 min-w-[120px]">
-                      ID do cliente:
-                    </span>
-                    <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                      {client.id}
-                    </span>
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  {client.markers && client.markers.length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        Marcadores
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {client.markers.map((marker, index) => (
+                          <Badge
+                            key={index}
+                            variant="default"
+                            className="text-xs"
+                          >
+                            {marker}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-          <TabsContent value="negocio" className="space-y-6 mt-6">
-            {Array.isArray(clientFunnels) && clientFunnels.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Funis com Negócios Existentes
+                    <FileText className="h-4 w-4" />
+                    Informações do Sistema
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {clientFunnels.map((funnel: any) => (
-                      <Button
-                        key={funnel.id}
-                        variant="default"
-                        className="w-full justify-start h-auto p-4"
-                        onClick={() => handleCreateDeal(funnel.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <User className="h-4 w-4" />
-                          <div className="text-left">
-                            <p className="font-medium">{funnel.name}</p>
-                            {funnel.description && (
-                              <p className="text-sm text-white/80">
-                                {funnel.description}
-                              </p>
-                            )}
-                            <p className="text-xs text-white/60">
-                              Adicionar novo negócio
-                            </p>
-                          </div>
-                        </div>
-                      </Button>
-                    ))}
+                  <div className="space-y-2 text-sm">
+                    <p className="flex items-center gap-2">
+                      <span className="text-gray-600 min-w-[120px]">
+                        Data de cadastro:
+                      </span>
+                      <span className="font-medium">
+                        {formatDate(String(client.createdAt))}
+                      </span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="text-gray-600 min-w-[120px]">
+                        ID do cliente:
+                      </span>
+                      <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                        {client.id}
+                      </span>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Criar Novo Negócio
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center space-y-4">
-                  <p className="text-lg font-medium text-gray-900">
-                    {client.name}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Escolha o funil para criar um novo negócio
-                  </p>
-
-                  <div className="space-y-3">
-                    {Array.isArray(allFunnels) && allFunnels.length > 0 ? (
-                      allFunnels.map((funnel: any) => (
+            <TabsContent value="negocio" className="space-y-6 mt-6">
+              {Array.isArray(clientFunnels) && clientFunnels.length > 0 && (
+                <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                  <CardHeader className="border-b border-gray-100 bg-gray-50 p-4">
+                    <CardTitle className="text-lg flex items-center gap-3 font-semibold text-gray-900">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <User className="h-4 w-4 text-green-600" />
+                      </div>
+                      Funis com Negócios Existentes
+                    </CardTitle>
+                    <p className="text-gray-600 text-sm mt-2">
+                      Funis onde este cliente já possui negócios ativos
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      {clientFunnels.map((funnel: any) => (
                         <Button
                           key={funnel.id}
-                          variant="outline"
-                          className="w-full justify-start h-auto p-4"
+                          variant="default"
+                          className="w-full justify-start h-auto p-4 bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
                           onClick={() => handleCreateDeal(funnel.id)}
                         >
                           <div className="flex items-center gap-3">
-                            <User className="h-4 w-4 text-primary" />
+                            <div className="p-1.5 bg-white/20 rounded-lg">
+                              <User className="h-4 w-4 text-white" />
+                            </div>
                             <div className="text-left">
-                              <p className="font-medium">{funnel.name}</p>
+                              <p className="font-medium text-white">
+                                {funnel.name}
+                              </p>
                               {funnel.description && (
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-white/80 mt-1">
                                   {funnel.description}
                                 </p>
                               )}
+                              <p className="text-xs text-white/70 mt-1">
+                                Adicionar novo negócio
+                              </p>
                             </div>
                           </div>
                         </Button>
-                      ))
-                    ) : (
-                      <div className="text-center py-4">
-                        <p className="text-gray-500">Nenhum funil disponível</p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <CardHeader className="border-b border-gray-100 bg-gray-50 p-4">
+                  <CardTitle className="text-lg flex items-center gap-3 font-semibold text-gray-900">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <User className="h-4 w-4 text-blue-600" />
+                    </div>
+                    Criar Novo Negócio
+                  </CardTitle>
+                  <p className="text-gray-600 text-sm mt-2">
+                    Selecione um funil para iniciar uma nova oportunidade de
+                    negócio
+                  </p>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-4">
+                    <div className="text-center py-2">
+                      <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg border border-blue-200">
+                        <User className="h-4 w-4" />
+                        <span className="font-medium">{client.name}</span>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    </div>
 
-          <TabsContent value="interactions" className="mt-6">
-            <ClientInteractionsTab client={client} />
-          </TabsContent>
+                    <div className="space-y-3">
+                      {Array.isArray(allFunnels) && allFunnels.length > 0 ? (
+                        allFunnels.map((funnel: any) => (
+                          <Button
+                            key={funnel.id}
+                            variant="outline"
+                            className="w-full justify-start h-auto p-4 border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors duration-200"
+                            onClick={() => handleCreateDeal(funnel.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                <User className="h-4 w-4 text-gray-600" />
+                              </div>
+                              <div className="text-left">
+                                <p className="font-medium text-gray-900">
+                                  {funnel.name}
+                                </p>
+                                {funnel.description && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {funnel.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </Button>
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="p-3 bg-gray-100 rounded-full inline-block mb-3">
+                            <User className="h-6 w-6 text-gray-400" />
+                          </div>
+                          <p className="text-gray-900 font-medium">
+                            Nenhum funil disponível
+                          </p>
+                          <p className="text-gray-500 text-sm mt-1">
+                            Configure funis de vendas para criar negócios
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="cashback" className="space-y-6 mt-6">
-            <ClientCashbackTab
-              client={client}
-              contactId={umblerContact ? umblerContact.id : undefined}
-            />
-            {/* <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-green-600" />
-                  Saldo de Cashback
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div>
-                    <p className="text-sm font-medium text-green-600">
-                      Saldo Disponível
-                    </p>
-                    <p className="text-2xl font-bold text-green-700">
-                      {cashbackBalance
-                        ? formatCurrency(
-                            cashbackBalance.currentBalance?.toString() || "0"
-                          )
-                        : formatCurrency(0)}
-                    </p>
-                  </div>
-                  <Gift className="h-8 w-8 text-green-600" />
-                </div>
+            <TabsContent value="interactions" className="mt-6">
+              <ClientInteractionsTab client={client} />
+            </TabsContent>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm font-medium text-blue-600">
-                      Total Acumulado
-                    </p>
-                    <p className="text-lg font-bold text-blue-700">
-                      {cashbackBalance
-                        ? formatCurrency(
-                            cashbackBalance.totalEarned?.toString() || "0"
-                          )
-                        : formatCurrency(0)}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm font-medium text-orange-600">
-                      Total Utilizado
-                    </p>
-                    <p className="text-lg font-bold text-orange-700">
-                      {cashbackBalance
-                        ? formatCurrency(
-                            cashbackBalance.totalUsed?.toString() || "0"
-                          )
-                        : formatCurrency(0)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card> */}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="cashback" className="space-y-6 mt-6">
+              <ClientCashbackTab
+                client={client}
+                contactId={umblerContact ? umblerContact.id : undefined}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </DialogContent>
 
       {showCreateDealModal && client && (

@@ -46,29 +46,35 @@ interface DealFormModalProps {
   initialClientId?: string;
 }
 
-const createDealSchema = z.object({
-  dealType: z.enum(["client", "company"], {
-    required_error: "Tipo de negócio é obrigatório",
-  }),
-  clientId: z.string().optional(),
-  companyId: z.string().optional(),
-  funnelId: z.string().min(1, "Funil é obrigatório"),
-  stageId: z.string().min(1, "Estágio é obrigatório"),
-  value: z.string().min(1, "Valor é obrigatório"),
-  assignedTo: z.string().min(1, "Responsável é obrigatório"),
-  notes: z.string().optional().nullable(),
-}).refine((data) => {
-  if (data.dealType === "client" && !data.clientId) {
-    return false;
-  }
-  if (data.dealType === "company" && !data.companyId) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Cliente ou empresa é obrigatório conforme o tipo selecionado",
-  path: ["clientId"],
-});
+const createDealSchema = z
+  .object({
+    dealType: z.enum(["client", "company"], {
+      required_error: "Tipo de negócio é obrigatório",
+    }),
+    title: z.string().optional(),
+    clientId: z.string().optional(),
+    companyId: z.string().optional(),
+    funnelId: z.string().min(1, "Funil é obrigatório"),
+    stageId: z.string().min(1, "Estágio é obrigatório"),
+    value: z.string().min(1, "Valor é obrigatório"),
+    assignedTo: z.string().min(1, "Responsável é obrigatório"),
+    notes: z.string().optional().nullable(),
+  })
+  .refine(
+    (data) => {
+      if (data.dealType === "client" && !data.clientId) {
+        return false;
+      }
+      if (data.dealType === "company" && !data.companyId) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Cliente ou empresa é obrigatório conforme o tipo selecionado",
+      path: ["clientId"],
+    }
+  );
 
 type CreateDealSchema = z.infer<typeof createDealSchema>;
 
@@ -94,8 +100,13 @@ export default function DealFormModal({
   const { data: clients } = useQuery({
     queryKey: ["/api/clients", clientSearch],
     queryFn: async () => {
-      const searchParam = clientSearch ? `&search=${encodeURIComponent(clientSearch)}` : "";
-      const response = await apiRequest("GET", `/api/clients?pageSize=5000${searchParam}`);
+      const searchParam = clientSearch
+        ? `&search=${encodeURIComponent(clientSearch)}`
+        : "";
+      const response = await apiRequest(
+        "GET",
+        `/api/clients?pageSize=5000${searchParam}`
+      );
       return response.json();
     },
   });
@@ -103,8 +114,13 @@ export default function DealFormModal({
   const { data: companies } = useQuery({
     queryKey: ["/api/companies", companySearch],
     queryFn: async () => {
-      const searchParam = companySearch ? `&search=${encodeURIComponent(companySearch)}` : "";
-      const response = await apiRequest("GET", `/api/companies?pageSize=5000${searchParam}`);
+      const searchParam = companySearch
+        ? `&search=${encodeURIComponent(companySearch)}`
+        : "";
+      const response = await apiRequest(
+        "GET",
+        `/api/companies?pageSize=5000${searchParam}`
+      );
       return response.json();
     },
   });
@@ -115,7 +131,7 @@ export default function DealFormModal({
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/funnels/${funnelId}/stages`,
+        `/api/funnels/${funnelId}/stages`
       );
       return response.json();
     },
@@ -135,7 +151,12 @@ export default function DealFormModal({
   const form = useForm<CreateDealSchema>({
     resolver: zodResolver(createDealSchema),
     defaultValues: {
-      dealType: deal?.clientId ? "client" : deal?.companyId ? "company" : "client",
+      dealType: deal?.clientId
+        ? "client"
+        : deal?.companyId
+        ? "company"
+        : "client",
+      title: deal?.title || "",
       clientId: deal?.clientId || initialClientId || "",
       companyId: deal?.companyId || "",
       value: deal?.value || "",
@@ -161,18 +182,39 @@ export default function DealFormModal({
         setSelectedClientName(deal.client.name);
       }
       // Buscar dados da empresa se tiver companyId
-      if (deal.companyId && Array.isArray(companiesList) && companiesList.length > 0) {
+      if (
+        deal.companyId &&
+        Array.isArray(companiesList) &&
+        companiesList.length > 0
+      ) {
         const company = companiesList.find((c: any) => c.id === deal.companyId);
         if (company) {
           setSelectedCompanyName(company.nomeFantasia || company.razaoSocial);
         }
       }
-      
+
+      // Formatar o valor do banco para exibição brasileira
+      let displayValue = "";
+      if (deal.value) {
+        const numericValue = parseFloat(deal.value);
+        if (!isNaN(numericValue)) {
+          displayValue = numericValue.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+        }
+      }
+
       form.reset({
-        dealType: deal.clientId ? "client" : deal.companyId ? "company" : "client",
+        dealType: deal.clientId
+          ? "client"
+          : deal.companyId
+          ? "company"
+          : "client",
+        title: deal.title || "",
         clientId: deal.clientId || "",
         companyId: deal.companyId || "",
-        value: deal.value || "",
+        value: displayValue,
         stageId: deal.stageId || funnelStages[0]?.id || "",
         notes: deal.notes || "",
         funnelId: deal.funnelId || funnelId || "",
@@ -190,15 +232,15 @@ export default function DealFormModal({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('.relative')) {
+      if (!target.closest(".relative")) {
         setShowClientDropdown(false);
         setShowCompanyDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -216,7 +258,7 @@ export default function DealFormModal({
       // Invalidar todos os caches relacionados a deals
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
-      
+
       toast({
         title: "Negócio criado",
         description: "Negócio foi adicionado com sucesso.",
@@ -249,7 +291,7 @@ export default function DealFormModal({
       // Invalidar todos os caches relacionados a deals
       queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
-      
+
       toast({
         title: "Negócio atualizado",
         description: "Negócio foi atualizado com sucesso.",
@@ -268,17 +310,30 @@ export default function DealFormModal({
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      // Convert value to number format for API
+      // Converter valor monetário para formato decimal correto
+      let numericValue = data.value;
+
+      if (typeof numericValue === "string") {
+        // Remove todos os caracteres que não são dígitos ou vírgula
+        numericValue = numericValue.replace(/[^\d,]/g, "");
+        // Troca vírgula por ponto para conversão decimal
+        numericValue = numericValue.replace(",", ".");
+        // Converte para número
+        numericValue = parseFloat(numericValue);
+
+        // Se não for um número válido, usar 0
+        if (isNaN(numericValue)) {
+          numericValue = 0;
+        }
+      }
+
       const formattedData = {
         ...data,
-        value: data.value
-          .toString()
-          .replace(/[^\d,]/g, "")
-          .replace(",", "."),
+        value: numericValue.toString(),
       };
 
       if (deal) {
-        await updateDealMutation.mutateAsync(data);
+        await updateDealMutation.mutateAsync(formattedData);
       } else {
         await createDealMutation.mutateAsync(formattedData);
       }
@@ -303,7 +358,6 @@ export default function DealFormModal({
           className="flex flex-col gap-4"
           action=""
         >
-
           <div>
             <Label>Tipo de Negócio *</Label>
             <Controller
@@ -335,8 +389,8 @@ export default function DealFormModal({
               control={form.control}
               render={({ field }) => (
                 <Input
-                  placeholder="Digite o título do negócio (opcional)"
                   {...field}
+                  placeholder="Digite o título do negócio (opcional)"
                 />
               )}
             />
@@ -428,7 +482,9 @@ export default function DealFormModal({
                             className="px-4 py-2 text-sm cursor-pointer hover:bg-gray-100"
                             onClick={() => {
                               field.onChange(company.id);
-                              setSelectedCompanyName(company.nomeFantasia || company.razaoSocial);
+                              setSelectedCompanyName(
+                                company.nomeFantasia || company.razaoSocial
+                              );
                               setCompanySearch("");
                               setShowCompanyDropdown(false);
                             }}
@@ -468,7 +524,7 @@ export default function DealFormModal({
                       {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
-                      },
+                      }
                     );
 
                     field.onChange(formattedValue);
@@ -577,8 +633,8 @@ export default function DealFormModal({
               {isSubmitting
                 ? "Salvando..."
                 : deal
-                  ? "Atualizar Negócio"
-                  : "Criar Negócio"}
+                ? "Atualizar Negócio"
+                : "Criar Negócio"}
             </Button>
           </div>
         </form>

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DealWithClient } from "@shared/schema";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import {
   ArrowRight,
   TrendingUp,
   Target,
-  MoreVertical
+  MoreVertical,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -49,13 +48,16 @@ export default function DealCard({
   onCompanyClick,
   onAddInteraction,
   onMoveToNextStage,
-  className
+  className,
 }: DealCardProps) {
   const formatPhone = (phone: string) => {
     if (!phone) return "";
     const cleanPhone = phone.replace(/\D/g, "");
     if (cleanPhone.length === 11) {
-      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2, 7)}-${cleanPhone.slice(7)}`;
+      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
+        2,
+        7
+      )}-${cleanPhone.slice(7)}`;
     }
     return phone;
   };
@@ -63,7 +65,7 @@ export default function DealCard({
   const getInitials = (name: string) => {
     return name
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
@@ -91,155 +93,215 @@ export default function DealCard({
   };
 
   return (
-    <Card className={cn("hover:shadow-lg transition-all duration-200 border-l-4", className)} 
-          style={{ borderLeftColor: deal.stage?.color || '#6B7280' }}>
-      
+    <Card
+      className={cn(
+        "hover:shadow-lg transition-all duration-200 border-l-4 border border-gray-200 hover:border-gray-300",
+        className
+      )}
+      style={{ borderLeftColor: deal.stage?.color || "#6B7280" }}
+    >
       {/* Header do Card */}
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-lg text-gray-900 line-clamp-2">
+      <CardHeader className="pb-3 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+          <div className="flex-1 space-y-2 w-full sm:w-auto min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <h3 className="font-semibold text-base sm:text-lg text-gray-900 line-clamp-2 min-w-0 flex-1">
                 {deal.title || "Negócio sem título"}
               </h3>
-              <Badge 
-                variant="outline" 
-                className="text-xs whitespace-nowrap"
-                style={{ 
-                  borderColor: deal.stage?.color || '#6B7280',
-                  color: deal.stage?.color || '#6B7280'
+              <Badge
+                variant="outline"
+                className="text-xs whitespace-nowrap self-start sm:self-center"
+                style={{
+                  borderColor: deal.stage?.color || "#6B7280",
+                  color: deal.stage?.color || "#6B7280",
                 }}
               >
                 {deal.stage?.name || "Sem estágio"}
               </Badge>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold text-green-600">
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-xl sm:text-2xl font-bold text-green-600">
                 {formatCurrency(parseFloat(deal.value))}
               </span>
-              <div className="flex items-center gap-1 text-sm text-gray-500">
-                <Target className="h-4 w-4" />
+              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500">
+                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100">
+                  <Target className="h-3 w-3 text-green-600" />
+                </div>
                 <span>{Math.round(getClosingProbability())}% chance</span>
               </div>
             </div>
-            
+
             {/* Responsável pelo negócio */}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <User className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100">
+                <User className="h-3 w-3 text-gray-600" />
+              </div>
               <span className="font-medium">Responsável:</span>
-              <span>{deal.assignedUser?.name || "Não definido"}</span>
+              <span className="truncate">
+                {deal.assignedUser?.name || "Não definido"}
+              </span>
             </div>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(deal)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-              )}
-              {onAddInteraction && (
-                <DropdownMenuItem onClick={() => onAddInteraction(deal)}>
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Adicionar Interação
-                </DropdownMenuItem>
-              )}
-              {onMoveToNextStage && (
-                <DropdownMenuItem onClick={() => onMoveToNextStage(deal)}>
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Avançar Estágio
-                </DropdownMenuItem>
-              )}
-              {onDelete && (
-                <DropdownMenuItem 
-                  onClick={() => onDelete(deal)}
-                  className="text-red-600 focus:text-red-600"
+
+          <div className="flex-shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {onEdit && (
+                  <DropdownMenuItem
+                    onClick={() => onEdit(deal)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 mr-2">
+                      <Edit className="h-3 w-3 text-blue-600" />
+                    </div>
+                    Editar
+                  </DropdownMenuItem>
+                )}
+                {onAddInteraction && (
+                  <DropdownMenuItem
+                    onClick={() => onAddInteraction(deal)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 mr-2">
+                      <MessageSquare className="h-3 w-3 text-green-600" />
+                    </div>
+                    Adicionar Interação
+                  </DropdownMenuItem>
+                )}
+                {onMoveToNextStage && (
+                  <DropdownMenuItem
+                    onClick={() => onMoveToNextStage(deal)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-orange-100 mr-2">
+                      <ArrowRight className="h-3 w-3 text-orange-600" />
+                    </div>
+                    Avançar Estágio
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={() => onDelete(deal)}
+                    className="text-red-600 focus:text-red-600 cursor-pointer"
+                  >
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-red-100 mr-2">
+                      <Trash2 className="h-3 w-3 text-red-600" />
+                    </div>
+                    Excluir
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Progresso Visual */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Progresso no funil</span>
-            <span className="font-medium">{Math.round(getProgressByStage())}%</span>
+        <div className="space-y-2 mt-4">
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <div className="flex items-center gap-2">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100">
+                <TrendingUp className="h-3 w-3 text-blue-600" />
+              </div>
+              <span className="text-gray-600">Progresso no funil</span>
+            </div>
+            <span className="font-medium text-gray-900">
+              {Math.round(getProgressByStage())}%
+            </span>
           </div>
           <Progress value={getProgressByStage()} className="h-2" />
         </div>
 
         {/* Botão Registrar Interação */}
         {onAddInteraction && (
-          <div className="pt-2">
+          <div className="pt-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onAddInteraction(deal)}
-              className="w-full bg-black hover:bg-gray-800 text-white border-black"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 transition-colors"
             >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Registrar Interação
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500 mr-2">
+                <MessageSquare className="h-3 w-3 text-white" />
+              </div>
+              <span className="hidden sm:inline">Registrar Interação</span>
+              <span className="sm:hidden">Interação</span>
             </Button>
           </div>
         )}
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4 sm:p-6">
         {/* Informações do Cliente/Empresa */}
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-          <Avatar className="h-12 w-12">
-            <AvatarFallback className="bg-primary text-white text-sm">
-              {deal.client ? getInitials(deal.client.name) : 
-               deal.companyId ? <Building2 className="h-5 w-5" /> : "?"}
+        <div className="flex items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+            <AvatarFallback className="bg-primary text-white text-xs sm:text-sm">
+              {deal.client ? (
+                getInitials(deal.client.name)
+              ) : deal.companyId ? (
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              ) : (
+                "?"
+              )}
             </AvatarFallback>
           </Avatar>
-          
+
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2">
-              {deal.client ? <User className="h-4 w-4 text-gray-500" /> : <Building2 className="h-4 w-4 text-gray-500" />}
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 flex-shrink-0">
+                {deal.client ? (
+                  <User className="h-3 w-3 text-gray-600" />
+                ) : (
+                  <Building2 className="h-3 w-3 text-gray-600" />
+                )}
+              </div>
               {deal.client ? (
                 <button
                   onClick={() => onClientClick?.(deal.client)}
-                  className="font-medium text-gray-900 hover:text-primary underline truncate"
+                  className="font-medium text-sm sm:text-base text-gray-900 hover:text-blue-600 hover:underline truncate transition-colors"
                 >
                   {deal.client.name}
                 </button>
               ) : deal.company ? (
                 <button
                   onClick={() => onCompanyClick?.(deal.company)}
-                  className="font-medium text-gray-900 hover:text-primary underline truncate"
+                  className="font-medium text-sm sm:text-base text-gray-900 hover:text-blue-600 hover:underline truncate transition-colors"
                 >
                   {deal.company.nomeFantasia}
                 </button>
               ) : (
-                <span className="font-medium text-gray-500 truncate">
+                <span className="font-medium text-sm sm:text-base text-gray-500 truncate">
                   Sem cliente/empresa
                 </span>
               )}
             </div>
-            
+
             {deal.client && (
               <div className="space-y-1">
                 {deal.client.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone className="h-3 w-3" />
-                    <span>{formatPhone(deal.client.phone)}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 flex-shrink-0">
+                      <Phone className="h-2 w-2 text-green-600" />
+                    </div>
+                    <span className="truncate">
+                      {formatPhone(deal.client.phone)}
+                    </span>
                   </div>
                 )}
                 {deal.client.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 flex-shrink-0">
+                      <Mail className="h-2 w-2 text-blue-600" />
+                    </div>
                     <span className="truncate">{deal.client.email}</span>
                   </div>
                 )}
@@ -249,14 +311,20 @@ export default function DealCard({
             {deal.company && (
               <div className="space-y-1">
                 {deal.company.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone className="h-3 w-3" />
-                    <span>{formatPhone(deal.company.phone)}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 flex-shrink-0">
+                      <Phone className="h-2 w-2 text-green-600" />
+                    </div>
+                    <span className="truncate">
+                      {formatPhone(deal.company.phone)}
+                    </span>
                   </div>
                 )}
                 {deal.company.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 flex-shrink-0">
+                      <Mail className="h-2 w-2 text-blue-600" />
+                    </div>
                     <span className="truncate">{deal.company.email}</span>
                   </div>
                 )}
@@ -266,50 +334,72 @@ export default function DealCard({
         </div>
 
         {/* Detalhes do Negócio */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <div>
-                <div className="font-medium">Criado</div>
-                <div>{formatDate(deal.createdAt)}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 text-gray-600">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 flex-shrink-0 mt-0.5">
+                <Calendar className="h-3 w-3 text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-gray-900">Criado</div>
+                <div className="truncate">
+                  {formatDate(deal.createdAt.toString())}
+                </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2 text-gray-600">
-              <User className="h-4 w-4" />
-              <div>
-                <div className="font-medium">Responsável</div>
-                <div className="truncate">{deal.assignedUser?.name || "Não definido"}</div>
+
+            <div className="flex items-start gap-2 text-gray-600">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 flex-shrink-0 mt-0.5">
+                <User className="h-3 w-3 text-gray-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-gray-900">Responsável</div>
+                <div className="truncate">
+                  {deal.assignedUser?.name || "Não definido"}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <Clock className="h-4 w-4" />
-              <div>
-                <div className="font-medium">Tempo no estágio</div>
-                <div>{getDaysInStage(deal.createdAt)} dias</div>
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 text-gray-600">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-orange-100 flex-shrink-0 mt-0.5">
+                <Clock className="h-3 w-3 text-orange-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-gray-900">
+                  Tempo no estágio
+                </div>
+                <div className="truncate">
+                  {getDaysInStage(deal.createdAt.toString())} dias
+                </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2 text-gray-600">
-              <TrendingUp className="h-4 w-4" />
-              <div>
-                <div className="font-medium">Funil</div>
-                <div className="truncate">{deal.funnel?.name || "Não definido"}</div>
+
+            <div className="flex items-start gap-2 text-gray-600">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-purple-100 flex-shrink-0 mt-0.5">
+                <TrendingUp className="h-3 w-3 text-purple-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-gray-900">Funil</div>
+                <div className="truncate">
+                  {deal.funnel?.name || "Não definido"}
+                </div>
               </div>
             </div>
-            
+
             {/* Telefone da empresa ou cliente */}
             {(deal.client?.phone || deal.company?.phone) && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Phone className="h-4 w-4" />
-                <div>
-                  <div className="font-medium">Celular</div>
+              <div className="flex items-start gap-2 text-gray-600">
+                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 flex-shrink-0 mt-0.5">
+                  <Phone className="h-3 w-3 text-green-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-gray-900">Celular</div>
                   <div className="truncate">
-                    {formatPhone(deal.client?.phone || deal.company?.phone || "")}
+                    {formatPhone(
+                      deal.client?.phone || deal.company?.phone || ""
+                    )}
                   </div>
                 </div>
               </div>
@@ -319,55 +409,80 @@ export default function DealCard({
 
         {/* Informações Adicionais */}
         {deal.notes && (
-          <div className="p-3 bg-blue-50 border-l-4 border-blue-200 rounded">
-            <div className="text-sm font-medium text-blue-900 mb-1">Observações</div>
-            <p className="text-sm text-blue-800 line-clamp-3">{deal.notes}</p>
+          <div className="p-3 sm:p-4 bg-blue-50 border-l-4 border-l-blue-200 rounded-lg border border-blue-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100">
+                <MessageSquare className="h-3 w-3 text-blue-600" />
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-blue-900">
+                Observações
+              </div>
+            </div>
+            <p className="text-xs sm:text-sm text-blue-800 line-clamp-3 pl-6">
+              {deal.notes}
+            </p>
           </div>
         )}
 
         {/* Última Interação */}
-        <div className="p-2 border rounded-lg bg-gray-50">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-gray-700">Última interação</span>
-            <span className="text-gray-500">Há 2 dias</span>
+        <div className="p-3 sm:p-4 border rounded-lg bg-gray-50 border-gray-200">
+          <div className="flex items-center justify-between text-xs sm:text-sm mb-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100">
+                <Clock className="h-3 w-3 text-green-600" />
+              </div>
+              <span className="font-medium text-gray-900">
+                Última interação
+              </span>
+            </div>
+            <span className="text-gray-500 text-xs">Há 2 dias</span>
           </div>
-          <p className="text-sm text-gray-600 mt-1">Ligação realizada - Cliente interessado</p>
+          <p className="text-xs sm:text-sm text-gray-600 pl-6">
+            Ligação realizada - Cliente interessado
+          </p>
         </div>
 
         {/* Ações Rápidas */}
-        <div className="flex gap-2 pt-2 border-t">
+        <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-100">
           {onEdit && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => onEdit(deal)}
-              className="flex-1 text-xs"
+              className="flex-1 text-xs sm:text-sm border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
-              <Edit className="h-3 w-3 mr-1" />
+              <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 mr-1.5">
+                <Edit className="h-2 w-2 text-blue-600" />
+              </div>
               Editar
             </Button>
           )}
-          
+
           {onAddInteraction && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => onAddInteraction(deal)}
-              className="flex-1 text-xs"
+              className="flex-1 text-xs sm:text-sm border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Interação
+              <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 mr-1.5">
+                <MessageSquare className="h-2 w-2 text-green-600" />
+              </div>
+              <span className="hidden sm:inline">Interação</span>
+              <span className="sm:hidden">Interação</span>
             </Button>
           )}
-          
+
           {onMoveToNextStage && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => onMoveToNextStage(deal)}
-              className="flex-1 text-xs"
+              className="flex-1 text-xs sm:text-sm border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
-              <ArrowRight className="h-3 w-3 mr-1" />
+              <div className="flex h-3 w-3 items-center justify-center rounded bg-orange-100 mr-1.5">
+                <ArrowRight className="h-2 w-2 text-orange-600" />
+              </div>
               Avançar
             </Button>
           )}
