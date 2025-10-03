@@ -34,6 +34,7 @@ import {
   Check,
   Settings,
   Save,
+  MessageCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
@@ -313,53 +314,69 @@ export default function AIAssistant() {
           </div>
 
           <Tabs defaultValue="wine-assistant" className="w-full">
-            <TabsList className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
               <TabsTrigger
                 value="wine-assistant"
-                className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-center text-sm transition hover:bg-muted"
+                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
-                <Wine className="h-4 w-4" />
-                <span>Assistente Virtual do Vinho</span>
+                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
+                  <Wine className="h-4 w-4 text-purple-600 dark:text-purple-400 group-data-[state=active]:text-white" />
+                </div>
+                <span className="truncate text-sm sm:text-base">
+                  Assistente Virtual do Vinho
+                </span>
               </TabsTrigger>
 
               <TabsTrigger
                 value="message-generator"
-                className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-center text-sm transition hover:bg-muted"
+                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
-                <MessageSquare className="h-4 w-4" />
-                <span>Gerador de Mensagens</span>
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
+                  <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 group-data-[state=active]:text-white" />
+                </div>
+                <span className="truncate text-sm sm:text-base">
+                  Gerador de Mensagens
+                </span>
               </TabsTrigger>
 
               <TabsTrigger
                 value="ai-config"
-                className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-center text-sm transition hover:bg-muted"
+                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
-                <Settings className="h-4 w-4" />
-                <span>Configurações da IA</span>
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
+                  <Settings className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-data-[state=active]:text-white" />
+                </div>
+                <span className="truncate text-sm sm:text-base">
+                  Configurações da IA
+                </span>
               </TabsTrigger>
             </TabsList>
 
             {/* Assistente Virtual do Vinho */}
             <TabsContent value="wine-assistant">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wine className="h-5 w-5 text-wine-600" />
+              <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/10 dark:to-violet-900/10">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-t-xl border-b border-purple-100 dark:border-purple-800/30 pb-4">
+                  <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                    <div className="bg-purple-100 dark:bg-purple-900/30 rounded-xl p-2.5 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 transition-colors">
+                      <Wine className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
                     Assistente Virtual do Vinho 🍷
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-purple-700/70 dark:text-purple-300/70 font-medium">
                     Tire suas dúvidas sobre vinhos, harmonizações, temperaturas
                     e muito mais!
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="p-6">
+                  <div className="space-y-6">
                     {/* Chat Messages */}
-                    <ScrollArea className="h-96 w-full border rounded-lg p-4">
+                    <ScrollArea className="h-96 w-full bg-white dark:bg-gray-800/50 border border-purple-200 dark:border-purple-800/30 rounded-xl p-4 shadow-sm">
                       {chatMessages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                          <Bot className="h-12 w-12 mb-4" />
-                          <p className="text-center">
+                        <div className="flex flex-col items-center justify-center h-full text-purple-600/70 dark:text-purple-400/70">
+                          <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full p-4 mb-4">
+                            <Bot className="h-12 w-12 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <p className="text-center font-medium">
                             Olá! Sou seu assistente especializado em vinhos.
                             <br />
                             Pergunte sobre harmonizações, temperaturas, guarda
@@ -379,42 +396,48 @@ export default function AIAssistant() {
                             >
                               {message.type === "assistant" && (
                                 <div className="flex-shrink-0">
-                                  <Bot className="h-8 w-8 text-wine-600" />
+                                  <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full p-2">
+                                    <Bot className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                  </div>
                                 </div>
                               )}
                               <div
-                                className={`max-w-[80%] rounded-lg p-3 ${
+                                className={`max-w-[80%] rounded-xl p-4 shadow-sm ${
                                   message.type === "user"
-                                    ? "bg-wine-600 text-white"
-                                    : "bg-gray-100 text-gray-900"
+                                    ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+                                    : "bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white border border-purple-100 dark:border-purple-800/30"
                                 }`}
                               >
-                                <p className="text-sm whitespace-pre-wrap">
+                                <p className="text-sm whitespace-pre-wrap leading-relaxed">
                                   {message.content}
                                 </p>
-                                <p className="text-xs opacity-70 mt-1">
+                                <p className="text-xs opacity-70 mt-2 font-medium">
                                   {message.timestamp.toLocaleTimeString()}
                                 </p>
                               </div>
                               {message.type === "user" && (
                                 <div className="flex-shrink-0">
-                                  <User className="h-8 w-8 text-wine-600" />
+                                  <div className="bg-purple-600 rounded-full p-2">
+                                    <User className="h-6 w-6 text-white" />
+                                  </div>
                                 </div>
                               )}
                             </div>
                           ))}
                           {isLoading && (
                             <div className="flex gap-3 justify-start">
-                              <Bot className="h-8 w-8 text-wine-600" />
-                              <div className="bg-gray-100 rounded-lg p-3">
-                                <div className="flex space-x-1">
-                                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full p-2">
+                                <Bot className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 shadow-sm border border-purple-100 dark:border-purple-800/30">
+                                <div className="flex space-x-2">
+                                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
                                   <div
-                                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                    className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
                                     style={{ animationDelay: "0.1s" }}
                                   ></div>
                                   <div
-                                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                    className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
                                     style={{ animationDelay: "0.2s" }}
                                   ></div>
                                 </div>
@@ -426,7 +449,7 @@ export default function AIAssistant() {
                     </ScrollArea>
 
                     {/* Chat Input */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-3 p-4 bg-white dark:bg-gray-800/50 rounded-xl border border-purple-200 dark:border-purple-800/30 shadow-sm">
                       <Input
                         placeholder="Digite sua pergunta sobre vinhos..."
                         value={chatInput}
@@ -435,80 +458,93 @@ export default function AIAssistant() {
                           e.key === "Enter" && handleWineChat()
                         }
                         disabled={isLoading}
+                        className="border-purple-200 dark:border-purple-800/30 focus:border-purple-400 dark:focus:border-purple-600 rounded-lg"
                       />
                       <Button
                         onClick={handleWineChat}
                         disabled={!chatInput.trim() || isLoading}
-                        className="bg-wine-600 hover:bg-wine-700"
+                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg px-4 shadow-md transition-all duration-200"
                       >
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
 
                     {/* Sugestões */}
-                    <div className="flex flex-wrap gap-2">
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput("Como harmonizar vinho tinto com carne?")
-                        }
-                      >
-                        Harmonização
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput(
-                            "Qual a temperatura ideal para servir vinho branco?"
-                          )
-                        }
-                      >
-                        Temperatura
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput("Como guardar vinhos corretamente?")
-                        }
-                      >
-                        Armazenamento
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput(
-                            "Quais regiões produzem os melhores vinhos tintos?"
-                          )
-                        }
-                      >
-                        Regiões
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput(
-                            "Qual vinho combina com comida japonesa?"
-                          )
-                        }
-                      >
-                        Culinária
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="cursor-pointer hover:bg-wine-50"
-                        onClick={() =>
-                          setChatInput(
-                            "Como identificar um vinho de qualidade?"
-                          )
-                        }
-                      >
-                        Qualidade
-                      </Badge>
+                    <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20 rounded-xl border border-purple-100 dark:border-purple-800/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                          <MessageCircle className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <h4 className="text-sm font-semibold text-purple-800 dark:text-purple-200">
+                          Tópicos Sugeridos
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput(
+                              "Como harmonizar vinho tinto com carne?"
+                            )
+                          }
+                        >
+                          Harmonização
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput(
+                              "Qual a temperatura ideal para servir vinho branco?"
+                            )
+                          }
+                        >
+                          Temperatura
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput("Como guardar vinhos corretamente?")
+                          }
+                        >
+                          Armazenamento
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput(
+                              "Quais regiões produzem os melhores vinhos tintos?"
+                            )
+                          }
+                        >
+                          Regiões
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput(
+                              "Qual vinho combina com comida japonesa?"
+                            )
+                          }
+                        >
+                          Culinária
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
+                          onClick={() =>
+                            setChatInput(
+                              "Como identificar um vinho de qualidade?"
+                            )
+                          }
+                        >
+                          Qualidade
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -519,34 +555,39 @@ export default function AIAssistant() {
             <TabsContent value="message-generator">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Formulário */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-wine-600" />
+                <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-xl border-b border-blue-100 dark:border-blue-800/30 pb-4">
+                    <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                      <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-2.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                        <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
                       Gerador de Mensagens 📱
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-blue-700/70 dark:text-blue-300/70 font-medium">
                       Crie mensagens personalizadas para seus clientes
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                        <User className="h-4 w-4" />
                         Nome do Cliente *
                       </label>
                       <Input
                         placeholder="Ex: João Silva"
                         value={clientName}
                         onChange={(e) => setClientName(e.target.value)}
+                        className="border-blue-200 dark:border-blue-800/30 focus:border-blue-400 dark:focus:border-blue-600 rounded-lg"
                       />
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
                         Tipo de Mensagem
                       </label>
                       <select
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-3 border border-blue-200 dark:border-blue-800/30 rounded-lg bg-white dark:bg-gray-800/50 text-gray-900 dark:text-white focus:border-blue-400 dark:focus:border-blue-600 transition-colors"
                         value={messageType}
                         onChange={(e) => setMessageType(e.target.value)}
                       >
@@ -557,8 +598,9 @@ export default function AIAssistant() {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4" />
                         Contexto Adicional (opcional)
                       </label>
                       <Textarea
@@ -566,12 +608,13 @@ export default function AIAssistant() {
                         value={messageContext}
                         onChange={(e) => setMessageContext(e.target.value)}
                         rows={3}
+                        className="border-blue-200 dark:border-blue-800/30 focus:border-blue-400 dark:focus:border-blue-600 rounded-lg"
                       />
                     </div>
 
                     <Button
                       onClick={generateMessage}
-                      className="w-full bg-wine-600 hover:bg-wine-700"
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg px-6 py-3 shadow-md transition-all duration-200"
                     >
                       <Sparkles className="h-4 w-4 mr-2" />
                       Gerar Mensagem
@@ -580,19 +623,26 @@ export default function AIAssistant() {
                 </Card>
 
                 {/* Mensagens Geradas */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Mensagens Geradas</CardTitle>
-                    <CardDescription>
+                <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-xl border-b border-blue-100 dark:border-blue-800/30 pb-4">
+                    <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                      <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-2.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                        <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      Mensagens Geradas
+                    </CardTitle>
+                    <CardDescription className="text-blue-700/70 dark:text-blue-300/70 font-medium">
                       Suas mensagens personalizadas aparecerão aqui
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-96">
+                  <CardContent className="p-6">
+                    <ScrollArea className="h-96 w-full bg-white dark:bg-gray-800/50 border border-blue-200 dark:border-blue-800/30 rounded-xl p-4 shadow-sm">
                       {generatedMessages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                          <MessageSquare className="h-12 w-12 mb-4" />
-                          <p className="text-center">
+                        <div className="flex flex-col items-center justify-center h-full text-blue-600/70 dark:text-blue-400/70">
+                          <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-4 mb-4">
+                            <MessageSquare className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <p className="text-center font-medium">
                             Nenhuma mensagem gerada ainda.
                             <br />
                             Preencha o formulário e clique em "Gerar Mensagem"
@@ -602,11 +652,11 @@ export default function AIAssistant() {
                         <div className="space-y-4">
                           {generatedMessages.map((message, index) => (
                             <div key={message.id}>
-                              <div className="bg-gray-50 rounded-lg p-4">
-                                <div className="flex items-center justify-between mb-2">
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30 shadow-sm hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center justify-between mb-3">
                                   <Badge
                                     variant="outline"
-                                    className="capitalize"
+                                    className="capitalize border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40 rounded-lg px-3 py-1 font-medium"
                                   >
                                     {message.type}
                                   </Badge>
@@ -619,24 +669,24 @@ export default function AIAssistant() {
                                         message.id
                                       )
                                     }
-                                    className="h-8 w-8 p-0"
+                                    className="h-8 w-8 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"
                                   >
                                     {copiedId === message.id ? (
                                       <Check className="h-4 w-4 text-green-600" />
                                     ) : (
-                                      <Copy className="h-4 w-4" />
+                                      <Copy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                     )}
                                   </Button>
                                 </div>
-                                <p className="text-sm whitespace-pre-wrap text-gray-900 mb-2">
+                                <p className="text-sm whitespace-pre-wrap text-gray-900 dark:text-white mb-3 leading-relaxed">
                                   {message.content}
                                 </p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 font-medium">
                                   {message.timestamp.toLocaleString()}
                                 </p>
                               </div>
                               {index < generatedMessages.length - 1 && (
-                                <Separator className="my-4" />
+                                <Separator className="my-4 border-blue-200 dark:border-blue-800/30" />
                               )}
                             </div>
                           ))}
@@ -650,21 +700,24 @@ export default function AIAssistant() {
 
             {/* Configurações da IA */}
             <TabsContent value="ai-config">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-wine-600" />
+              <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-white dark:bg-gray-900/50">
+                <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 rounded-t-xl border-b border-gray-200 dark:border-gray-700 pb-4">
+                  <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-2.5 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 transition-colors">
+                      <Settings className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                    </div>
                     Configurações da IA 🤖
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-gray-600 dark:text-gray-400 font-medium">
                     Personalize o comportamento e respostas do assistente de IA
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-6 p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Personalidade */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">
+                    <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <User className="h-4 w-4" />
                         Personalidade da IA
                       </Label>
                       <Select
@@ -673,7 +726,7 @@ export default function AIAssistant() {
                           setAiConfig({ ...aiConfig, personality: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -688,8 +741,9 @@ export default function AIAssistant() {
                     </div>
 
                     {/* Tamanho da Mensagem */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">
+                    <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
                         Tamanho das Respostas
                       </Label>
                       <Select
@@ -698,7 +752,7 @@ export default function AIAssistant() {
                           setAiConfig({ ...aiConfig, messageLength: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -716,8 +770,9 @@ export default function AIAssistant() {
                     </div>
 
                     {/* Nível de Expertise */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">
+                    <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Wine className="h-4 w-4" />
                         Nível de Expertise em Vinhos
                       </Label>
                       <Select
@@ -726,7 +781,7 @@ export default function AIAssistant() {
                           setAiConfig({ ...aiConfig, wineExpertise: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -744,8 +799,9 @@ export default function AIAssistant() {
                     </div>
 
                     {/* Estilo de Resposta */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">
+                    <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Bot className="h-4 w-4" />
                         Estilo de Resposta
                       </Label>
                       <Select
@@ -754,7 +810,7 @@ export default function AIAssistant() {
                           setAiConfig({ ...aiConfig, responseStyle: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -767,8 +823,9 @@ export default function AIAssistant() {
                   </div>
 
                   {/* Criatividade */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">
+                  <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
                       Criatividade: {aiConfig.creativity}%
                     </Label>
                     <Slider
@@ -780,15 +837,16 @@ export default function AIAssistant() {
                       step={10}
                       className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 font-medium">
                       <span>Conservador</span>
                       <span>Criativo</span>
                     </div>
                   </div>
 
                   {/* Temperatura */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">
+                  <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
                       Temperatura (OpenAI): {aiConfig.temperature}
                     </Label>
                     <Slider
@@ -803,15 +861,16 @@ export default function AIAssistant() {
                       step={5}
                       className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 font-medium">
                       <span>Determinístico (0.0)</span>
                       <span>Aleatório (1.0)</span>
                     </div>
                   </div>
 
                   {/* Max Tokens */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">
+                  <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
                       Máximo de Tokens
                     </Label>
                     <Input
@@ -826,17 +885,21 @@ export default function AIAssistant() {
                       min={100}
                       max={2000}
                       step={50}
+                      className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500"
                     />
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                       Controla o tamanho máximo das respostas (100-2000)
                     </p>
                   </div>
 
                   {/* Switch para Emojis */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div className="space-y-1">
-                      <Label className="text-sm font-medium">Usar Emojis</Label>
-                      <p className="text-xs text-gray-500">
+                      <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Usar Emojis
+                      </Label>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                         Incluir emojis nas respostas para torná-las mais
                         expressivas
                       </p>
@@ -850,8 +913,9 @@ export default function AIAssistant() {
                   </div>
 
                   {/* Prompt Personalizado */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">
+                  <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
                       Prompt Personalizado (Opcional)
                     </Label>
                     <Textarea
@@ -864,18 +928,19 @@ export default function AIAssistant() {
                         })
                       }
                       rows={4}
+                      className="border-gray-200 dark:border-gray-700 focus:border-gray-400 dark:focus:border-gray-500"
                     />
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                       Instruções específicas que serão adicionadas ao contexto
                       da IA
                     </p>
                   </div>
 
                   {/* Botão Salvar */}
-                  <div className="flex justify-end pt-4">
+                  <div className="flex justify-end pt-6">
                     <Button
                       onClick={saveAiConfig}
-                      className="bg-wine-600 hover:bg-wine-700"
+                      className="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 rounded-lg px-6 py-3 shadow-md transition-all duration-200"
                     >
                       <Save className="h-4 w-4 mr-2" />
                       Salvar Configurações
@@ -883,34 +948,63 @@ export default function AIAssistant() {
                   </div>
 
                   {/* Preview da Configuração */}
-                  <div className="bg-gray-50 rounded-lg p-4 mt-6">
-                    <h4 className="font-medium text-gray-900 mb-3">
-                      Prévia da Configuração:
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium">Personalidade:</span>{" "}
-                        {aiConfig.personality}
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1.5">
+                        <Settings className="h-4 w-4 text-gray-700 dark:text-gray-300" />
                       </div>
-                      <div>
-                        <span className="font-medium">Tamanho:</span>{" "}
-                        {aiConfig.messageLength}
+                      <h4 className="font-bold text-gray-800 dark:text-gray-200">
+                        Prévia da Configuração:
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Personalidade:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.personality}
+                        </span>
                       </div>
-                      <div>
-                        <span className="font-medium">Expertise:</span>{" "}
-                        {aiConfig.wineExpertise}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Tamanho:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.messageLength}
+                        </span>
                       </div>
-                      <div>
-                        <span className="font-medium">Estilo:</span>{" "}
-                        {aiConfig.responseStyle}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Expertise:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.wineExpertise}
+                        </span>
                       </div>
-                      <div>
-                        <span className="font-medium">Criatividade:</span>{" "}
-                        {aiConfig.creativity}%
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Estilo:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.responseStyle}
+                        </span>
                       </div>
-                      <div>
-                        <span className="font-medium">Emojis:</span>{" "}
-                        {aiConfig.useEmojis ? "Sim" : "Não"}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Criatividade:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.creativity}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                          Emojis:
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {aiConfig.useEmojis ? "Sim" : "Não"}
+                        </span>
                       </div>
                     </div>
                   </div>

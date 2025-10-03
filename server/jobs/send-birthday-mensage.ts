@@ -10,6 +10,10 @@ import { createMessageJobsLog } from "../db/functions/create-message-jobs-logs";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
 import { getMessageJobsLogs } from "../db/functions/get-message-jobs-logs";
 import { MessageAutomationSettings } from "server/db/functions/update-message-automation-settings";
+import {
+  getBirthdayAutomationConfig,
+  type DuplicationStrategy,
+} from "./birthday-automation-config";
 
 interface ProcessedClient {
   id: string;
@@ -123,6 +127,47 @@ export async function sendBirthdayMessages(): Promise<void> {
 }
 
 /**
+ * Job para envio de mensagens de uma automação específica
+ * Esta função é chamada pelo scheduler para processar apenas uma automação
+ */
+export async function sendBirthdayMessagesForAutomation(
+  automationId: string
+): Promise<void> {
+  console.log(
+    `[Birthday Job] Iniciando job para automação específica ${automationId}...`
+  );
+
+  try {
+    // 1. Buscar a automação específica
+    const automations = await getAllMessageAutomationSettings();
+    const automation = automations.find(
+      (auto) => auto.id === automationId && auto.enabled
+    );
+
+    if (!automation) {
+      console.log(
+        `[Birthday Job] Automação ${automationId} não encontrada ou não está ativa.`
+      );
+      return;
+    }
+
+    console.log(
+      `[Birthday Job] Processando automação ${automation.id} - ${automation.daysBefore} dias antes às ${automation.sendTime}`
+    );
+
+    // 2. Processar apenas esta automação
+    await processAutomation(automation);
+
+    console.log(
+      `[Birthday Job] Automação ${automationId} concluída com sucesso.`
+    );
+  } catch (error) {
+    console.error(`[Birthday Job] Erro na automação ${automationId}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Processa uma automação específica
  */
 async function processAutomation(
@@ -160,59 +205,124 @@ async function processAutomation(
 }
 
 /**
- * Verifica se já foi enviada mensagem de aniversário para o cliente na automação específica no ano atual
- * Cada automação (no dia vs dias antes) é tratada independentemente
+ * Verifica se já foi enviada mensagem de aniversário para o cliente
+ * Implementa múltiplas estratégias de prevenção de duplicatas
  */
 async function hasAlreadySentBirthdayMessageThisYear(
   clientId: string,
-  automationId: string
+  automationId: string,
+  daysBefore: number,
+  strategy: DuplicationStrategy = "per_day" // Mudança: agora previne duplicatas por dia
 ): Promise<boolean> {
   try {
     const currentYear = new Date().getFullYear();
-    const yearStart = new Date(currentYear, 0, 1); // 1º de janeiro
-    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59); // 31 de dezembro
+    const yearStart = new Date(currentYear, 0, 1);
+    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59);
 
     console.log(
-      `[Birthday Job] Verificando se já foi enviada mensagem para cliente ${clientId} na automação ${automationId} no ano ${currentYear}`
+      `[Birthday Job] Verificando duplicatas (${strategy}) para cliente ${clientId} - automação ${automationId} (${daysBefore} dias antes)`
     );
 
-    // Buscar logs de mensagens enviadas para este cliente nesta automação específica no ano atual
+    // Buscar TODOS os logs de mensagens enviadas para este cliente no ano atual
     const logs = await getMessageJobsLogs({
       clientId,
-      automationId,
       status: "enviado",
       page: 1,
-      pageSize: 10, // Aumentar para garantir que encontramos registros
+      pageSize: 50,
     });
 
-    // Verificar se existe algum log de envio bem-sucedido no ano atual
-    const hasMessageThisYear = logs.data.some((log) => {
+    const thisYearLogs = logs.data.filter((log) => {
       const logDate = new Date(log.actualSendAt || log.scheduledSendAt);
-      const isThisYear = logDate >= yearStart && logDate <= yearEnd;
+      return logDate >= yearStart && logDate <= yearEnd;
+    });
 
-      if (isThisYear) {
-        console.log(
-          `[Birthday Job] Encontrado envio anterior em ${logDate.toDateString()} para cliente ${clientId} na automação ${automationId}`
-        );
+    // Verificação básica: já foi enviado para esta automação específica?
+    const alreadySentThisAutomation = thisYearLogs.some(
+      (log) => log.automationId === automationId
+    );
+
+    if (alreadySentThisAutomation) {
+      console.log(
+        `[Birthday Job] ❌ DUPLICATA - Automação ${automationId} já executada para cliente ${clientId} neste ano`
+      );
+      return true;
+    }
+
+    // Aplicar estratégia adicional de prevenção
+    switch (strategy) {
+      case "per_automation":
+        // Apenas a verificação básica acima
+        break;
+
+      case "per_day": {
+        // Prevenir múltiplas mensagens para o mesmo dia de aniversário
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + daysBefore);
+
+        // Verificar se já enviou mensagem hoje para o aniversário que está chegando
+        const today = new Date().toDateString();
+        const alreadySentToday = thisYearLogs.some((log) => {
+          const logDate = new Date(log.actualSendAt || log.scheduledSendAt);
+          return logDate.toDateString() === today;
+        });
+
+        if (alreadySentToday) {
+          console.log(
+            `[Birthday Job] ❌ DUPLICATA - Cliente ${clientId} já recebeu mensagem hoje (${today})`
+          );
+          return true;
+        }
+        break;
       }
 
-      return isThisYear;
-    });
+      case "per_template": {
+        // Prevenir múltiplos envios do mesmo template
+        const currentAutomation = await getCurrentAutomation(automationId);
+        if (!currentAutomation) break;
+
+        const allAutomations = await getAllMessageAutomationSettings();
+        const sameTemplateAutomations = allAutomations.filter(
+          (auto) =>
+            auto.externalTemplateId === currentAutomation.externalTemplateId
+        );
+
+        const alreadySentSameTemplate = thisYearLogs.some((log) =>
+          sameTemplateAutomations.some((auto) => auto.id === log.automationId)
+        );
+
+        if (alreadySentSameTemplate) {
+          console.log(
+            `[Birthday Job] ❌ DUPLICATA - Cliente ${clientId} já recebeu template ${currentAutomation.externalTemplateId} neste ano`
+          );
+          return true;
+        }
+        break;
+      }
+    }
 
     console.log(
-      `[Birthday Job] Cliente ${clientId} na automação ${automationId}: ${
-        hasMessageThisYear ? "JÁ RECEBEU" : "AINDA NÃO RECEBEU"
-      } mensagem neste ano`
+      `[Birthday Job] ✅ OK - Cliente ${clientId} pode receber mensagem (${strategy})`
     );
 
-    return hasMessageThisYear;
-  } catch (error) {
-    console.error(
-      "[Birthday Job] Erro ao verificar mensagens enviadas anteriormente:",
-      error
-    );
-    // Em caso de erro, assumir que não foi enviado para não bloquear o envio
     return false;
+  } catch (error) {
+    console.error("[Birthday Job] Erro ao verificar duplicatas:", error);
+    return false;
+  }
+}
+
+/**
+ * Função auxiliar para buscar uma automação específica
+ */
+async function getCurrentAutomation(
+  automationId: string
+): Promise<MessageAutomationSettings | null> {
+  try {
+    const automations = await getAllMessageAutomationSettings();
+    return automations.find((auto) => auto.id === automationId) || null;
+  } catch (error) {
+    console.error("[Birthday Job] Erro ao buscar automação:", error);
+    return null;
   }
 }
 
@@ -283,22 +393,23 @@ async function processClientBirthday(
     attempts: 0,
   };
 
-  // Configuração de retry
-  const retryConfig: RetryConfig = {
-    maxRetries: 3,
-    baseDelayMs: 1000, // 1 segundo
-    maxDelayMs: 10000, // 10 segundos máximo
-  };
+  // Obter configurações do sistema
+  const config = getBirthdayAutomationConfig();
+  const retryConfig: RetryConfig = config.retryConfig;
 
   try {
-    console.log(
-      `[Birthday Job] Processando cliente ${client.name} (${client.phone})`
-    );
+    if (config.logging.verboseMode) {
+      console.log(
+        `[Birthday Job] Processando cliente ${client.name} (${client.phone}) - Estratégia: ${config.duplicationStrategy}`
+      );
+    }
 
     // 1. Verificar se já foi enviada mensagem de aniversário no ano atual
     const alreadySent = await hasAlreadySentBirthdayMessageThisYear(
       client.id,
-      automation.id
+      automation.id,
+      automation.daysBefore,
+      config.duplicationStrategy
     );
     if (alreadySent) {
       console.log(
@@ -362,9 +473,11 @@ async function processClientBirthday(
       templateResult.attempts
     );
 
-    console.log(
-      `[Birthday Job] Mensagem de aniversário enviada com sucesso para ${client.name}`
-    );
+    if (config.logging.logSuccessfulSends) {
+      console.log(
+        `[Birthday Job] ✅ Mensagem de aniversário enviada com sucesso para ${client.name}`
+      );
+    }
   } catch (error) {
     console.error(
       `[Birthday Job] Erro ao processar cliente ${client.name}:`,

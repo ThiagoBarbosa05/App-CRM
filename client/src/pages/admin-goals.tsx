@@ -46,6 +46,7 @@ import {
   Trash2,
   Phone,
   MessageSquare,
+  Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -1145,67 +1146,79 @@ export default function AdminGoals() {
           </div>
 
           {/* Cards com estatísticas */}
-          <div className="grid grid-cols-1 mt-6 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mt-6 gap-4 lg:gap-6 mb-8">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                   Total de Usuários
                 </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-2 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                  <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{users.length}</div>
-                <p className="text-xs text-muted-foreground">
+              <CardContent className="pb-4">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                  {users.length}
+                </div>
+                <p className="text-xs font-medium text-blue-600/70 dark:text-blue-400/70">
                   Usuários cadastrados
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
                   Metas Definidas
                 </CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg p-2 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
+                  <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{userGoals.length}</div>
-                <p className="text-xs text-muted-foreground">
+              <CardContent className="pb-4">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                  {userGoals.length}
+                </div>
+                <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">
                   Usuários com metas
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/10 dark:to-violet-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-semibold text-purple-800 dark:text-purple-200">
                   Meta Total
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 transition-colors">
+                  <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className="pb-4">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {formatCurrency(
                     userGoals
                       .reduce((sum, goal) => sum + Number(goal.salesGoal), 0)
                       .toString()
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-medium text-purple-600/70 dark:text-purple-400/70">
                   Soma de todas as metas
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-semibold text-orange-800 dark:text-orange-200">
                   Ticket Médio Geral
                 </CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-orange-100 dark:bg-orange-900/30 rounded-lg p-2 group-hover:bg-orange-200 dark:group-hover:bg-orange-800/40 transition-colors">
+                  <Package className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className="pb-4">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {userGoals.length > 0
                     ? formatCurrency(
                         (
@@ -1217,7 +1230,7 @@ export default function AdminGoals() {
                       )
                     : "R$ 0,00"}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-medium text-orange-600/70 dark:text-orange-400/70">
                   Média dos tickets
                 </p>
               </CardContent>
@@ -1226,169 +1239,309 @@ export default function AdminGoals() {
 
           {/* Tabs para Metas de Vendas, Telemarketing, Cadastros, Marcadores e Interações */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-              <TabsTrigger value="admin-metas">
-                <Target className="h-4 w-4 mr-2" />
-                Metas de Vendas
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-1 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700 h-auto">
+              <TabsTrigger
+                value="admin-metas"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-md p-1.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 group-data-[state=active]:bg-blue-200 dark:group-data-[state=active]:bg-blue-800/40 transition-colors">
+                  <Target className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="hidden sm:inline truncate">
+                  Metas de Vendas
+                </span>
+                <span className="sm:hidden truncate">Vendas</span>
               </TabsTrigger>
-              <TabsTrigger value="metas-telemarketing">
-                <Phone className="h-4 w-4 mr-2" />
-                Metas de Ligação
+              <TabsTrigger
+                value="metas-telemarketing"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-md p-1.5 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 group-data-[state=active]:bg-purple-200 dark:group-data-[state=active]:bg-purple-800/40 transition-colors">
+                  <Phone className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <span className="hidden sm:inline truncate">
+                  Metas de Ligação
+                </span>
+                <span className="sm:hidden truncate">Ligação</span>
               </TabsTrigger>
-              <TabsTrigger value="metas-cadastros">
-                <Users className="h-4 w-4 mr-2" />
-                Metas de Cadastros
+              <TabsTrigger
+                value="metas-cadastros"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-md p-1.5 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 group-data-[state=active]:bg-emerald-200 dark:group-data-[state=active]:bg-emerald-800/40 transition-colors">
+                  <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="hidden sm:inline truncate">
+                  Metas de Cadastros
+                </span>
+                <span className="sm:hidden truncate">Cadastros</span>
               </TabsTrigger>
-              <TabsTrigger value="metas-marcadores">
-                <Package className="h-4 w-4 mr-2" />
-                Metas de Marcadores
+              <TabsTrigger
+                value="metas-marcadores"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-md p-1.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 group-data-[state=active]:bg-amber-200 dark:group-data-[state=active]:bg-amber-800/40 transition-colors">
+                  <Package className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="hidden sm:inline truncate">
+                  Metas de Marcadores
+                </span>
+                <span className="sm:hidden truncate">Marcadores</span>
               </TabsTrigger>
-              <TabsTrigger value="metas-interacoes">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Metas de Interações
+              <TabsTrigger
+                value="metas-interacoes"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-md p-1.5 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40 group-data-[state=active]:bg-indigo-200 dark:group-data-[state=active]:bg-indigo-800/40 transition-colors">
+                  <MessageSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <span className="hidden sm:inline truncate">
+                  Metas de Interações
+                </span>
+                <span className="sm:hidden truncate">Interações</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Tab Content: Metas de Vendas */}
-            <TabsContent value="admin-metas" className="w-full overflow-hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm sm:text-2xl">
-                    <Users className="h-5 w-5" />
-                    Metas de Vendas por Usuário
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Lista de todos os usuários e suas respectivas metas de
-                    vendas
-                  </CardDescription>
+            <TabsContent
+              value="admin-metas"
+              className="w-full overflow-hidden mt-6"
+            >
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-2.5">
+                      <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Metas de Vendas por Usuário
+                      </CardTitle>
+                      <CardDescription className="text-sm text-blue-600/70 dark:text-blue-400/70 mt-1">
+                        Lista de todos os usuários e suas respectivas metas de
+                        vendas
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="overflow-hidden">
+                <CardContent className="p-6">
                   {isLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-gray-500">Carregando metas...</div>
+                    <div className="flex items-center justify-center py-12">
+                      <div className="flex items-center gap-3 text-gray-500">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                        <span className="font-medium">Carregando metas...</span>
+                      </div>
                     </div>
                   ) : userGoals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">
+                    <div className="text-center py-16">
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <Target className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Nenhuma meta cadastrada
-                      </p>
-                      <p className="text-sm">
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                         Comece definindo metas para os usuários do sistema
                       </p>
                     </div>
                   ) : (
-                    <div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Período</TableHead>
-                            <TableHead>Meta de Vendas</TableHead>
-                            <TableHead>Valor Alcançado</TableHead>
-                            <TableHead>Ticket Médio</TableHead>
-                            <TableHead>Itens por Venda</TableHead>
-                            <TableHead>Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="">
-                          {userGoals.map((goal) => {
-                            const totalSalesAchieved = getTotalAchieved(
-                              goal.weeklyResults || [],
-                              "salesAchieved"
-                            );
-                            const progressPercentage =
-                              Number(goal.salesGoal) > 0
-                                ? Math.min(
-                                    (totalSalesAchieved /
-                                      Number(goal.salesGoal)) *
-                                      100,
-                                    100
-                                  )
-                                : 0;
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Usuário
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Período
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Meta de Vendas
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Valor Alcançado
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Ticket Médio
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Itens por Venda
+                              </TableHead>
+                              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">
+                                Ações
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {userGoals.map((goal) => {
+                              const totalSalesAchieved = getTotalAchieved(
+                                goal.weeklyResults || [],
+                                "salesAchieved"
+                              );
+                              const progressPercentage =
+                                Number(goal.salesGoal) > 0
+                                  ? Math.min(
+                                      (totalSalesAchieved /
+                                        Number(goal.salesGoal)) *
+                                        100,
+                                      100
+                                    )
+                                  : 0;
 
-                            return (
-                              <TableRow key={goal.id}>
-                                <TableCell className="font-medium">
-                                  {goal.userName}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {new Date(
-                                    0,
-                                    goal.month - 1
-                                  ).toLocaleDateString("pt-BR", {
-                                    month: "long",
-                                  })}{" "}
-                                  {goal.year}
-                                </TableCell>
-                                <TableCell className="font-semibold text-green-600">
-                                  {formatCurrency(goal.salesGoal)}
-                                </TableCell>
-                                <TableCell className="font-semibold">
-                                  <div className="flex flex-col gap-1">
-                                    <span
-                                      className={`${
-                                        progressPercentage >= 100
-                                          ? "text-green-600"
-                                          : progressPercentage >= 75
-                                          ? "text-blue-600"
-                                          : progressPercentage >= 50
-                                          ? "text-orange-600"
-                                          : "text-red-600"
-                                      }`}
-                                    >
-                                      {formatCurrency(
-                                        totalSalesAchieved.toString()
-                                      )}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {progressPercentage.toFixed(1)}% da meta
-                                    </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="font-semibold text-blue-600">
-                                  {formatCurrency(goal.averageTicket)}
-                                </TableCell>
-                                <TableCell className="font-semibold">
-                                  {goal.itemsPerSale} itens
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditGoal(goal)}
-                                    >
-                                      <Edit className="h-4 w-4 mr-1" />
-                                      Editar
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleOpenResultModal(goal)
-                                      }
-                                    >
-                                      <Edit className="h-4 w-4 mr-1" />
-                                      Add result
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDeleteGoal(goal)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      disabled={deleteMutation.isPending}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-1" />
-                                      Excluir
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                              return (
+                                <TableRow
+                                  key={goal.id}
+                                  className="hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 transition-colors"
+                                >
+                                  <TableCell className="font-medium text-gray-900 dark:text-white py-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full w-8 h-8 flex items-center justify-center">
+                                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                          {goal.userName &&
+                                            goal.userName
+                                              .trim()
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <span>{goal.userName}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="font-medium text-gray-700 dark:text-gray-300 py-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="bg-gray-100 dark:bg-gray-700 rounded-md px-2 py-1">
+                                        <span className="text-xs font-medium">
+                                          {new Date(0, goal.month - 1)
+                                            .toLocaleDateString("pt-BR", {
+                                              month: "short",
+                                            })
+                                            .replace(".", "")}{" "}
+                                          {goal.year}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-md px-2 py-1">
+                                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                                          {formatCurrency(goal.salesGoal)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className={`rounded-md px-2 py-1 ${
+                                            progressPercentage >= 100
+                                              ? "bg-green-100 dark:bg-green-900/30"
+                                              : progressPercentage >= 75
+                                              ? "bg-blue-100 dark:bg-blue-900/30"
+                                              : progressPercentage >= 50
+                                              ? "bg-orange-100 dark:bg-orange-900/30"
+                                              : "bg-red-100 dark:bg-red-900/30"
+                                          }`}
+                                        >
+                                          <span
+                                            className={`text-sm font-semibold ${
+                                              progressPercentage >= 100
+                                                ? "text-green-700 dark:text-green-400"
+                                                : progressPercentage >= 75
+                                                ? "text-blue-700 dark:text-blue-400"
+                                                : progressPercentage >= 50
+                                                ? "text-orange-700 dark:text-orange-400"
+                                                : "text-red-700 dark:text-red-400"
+                                            }`}
+                                          >
+                                            {formatCurrency(
+                                              totalSalesAchieved.toString()
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                          className={`h-2 rounded-full transition-all duration-300 ${
+                                            progressPercentage >= 100
+                                              ? "bg-green-500"
+                                              : progressPercentage >= 75
+                                              ? "bg-blue-500"
+                                              : progressPercentage >= 50
+                                              ? "bg-orange-500"
+                                              : "bg-red-500"
+                                          }`}
+                                          style={{
+                                            width: `${Math.min(
+                                              progressPercentage,
+                                              100
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                        {progressPercentage.toFixed(1)}% da meta
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 rounded-md px-2 py-1 inline-block">
+                                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+                                        {formatCurrency(goal.averageTicket)}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="bg-purple-100 dark:bg-purple-900/30 rounded-md px-2 py-1 inline-block">
+                                      <span className="text-sm font-semibold text-purple-700 dark:text-purple-400">
+                                        {goal.itemsPerSale} itens
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEditGoal(goal)}
+                                        className="h-8 px-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-700 transition-colors"
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Editar</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleOpenResultModal(goal)
+                                        }
+                                        className="h-8 px-2 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 dark:hover:border-emerald-700 transition-colors"
+                                      >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        <span className="sr-only">
+                                          Adicionar resultado
+                                        </span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDeleteGoal(goal)}
+                                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-700 transition-colors"
+                                        disabled={deleteMutation.isPending}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Excluir</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1398,19 +1551,23 @@ export default function AdminGoals() {
             {/* Tab Content: Metas de Telemarketing */}
             <TabsContent
               value="metas-telemarketing"
-              className="w-full overflow-hidden"
+              className="w-full overflow-hidden mt-6"
             >
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row items:start gap-2 sm:items-center justify-between">
-                    <div>
-                      <CardTitle className="flex text-sm sm:text-2xl items-center gap-2">
-                        <Phone className="size-4 sm:size-5" />
-                        Metas de Ligação por Usuário
-                      </CardTitle>
-                      <CardDescription className="text-xs sm:text-base">
-                        Gestão de metas baseadas em resultados de ligação
-                      </CardDescription>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-900 dark:to-purple-900/10">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 border-b border-purple-100 dark:border-purple-800/30">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2.5">
+                        <Phone className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Metas de Ligação por Usuário
+                        </CardTitle>
+                        <CardDescription className="text-sm text-purple-600/70 dark:text-purple-400/70 mt-1">
+                          Gestão de metas baseadas em resultados de ligação
+                        </CardDescription>
+                      </div>
                     </div>
                     <Button
                       onClick={() => {
@@ -1421,89 +1578,136 @@ export default function AdminGoals() {
                         setValueTelemarketing("year", selectedYear.toString());
                         setIsTelemarketingModalOpen(true);
                       }}
-                      className="bg-purple-600 text-white hover:bg-purple-700"
+                      className="bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 w-full lg:w-auto"
                     >
                       <Phone className="mr-2 h-4 w-4" />
                       Nova Meta de Ligação
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   {telemarketingGoals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Phone className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">
+                    <div className="text-center py-16">
+                      <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <Phone className="h-8 w-8 text-purple-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Nenhuma meta de ligação cadastrada
-                      </p>
-                      <p className="text-sm">
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                         Comece definindo metas de ligação para os usuários
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Período</TableHead>
-                            <TableHead>Resultado Esperado</TableHead>
-                            <TableHead>Meta de Quantidade</TableHead>
-                            <TableHead>Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {telemarketingGoals.map((goal) => (
-                            <TableRow key={goal.id}>
-                              <TableCell className="font-medium">
-                                {goal.userName}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {new Date(0, goal.month - 1).toLocaleDateString(
-                                  "pt-BR",
-                                  { month: "long" }
-                                )}{" "}
-                                {goal.year}
-                              </TableCell>
-                              <TableCell>
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                  {goal.targetResult}
-                                </span>
-                              </TableCell>
-                              <TableCell className="font-semibold text-purple-600">
-                                {goal.targetQuantity} chamadas
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleEditTelemarketingGoal(goal)
-                                    }
-                                  >
-                                    <Edit className="h-4 w-4 mr-1" />
-                                    Editar
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleDeleteTelemarketingGoal(goal)
-                                    }
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    disabled={
-                                      deleteTelemarketingMutation.isPending
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Excluir
-                                  </Button>
-                                </div>
-                              </TableCell>
+                    <div className="rounded-xl border border-purple-200 dark:border-purple-700/50 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                              <TableHead className="font-semibold text-purple-700 dark:text-purple-300">
+                                Usuário
+                              </TableHead>
+                              <TableHead className="font-semibold text-purple-700 dark:text-purple-300">
+                                Período
+                              </TableHead>
+                              <TableHead className="font-semibold text-purple-700 dark:text-purple-300">
+                                Resultado Esperado
+                              </TableHead>
+                              <TableHead className="font-semibold text-purple-700 dark:text-purple-300">
+                                Meta de Quantidade
+                              </TableHead>
+                              <TableHead className="font-semibold text-purple-700 dark:text-purple-300">
+                                Ações
+                              </TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {telemarketingGoals.map((goal) => (
+                              <TableRow
+                                key={goal.id}
+                                className="hover:bg-purple-50/50 dark:hover:bg-purple-900/10 border-b border-purple-100/50 dark:border-purple-700/30 transition-colors"
+                              >
+                                <TableCell className="font-medium text-gray-900 dark:text-white py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full w-10 h-10 flex items-center justify-center">
+                                      <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                                        {goal.userName &&
+                                          goal.userName
+                                            .trim()
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-gray-900 dark:text-white">
+                                        {goal.userName}
+                                      </div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {goal.userEmail}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <div className="bg-gray-100 dark:bg-gray-700/50 rounded-lg px-3 py-2 inline-block">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      {new Date(0, goal.month - 1)
+                                        .toLocaleDateString("pt-BR", {
+                                          month: "short",
+                                        })
+                                        .replace(".", "")}{" "}
+                                      {goal.year}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg px-3 py-2 inline-block">
+                                    <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                                      {goal.targetResult}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <div className="bg-violet-100 dark:bg-violet-900/30 rounded-lg px-3 py-2 inline-block">
+                                    <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+                                      {goal.targetQuantity} chamadas
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <div className="flex gap-1.5">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleEditTelemarketingGoal(goal)
+                                      }
+                                      className="h-8 px-2 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 dark:hover:border-purple-700 transition-colors"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Editar</span>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteTelemarketingGoal(goal)
+                                      }
+                                      className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-700 transition-colors"
+                                      disabled={
+                                        deleteTelemarketingMutation.isPending
+                                      }
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Excluir</span>
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1513,14 +1717,24 @@ export default function AdminGoals() {
             {/* Tab de Metas de Cadastros */}
             <TabsContent
               value="metas-cadastros"
-              className="w-full overflow-hidden"
+              className="w-full overflow-hidden mt-6"
             >
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex flex-col gap-2 sm:flex-row items-start justify-between sm:items-center">
-                    <CardTitle className="text-xl font-bold text-emerald-700">
-                      Metas de Cadastros de Clientes
-                    </CardTitle>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-900/10">
+                <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-b border-emerald-100 dark:border-emerald-800/30">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg p-2.5">
+                        <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Metas de Cadastros de Clientes
+                        </CardTitle>
+                        <CardDescription className="text-sm text-emerald-600/70 dark:text-emerald-400/70 mt-1">
+                          Gestão de metas para cadastros de novos clientes
+                        </CardDescription>
+                      </div>
+                    </div>
                     <Button
                       onClick={() => {
                         setValueClientRegistration(
@@ -1533,127 +1747,206 @@ export default function AdminGoals() {
                         );
                         setIsClientRegistrationModalOpen(true);
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200 w-full lg:w-auto"
                     >
                       <Users className="mr-2 h-4 w-4" />
                       Nova Meta
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   {clientRegistrationGoalsQuery.isLoading ? (
-                    <div className="flex justify-center items-center py-8">
-                      <div className="text-gray-500">
-                        Carregando metas de cadastros...
+                    <div className="flex items-center justify-center py-12">
+                      <div className="flex items-center gap-3 text-gray-500">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald-500 border-t-transparent"></div>
+                        <span className="font-medium">
+                          Carregando metas de cadastros...
+                        </span>
                       </div>
                     </div>
                   ) : clientRegistrationGoals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      Nenhuma meta de cadastros definida para este período.
+                    <div className="text-center py-16">
+                      <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <Users className="h-8 w-8 text-emerald-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        Nenhuma meta de cadastros definida
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                        Defina metas de cadastros para este período
+                      </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Meta</TableHead>
-                            <TableHead>Alcançado</TableHead>
-                            <TableHead>Progress</TableHead>
-                            <TableHead>Porcentagem</TableHead>
-                            <TableHead>Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {clientRegistrationGoals.map((goal) => {
-                            // Buscar estatísticas do usuário
-                            const userStats = clientRegistrationStats.find(
-                              (stat) => stat.userId === goal.userId
-                            );
-                            const achieved = userStats
-                              ? userStats.totalRegistrations
-                              : 0;
-                            const percentage =
-                              goal.targetQuantity > 0
-                                ? (achieved / goal.targetQuantity) * 100
+                    <div className="rounded-xl border border-emerald-200 dark:border-emerald-700/50 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Usuário
+                              </TableHead>
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Meta
+                              </TableHead>
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Alcançado
+                              </TableHead>
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Progresso
+                              </TableHead>
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Porcentagem
+                              </TableHead>
+                              <TableHead className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                Ações
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {clientRegistrationGoals.map((goal) => {
+                              // Buscar estatísticas do usuário
+                              const userStats = clientRegistrationStats.find(
+                                (stat) => stat.userId === goal.userId
+                              );
+                              const achieved = userStats
+                                ? userStats.totalRegistrations
                                 : 0;
+                              const percentage =
+                                goal.targetQuantity > 0
+                                  ? (achieved / goal.targetQuantity) * 100
+                                  : 0;
 
-                            return (
-                              <TableRow key={goal.id}>
-                                <TableCell className="font-medium">
-                                  {goal.userName}
-                                </TableCell>
-                                <TableCell>
-                                  <span className="font-semibold text-emerald-600">
-                                    {goal.targetQuantity} clientes
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="font-semibold">
-                                    {achieved} clientes
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="w-32">
-                                    <div className="bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                                        style={{
-                                          width: `${Math.min(
-                                            percentage,
-                                            100
-                                          )}%`,
-                                        }}
-                                      />
+                              return (
+                                <TableRow
+                                  key={goal.id}
+                                  className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 border-b border-emerald-100/50 dark:border-emerald-700/30 transition-colors"
+                                >
+                                  <TableCell className="font-medium text-gray-900 dark:text-white py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-full w-10 h-10 flex items-center justify-center">
+                                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                          {goal.userName &&
+                                            goal.userName
+                                              .trim()
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <div className="font-medium text-gray-900 dark:text-white">
+                                          {goal.userName}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {goal.userEmail}
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <span
-                                    className={`font-semibold ${
-                                      percentage >= 100
-                                        ? "text-emerald-600"
-                                        : percentage >= 50
-                                        ? "text-yellow-600"
-                                        : "text-red-600"
-                                    }`}
-                                  >
-                                    {percentage.toFixed(1)}%
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleEditClientRegistrationGoal(goal)
-                                      }
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg px-3 py-2 inline-block">
+                                      <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                        {goal.targetQuantity} clientes
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div
+                                      className={`rounded-lg px-3 py-2 inline-block ${
+                                        percentage >= 100
+                                          ? "bg-green-100 dark:bg-green-900/30"
+                                          : percentage >= 50
+                                          ? "bg-yellow-100 dark:bg-yellow-900/30"
+                                          : "bg-red-100 dark:bg-red-900/30"
+                                      }`}
                                     >
-                                      <Edit className="h-4 w-4 mr-1" />
-                                      Editar
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteClientRegistrationGoal(goal)
-                                      }
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      disabled={
-                                        deleteClientRegistrationMutation.isPending
-                                      }
+                                      <span
+                                        className={`text-sm font-semibold ${
+                                          percentage >= 100
+                                            ? "text-green-700 dark:text-green-300"
+                                            : percentage >= 50
+                                            ? "text-yellow-700 dark:text-yellow-300"
+                                            : "text-red-700 dark:text-red-300"
+                                        }`}
+                                      >
+                                        {achieved} clientes
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                          className={`h-2 rounded-full transition-all duration-300 ${
+                                            percentage >= 100
+                                              ? "bg-green-500"
+                                              : percentage >= 75
+                                              ? "bg-emerald-500"
+                                              : percentage >= 50
+                                              ? "bg-yellow-500"
+                                              : "bg-red-500"
+                                          }`}
+                                          style={{
+                                            width: `${Math.min(
+                                              percentage,
+                                              100
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <span
+                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        percentage >= 100
+                                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                          : percentage >= 75
+                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                                          : percentage >= 50
+                                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                      }`}
                                     >
-                                      <Trash2 className="h-4 w-4 mr-1" />
-                                      Excluir
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                      {percentage.toFixed(1)}%
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleEditClientRegistrationGoal(goal)
+                                        }
+                                        className="h-8 px-2 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 dark:hover:border-emerald-700 transition-colors"
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Editar</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleDeleteClientRegistrationGoal(
+                                            goal
+                                          )
+                                        }
+                                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-700 transition-colors"
+                                        disabled={
+                                          deleteClientRegistrationMutation.isPending
+                                        }
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Excluir</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1663,25 +1956,31 @@ export default function AdminGoals() {
             {/* Tab de Metas de Marcadores */}
             <TabsContent
               value="metas-marcadores"
-              className="w-full overflow-hidden"
+              className="w-full overflow-hidden mt-6"
             >
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm sm:text-2xl">
-                    <Package className="h-5 w-5" />
-                    Metas de Marcadores
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    Gerencie as metas de marcadores dos usuários
-                  </CardDescription>
-                  <div className="pt-4">
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-900 dark:to-amber-900/10">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-b border-amber-100 dark:border-amber-800/30">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2.5">
+                        <Package className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Metas de Marcadores
+                        </CardTitle>
+                        <CardDescription className="text-sm text-amber-600/70 dark:text-amber-400/70 mt-1">
+                          Gestão de metas para marcadores de clientes
+                        </CardDescription>
+                      </div>
+                    </div>
                     <Button
                       onClick={() => {
                         setValueMarker("month", selectedMonth.toString());
                         setValueMarker("year", selectedYear.toString());
                         setIsMarkerGoalModalOpen(true);
                       }}
-                      className="bg-amber-600 hover:bg-amber-700"
+                      className="bg-amber-600 hover:bg-amber-700 text-white shadow-md hover:shadow-lg transition-all duration-200 w-full lg:w-auto"
                       data-testid="button-new-marker-goal"
                     >
                       <Package className="mr-2 h-4 w-4" />
@@ -1689,137 +1988,226 @@ export default function AdminGoals() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="overflow-hidden">
+                <CardContent className="p-6">
                   {markerGoals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">
+                    <div className="text-center py-16">
+                      <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <Package className="h-8 w-8 text-amber-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Nenhuma meta de marcadores cadastrada
-                      </p>
-                      <p className="text-sm">
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                         Comece definindo metas de marcadores para os usuários
                       </p>
                     </div>
                   ) : (
-                    <div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Marcador</TableHead>
-                            <TableHead>Meta</TableHead>
-                            <TableHead>Período</TableHead>
-                            <TableHead>Atual</TableHead>
-                            <TableHead>Progresso</TableHead>
-                            <TableHead>Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {markerGoals.map((goal) => {
-                            const stats = markerStats.find(
-                              (s) =>
-                                s.userId === goal.userId &&
-                                s.markerName === goal.markerName
-                            );
-                            const currentCount = stats?.totalClients || 0;
-                            const progressPercentage =
-                              goal.targetQuantity > 0
-                                ? Math.min(
-                                    (currentCount / goal.targetQuantity) * 100,
-                                    100
-                                  )
-                                : 0;
+                    <div className="rounded-xl border border-amber-200 dark:border-amber-700/50 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700/50 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Usuário
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Marcador
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Meta
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Período
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Atual
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Progresso
+                              </TableHead>
+                              <TableHead className="font-semibold text-amber-700 dark:text-amber-300">
+                                Ações
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {markerGoals.map((goal) => {
+                              const stats = markerStats.find(
+                                (s) =>
+                                  s.userId === goal.userId &&
+                                  s.markerName === goal.markerName
+                              );
+                              const currentCount = stats?.totalClients || 0;
+                              const progressPercentage =
+                                goal.targetQuantity > 0
+                                  ? Math.min(
+                                      (currentCount / goal.targetQuantity) *
+                                        100,
+                                      100
+                                    )
+                                  : 0;
 
-                            return (
-                              <TableRow key={goal.id}>
-                                <TableCell data-testid={`text-user-${goal.id}`}>
-                                  <div>
-                                    <div className="font-medium">
-                                      {goal.userName}
+                              return (
+                                <TableRow
+                                  key={goal.id}
+                                  className="hover:bg-amber-50/50 dark:hover:bg-amber-900/10 border-b border-amber-100/50 dark:border-amber-700/30 transition-colors"
+                                >
+                                  <TableCell
+                                    className="font-medium text-gray-900 dark:text-white py-4"
+                                    data-testid={`text-user-${goal.id}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full w-10 h-10 flex items-center justify-center">
+                                        <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                          {goal.userName &&
+                                            goal.userName
+                                              .trim()
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <div className="font-medium text-gray-900 dark:text-white">
+                                          {goal.userName}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {goal.userEmail}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-sm text-gray-500">
-                                      {goal.userEmail}
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell
-                                  data-testid={`text-marker-${goal.id}`}
-                                >
-                                  <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
-                                    {goal.markerName}
-                                  </span>
-                                </TableCell>
-                                <TableCell
-                                  data-testid={`text-target-${goal.id}`}
-                                >
-                                  <span className="font-medium">
-                                    {goal.targetQuantity}
-                                  </span>
-                                </TableCell>
-                                <TableCell
-                                  data-testid={`text-period-${goal.id}`}
-                                >
-                                  {new Date(
-                                    0,
-                                    goal.month - 1
-                                  ).toLocaleDateString("pt-BR", {
-                                    month: "long",
-                                  })}
-                                  /{goal.year}
-                                </TableCell>
-                                <TableCell
-                                  data-testid={`text-current-${goal.id}`}
-                                >
-                                  <span className="font-medium">
-                                    {currentCount}
-                                  </span>
-                                </TableCell>
-                                <TableCell
-                                  data-testid={`text-progress-${goal.id}`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className="bg-amber-600 h-2 rounded-full transition-all duration-300"
-                                        style={{
-                                          width: `${progressPercentage}%`,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-sm font-medium min-w-[50px]">
-                                      {progressPercentage.toFixed(0)}%
+                                  </TableCell>
+                                  <TableCell
+                                    className="py-4"
+                                    data-testid={`text-marker-${goal.id}`}
+                                  >
+                                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                      <Package className="w-3 h-3 mr-1.5" />
+                                      {goal.markerName}
                                     </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      onClick={() => handleEditMarkerGoal(goal)}
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 w-8 p-0"
-                                      data-testid={`button-edit-marker-${goal.id}`}
+                                  </TableCell>
+                                  <TableCell
+                                    className="py-4"
+                                    data-testid={`text-target-${goal.id}`}
+                                  >
+                                    <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg px-3 py-2 inline-block">
+                                      <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                                        {goal.targetQuantity}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell
+                                    className="py-4"
+                                    data-testid={`text-period-${goal.id}`}
+                                  >
+                                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                                      {new Date(
+                                        0,
+                                        goal.month - 1
+                                      ).toLocaleDateString("pt-BR", {
+                                        month: "long",
+                                      })}
+                                      /{goal.year}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell
+                                    className="py-4"
+                                    data-testid={`text-current-${goal.id}`}
+                                  >
+                                    <div
+                                      className={`rounded-lg px-3 py-2 inline-block ${
+                                        progressPercentage >= 100
+                                          ? "bg-green-100 dark:bg-green-900/30"
+                                          : progressPercentage >= 50
+                                          ? "bg-yellow-100 dark:bg-yellow-900/30"
+                                          : "bg-red-100 dark:bg-red-900/30"
+                                      }`}
                                     >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      onClick={() =>
-                                        handleDeleteMarkerGoal(goal)
-                                      }
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                      data-testid={`button-delete-marker-${goal.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                      <span
+                                        className={`text-sm font-semibold ${
+                                          progressPercentage >= 100
+                                            ? "text-green-700 dark:text-green-300"
+                                            : progressPercentage >= 50
+                                            ? "text-yellow-700 dark:text-yellow-300"
+                                            : "text-red-700 dark:text-red-300"
+                                        }`}
+                                      >
+                                        {currentCount}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell
+                                    className="py-4"
+                                    data-testid={`text-progress-${goal.id}`}
+                                  >
+                                    <div className="flex flex-col gap-2">
+                                      <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                          className={`h-2 rounded-full transition-all duration-300 ${
+                                            progressPercentage >= 100
+                                              ? "bg-green-500"
+                                              : progressPercentage >= 75
+                                              ? "bg-amber-500"
+                                              : progressPercentage >= 50
+                                              ? "bg-yellow-500"
+                                              : "bg-red-500"
+                                          }`}
+                                          style={{
+                                            width: `${Math.min(
+                                              progressPercentage,
+                                              100
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span
+                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                          progressPercentage >= 100
+                                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                            : progressPercentage >= 75
+                                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                            : progressPercentage >= 50
+                                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                        }`}
+                                      >
+                                        {progressPercentage.toFixed(0)}%
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        onClick={() =>
+                                          handleEditMarkerGoal(goal)
+                                        }
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 dark:hover:border-amber-700 transition-colors"
+                                        data-testid={`button-edit-marker-${goal.id}`}
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Editar</span>
+                                      </Button>
+                                      <Button
+                                        onClick={() =>
+                                          handleDeleteMarkerGoal(goal)
+                                        }
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-700 transition-colors"
+                                        data-testid={`button-delete-marker-${goal.id}`}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Excluir</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1829,20 +2217,24 @@ export default function AdminGoals() {
             {/* Tab Content: Metas de Interações */}
             <TabsContent
               value="metas-interacoes"
-              className="w-full overflow-hidden"
+              className="w-full overflow-hidden mt-6"
             >
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row items-start gap-2 sm:items-center justify-between">
-                    <div>
-                      <CardTitle className="flex text-sm sm:text-2xl items-center gap-2">
-                        <MessageSquare className="size-4 sm:size-5" />
-                        Metas de Interações por Usuário
-                      </CardTitle>
-                      <CardDescription className="text-xs sm:text-base">
-                        Gestão de metas baseadas em tipos de interação com
-                        clientes
-                      </CardDescription>
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-indigo-50/30 dark:from-gray-900 dark:to-indigo-900/10">
+                <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-b border-indigo-100 dark:border-indigo-800/30">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg p-2.5">
+                        <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Metas de Interações por Usuário
+                        </CardTitle>
+                        <CardDescription className="text-sm text-indigo-600/70 dark:text-indigo-400/70 mt-1">
+                          Gestão de metas baseadas em tipos de interação com
+                          clientes
+                        </CardDescription>
+                      </div>
                     </div>
                     <Button
                       onClick={() => {
@@ -1850,7 +2242,7 @@ export default function AdminGoals() {
                         setValueInteraction("year", selectedYear.toString());
                         setIsInteractionGoalModalOpen(true);
                       }}
-                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 w-full lg:w-auto"
                       data-testid="button-new-interaction-goal"
                     >
                       <MessageSquare className="mr-2 h-4 w-4" />
@@ -1858,164 +2250,232 @@ export default function AdminGoals() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   {interactionGoals.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-lg font-medium">
+                    <div className="text-center py-16">
+                      <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <MessageSquare className="h-8 w-8 text-indigo-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         Nenhuma meta de interação cadastrada
-                      </p>
-                      <p className="text-sm">
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                         Comece definindo metas de interação para os usuários
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Usuário</TableHead>
-                            <TableHead>Tipo de Interação</TableHead>
-                            <TableHead>Meta</TableHead>
-                            <TableHead>Período</TableHead>
-                            <TableHead>Realizadas</TableHead>
-                            <TableHead>Progresso</TableHead>
-                            <TableHead>Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {interactionGoals.map((goal) => {
-                            // Buscar estatísticas do usuário para este tipo de interação
-                            const stats = interactionStats.find(
-                              (stat) =>
-                                stat.userId === goal.userId &&
-                                stat.interactionType === goal.interactionType
-                            );
-                            const totalInteractions =
-                              stats?.totalInteractions || 0;
-                            const progressPercentage =
-                              goal.targetQuantity > 0
-                                ? Math.min(
-                                    (totalInteractions / goal.targetQuantity) *
-                                      100,
-                                    100
-                                  )
-                                : 0;
+                    <div className="rounded-xl border border-indigo-200 dark:border-indigo-700/50 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-200 dark:border-indigo-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Usuário
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Tipo de Interação
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Meta
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Período
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Realizadas
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Progresso
+                              </TableHead>
+                              <TableHead className="font-semibold text-indigo-700 dark:text-indigo-300">
+                                Ações
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {interactionGoals.map((goal) => {
+                              // Buscar estatísticas do usuário para este tipo de interação
+                              const stats = interactionStats.find(
+                                (stat) =>
+                                  stat.userId === goal.userId &&
+                                  stat.interactionType === goal.interactionType
+                              );
+                              const totalInteractions =
+                                stats?.totalInteractions || 0;
+                              const progressPercentage =
+                                goal.targetQuantity > 0
+                                  ? Math.min(
+                                      (totalInteractions /
+                                        goal.targetQuantity) *
+                                        100,
+                                      100
+                                    )
+                                  : 0;
 
-                            // Função para traduzir tipos de interação
-                            const getInteractionTypeLabel = (type: string) => {
-                              const types: Record<string, string> = {
-                                telemarketing: "Ligação",
-                                email: "E-mail",
-                                meeting: "Reunião",
-                                whatsapp: "WhatsApp",
-                                visit: "Visita",
-                                note: "Anotação",
-                                other: "Outro",
+                              // Função para traduzir tipos de interação
+                              const getInteractionTypeLabel = (
+                                type: string
+                              ) => {
+                                const types: Record<string, string> = {
+                                  telemarketing: "Ligação",
+                                  email: "E-mail",
+                                  meeting: "Reunião",
+                                  whatsapp: "WhatsApp",
+                                  visit: "Visita",
+                                  note: "Anotação",
+                                  other: "Outro",
+                                };
+                                return types[type] || type;
                               };
-                              return types[type] || type;
-                            };
 
-                            return (
-                              <TableRow key={goal.id}>
-                                <TableCell className="font-medium">
-                                  {goal.userName}
-                                </TableCell>
-                                <TableCell>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                    {getInteractionTypeLabel(
-                                      goal.interactionType
-                                    )}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="font-medium text-indigo-600">
-                                  {goal.targetQuantity}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {new Date(
-                                    0,
-                                    goal.month - 1
-                                  ).toLocaleDateString("pt-BR", {
-                                    month: "long",
-                                  })}{" "}
-                                  {goal.year}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  <span
-                                    className={`${
-                                      progressPercentage >= 100
-                                        ? "text-green-600"
-                                        : progressPercentage >= 75
-                                        ? "text-blue-600"
-                                        : progressPercentage >= 50
-                                        ? "text-orange-600"
-                                        : "text-red-600"
-                                    }`}
-                                  >
-                                    {totalInteractions}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className={`h-2 rounded-full ${
-                                          progressPercentage >= 100
-                                            ? "bg-green-600"
-                                            : progressPercentage >= 75
-                                            ? "bg-blue-600"
-                                            : progressPercentage >= 50
-                                            ? "bg-orange-600"
-                                            : "bg-red-600"
-                                        }`}
-                                        style={{
-                                          width: `${Math.min(
-                                            progressPercentage,
-                                            100
-                                          )}%`,
-                                        }}
-                                      />
+                              return (
+                                <TableRow
+                                  key={goal.id}
+                                  className="hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 border-b border-indigo-100/50 dark:border-indigo-700/30 transition-colors"
+                                >
+                                  <TableCell className="font-medium text-gray-900 dark:text-white py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full w-10 h-10 flex items-center justify-center">
+                                        <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                                          {goal.userName &&
+                                            goal.userName
+                                              .trim()
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <div className="font-medium text-gray-900 dark:text-white">
+                                          {goal.userName}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {goal.userEmail}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <span className="text-sm font-medium min-w-fit">
-                                      {progressPercentage.toFixed(1)}%
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                      <MessageSquare className="w-3 h-3 mr-1.5" />
+                                      {getInteractionTypeLabel(
+                                        goal.interactionType
+                                      )}
                                     </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleEditInteractionGoal(goal)
-                                      }
-                                      data-testid={`button-edit-interaction-${goal.id}`}
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg px-3 py-2 inline-block">
+                                      <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                                        {goal.targetQuantity}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                                      {new Date(
+                                        0,
+                                        goal.month - 1
+                                      ).toLocaleDateString("pt-BR", {
+                                        month: "long",
+                                      })}{" "}
+                                      {goal.year}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div
+                                      className={`rounded-lg px-3 py-2 inline-block ${
+                                        progressPercentage >= 100
+                                          ? "bg-green-100 dark:bg-green-900/30"
+                                          : progressPercentage >= 50
+                                          ? "bg-yellow-100 dark:bg-yellow-900/30"
+                                          : "bg-red-100 dark:bg-red-900/30"
+                                      }`}
                                     >
-                                      <Edit className="h-4 w-4 mr-1" />
-                                      Editar
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteInteractionGoal(goal)
-                                      }
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      disabled={
-                                        deleteInteractionGoalMutation.isPending
-                                      }
-                                      data-testid={`button-delete-interaction-${goal.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-1" />
-                                      Excluir
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                      <span
+                                        className={`text-sm font-semibold ${
+                                          progressPercentage >= 100
+                                            ? "text-green-700 dark:text-green-300"
+                                            : progressPercentage >= 50
+                                            ? "text-yellow-700 dark:text-yellow-300"
+                                            : "text-red-700 dark:text-red-300"
+                                        }`}
+                                      >
+                                        {totalInteractions}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                          className={`h-2 rounded-full transition-all duration-300 ${
+                                            progressPercentage >= 100
+                                              ? "bg-green-500"
+                                              : progressPercentage >= 75
+                                              ? "bg-indigo-500"
+                                              : progressPercentage >= 50
+                                              ? "bg-yellow-500"
+                                              : "bg-red-500"
+                                          }`}
+                                          style={{
+                                            width: `${Math.min(
+                                              progressPercentage,
+                                              100
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span
+                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                          progressPercentage >= 100
+                                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                            : progressPercentage >= 75
+                                            ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
+                                            : progressPercentage >= 50
+                                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                        }`}
+                                      >
+                                        {progressPercentage.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4">
+                                    <div className="flex gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleEditInteractionGoal(goal)
+                                        }
+                                        className="h-8 px-2 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400 dark:hover:border-indigo-700 transition-colors"
+                                        data-testid={`button-edit-interaction-${goal.id}`}
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Editar</span>
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleDeleteInteractionGoal(goal)
+                                        }
+                                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-700 transition-colors"
+                                        disabled={
+                                          deleteInteractionGoalMutation.isPending
+                                        }
+                                        data-testid={`button-delete-interaction-${goal.id}`}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Excluir</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </CardContent>

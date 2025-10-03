@@ -331,70 +331,86 @@ export default function Reports() {
           </div>
 
           {/* Estatísticas Gerais */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total de Clientes
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Total de Clientes
+                  </CardTitle>
+                </div>
+                <div className="bg-green-100 dark:bg-green-900/30 rounded-xl p-3 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
+                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-wine-600">
+                <div className="text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
                   {totalClients}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-green-600/70 dark:text-green-400/70 font-medium">
                   clientes cadastrados no sistema
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total de Empresas
-                </CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Total de Empresas
+                  </CardTitle>
+                </div>
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                  <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-3xl font-bold text-blue-700 dark:text-blue-400 mb-2">
                   {totalCompanies}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-blue-600/70 dark:text-blue-400/70 font-medium">
                   empresas cadastradas no sistema
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Aniversários Próximos
-                </CardTitle>
-                <Gift className="h-4 w-4 text-muted-foreground" />
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Aniversários Próximos
+                  </CardTitle>
+                </div>
+                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-xl p-3 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 transition-colors">
+                  <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-amber-600">
+                <div className="text-3xl font-bold text-amber-700 dark:text-amber-400 mb-2">
                   {upcomingBirthdaysFiltered.length}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-amber-600/70 dark:text-amber-400/70 font-medium">
                   nos próximos 30 dias
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Setores Ativos
-                </CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Setores Ativos
+                  </CardTitle>
+                </div>
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-xl p-3 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
+                  <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 mb-2">
                   {Object.keys(companiesBySector).length}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-emerald-600/70 dark:text-emerald-400/70 font-medium">
                   setores diferentes
                 </p>
               </CardContent>
@@ -402,45 +418,56 @@ export default function Reports() {
           </div>
 
           {/* Próximos Aniversários */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="h-5 w-5 text-amber-600" />
-                Próximos Aniversários
+          <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
+            <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-t-xl border-b border-amber-100 dark:border-amber-800/30">
+              <CardTitle className="flex items-center gap-3">
+                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-xl p-2.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 transition-colors">
+                  <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  Próximos Aniversários
+                </span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-amber-700/70 dark:text-amber-300/70 font-medium">
                 Clientes que fazem aniversário nos próximos 30 dias
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {upcomingBirthdaysFiltered.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  Nenhum aniversário nos próximos 30 dias
-                </p>
+                <div className="text-center py-8">
+                  <div className="bg-amber-100 dark:bg-amber-900/30 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <Gift className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="text-amber-600/70 dark:text-amber-400/70 font-medium">
+                    Nenhum aniversário nos próximos 30 dias
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {upcomingBirthdaysFiltered.slice(0, 15).map((client) => (
                     <div
                       key={client.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg"
+                      className="group/item flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white dark:bg-gray-800/50 rounded-xl border border-amber-100 dark:border-amber-800/30 hover:border-amber-200 dark:hover:border-amber-700/50 hover:shadow-md transition-all duration-200"
                     >
-                      <div className="flex flex-col items-start gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 sm:w-12 sm:h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                            <Gift className="h-4 w-4 sm:h-6 sm:w-6 text-amber-600" />
+                      <div className="flex flex-col items-start gap-3 flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-full flex items-center justify-center group-hover/item:from-amber-200 group-hover/item:to-orange-200 dark:group-hover/item:from-amber-800/40 dark:group-hover/item:to-orange-800/40 transition-colors">
+                            <Gift className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600 dark:text-amber-400" />
                           </div>
-                          <h3 className="font-medium text-gray-900">
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-base">
                             {client.name}
                           </h3>
                         </div>
-                        <div>
-                          <div className="flex flex-col sm:flex-row items-start gap-2 text-sm text-gray-600">
+                        <div className="ml-13 sm:ml-15">
+                          <div className="flex flex-col sm:flex-row items-start gap-3 text-sm">
                             {client.phone && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
+                              <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg">
+                                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-1">
+                                  <Phone className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                </div>
                                 <a
                                   href={`tel:${client.phone}`}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline cursor-pointer transition-colors"
                                   title="Clique para ligar"
                                 >
                                   {client.phone}
@@ -448,47 +475,55 @@ export default function Reports() {
                               </div>
                             )}
                             {client.email && (
-                              <div className="flex items-center tex-xs sm:text-sm gap-1">
-                                <Mail className="h-3 w-3" />
-                                {client.email}
+                              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg">
+                                <div className="bg-gray-100 dark:bg-gray-700/50 rounded-lg p-1">
+                                  <Mail className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                </div>
+                                <span className="text-gray-600 dark:text-gray-300 text-sm font-medium truncate">
+                                  {client.email}
+                                </span>
                               </div>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:block text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {format(parseISO(client.birthday!), "dd/MM", {
-                            locale: ptBR,
-                          })}
+                      <div className="flex items-center gap-3 mt-4 sm:mt-0 sm:flex-col sm:items-end">
+                        <div className="bg-amber-100 dark:bg-amber-900/30 px-3 py-1.5 rounded-lg">
+                          <div className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                            {format(parseISO(client.birthday!), "dd/MM", {
+                              locale: ptBR,
+                            })}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-600">
-                          {(() => {
-                            const today = startOfDay(new Date());
-                            const birthday = parseISO(client.birthday!);
-                            const currentYear = new Date().getFullYear();
-                            const thisYearBirthday = new Date(
-                              currentYear,
-                              birthday.getMonth(),
-                              birthday.getDate()
-                            );
-                            const nextBirthday =
-                              thisYearBirthday < today
-                                ? new Date(
-                                    currentYear + 1,
-                                    birthday.getMonth(),
-                                    birthday.getDate()
-                                  )
-                                : thisYearBirthday;
-                            const daysUntil = Math.ceil(
-                              (nextBirthday.getTime() - today.getTime()) /
-                                (1000 * 60 * 60 * 24)
-                            );
+                        <div className="bg-orange-100 dark:bg-orange-900/30 px-3 py-1.5 rounded-lg">
+                          <div className="text-xs font-semibold text-orange-700 dark:text-orange-300">
+                            {(() => {
+                              const today = startOfDay(new Date());
+                              const birthday = parseISO(client.birthday!);
+                              const currentYear = new Date().getFullYear();
+                              const thisYearBirthday = new Date(
+                                currentYear,
+                                birthday.getMonth(),
+                                birthday.getDate()
+                              );
+                              const nextBirthday =
+                                thisYearBirthday < today
+                                  ? new Date(
+                                      currentYear + 1,
+                                      birthday.getMonth(),
+                                      birthday.getDate()
+                                    )
+                                  : thisYearBirthday;
+                              const daysUntil = Math.ceil(
+                                (nextBirthday.getTime() - today.getTime()) /
+                                  (1000 * 60 * 60 * 24)
+                              );
 
-                            if (daysUntil === 0) return "Hoje";
-                            if (daysUntil === 1) return "Amanhã";
-                            return `Em ${daysUntil} dias`;
-                          })()}
+                              if (daysUntil === 0) return "Hoje";
+                              if (daysUntil === 1) return "Amanhã";
+                              return `Em ${daysUntil} dias`;
+                            })()}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -500,13 +535,15 @@ export default function Reports() {
 
           {/* Título da seção de clientes */}
           <div className="pt-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Users className="h-8 w-8 text-wine-600" />
+            <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-100 dark:border-green-800/30">
+              <div className="bg-green-100 dark:bg-green-900/30 rounded-xl p-3">
+                <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Relatórios de Clientes
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-green-700/70 dark:text-green-300/70 font-medium">
                   Estatísticas e informações importantes dos clientes
                 </p>
               </div>
@@ -514,61 +551,81 @@ export default function Reports() {
           </div>
 
           {/* Estatísticas por Categoria */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Clientes por Categoria</CardTitle>
-                <CardDescription>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/10 dark:to-violet-900/10">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-t-xl border-b border-purple-100 dark:border-purple-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2">
+                    <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  Clientes por Categoria
+                </CardTitle>
+                <CardDescription className="text-purple-700/70 dark:text-purple-300/70 font-medium">
                   Distribuição dos clientes por categoria
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(clientsByCategory)
                     .sort(([, a], [, b]) => b - a)
                     .map(([category, count]) => (
                       <div
                         key={category}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-purple-100 dark:border-purple-800/30 hover:border-purple-200 dark:hover:border-purple-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="secondary"
+                            className="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 font-medium px-3 py-1"
+                          >
                             {category}
                           </Badge>
                         </div>
-                        <span className="font-medium text-wine-600">
-                          {count}
-                        </span>
+                        <div className="bg-purple-100 dark:bg-purple-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-purple-700 dark:text-purple-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Clientes por Origem</CardTitle>
-                <CardDescription>
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/10 dark:to-blue-900/10">
+              <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-t-xl border-b border-cyan-100 dark:border-cyan-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-cyan-100 dark:bg-cyan-900/30 rounded-lg p-2">
+                    <Users className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                  Clientes por Origem
+                </CardTitle>
+                <CardDescription className="text-cyan-700/70 dark:text-cyan-300/70 font-medium">
                   Distribuição dos clientes por origem
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(clientsByOrigin)
                     .sort(([, a], [, b]) => b - a)
                     .map(([origin, count]) => (
                       <div
                         key={origin}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-cyan-100 dark:border-cyan-800/30 hover:border-cyan-200 dark:hover:border-cyan-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="secondary"
+                            className="bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-300 font-medium px-3 py-1"
+                          >
                             {origin}
                           </Badge>
                         </div>
-                        <span className="font-medium text-wine-600">
-                          {count}
-                        </span>
+                        <div className="bg-cyan-100 dark:bg-cyan-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-cyan-700 dark:text-cyan-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -577,45 +634,60 @@ export default function Reports() {
           </div>
 
           {/* Relatórios por Usuário e Marcadores */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Clientes por Usuário</CardTitle>
-                <CardDescription>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/10 dark:to-blue-900/10">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-t-xl border-b border-indigo-100 dark:border-indigo-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg p-2">
+                    <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  Clientes por Usuário
+                </CardTitle>
+                <CardDescription className="text-indigo-700/70 dark:text-indigo-300/70 font-medium">
                   Distribuição dos clientes por responsável
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(clientsByUser)
                     .sort(([, a], [, b]) => b - a)
                     .map(([userName, count]) => (
                       <div
                         key={userName}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-indigo-100 dark:border-indigo-800/30 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="default" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="default"
+                            className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 font-medium px-3 py-1"
+                          >
                             {userName}
                           </Badge>
                         </div>
-                        <span className="font-medium text-wine-600">
-                          {count}
-                        </span>
+                        <div className="bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-indigo-700 dark:text-indigo-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Clientes por Marcadores</CardTitle>
-                <CardDescription>
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/10 dark:to-pink-900/10">
+              <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20 rounded-t-xl border-b border-rose-100 dark:border-rose-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-rose-100 dark:bg-rose-900/30 rounded-lg p-2">
+                    <FileText className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                  </div>
+                  Clientes por Marcadores
+                </CardTitle>
+                <CardDescription className="text-rose-700/70 dark:text-rose-300/70 font-medium">
                   Distribuição dos clientes por marcadores
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(clientsByMarkers)
                     .sort(([, a], [, b]) => b - a)
@@ -624,12 +696,12 @@ export default function Reports() {
                       return (
                         <div
                           key={markerName}
-                          className="flex items-center justify-between"
+                          className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-rose-100 dark:border-rose-800/30 hover:border-rose-200 dark:hover:border-rose-700/50 hover:shadow-sm transition-all duration-200"
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Badge
                               variant="secondary"
-                              className="text-xs"
+                              className="font-medium px-3 py-1"
                               style={{
                                 backgroundColor:
                                   marker?.color && markerName !== "Sem marcador"
@@ -648,9 +720,11 @@ export default function Reports() {
                               {markerName}
                             </Badge>
                           </div>
-                          <span className="font-medium text-wine-600">
-                            {count}
-                          </span>
+                          <div className="bg-rose-100 dark:bg-rose-900/30 px-3 py-1.5 rounded-lg">
+                            <span className="font-bold text-rose-700 dark:text-rose-300 text-lg">
+                              {count}
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
@@ -661,13 +735,15 @@ export default function Reports() {
 
           {/* Título da seção de empresas */}
           <div className="pt-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Building2 className="h-8 w-8 text-blue-600" />
+            <div className="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30">
+              <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-3">
+                <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Relatórios de Empresas
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-blue-700/70 dark:text-blue-300/70 font-medium">
                   Estatísticas e informações importantes das empresas
                 </p>
               </div>
@@ -675,61 +751,81 @@ export default function Reports() {
           </div>
 
           {/* Estatísticas por Setor e Usuário (Empresas) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Empresas por Setor</CardTitle>
-                <CardDescription>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-900/10">
+              <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-t-xl border-b border-teal-100 dark:border-teal-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-teal-100 dark:bg-teal-900/30 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  Empresas por Setor
+                </CardTitle>
+                <CardDescription className="text-teal-700/70 dark:text-teal-300/70 font-medium">
                   Distribuição das empresas por setor de atividade
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(companiesBySector)
                     .sort(([, a], [, b]) => b - a)
                     .map(([sector, count]) => (
                       <div
                         key={sector}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-teal-100 dark:border-teal-800/30 hover:border-teal-200 dark:hover:border-teal-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="secondary"
+                            className="bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/50 dark:text-teal-300 font-medium px-3 py-1"
+                          >
                             {sector}
                           </Badge>
                         </div>
-                        <span className="font-medium text-blue-600">
-                          {count}
-                        </span>
+                        <div className="bg-teal-100 dark:bg-teal-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-teal-700 dark:text-teal-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Empresas por Usuário</CardTitle>
-                <CardDescription>
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/10 dark:to-purple-900/10">
+              <CardHeader className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-t-xl border-b border-violet-100 dark:border-violet-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-violet-100 dark:bg-violet-900/30 rounded-lg p-2">
+                    <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  Empresas por Usuário
+                </CardTitle>
+                <CardDescription className="text-violet-700/70 dark:text-violet-300/70 font-medium">
                   Distribuição das empresas por responsável
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(companiesByUser)
                     .sort(([, a], [, b]) => b - a)
                     .map(([userName, count]) => (
                       <div
                         key={userName}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-violet-100 dark:border-violet-800/30 hover:border-violet-200 dark:hover:border-violet-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="default" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="default"
+                            className="bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-600 font-medium px-3 py-1"
+                          >
                             {userName}
                           </Badge>
                         </div>
-                        <span className="font-medium text-blue-600">
-                          {count}
-                        </span>
+                        <div className="bg-violet-100 dark:bg-violet-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-violet-700 dark:text-violet-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -738,45 +834,60 @@ export default function Reports() {
           </div>
 
           {/* Estatísticas por Estado e Cidade (Empresas) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Empresas por Estado</CardTitle>
-                <CardDescription>
+          <div className="grid grid-cols-1 pb-2 lg:grid-cols-2 gap-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10">
+              <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-t-xl border-b border-emerald-100 dark:border-emerald-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  Empresas por Estado
+                </CardTitle>
+                <CardDescription className="text-emerald-700/70 dark:text-emerald-300/70 font-medium">
                   Distribuição das empresas por estado
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(companiesByState)
                     .sort(([, a], [, b]) => b - a)
                     .map(([state, count]) => (
                       <div
                         key={state}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-200 dark:hover:border-emerald-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20 font-medium px-3 py-1"
+                          >
                             {state}
                           </Badge>
                         </div>
-                        <span className="font-medium text-green-600">
-                          {count}
-                        </span>
+                        <div className="bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Empresas por Cidade</CardTitle>
-                <CardDescription>
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-900/10 dark:to-green-900/10">
+              <CardHeader className="bg-gradient-to-r from-lime-50 to-green-50 dark:from-lime-900/20 dark:to-green-900/20 rounded-t-xl border-b border-lime-100 dark:border-lime-800/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="bg-lime-100 dark:bg-lime-900/30 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-lime-600 dark:text-lime-400" />
+                  </div>
+                  Empresas por Cidade
+                </CardTitle>
+                <CardDescription className="text-lime-700/70 dark:text-lime-300/70 font-medium">
                   Distribuição das empresas por cidade
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <div className="space-y-3">
                   {Object.entries(companiesByCity)
                     .sort(([, a], [, b]) => b - a)
@@ -784,24 +895,34 @@ export default function Reports() {
                     .map(([city, count]) => (
                       <div
                         key={city}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-lime-100 dark:border-lime-800/30 hover:border-lime-200 dark:hover:border-lime-700/50 hover:shadow-sm transition-all duration-200"
                       >
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant="outline"
+                            className="border-lime-200 text-lime-700 hover:bg-lime-50 dark:border-lime-700 dark:text-lime-300 dark:hover:bg-lime-900/20 font-medium px-3 py-1"
+                          >
                             {city}
                           </Badge>
                         </div>
-                        <span className="font-medium text-green-600">
-                          {count}
-                        </span>
+                        <div className="bg-lime-100 dark:bg-lime-900/30 px-3 py-1.5 rounded-lg">
+                          <span className="font-bold text-lime-700 dark:text-lime-300 text-lg">
+                            {count}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
                 {Object.keys(companiesByCity).length > 10 && (
-                  <p className="text-xs text-gray-500 mt-3">
-                    Mostrando as 10 principais cidades de{" "}
-                    {Object.keys(companiesByCity).length} total
-                  </p>
+                  <div className="mt-4 p-3 bg-lime-50 dark:bg-lime-900/20 rounded-lg border border-lime-100 dark:border-lime-800/30">
+                    <p className="text-sm text-lime-700 dark:text-lime-300 font-medium text-center">
+                      Mostrando as 10 principais cidades de{" "}
+                      <span className="font-bold">
+                        {Object.keys(companiesByCity).length}
+                      </span>{" "}
+                      total
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -1,5 +1,8 @@
 import cron from "node-cron";
-import { sendBirthdayMessages } from "./send-birthday-mensage";
+import {
+  sendBirthdayMessages,
+  sendBirthdayMessagesForAutomation,
+} from "./send-birthday-mensage";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
 
 // Mapa para armazenar os jobs ativos
@@ -48,10 +51,11 @@ async function setupBirthdayJobs(): Promise<void> {
         cronExpression,
         async () => {
           console.log(
-            `[Scheduler] Executando automação ${automation.id} - ${automation.daysBefore} dias antes do aniversário às ${automation.sendTime}`
+            `[Scheduler] Executando automação específica ${automation.id} - ${automation.daysBefore} dias antes do aniversário às ${automation.sendTime}`
           );
           try {
-            await sendBirthdayMessages();
+            // CORREÇÃO: Processar apenas esta automação específica
+            await sendBirthdayMessagesForAutomation(automation.id);
             console.log(
               `[Scheduler] Automação ${automation.id} concluída com sucesso.`
             );

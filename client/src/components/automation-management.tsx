@@ -16,6 +16,7 @@ import {
   Play,
   TestTube,
   RefreshCcw,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -413,25 +414,34 @@ function FileUploadComponent({
   const fileDeleteMutation = useFileDelete();
 
   const handleFileSelect = async (file: File) => {
-    console.log('Arquivo selecionado:', {
+    console.log("Arquivo selecionado:", {
       name: file.name,
       type: file.type,
       size: file.size,
-      lastModified: file.lastModified
+      lastModified: file.lastModified,
     });
 
     // Validar se o arquivo tem extensão de imagem se o tipo MIME não for detectado
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const hasImageExtension = imageExtensions.some(ext => 
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const hasImageExtension = imageExtensions.some((ext) =>
       file.name.toLowerCase().endsWith(ext)
     );
 
     // Bloquear SVG explicitamente por questões de segurança
-    if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-      console.error('SVG rejeitado por questões de segurança:', file.type, 'Nome:', file.name);
+    if (
+      file.type === "image/svg+xml" ||
+      file.name.toLowerCase().endsWith(".svg")
+    ) {
+      console.error(
+        "SVG rejeitado por questões de segurança:",
+        file.type,
+        "Nome:",
+        file.name
+      );
       toast({
         title: "Tipo de arquivo não permitido",
-        description: "Arquivos SVG não são aceitos por questões de segurança. Use PNG, JPG, GIF ou WebP.",
+        description:
+          "Arquivos SVG não são aceitos por questões de segurança. Use PNG, JPG, GIF ou WebP.",
         variant: "destructive",
       });
       return;
@@ -439,10 +449,16 @@ function FileUploadComponent({
 
     // Validar tipo de arquivo - aceitar se tipo MIME for image/* ou se extensão for de imagem
     if (!file.type.startsWith("image/") && !hasImageExtension) {
-      console.error('Tipo de arquivo rejeitado:', file.type, 'Nome:', file.name);
+      console.error(
+        "Tipo de arquivo rejeitado:",
+        file.type,
+        "Nome:",
+        file.name
+      );
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Por favor, selecione apenas arquivos de imagem (PNG, JPG, GIF, WebP).",
+        description:
+          "Por favor, selecione apenas arquivos de imagem (PNG, JPG, GIF, WebP).",
         variant: "destructive",
       });
       return;
@@ -464,13 +480,13 @@ function FileUploadComponent({
 
     // Fazer upload com nome do arquivo explícito
     try {
-      console.log('Iniciando upload do arquivo:', file.name);
-      const response = await fileUploadMutation.mutateAsync({ 
+      console.log("Iniciando upload do arquivo:", file.name);
+      const response = await fileUploadMutation.mutateAsync({
         file,
-        filename: file.name
+        filename: file.name,
       });
-      
-      console.log('Upload bem-sucedido:', response);
+
+      console.log("Upload bem-sucedido:", response);
       if (response.success && response.data) {
         onFileUpload(response.data.id, response.data.url);
         // Limpar preview local e usar URL da resposta
@@ -912,6 +928,9 @@ export function AutomationManagement() {
   const [selectedAutomationId, setSelectedAutomationId] = useState<
     string | null
   >(null);
+  const [selectedStatus, setSelectedStatus] = useState<
+    "agendado" | "enviado" | "falhou" | "all"
+  >("all");
   const pageSize = 20;
   const {
     data: logsData,
@@ -923,6 +942,7 @@ export function AutomationManagement() {
     automationId: selectedAutomationId || undefined,
     page: logsPage,
     pageSize,
+    status: selectedStatus,
   });
 
   // Estatísticas das automações
@@ -967,6 +987,12 @@ export function AutomationManagement() {
     testScheduledMutation.mutate();
   };
 
+  const handleResetFilters = () => {
+    setSelectedAutomationId(null);
+    setSelectedStatus("all");
+    setLogsPage(1);
+  };
+
   const getChannelName = (channelId: string) => {
     const channel = channels.find((c) => c.id === channelId);
     return channel
@@ -986,6 +1012,33 @@ export function AutomationManagement() {
   const getDaysBeforeLabel = (days: number) => {
     const option = DAYS_BEFORE_OPTIONS.find((o) => o.value === days);
     return option?.label || `${days} dias antes`;
+  };
+
+  const getStatusConfig = (status: "agendado" | "enviado" | "falhou") => {
+    const configs = {
+      enviado: {
+        label: "Enviado",
+        color: "bg-green-500",
+        textColor: "text-green-600",
+        bgColor: "bg-green-50",
+        icon: "✓",
+      },
+      falhou: {
+        label: "Falhou",
+        color: "bg-red-500",
+        textColor: "text-red-600",
+        bgColor: "bg-red-50",
+        icon: "✗",
+      },
+      agendado: {
+        label: "Agendado",
+        color: "bg-yellow-500",
+        textColor: "text-yellow-600",
+        bgColor: "bg-yellow-50",
+        icon: "⏱",
+      },
+    };
+    return configs[status];
   };
 
   if (isLoading) {
@@ -1616,53 +1669,184 @@ export function AutomationManagement() {
             </div>
           ) : (
             <>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-                <Label
-                  htmlFor="automation-filter"
-                  className="text-sm font-medium shrink-0"
-                >
-                  Filtrar por automação:
-                </Label>
-                <Select
-                  value={selectedAutomationId || "all"}
-                  onValueChange={(value) => {
-                    setSelectedAutomationId(value === "all" ? null : value);
-                    setLogsPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-full sm:w-auto sm:min-w-[300px]">
-                    <SelectValue placeholder="Todas as automações" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as automações</SelectItem>
-                    {isLoadingAutomations ? (
-                      <SelectItem value="loading" disabled>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span>Carregando automações...</span>
-                        </div>
-                      </SelectItem>
-                    ) : automations.length === 0 ? (
-                      <SelectItem value="empty" disabled>
-                        Nenhuma automação disponível
-                      </SelectItem>
-                    ) : (
-                      automations.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">
-                              {getChannelName(a.externalChannelId || "")}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {getDaysBeforeLabel(a.daysBefore)} às {a.sendTime}
-                            </span>
+              <div className="flex flex-col gap-4 mb-6">
+                {/* Header dos filtros com botão de limpar */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Filtros
+                  </h3>
+                  {(selectedAutomationId || selectedStatus !== "all") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleResetFilters}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Limpar filtros
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  {/* Filtro por automação */}
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label className="text-sm font-medium">Automação</Label>
+                    <Select
+                      value={selectedAutomationId || "all"}
+                      onValueChange={(value) => {
+                        setSelectedAutomationId(value === "all" ? null : value);
+                        setLogsPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todas as automações" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as automações</SelectItem>
+                        {isLoadingAutomations ? (
+                          <SelectItem value="loading" disabled>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              <span>Carregando automações...</span>
+                            </div>
+                          </SelectItem>
+                        ) : automations.length === 0 ? (
+                          <SelectItem value="empty" disabled>
+                            Nenhuma automação disponível
+                          </SelectItem>
+                        ) : (
+                          automations.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">
+                                  {getChannelName(a.externalChannelId || "")}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {getDaysBeforeLabel(a.daysBefore)} às{" "}
+                                  {a.sendTime}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Filtro por status */}
+                  <div className="flex flex-col gap-2 flex-1 max-w-xs">
+                    <Label className="text-sm font-medium">Status</Label>
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={(
+                        value: "agendado" | "enviado" | "falhou" | "all"
+                      ) => {
+                        setSelectedStatus(value);
+                        setLogsPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                            <span>Todos os status</span>
                           </div>
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                        <SelectItem value="enviado">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <span>Enviado</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="falhou">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            <span>Falhou</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="agendado">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                            <span>Agendado</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
+
+              {/* Resumo dos Resultados */}
+              {!isLoadingLogs && logsData && (
+                <div className="bg-muted/50 rounded-lg p-4 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {logsData.data.length}
+                        </span>{" "}
+                        resultado{logsData.data.length !== 1 ? "s" : ""}{" "}
+                        encontrado{logsData.data.length !== 1 ? "s" : ""}
+                      </div>
+
+                      {/* Contadores por Status */}
+                      {logsData.data.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-3">
+                          {(() => {
+                            const statusCounts = logsData.data.reduce(
+                              (acc, log) => {
+                                acc[log.status] = (acc[log.status] || 0) + 1;
+                                return acc;
+                              },
+                              {} as Record<string, number>
+                            );
+
+                            return Object.entries(statusCounts).map(
+                              ([status, count]) => {
+                                const config = getStatusConfig(status);
+                                return (
+                                  <div
+                                    key={status}
+                                    className="flex items-center gap-1.5 text-xs"
+                                  >
+                                    <div
+                                      className={`w-2 h-2 rounded-full ${config.color}`}
+                                    />
+                                    <span className="text-muted-foreground">
+                                      {config.label}:{" "}
+                                      <span className="font-medium text-foreground">
+                                        {count}
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              }
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Botão de Reset dos Filtros */}
+                    {(selectedAutomationId || selectedStatus !== "all") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetFilters}
+                        className="flex items-center gap-2"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Limpar Filtros
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {isLoadingLogs ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
@@ -1720,22 +1904,19 @@ export function AutomationManagement() {
                                 {log.client?.name || log.clientId}
                               </td>
                               <td className="px-4 py-3">
-                                <Badge
-                                  variant={
-                                    log.status === "enviado"
-                                      ? "default"
-                                      : log.status === "falhou"
-                                      ? "destructive"
-                                      : "secondary"
-                                  }
-                                  className="text-xs"
-                                >
-                                  {log.status === "enviado"
-                                    ? "Enviado"
-                                    : log.status === "falhou"
-                                    ? "Falhou"
-                                    : "Agendado"}
-                                </Badge>
+                                {(() => {
+                                  const config = getStatusConfig(log.status);
+                                  return (
+                                    <div
+                                      className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}
+                                    >
+                                      <div
+                                        className={`w-2 h-2 rounded-full ${config.color}`}
+                                      />
+                                      <span>{config.label}</span>
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs">
@@ -1793,22 +1974,19 @@ export function AutomationManagement() {
                                 Cliente ID: {log.clientId.slice(-8)}
                               </p>
                             </div>
-                            <Badge
-                              variant={
-                                log.status === "enviado"
-                                  ? "default"
-                                  : log.status === "falhou"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                              className="text-xs ml-2"
-                            >
-                              {log.status === "enviado"
-                                ? "Enviado"
-                                : log.status === "falhou"
-                                ? "Falhou"
-                                : "Agendado"}
-                            </Badge>
+                            {(() => {
+                              const config = getStatusConfig(log.status);
+                              return (
+                                <div
+                                  className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ml-2 ${config.bgColor} ${config.textColor}`}
+                                >
+                                  <div
+                                    className={`w-2 h-2 rounded-full ${config.color}`}
+                                  />
+                                  <span>{config.label}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 text-xs">

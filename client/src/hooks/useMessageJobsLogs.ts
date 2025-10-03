@@ -21,7 +21,7 @@ export interface UseMessageJobsLogsOptions {
   automationId?: string;
   page?: number;
   pageSize?: number;
-  status?: string;
+  status?: "agendado" | "enviado" | "falhou" | "all";
 }
 
 export interface MessageJobsLogsResponse {
@@ -31,16 +31,23 @@ export interface MessageJobsLogsResponse {
   pageSize: number;
 }
 
-export function useMessageJobsLogs({ automationId, page = 1, pageSize = 20, status }: UseMessageJobsLogsOptions) {
+export function useMessageJobsLogs({
+  automationId,
+  page = 1,
+  pageSize = 20,
+  status,
+}: UseMessageJobsLogsOptions) {
   return useQuery<MessageJobsLogsResponse>({
     queryKey: ["message-jobs-logs", { automationId, page, pageSize, status }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (automationId) params.append("automationId", automationId);
-      if (status) params.append("status", status);
+      if (status && status !== "all") params.append("status", status);
       params.append("page", String(page));
       params.append("pageSize", String(pageSize));
-      const response = await fetch(`/api/message-jobs-logs?${params.toString()}`);
+      const response = await fetch(
+        `/api/message-jobs-logs?${params.toString()}`
+      );
       if (!response.ok) throw new Error("Failed to fetch message jobs logs");
       return response.json();
     },
