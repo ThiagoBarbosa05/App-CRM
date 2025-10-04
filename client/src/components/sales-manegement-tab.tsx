@@ -41,6 +41,8 @@ import {
   useCreateUmblerChat,
 } from "@/hooks/use-umbler";
 import ClientFormModal from "./client-form-modal";
+import { SalesStatsCards } from "./sales-stats-cards";
+import { SalesHistory } from "./sales-history";
 
 interface SalesManagementProps {
   isDialogOpen: boolean;
@@ -68,6 +70,16 @@ interface SaleForm {
   invoiceNumber: string;
 }
 
+interface SalesStatistics {
+  salesCount: number;
+  totalSales: number;
+  totalCashbackUsed: number;
+  totalCashbackGenerated: number;
+  netValue: number;
+  averageSaleValue: number;
+  period: string;
+}
+
 export function SalesManagementTab({
   isDialogOpen,
   setIsDialogOpen,
@@ -90,7 +102,6 @@ export function SalesManagementTab({
   const [selectedClientName, setSelectedClientName] = useState<string>("");
   const [selectedClientBalance, setSelectedClientBalance] = useState<number>(0);
 
-  const [sales, setSales] = useState<Sale[]>([]);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
@@ -111,9 +122,21 @@ export function SalesManagementTab({
     queryKey: ["/api/cashback-settings"],
   });
 
-  const { data: thirtyDaysReport = {} } = useQuery<any>({
-    queryKey: ["/api/cashback-reports/30-days"],
+  // Buscar estatísticas de vendas da nova API otimizada
+  const {
+    data: salesStatsData,
+    isLoading: isSalesStatsLoading,
+    isError: isSalesStatsError,
+    error: salesStatsError,
+  } = useQuery<{ success: boolean; data: SalesStatistics }>({
+    queryKey: ["/api/sales-statistics"],
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos para melhor performance
+    refetchOnWindowFocus: false, // Evita refetch desnecessário
+    retry: 3, // Tentar novamente até 3 vezes em caso de erro
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
   });
+
+  const salesStats = salesStatsData?.data;
 
   const { data: umblerContact, isLoading: isLoadingUmblerContact } = useQuery<{
     id: string;
@@ -174,10 +197,27 @@ export function SalesManagementTab({
     }
   }, [debouncedClientSearch, isDialogOpen]);
 
-  // useEffect para carregar vendas quando o componente for montado
+  // Exibir toast de erro se a API de estatísticas de vendas falhar
   useEffect(() => {
-    loadSales();
-  }, []);
+    if (isSalesStatsError && salesStatsError) {
+      console.error(
+        "Erro ao carregar estatísticas de vendas:",
+        salesStatsError
+      );
+      toast({
+        title: "Erro",
+        description:
+          "Não foi possível carregar as estatísticas de vendas. Tentando novamente...",
+        variant: "destructive",
+      });
+    }
+  }, [isSalesStatsError, salesStatsError, toast]);
+
+  // Função auxiliar para formatação de moeda (compatível com SalesStatsCards)
+  const formatCurrencyForCards = (value: string | number): string => {
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+    return formatCurrency(numValue);
+  };
 
   const loadClients = async () => {
     try {
@@ -194,18 +234,6 @@ export function SalesManagementTab({
       }
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
-    }
-  };
-
-  const loadSales = async () => {
-    try {
-      const response = await fetch("/api/sales");
-      if (response.ok) {
-        const data = await response.json();
-        setSales(data);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar vendas:", error);
     }
   };
 
@@ -379,7 +407,8 @@ export function SalesManagementTab({
       setIsDialogOpen(false);
 
       // Recarregar todos os dados relacionados
-      await loadSales();
+      queryClient.invalidateQueries({ queryKey: ["sales-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-statistics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
       queryClient.invalidateQueries({
         queryKey: ["/api/cashback-transactions"],
@@ -463,7 +492,8 @@ export function SalesManagementTab({
         description: "A venda foi removida com sucesso.",
       });
       // Recarregar dados relacionados - forçar refetch
-      loadSales();
+      queryClient.invalidateQueries({ queryKey: ["sales-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-statistics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cashback-balances"] });
       queryClient.invalidateQueries({
@@ -504,23 +534,22 @@ export function SalesManagementTab({
     deleteSaleMutation.mutate(saleId);
   };
 
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-4">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
             Vendas
           </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
             Gerencie vendas e cashback automaticamente
           </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               Nova Venda
             </Button>
@@ -600,9 +629,11 @@ export function SalesManagementTab({
                             {selectedClientName}
                           </div>
                           {selectedClientBalance > 0 && (
-                            <div className="text-green-600 font-medium">
+                            <div className="text-emerald-600 dark:text-emerald-400 font-semibold">
                               Saldo disponível:{" "}
-                              {formatCurrency(selectedClientBalance)}
+                              <span className="font-bold">
+                                {formatCurrency(selectedClientBalance)}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -645,10 +676,10 @@ export function SalesManagementTab({
 
               {/* Umbler Status Section */}
               {selectedClient && (
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-base flex items-center gap-2 text-blue-800">
-                      <Bot className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-base flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                      <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       Automação de Cashback
                     </CardTitle>
                   </CardHeader>
@@ -782,24 +813,27 @@ export function SalesManagementTab({
 
               {/* Cashback Option */}
               {saleForm.clientId && selectedClientBalance > 0 && (
-                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
                   <div className="flex items-start space-x-3">
                     <input
                       type="checkbox"
                       id="useCashback"
                       checked={useCashback}
                       onChange={(e) => setUseCashback(e.target.checked)}
-                      className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-0.5"
+                      className="h-5 w-5 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded mt-0.5"
                     />
                     <div className="flex-1 space-y-1">
                       <Label
                         htmlFor="useCashback"
-                        className="text-sm font-medium text-green-800 cursor-pointer"
+                        className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 cursor-pointer"
                       >
                         Usar saldo de cashback disponível (
-                        {formatCurrency(selectedClientBalance)})
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                          {formatCurrency(selectedClientBalance)}
+                        </span>
+                        )
                       </Label>
-                      <p className="text-xs text-green-700">
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300">
                         {useCashback
                           ? "O cashback será aplicado automaticamente na venda"
                           : "O cashback não será usado nesta venda"}
@@ -827,21 +861,21 @@ export function SalesManagementTab({
 
               {/* Sale Summary */}
               {saleForm.clientId && (
-                <Card className="bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200">
+                <Card className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 border-slate-200 dark:border-slate-800">
                   <CardHeader>
-                    <CardTitle className="text-base text-gray-800">
+                    <CardTitle className="text-base text-slate-800 dark:text-slate-200">
                       Resumo da Venda
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                         Saldo de Cashback Disponível:
                       </span>
                       <div className="flex items-center gap-2">
                         <Badge
                           variant="secondary"
-                          className="text-sm font-medium"
+                          className="text-sm font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
                         >
                           {formatCurrency(selectedClientBalance)}
                         </Badge>
@@ -849,10 +883,10 @@ export function SalesManagementTab({
                           <Badge
                             variant={useCashback ? "default" : "outline"}
                             className={cn(
-                              "text-xs",
+                              "text-xs font-medium",
                               useCashback
-                                ? "bg-green-100 text-green-800 border-green-300"
-                                : "bg-gray-100 text-gray-600 border-gray-300"
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700"
+                                : "bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
                             )}
                           >
                             {useCashback ? "Será usado" : "Não será usado"}
@@ -864,10 +898,10 @@ export function SalesManagementTab({
                     {saleForm.grossValue && (
                       <div className="space-y-3 pt-3 border-t border-gray-200">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">
                             Valor Bruto:
                           </span>
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">
                             {formatCurrency(parseFloat(saleForm.grossValue))}
                           </span>
                         </div>
@@ -876,12 +910,12 @@ export function SalesManagementTab({
                           className={cn(
                             "flex justify-between items-center",
                             useCashback && previewValues().cashbackUsed > 0
-                              ? "text-green-600"
-                              : "text-gray-500"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-gray-500 dark:text-gray-400"
                           )}
                         >
                           <span className="text-sm">Cashback Aplicado:</span>
-                          <span className="font-medium">
+                          <span className="font-semibold">
                             {useCashback && previewValues().cashbackUsed > 0
                               ? `-${formatCurrency(
                                   previewValues().cashbackUsed
@@ -890,21 +924,24 @@ export function SalesManagementTab({
                           </span>
                         </div>
 
-                        <div className="flex justify-between items-center py-2 border-t border-gray-200">
-                          <span className="text-sm font-semibold text-gray-800">
+                        <div className="flex justify-between items-center py-2 border-t border-slate-200 dark:border-slate-700">
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                             Valor Líquido a Pagar:
                           </span>
-                          <span className="text-lg font-bold text-gray-900">
+                          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
                             {formatCurrency(previewValues().netValue)}
                           </span>
                         </div>
 
-                        <div className="flex justify-between items-center text-blue-600">
-                          <span className="text-sm">
+                        <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
+                          <span className="text-sm font-medium">
                             Novo Cashback Gerado (
-                            {previewValues().actualRate?.toFixed(1) || 0}%):
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">
+                              {previewValues().actualRate?.toFixed(1) || 0}%
+                            </span>
+                            ):
                           </span>
-                          <span className="font-semibold">
+                          <span className="font-bold text-blue-700 dark:text-blue-300">
                             +{formatCurrency(previewValues().cashbackGenerated)}
                           </span>
                         </div>
@@ -942,17 +979,17 @@ export function SalesManagementTab({
                 <Button
                   type="submit"
                   disabled={loading || !isUmblerReady}
-                  className="flex-1 sm:flex-none h-11 bg-blue-600 hover:bg-blue-700"
+                  className="flex-1 sm:flex-none h-11 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 font-semibold"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Registrando...
+                      <span className="font-medium">Registrando...</span>
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4 mr-2" />
-                      Registrar Venda
+                      <span className="font-semibold">Registrar Venda</span>
                     </>
                   )}
                 </Button>
@@ -962,194 +999,15 @@ export function SalesManagementTab({
         </Dialog>
       </div>
 
-      {/* Sales Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Total de Vendas
-            </CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {thirtyDaysReport.salesCount || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-          </CardContent>
-        </Card>
+      {/* Sales Statistics - Componente otimizado */}
+      <SalesStatsCards
+        statistics={salesStats}
+        isLoading={isSalesStatsLoading}
+        formatCurrency={formatCurrencyForCards}
+      />
 
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Valor Total Bruto
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-gray-900">
-              {formatCurrency(thirtyDaysReport.totalSales || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Valor Líquido
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-purple-600">
-              {formatCurrency(
-                (thirtyDaysReport.totalSales || 0) -
-                  (thirtyDaysReport.totalCashbackUsed || 0)
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Cashback Utilizado
-            </CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-green-600">
-              {formatCurrency(thirtyDaysReport.totalCashbackUsed || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
-              Cashback Gerado
-            </CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">
-              {formatCurrency(thirtyDaysReport.totalCashbackGenerated || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Últimos 30 dias</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sales History */}
-      <Card className="shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b">
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            Histórico de Vendas
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50/50">
-                  <TableHead className="font-semibold text-gray-700">
-                    Cliente
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Data
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Valor Bruto
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Cashback Usado
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Valor Líquido
-                  </TableHead>
-                  <TableHead className="font-semibold text-gray-700">
-                    Cashback Gerado
-                  </TableHead>
-                  {isAdmin && (
-                    <TableHead className="w-[100px] font-semibold text-gray-700">
-                      Ações
-                    </TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sales.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={isAdmin ? 7 : 6}
-                      className="text-center py-12 text-muted-foreground"
-                    >
-                      <div className="flex flex-col items-center space-y-3">
-                        <Receipt className="h-12 w-12 text-gray-300" />
-                        <div className="space-y-1">
-                          <p className="font-medium">
-                            Nenhuma venda registrada ainda
-                          </p>
-                          <p className="text-sm">
-                            Registre sua primeira venda para começar
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sales.map((sale) => (
-                    <TableRow
-                      key={sale.id}
-                      className="hover:bg-gray-50/50 transition-colors"
-                    >
-                      <TableCell className="font-medium text-gray-900">
-                        {sale.clientName}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {new Date(sale.date).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="font-semibold text-gray-900">
-                        {formatCurrency(sale.grossValue)}
-                      </TableCell>
-                      <TableCell className="text-green-600 font-medium">
-                        {formatCurrency(sale.cashbackUsed)}
-                      </TableCell>
-                      <TableCell className="font-semibold text-purple-600">
-                        {formatCurrency(sale.netValue)}
-                      </TableCell>
-                      <TableCell className="text-blue-600 font-medium">
-                        {formatCurrency(sale.cashbackGenerated)}
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteSale(sale.id)}
-                            disabled={deletingSaleId === sale.id}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-                            title="Excluir venda (apenas administradores)"
-                          >
-                            {deletingSaleId === sale.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Sales History - Componente otimizado com filtros, ordenação e paginação */}
+      <SalesHistory />
 
       {/* Modal de Cadastro de Cliente */}
       <ClientFormModal

@@ -69,6 +69,8 @@ import {
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
 import { SalesManagementTab } from "@/components/sales-manegement-tab";
+import { CashbackStatsCards } from "@/components/cashback-stats-cards";
+import { ExpiringCashbacks } from "@/components/expiring-cashbacks";
 
 // Interfaces
 interface Client {
@@ -103,6 +105,15 @@ interface SaleForm {
   grossValue: string;
   notes: string;
   invoiceNumber: string;
+}
+
+interface CashbackStatistics {
+  totalCashback: number;
+  activeClients: number;
+  averageRate: number;
+  totalClients: number;
+  totalTransactions: number;
+  totalSettings: number;
 }
 
 // Função para formatar valores em moeda brasileira
@@ -193,6 +204,34 @@ export default function Cashback() {
   const { data: thirtyDaysReport = {} } = useQuery<any>({
     queryKey: ["/api/cashback-reports/30-days"],
   });
+
+  // Buscar estatísticas de cashback da nova API otimizada
+  // Esta API retorna todas as estatísticas em uma única requisição
+  const {
+    data: cashbackStats,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+    error: statsError,
+  } = useQuery<CashbackStatistics>({
+    queryKey: ["/api/cashback-statistics"],
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos para melhor performance
+    refetchOnWindowFocus: false, // Evita refetch desnecessário
+    retry: 3, // Tentar novamente até 3 vezes em caso de erro
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Backoff exponencial
+  });
+
+  // Exibir toast de erro se a API de estatísticas falhar
+  useEffect(() => {
+    if (isStatsError && statsError) {
+      console.error("Erro ao carregar estatísticas de cashback:", statsError);
+      toast({
+        title: "Erro",
+        description:
+          "Não foi possível carregar as estatísticas de cashback. Tentando novamente...",
+        variant: "destructive",
+      });
+    }
+  }, [isStatsError, statsError, toast]);
 
   // Funções para vendas
   const loadClients = async () => {
@@ -373,6 +412,9 @@ export default function Cashback() {
         queryClient.invalidateQueries({
           queryKey: ["/api/cashback-reports/30-days"],
         });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/cashback-statistics"],
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       } else {
         const error = await response.json();
@@ -453,6 +495,9 @@ export default function Cashback() {
       queryClient.invalidateQueries({
         queryKey: ["/api/cashback-transactions"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/cashback-statistics"],
+      });
       setDeletingBalance(null);
     },
     onError: (error: any) => {
@@ -513,10 +558,16 @@ export default function Cashback() {
       queryClient.invalidateQueries({
         queryKey: ["/api/cashback-reports/30-days"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/cashback-statistics"],
+      });
       // Forçar refetch imediato dos dados críticos
       queryClient.refetchQueries({ queryKey: ["/api/sales"] });
       queryClient.refetchQueries({
         queryKey: ["/api/cashback-reports/30-days"],
+      });
+      queryClient.refetchQueries({
+        queryKey: ["/api/cashback-statistics"],
       });
       setDeletingSaleId(null);
     },
@@ -551,26 +602,8 @@ export default function Cashback() {
     }).format(numericValue);
   };
 
-  // Calcular estatísticas
-  const totalCashback = transactions.reduce((sum: number, item: any) => {
-    const t = item.cashback_transactions || item;
-    if (t.status === "approved") {
-      return sum + parseFloat(t.cashbackAmount || 0);
-    }
-    return sum;
-  }, 0);
-
-  const activeClients = balances.filter(
-    (b: any) => parseFloat(b.currentBalance) > 0
-  ).length;
-
-  const averageRate =
-    settings.length > 0
-      ? settings.reduce(
-          (sum: number, s: any) => sum + parseFloat(s.percentageRate),
-          0
-        ) / settings.length
-      : 0;
+  // As estatísticas agora são fornecidas diretamente pela API otimizada
+  // Isso elimina a necessidade de múltiplos cálculos no frontend
 
   // Filtrar saldos por usuário responsável e pesquisa
   const filteredBalances = balances.filter((balance: any) => {
@@ -620,178 +653,78 @@ export default function Cashback() {
           </div>
 
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-1 md:grid-cols-6">
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="sales">Vendas</TabsTrigger>
-              <TabsTrigger value="balances">Saldos</TabsTrigger>
-              <TabsTrigger value="transactions">Transações</TabsTrigger>
-              <TabsTrigger value="usage">Resgates</TabsTrigger>
-              <TabsTrigger value="reports">Relatórios</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700 h-auto">
+              <TabsTrigger
+                value="overview"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-md p-1.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 group-data-[state=active]:bg-blue-200 dark:group-data-[state=active]:bg-blue-800/40 transition-colors">
+                  <Gift className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Visão Geral</span>
+                <span className="sm:hidden truncate">Visão</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="sales"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-md p-1.5 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 group-data-[state=active]:bg-emerald-200 dark:group-data-[state=active]:bg-emerald-800/40 transition-colors">
+                  <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Vendas</span>
+                <span className="sm:hidden truncate">Vendas</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="balances"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-md p-1.5 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 group-data-[state=active]:bg-purple-200 dark:group-data-[state=active]:bg-purple-800/40 transition-colors">
+                  <Wallet className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Saldos</span>
+                <span className="sm:hidden truncate">Saldos</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="transactions"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-md p-1.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 group-data-[state=active]:bg-amber-200 dark:group-data-[state=active]:bg-amber-800/40 transition-colors">
+                  <History className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Transações</span>
+                <span className="sm:hidden truncate">Trans.</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="usage"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-rose-700 dark:data-[state=active]:text-rose-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-rose-600 dark:hover:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-rose-100 dark:bg-rose-900/30 rounded-md p-1.5 group-hover:bg-rose-200 dark:group-hover:bg-rose-800/40 group-data-[state=active]:bg-rose-200 dark:group-data-[state=active]:bg-rose-800/40 transition-colors">
+                  <Percent className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Resgates</span>
+                <span className="sm:hidden truncate">Resg.</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="reports"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              >
+                <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-md p-1.5 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40 group-data-[state=active]:bg-indigo-200 dark:group-data-[state=active]:bg-indigo-800/40 transition-colors">
+                  <Calculator className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <span className="hidden sm:inline truncate">Relatórios</span>
+                <span className="sm:hidden truncate">Relat.</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total em Cashback
-                    </CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {formatCurrency(totalCashback)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Total distribuído em cashback
-                    </p>
-                  </CardContent>
-                </Card>
+              <CashbackStatsCards
+                statistics={cashbackStats}
+                isLoading={isStatsLoading}
+                formatCurrency={formatCurrency}
+              />
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Clientes Ativos
-                    </CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{activeClients}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Com saldo de cashback
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Taxa Média
-                    </CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {averageRate.toFixed(1)}%
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Taxa de cashback média
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Seção de Cashback Vencendo */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    Cashback Vencendo 🧨
-                  </CardTitle>
-                  <CardDescription>
-                    Cashbacks que vencem nos próximos 7 dias
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {(() => {
-                    // Filtrar transações que vencem nos próximos 7 dias e ainda estão válidas
-                    const today = new Date();
-                    const sevenDaysFromNow = new Date();
-                    sevenDaysFromNow.setDate(today.getDate() + 7);
-
-                    const expiringTransactions = transactions.filter(
-                      (item: any) => {
-                        const transaction = item.cashback_transactions || item;
-                        if (
-                          !transaction.expiresAt ||
-                          transaction.status !== "approved"
-                        )
-                          return false;
-
-                        const expiryDate = new Date(transaction.expiresAt);
-                        return (
-                          expiryDate > today && expiryDate <= sevenDaysFromNow
-                        );
-                      }
-                    );
-
-                    if (expiringTransactions.length === 0) {
-                      return (
-                        <div className="text-center py-8">
-                          <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            Nenhum cashback vencendo
-                          </h3>
-                          <p className="text-gray-500">
-                            Não há cashbacks próximos do vencimento nos próximos
-                            7 dias.
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="space-y-4">
-                        {expiringTransactions.slice(0, 5).map((item: any) => {
-                          const transaction =
-                            item.cashback_transactions || item;
-                          const client = item.clients || {};
-                          const expiryDate = new Date(transaction.expiresAt);
-                          const daysUntilExpiry = Math.ceil(
-                            (expiryDate.getTime() - today.getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          );
-
-                          return (
-                            <div
-                              key={transaction.id}
-                              className="flex items-center justify-between p-3 border rounded-lg bg-orange-50 border-orange-200"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                                </div>
-                                <div>
-                                  <p className="font-medium">
-                                    {client.name || "Cliente"}
-                                    {item.responsibleName && (
-                                      <span className="text-sm text-gray-500 ml-2">
-                                        • Resp: {item.responsibleName}
-                                      </span>
-                                    )}
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    Compra de{" "}
-                                    {formatCurrency(transaction.purchaseAmount)}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium text-orange-700">
-                                  {formatCurrency(transaction.cashbackAmount)}
-                                </p>
-                                <p className="text-sm text-orange-600 font-medium">
-                                  {daysUntilExpiry === 1
-                                    ? "Vence amanhã!"
-                                    : `Vence em ${daysUntilExpiry} dias`}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {expiringTransactions.length > 5 && (
-                          <div className="text-center pt-4">
-                            <p className="text-sm text-orange-600">
-                              E mais {expiringTransactions.length - 5} cashbacks
-                              vencendo...
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
+              {/* Seção de Cashback Vencendo com filtros e ordenação */}
+              <ExpiringCashbacks formatCurrency={formatCurrency} />
             </TabsContent>
 
             <TabsContent value="sales" className="space-y-6">
@@ -1277,7 +1210,7 @@ export default function Cashback() {
                         clientes
                       </CardDescription>
                     </div>
-                    <div className="flex w-full flex-col sm:flex-row gap-2 items-start sm:items-center gap-2">
+                    <div className="flex w-full flex-col sm:flex-row gap-2 items-start sm:items-center">
                       <div className="relative w-full flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
@@ -1667,7 +1600,7 @@ export default function Cashback() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {formatCurrency(totalCashback)}
+                      {formatCurrency(cashbackStats?.totalCashback ?? 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Em cashback acumulado
