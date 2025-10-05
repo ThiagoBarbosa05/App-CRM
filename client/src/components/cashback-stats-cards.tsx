@@ -118,7 +118,7 @@ export const CashbackStatsCards: React.FC<CashbackStatsCardsProps> = ({
   const averageRate = statistics?.averageRate ?? 0;
 
   return (
-    <div className="grid grid-cols-1 mt-4 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-8">
+    <div className="grid grid-cols-1 mt-5 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-8">
       <StatCard
         title="Total em Cashback"
         value={formatCurrency(totalCashback)}

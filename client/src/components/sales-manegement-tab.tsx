@@ -535,7 +535,7 @@ export function SalesManagementTab({
   };
 
   return (
-    <div className="space-y-6 mt-4">
+    <div className="space-y-6 mt-5">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="space-y-1">

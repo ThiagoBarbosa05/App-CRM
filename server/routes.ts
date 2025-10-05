@@ -90,7 +90,12 @@ import { updateCashbackSettingsController } from "./controllers/update-cashback-
 import {
   getCashbackStatisticsController,
   getExpiringCashbacks,
+  getCashbackBalancesController,
+  getCashbackTransactionsController,
+  getCashbackUsageController,
 } from "./controllers/cashback";
+import { getCashbackReports } from "./controllers/cashback/get-cashback-reports.controller";
+import { getCashbackPerformance } from "./controllers/cashback/get-cashback-performance.controller";
 import {
   getSalesStatisticsController,
   getSalesHistoryController,
@@ -1771,6 +1776,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Expiring cashbacks route
   app.get("/api/cashback-expiring", getExpiringCashbacks);
+
+  // Cashback balances with filters route
+  app.get("/api/cashback-balances-list", getCashbackBalancesController);
+
+  // Cashback transactions with filters route
+  app.get("/api/cashback-transactions-list", getCashbackTransactionsController);
+
+  // Cashback usage with filters route
+  app.get("/api/cashback-usage-list", getCashbackUsageController);
+
+  // Cashback reports dashboard route
+  app.get("/api/cashback-reports", getCashbackReports);
+
+  // Cashback performance analytics route
+  app.get("/api/cashback-performance", getCashbackPerformance);
 
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
