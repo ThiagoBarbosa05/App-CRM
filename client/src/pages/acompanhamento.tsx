@@ -19,19 +19,19 @@
 // import { FaWhatsapp } from "react-icons/fa";
 // import InteractionFormModal from "@/components/interaction-form-modal";
 
-// interface Client {
-//   id: string;
-//   name: string;
-//   phone: string;
-//   email?: string;
-//   cpf?: string;
-//   birthday?: string;
-//   categoria?: string;
-//   origem?: string;
-//   markers?: string[];
-//   responsavelId?: string;
-//   createdAt: string;
-// }
+interface Client {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  cpf?: string;
+  birthday?: string;
+  categoria?: string;
+  origem?: string;
+  markers?: string[];
+  responsavelId?: string;
+  createdAt: string;
+}
 
 // interface Interaction {
 //   id: string;
