@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast, useToast } from "@/hooks/use-toast";
 import {
   Image,
@@ -35,6 +36,11 @@ import {
   FileText,
   ArrowUp,
   ArrowDown,
+  Search,
+  Filter,
+  Video,
+  FileText as FileTextIcon,
+  ScrollText,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { CreateTrainingForm } from "./create-training-form";
@@ -113,8 +119,12 @@ export default function LearningImagesManagement() {
   const [showEditor, setShowEditor] = useState(false);
   const [openScriptForm, setOpenScriptForm] = useState(false);
 
-
   const [content, setContent] = useState("");
+
+  // Estados para pesquisa e filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isSearching, setIsSearching] = useState(false);
 
   const categories = [
     "Vendas",
@@ -125,7 +135,11 @@ export default function LearningImagesManagement() {
     "Geral",
   ];
 
-  const { data: trainingVideos } = useQuery<Training[]>({
+  const {
+    data: trainingVideos,
+    isLoading: isLoadingVideos,
+    isFetching: isFetchingVideos,
+  } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=video");
@@ -134,22 +148,28 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const { data: trainingDocument, isLoading: isLoadingDocuments } = useQuery<Training[]>({
+  const {
+    data: trainingDocument,
+    isLoading: isLoadingDocuments,
+    isFetching: isFetchingDocuments,
+  } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=document"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=document");
-      if (!response.ok) throw new Error("Failed to fetch training videos");
+      if (!response.ok) throw new Error("Failed to fetch training documents");
       return response.json();
     },
   });
 
-  const { data: scripts } = useQuery<Training[]>({
+  const {
+    data: scripts,
+    isLoading: isLoadingScripts,
+    isFetching: isFetchingScripts,
+  } = useQuery<Training[]>({
     queryKey: ["/api/trainings?type=script"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=script");
-
-      if (!response.ok) throw new Error("Failed to fetch training videos");
-
+      if (!response.ok) throw new Error("Failed to fetch training scripts");
       return response.json();
     },
   });
@@ -256,19 +276,23 @@ export default function LearningImagesManagement() {
     },
   });
 
-  const moveTraining = async (trainingId: string, direction: 'up' | 'down', type: string) => {
+  const moveTraining = async (
+    trainingId: string,
+    direction: "up" | "down",
+    type: string
+  ) => {
     try {
       const response = await fetch(`/api/trainings/${trainingId}/order`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ direction, type }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update training order');
+        throw new Error(errorData.message || "Failed to update training order");
       }
 
       // Invalidar queries para atualizar a lista
@@ -284,13 +308,18 @@ export default function LearningImagesManagement() {
 
       toast({
         title: "Ordem atualizada",
-        description: `Item movido para ${direction === 'up' ? 'cima' : 'baixo'} com sucesso.`,
+        description: `Item movido para ${
+          direction === "up" ? "cima" : "baixo"
+        } com sucesso.`,
       });
     } catch (error) {
       console.error("Erro ao atualizar ordem:", error);
       toast({
         title: "Erro ao atualizar ordem",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao atualizar a ordem. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -301,425 +330,775 @@ export default function LearningImagesManagement() {
   const documentsTrainings = trainingDocument; // Alias for clarity
 
   return (
-    <div>
-      <Separator className="bg-gray-200" />
-      <div className="p-2 md:p-5">
-        <div className="flex flex-col md:flex-row items-start gap-2 mb-5 justify-between">
-          <div className="space-y-2">
-            <h2 className="flex text-2xl font-semibold items-center gap-2">
-              <GraduationCap className="h-6 w-6" /> Gerenciar treinamentos
-            </h2>
-            <p className="text-sm md:ml-8">
-              Gerencie e crie seus treinamentos de vídeo, upload de documentos e
-              manuais, etc.
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/30 dark:from-slate-900 dark:to-slate-800">
+      <div className="p-4 lg:p-6">
+        {/* Header com gradiente teal/cyan */}
+        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl p-6 mb-6 shadow-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-white">
+            <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+              <GraduationCap className="h-8 w-8" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2">
+                Gerenciar Treinamentos
+              </h1>
+              <p className="text-teal-100 text-sm lg:text-base">
+                Gerencie e crie seus treinamentos de vídeo, upload de
+                documentos, manuais e scripts de vendas
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-5">
-          <Tabs defaultValue="videos">
-            <TabsList className="w-full flex-col sm:flex-row justify-evenly">
-              <TabsTrigger className="w-full" value="videos">
+        {/* Barra de pesquisa e filtros */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 mb-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Buscar treinamentos..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setIsSearching(!!e.target.value);
+                }}
+                className="pl-10 border-slate-300 focus:border-teal-400 focus:ring-teal-400 dark:border-slate-600 dark:focus:border-teal-500"
+              />
+              {isFetchingVideos || isFetchingDocuments || isFetchingScripts ? (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-teal-500 border-t-transparent"></div>
+                </div>
+              ) : null}
+            </div>
+            <div className="sm:w-48">
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+              >
+                <SelectTrigger className="border-slate-300 focus:border-teal-400 focus:ring-teal-400 dark:border-slate-600 dark:focus:border-teal-500">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Categorias</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <Tabs defaultValue="videos" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border-0 shadow-sm">
+              <TabsTrigger
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-slate-200 dark:hover:bg-slate-700 focus-visible:bg-slate-200 dark:focus-visible:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800 transition-all duration-200 flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300 bg-transparent border-0"
+                value="videos"
+              >
+                <Video className="h-4 w-4" />
                 Vídeos
               </TabsTrigger>
-              <TabsTrigger className="w-full" value="documents">
-                Documentos e manuais
+              <TabsTrigger
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-slate-200 dark:hover:bg-slate-700 focus-visible:bg-slate-200 dark:focus-visible:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800 transition-all duration-200 flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300 bg-transparent border-0"
+                value="documents"
+              >
+                <FileTextIcon className="h-4 w-4" />
+                Documentos
               </TabsTrigger>
-              <TabsTrigger className="w-full" value="scripts">
-                Script de vendas
+              <TabsTrigger
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-slate-200 dark:hover:bg-slate-700 focus-visible:bg-slate-200 dark:focus-visible:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800 transition-all duration-200 flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300 bg-transparent border-0"
+                value="scripts"
+              >
+                <ScrollText className="h-4 w-4" />
+                Scripts
               </TabsTrigger>
-            </TabsList>
-
-            <TabsContent className="w-full" value="videos">
-              <div className="flex flex-col items-center gap-4">
-                {trainingVideos &&
-                  trainingVideos.map((training) => (
-                    <div
-                      className="rounded-md flex flex-col md:flex-row items-start gap-4 p-5 bg-white w-full shadow-lg"
-                      key={training.id}
-                    >
-                      <div className="flex-1 w-full">
-                        <h4 className="text-primary font-semibold text-lg">
-                          {training.title}
-                        </h4>
-                        <p className="text-sm">{training.description}</p>
-
-                        <div className="flex gap-2 mt-4 flex-wrap">
-                          <Badge>{training.category}</Badge>
-                          <Badge className="bg-orange-300">
-                            {training.level}
-                          </Badge>
-                        </div>
-
-                        <div className="flex gap-2 mt-6 flex-wrap">
-                          <Button
-                            onClick={() => {
-                              setEditingTraining(training);
-                              setOpenCreateTrainingModal(true);
-                            }}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Pencil className="size-4 mr-1" />
-                            Editar
-                          </Button>
-                          <Button
-                            className="bg-red-500 text-white"
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setTrainingToDelete(training.id);
-                              setOpenDeleteDialog(true);
-                            }}
-                          >
-                            <Trash className="size-4 mr-1" />
-                            Deletar
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="w-full md:w-auto">
-                        {training.attachmentUrl && (
-                          <iframe
-                            className="rounded-lg w-full md:w-[400px] h-auto aspect-video"
-                            src={
-                              training.attachmentUrl?.includes(
-                                "www.youtube.com",
-                              ) && !training.attachmentUrl.includes("embed")
-                                ? getYouTubeEmbedUrl(training.attachmentUrl)
-                                : training.attachmentUrl || ""
-                            }
-                            title={training.title}
-                            allowFullScreen
-                          />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                {trainingVideos && trainingVideos.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    Nenhum Treinamento encontrado.
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setEditingTraining(null);
-                    setOpenCreateTrainingModal(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Criar Treinamento
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent className="w-full" value="documents">
-              <div className="flex flex-col gap-4 items-start">
-                <section className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {trainingDocument &&
-                    trainingDocument.map((training) => (
-                      <div
-                        className="bg-white w-full min-h-56 p-5 shadow-lg rounded-md"
-                        key={training.id}
-                      >
-                        <div className="h-full flex flex-col justify-between">
-                          <div className="flex gap-4">
-                            <File className="size-10 text-red-500 flex-shrink-0" />
-                            <div className="flex-1">
-                              <p className="text-xl font-medium">
-                                {training.title}
-                              </p>
-                              <p className="text-sm text-gray-500 pt-1">
-                                {training.description}
-                              </p>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className="rounded-full border-gray-300"
-                                  size={"icon"}
-                                >
-                                  <EllipsisVertical className="size-4 text-gray-600" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="w-56" align="end">
-                                <DropdownMenuItem className="p-0">
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => {
-                                      setOpenDocumentForm(true);
-                                      setTrainingEditFile(null);
-                                      setEditingTraining(training);
-                                    }}
-                                  >
-                                    <Pencil className="mr-2" />
-                                    Editar
-                                  </Button>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="p-0">
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => {
-                                      setOpenDocumentForm(true);
-                                      setEditingTraining(null);
-                                      setTrainingEditFile(training.id);
-                                    }}
-                                  >
-                                    <Upload className="mr-2" />
-                                    Editar arquivo
-                                  </Button>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="p-0">
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full text-red-500 justify-start hover:text-red-500 hover:bg-gray-100"
-                                    disabled={
-                                      deleteDocumentTrainingMutation.isPending
-                                    }
-                                    onClick={() =>
-                                      deleteDocumentTrainingMutation.mutateAsync(
-                                        training.id,
-                                      )
-                                    }
-                                  >
-                                    <Trash2 className="mr-2" />
-                                    {deleteDocumentTrainingMutation.isPending
-                                      ? "Deletando..."
-                                      : "Deletar"}
-                                  </Button>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="p-0">
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => moveTraining(training.id, 'up', 'document')}
-                                  >
-                                    <ArrowUp className="mr-2" />
-                                    Mover para cima
-                                  </Button>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="p-0">
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start hover:bg-gray-100"
-                                    onClick={() => moveTraining(training.id, 'down', 'document')}
-                                  >
-                                    <ArrowDown className="mr-2" />
-                                    Mover para baixo
-                                  </Button>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          <div className="flex justify-between items-center mt-4">
+            </TabsList>{" "}
+            <TabsContent className="w-full space-y-6" value="videos">
+              {/* Skeleton Loading para Videos */}
+              {isLoadingVideos && (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Card key={index} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col lg:flex-row gap-6">
+                          <div className="flex-1 space-y-4">
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
                             <div className="flex gap-2">
-                              <Badge variant={"outline"}>
-                                {training.category}
-                              </Badge>
-                              <Badge variant={"secondary"}>
-                                {(documentsTrainings?.findIndex(d => d.id === training.id) || 0) + 1}º
-                              </Badge>
+                              <Skeleton className="h-6 w-20" />
+                              <Skeleton className="h-6 w-16" />
                             </div>
-                            <a
-                              href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
-                              className="border flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <BookOpen className="size-4 mr-1" />
-                              Abrir
-                            </a>
+                            <div className="flex gap-2">
+                              <Skeleton className="h-8 w-20" />
+                              <Skeleton className="h-8 w-20" />
+                            </div>
                           </div>
+                          <Skeleton className="w-full lg:w-80 h-44 rounded-lg" />
                         </div>
-                      </div>
-                    ))}
-                </section>
-
-                <div className="w-full flex justify-center">
-                  <Button
-                    onClick={() => {
-                      setEditingTraining(null);
-                      setTrainingEditFile(null);
-                      setOpenDocumentForm(true);
-                    }}
-                  >
-                    <Upload className="h-4 w-4 mr-2" /> Enviar documento
-                  </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </div>
-            </TabsContent>
+              )}
 
-            <TabsContent className="w-full" value="scripts">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {scripts?.map((script) => (
-                  <div
-                    key={script.id}
-                    className="bg-white flex flex-col p-5 rounded-md shadow-md"
-                  >
-                    <div className="flex items-center gap-2 mb-4">
-                      <FileText className="flex-shrink-0" />
-
-                      <div className="flex-1">
-                        <h4 className="text-xl font-medium">{script.title}</h4>
-                        <p className="text-sm">{script.description}</p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="rounded-full border-gray-300"
-                            size={"icon"}
+              {/* Content para Videos */}
+              {!isLoadingVideos && (
+                <>
+                  <div className="space-y-4">
+                    {trainingVideos &&
+                      trainingVideos
+                        .filter((training) => {
+                          const matchesSearch =
+                            searchTerm === "" ||
+                            training.title
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase()) ||
+                            training.description
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase());
+                          const matchesCategory =
+                            selectedCategory === "all" ||
+                            training.category === selectedCategory;
+                          return matchesSearch && matchesCategory;
+                        })
+                        .map((training) => (
+                          <Card
+                            key={training.id}
+                            className="group hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-700 overflow-hidden"
                           >
-                            <EllipsisVertical className="size-4 text-gray-600" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" align="end">
-                          <DropdownMenuItem className="p-0">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => {
-                                setOpenScriptForm(true);
-                                setEditingScript(script);
-                              }}
-                            >
-                              <Pencil className="mr-2" />
-                              Editar
-                            </Button>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="p-0">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => moveTraining(script.id, 'up', 'script')}
-                            >
-                              <ArrowUp className="mr-2" />
-                              Mover para cima
-                            </Button>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="p-0">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start hover:bg-gray-100"
-                              onClick={() => moveTraining(script.id, 'down', 'script')}
-                            >
-                              <ArrowDown className="mr-2" />
-                              Mover para baixo
-                            </Button>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="p-0">
-                            <Button
-                              variant="ghost"
-                              className="w-full text-red-500 justify-start hover:text-red-500 hover:bg-gray-100"
-                              disabled={deleteScriptMutation.isPending}
-                              onClick={() => deleteScriptMutation.mutate(script.id)}
-                            >
-                              <Trash2 className="mr-2" />
-                              {deleteScriptMutation.isPending
-                                ? "Deletando..."
-                                : "Deletar"}
-                            </Button>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div
-                      style={{
-                        backgroundColor: "#202938", // cor de fundo fixa
-                        whiteSpace: "normal",
-                        wordWrap: "break-word",
-                        color: "white",
-                      }}
-                      className="prose flex-1 p-4 preview-content leading-none max-w-none max-h-96 overflow-x-hidden break-words"
-                      dangerouslySetInnerHTML={{
-                        __html: script.content || (
-                          <p>Nenhum conteúdo encontrado</p>
-                        ),
-                      }}
-                    />
+                            <CardContent className="p-6">
+                              <div className="flex flex-col lg:flex-row gap-6">
+                                <div className="flex-1 space-y-4">
+                                  <div>
+                                    <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 group-hover:text-teal-600 transition-colors">
+                                      {training.title}
+                                    </h3>
+                                    <p className="text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                                      {training.description}
+                                    </p>
+                                  </div>
 
-                    <div className="mt-5 flex gap-2 flex-wrap">
-                      <Button
-                        onClick={() => {
-                          setTimeout(() => {
-                            formRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
-                          }, 100);
-                          setEditingScript(script);
-                          setShowEditor(true);
-                        }}
-                        variant={"outline"}
-                        size="sm"
-                      >
-                        <Pencil className="mr-1" /> Editar
-                      </Button>
+                                  <div className="flex gap-2 flex-wrap">
+                                    <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800">
+                                      {training.category}
+                                    </Badge>
+                                    {training.level && (
+                                      <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800">
+                                        {training.level}
+                                      </Badge>
+                                    )}
+                                    {training.duration && (
+                                      <Badge
+                                        variant="outline"
+                                        className="border-slate-300 dark:border-slate-600"
+                                      >
+                                        {training.duration}
+                                      </Badge>
+                                    )}
+                                  </div>
 
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            disabled={deleteMutation.isPending}
-                            className="bg-red-500 text-white"
-                            size="sm"
-                          >
-                            <Trash2 className="mr-1" /> Deletar
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Deseja excluir esse script?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Essa ação não poderá ser desfeita
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-500 text-white"
-                              disabled={deleteMutation.isPending}
-                              onClick={() => deleteMutation.mutate(script.id)}
-                            >
-                              Confirmar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                                  <div className="flex gap-2 flex-wrap">
+                                    <Button
+                                      onClick={() => {
+                                        setEditingTraining(training);
+                                        setOpenCreateTrainingModal(true);
+                                      }}
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 dark:border-teal-600 dark:text-teal-300 dark:hover:bg-teal-900/20"
+                                    >
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setTrainingToDelete(training.id);
+                                        setOpenDeleteDialog(true);
+                                      }}
+                                      className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash className="h-4 w-4 mr-2" />
+                                      Deletar
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                {training.attachmentUrl && (
+                                  <div className="w-full lg:w-80">
+                                    <iframe
+                                      className="rounded-lg w-full h-44 border-0 shadow-sm"
+                                      src={
+                                        training.attachmentUrl?.includes(
+                                          "www.youtube.com"
+                                        ) &&
+                                        !training.attachmentUrl.includes(
+                                          "embed"
+                                        )
+                                          ? getYouTubeEmbedUrl(
+                                              training.attachmentUrl
+                                            )
+                                          : training.attachmentUrl || ""
+                                      }
+                                      title={training.title}
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+
+                    {trainingVideos &&
+                      trainingVideos.length === 0 &&
+                      !isLoadingVideos && (
+                        <Card className="text-center py-12">
+                          <CardContent>
+                            <Video className="h-12 w-12 mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                              Nenhum vídeo encontrado
+                            </p>
+                            <p className="text-slate-400 dark:text-slate-500 text-sm">
+                              Comece criando seu primeiro treinamento em vídeo
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
                   </div>
-                ))}
-              </div>
-              <div className="w-full flex justify-center mt-5">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowEditor(true);
-                    setEditingScript(null);
-                    setTimeout(() => {
-                      formRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }, 100);
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Script
-                </Button>
-              </div>
 
-              {showEditor && (
-                <div ref={formRef}>
-                  <ScriptForm
-                    scriptToEdit={editingScript}
-                    onOpenChange={setShowEditor}
-                  />
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() => {
+                        setEditingTraining(null);
+                        setOpenCreateTrainingModal(true);
+                      }}
+                      className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Treinamento
+                    </Button>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+            <TabsContent className="w-full space-y-6" value="documents">
+              {/* Skeleton Loading para Documentos */}
+              {isLoadingDocuments && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Card key={index} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4 mb-4">
+                          <Skeleton className="h-10 w-10 rounded" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-5 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
+                          </div>
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                        </div>
+                        <div className="flex justify-between items-center mt-6">
+                          <div className="flex gap-2">
+                            <Skeleton className="h-6 w-16" />
+                            <Skeleton className="h-6 w-8" />
+                          </div>
+                          <Skeleton className="h-8 w-20" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
+              )}
+
+              {/* Content para Documentos */}
+              {!isLoadingDocuments && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {trainingDocument &&
+                      trainingDocument
+                        .filter((training) => {
+                          const matchesSearch =
+                            searchTerm === "" ||
+                            training.title
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase()) ||
+                            training.description
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase());
+                          const matchesCategory =
+                            selectedCategory === "all" ||
+                            training.category === selectedCategory;
+                          return matchesSearch && matchesCategory;
+                        })
+                        .map((training) => (
+                          <Card
+                            key={training.id}
+                            className="group hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-700 overflow-hidden"
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex items-start gap-4 mb-4">
+                                <div className="p-2 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-lg">
+                                  <File className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-teal-600 transition-colors truncate">
+                                    {training.title}
+                                  </h3>
+                                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                                    {training.description}
+                                  </p>
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                      <EllipsisVertical className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    className="w-56"
+                                    align="end"
+                                  >
+                                    <DropdownMenuItem className="p-0">
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                        onClick={() => {
+                                          setOpenDocumentForm(true);
+                                          setTrainingEditFile(null);
+                                          setEditingTraining(training);
+                                        }}
+                                      >
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                      </Button>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="p-0">
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                        onClick={() => {
+                                          setOpenDocumentForm(true);
+                                          setEditingTraining(null);
+                                          setTrainingEditFile(training.id);
+                                        }}
+                                      >
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Editar arquivo
+                                      </Button>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="p-0">
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                        onClick={() =>
+                                          moveTraining(
+                                            training.id,
+                                            "up",
+                                            "document"
+                                          )
+                                        }
+                                      >
+                                        <ArrowUp className="mr-2 h-4 w-4" />
+                                        Mover para cima
+                                      </Button>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="p-0">
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                        onClick={() =>
+                                          moveTraining(
+                                            training.id,
+                                            "down",
+                                            "document"
+                                          )
+                                        }
+                                      >
+                                        <ArrowDown className="mr-2 h-4 w-4" />
+                                        Mover para baixo
+                                      </Button>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="p-0">
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full text-red-600 dark:text-red-400 justify-start hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        disabled={
+                                          deleteDocumentTrainingMutation.isPending
+                                        }
+                                        onClick={() =>
+                                          deleteDocumentTrainingMutation.mutateAsync(
+                                            training.id
+                                          )
+                                        }
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        {deleteDocumentTrainingMutation.isPending
+                                          ? "Deletando..."
+                                          : "Deletar"}
+                                      </Button>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+
+                              <div className="flex justify-between items-center mt-6">
+                                <div className="flex gap-2">
+                                  <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200 dark:border-teal-800">
+                                    {training.category}
+                                  </Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                  >
+                                    {(documentsTrainings?.findIndex(
+                                      (d) => d.id === training.id
+                                    ) || 0) + 1}
+                                    º
+                                  </Badge>
+                                </div>
+                                <Button
+                                  asChild
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 dark:border-teal-600 dark:text-teal-300 dark:hover:bg-teal-900/20"
+                                >
+                                  <a
+                                    href={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <BookOpen className="h-4 w-4 mr-1" />
+                                    Abrir
+                                  </a>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+
+                    {trainingDocument &&
+                      trainingDocument.length === 0 &&
+                      !isLoadingDocuments && (
+                        <div className="col-span-full">
+                          <Card className="text-center py-12">
+                            <CardContent>
+                              <FileTextIcon className="h-12 w-12 mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                                Nenhum documento encontrado
+                              </p>
+                              <p className="text-slate-400 dark:text-slate-500 text-sm">
+                                Faça upload do seu primeiro documento ou manual
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() => {
+                        setEditingTraining(null);
+                        setTrainingEditFile(null);
+                        setOpenDocumentForm(true);
+                      }}
+                      className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Enviar Documento
+                    </Button>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+            <TabsContent className="w-full space-y-6" value="scripts">
+              {/* Skeleton Loading para Scripts */}
+              {isLoadingScripts && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Card key={index} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-3 mb-4">
+                          <Skeleton className="h-6 w-6" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-5 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                          </div>
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                        </div>
+                        <Skeleton className="h-48 w-full rounded-lg mb-4" />
+                        <div className="flex gap-2">
+                          <Skeleton className="h-8 w-16" />
+                          <Skeleton className="h-8 w-16" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Content para Scripts */}
+              {!isLoadingScripts && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {scripts
+                      ?.filter((script) => {
+                        const matchesSearch =
+                          searchTerm === "" ||
+                          script.title
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase()) ||
+                          script.description
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase());
+                        const matchesCategory =
+                          selectedCategory === "all" ||
+                          script.category === selectedCategory;
+                        return matchesSearch && matchesCategory;
+                      })
+                      .map((script) => (
+                        <Card
+                          key={script.id}
+                          className="group hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden"
+                        >
+                          <CardContent className="p-6 flex flex-col h-full">
+                            <div className="flex items-start gap-3 mb-4">
+                              <div className="p-2 bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-900/30 rounded-lg">
+                                <ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-teal-600 transition-colors">
+                                  {script.title}
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                                  {script.description}
+                                </p>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  >
+                                    <EllipsisVertical className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  className="w-56"
+                                  align="end"
+                                >
+                                  <DropdownMenuItem className="p-0">
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                      onClick={() => {
+                                        setOpenScriptForm(true);
+                                        setEditingScript(script);
+                                      }}
+                                    >
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Editar
+                                    </Button>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="p-0">
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                      onClick={() =>
+                                        moveTraining(script.id, "up", "script")
+                                      }
+                                    >
+                                      <ArrowUp className="mr-2 h-4 w-4" />
+                                      Mover para cima
+                                    </Button>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="p-0">
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                      onClick={() =>
+                                        moveTraining(
+                                          script.id,
+                                          "down",
+                                          "script"
+                                        )
+                                      }
+                                    >
+                                      <ArrowDown className="mr-2 h-4 w-4" />
+                                      Mover para baixo
+                                    </Button>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="p-0">
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full text-red-600 dark:text-red-400 justify-start hover:bg-red-50 dark:hover:bg-red-900/20"
+                                      disabled={deleteScriptMutation.isPending}
+                                      onClick={() =>
+                                        deleteScriptMutation.mutate(script.id)
+                                      }
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      {deleteScriptMutation.isPending
+                                        ? "Deletando..."
+                                        : "Deletar"}
+                                    </Button>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+
+                            <div className="flex-1 mb-4">
+                              <div
+                                className="bg-slate-800 dark:bg-slate-900 text-white p-4 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600"
+                                style={{
+                                  maxHeight: "200px",
+                                  overflowY: "auto",
+                                }}
+                              >
+                                <div
+                                  className="prose prose-invert prose-sm max-w-none break-words [&>*]:text-white"
+                                  dangerouslySetInnerHTML={{
+                                    __html:
+                                      script.content ||
+                                      "<p class='text-slate-400'>Nenhum conteúdo encontrado</p>",
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 flex-wrap mt-auto">
+                              <Button
+                                onClick={() => {
+                                  setTimeout(() => {
+                                    formRef.current?.scrollIntoView({
+                                      behavior: "smooth",
+                                      block: "start",
+                                    });
+                                  }, 100);
+                                  setEditingScript(script);
+                                  setShowEditor(true);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 dark:border-teal-600 dark:text-teal-300 dark:hover:bg-teal-900/20"
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </Button>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    disabled={deleteMutation.isPending}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-900/20"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Deletar
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="sm:max-w-md">
+                                  <AlertDialogHeader className="text-center pb-4 border-b border-slate-200 dark:border-slate-700">
+                                    <AlertDialogTitle className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400">
+                                      <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
+                                        <Trash2 className="h-5 w-5" />
+                                      </div>
+                                      Confirmar Exclusão
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+                                      Tem certeza que deseja excluir o script{" "}
+                                      <strong>"{script.title}"</strong>?<br />
+                                      Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+                                    <AlertDialogCancel className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-500 hover:bg-red-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={deleteMutation.isPending}
+                                      onClick={() =>
+                                        deleteMutation.mutate(script.id)
+                                      }
+                                    >
+                                      {deleteMutation.isPending ? (
+                                        <div className="flex items-center gap-2">
+                                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                          Excluindo...
+                                        </div>
+                                      ) : (
+                                        "Confirmar"
+                                      )}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                    {scripts && scripts.length === 0 && !isLoadingScripts && (
+                      <div className="col-span-full">
+                        <Card className="text-center py-12">
+                          <CardContent>
+                            <ScrollText className="h-12 w-12 mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                              Nenhum script encontrado
+                            </p>
+                            <p className="text-slate-400 dark:text-slate-500 text-sm">
+                              Crie seu primeiro script de vendas
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() => {
+                        setShowEditor(true);
+                        setEditingScript(null);
+                        setTimeout(() => {
+                          formRef.current?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
+                        }, 100);
+                      }}
+                      className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Script
+                    </Button>
+                  </div>
+
+                  {showEditor && (
+                    <div ref={formRef} className="mt-6">
+                      <Card className="border-teal-200 dark:border-teal-800 shadow-lg">
+                        <ScriptForm
+                          scriptToEdit={editingScript}
+                          onOpenChange={setShowEditor}
+                        />
+                      </Card>
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
           </Tabs>
@@ -739,23 +1118,37 @@ export default function LearningImagesManagement() {
       />
 
       <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Deseja excluir esse treinamento?
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader className="text-center pb-4 border-b border-slate-200 dark:border-slate-700">
+            <AlertDialogTitle className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400">
+              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              Confirmar Exclusão
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não poderá ser desfeita
+            <AlertDialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+              Tem certeza que deseja excluir este treinamento?
+              <br />
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-500 text-white"
+              className="bg-red-500 hover:bg-red-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate(trainingToDelete)}
             >
-              Confirmar
+              {deleteMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  Excluindo...
+                </div>
+              ) : (
+                "Confirmar"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

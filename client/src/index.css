@@ -76,7 +76,7 @@
   margin-bottom: 0;
 }
 
-.rich-text-content ul, 
+.rich-text-content ul,
 .rich-text-content ol {
   margin: 0.5rem 0;
   padding-left: 1.5rem;
@@ -467,8 +467,8 @@ pre {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {

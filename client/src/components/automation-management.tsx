@@ -17,7 +17,12 @@ import {
   TestTube,
   RefreshCcw,
   RotateCcw,
+  Bot,
+  Calendar,
+  Zap,
+  Activity,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -1043,492 +1048,665 @@ export function AutomationManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">
-            Carregando automações...
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-teal-50">
+        <div className="p-4 lg:p-8 space-y-6">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+              <div className="space-y-3">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-96" />
+              </div>
+              <Skeleton className="h-10 w-40" />
+            </div>
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border shadow-sm p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            ))}
+          </div>
+
+          {/* Test Section Skeleton */}
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="flex items-center gap-4 mb-6">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="flex-1">
+                <Skeleton className="h-6 w-48 mb-2" />
+                <Skeleton className="h-4 w-80" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="bg-gray-50 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div>
+                      <Skeleton className="h-5 w-24 mb-1" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-3/4 mb-4" />
+                  <Skeleton className="h-11 w-full rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Automation Cards Skeleton */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border shadow-sm p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <Skeleton className="h-5 w-32 mb-2" />
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header com estatísticas */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl lg:text-3xl font-bold">
-            Automações de Mensagens
-          </h1>
-          <p className="text-muted-foreground">
-            Gerencie automações para envio de mensagens de aniversário
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-teal-50">
+      <div className="p-4 lg:p-8 space-y-8">
+        {/* Header moderno com gradiente */}
+        <div className="relative bg-gradient-to-r from-emerald-600 via-blue-600 to-teal-600 rounded-2xl shadow-xl overflow-hidden">
+          {/* Padrão de fundo decorativo */}
+          <div className="absolute inset-0 opacity-30">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 25% 25%, white 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+              }}
+            ></div>
+          </div>
+
+          <div className="relative p-6 lg:p-8">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Bot className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl lg:text-4xl font-bold text-white">
+                      Automações de Mensagens
+                    </h1>
+                    <p className="text-emerald-100 text-lg">
+                      Gerencie automações para envio de mensagens de aniversário
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Dialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    size="lg"
+                    className="bg-white text-emerald-600 hover:bg-emerald-50 shadow-lg hover:shadow-xl transition-all duration-300 font-semibold w-full sm:w-auto"
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    Nova Automação
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Automação</DialogTitle>
+                    <DialogDescription>
+                      Configure uma nova automação para envio de mensagens de
+                      aniversário.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <AutomationForm
+                    channels={channels}
+                    templates={templates}
+                    onSubmit={handleCreateAutomation}
+                    onCancel={() => setIsCreateDialogOpen(false)}
+                    isLoading={createMutation.isPending}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
         </div>
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Automação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Criar Nova Automação</DialogTitle>
-              <DialogDescription>
-                Configure uma nova automação para envio de mensagens de
-                aniversário.
-              </DialogDescription>
-            </DialogHeader>
-            <AutomationForm
-              channels={channels}
-              templates={templates}
-              onSubmit={handleCreateAutomation}
-              onCancel={() => setIsCreateDialogOpen(false)}
-              isLoading={createMutation.isPending}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total de Automações
-            </CardTitle>
-            <div className="p-2 bg-muted/50 rounded-full">
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.totalCount === 1
-                ? "automação configurada"
-                : "automações configuradas"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Automações Ativas
-            </CardTitle>
-            <div className="p-2 bg-green-100 rounded-full">
-              <MessageSquare className="h-4 w-4 text-green-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.activeCount}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              enviando mensagens automaticamente
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Automações Inativas
-            </CardTitle>
-            <div className="p-2 bg-muted/50 rounded-full">
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">
-              {stats.inactiveCount}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              pausadas ou desabilitadas
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Seção de Testes - Design Aprimorado */}
-      <Card className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-all duration-300 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
-        {/* Background decorativo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
-
-        <CardHeader className="relative">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-lg">
-                <TestTube className="h-6 w-6" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-xl ">Testar Automações</CardTitle>
-              <CardDescription className="text-base mt-1">
-                Execute testes manuais para verificar o funcionamento das
-                automações em tempo real
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="relative space-y-6">
-          {/* Grid de Testes */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Teste Completo */}
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative bg-gradient-to-br from-background to-blue-50/50 border border-blue-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-blue-300/80">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
-                      <Play className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg text-blue-900">
-                        Teste Completo
-                      </h4>
-                      <p className="text-sm text-blue-700">Execução global</p>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Executa{" "}
-                    <span className="font-medium text-blue-600">
-                      todas as automações ativas
-                    </span>{" "}
-                    para verificar o funcionamento geral. Ideal para validar
-                    configurações após mudanças.
-                  </p>
-
-                  <div className="pt-2">
-                    <Button
-                      onClick={handleTestAllAutomation}
-                      disabled={
-                        testAllMutation.isPending || stats.activeCount === 0
-                      }
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
-                      size="lg"
-                    >
-                      {testAllMutation.isPending ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
-                          Executando teste...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-3" />
-                          Executar Teste Completo
-                        </>
-                      )}
-                    </Button>
-                  </div>
+        {/* Cards de estatísticas modernos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 group hover:scale-105">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                  Total de Automações
+                </CardTitle>
+                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+                  <Settings className="h-5 w-5 text-white" />
                 </div>
               </div>
-            </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                {stats.totalCount}
+              </div>
+              <p className="text-sm text-emerald-600 font-medium">
+                {stats.totalCount === 1
+                  ? "automação configurada"
+                  : "automações configuradas"}
+              </p>
+            </CardContent>
+          </Card>
 
-            {/* Teste Agendado */}
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative bg-gradient-to-br from-background to-green-50/50 border border-green-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-green-300/80">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
-                      <Clock className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-lg text-green-900">
-                        Teste Agendado
-                      </h4>
-                      <p className="text-sm text-green-700">
-                        Simulação temporal
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Executa apenas automações que{" "}
-                    <span className="font-medium text-green-600">
-                      correspondem ao horário atual
-                    </span>
-                    . Simula o comportamento da execução programada.
-                  </p>
-
-                  <div className="pt-2">
-                    <Button
-                      onClick={handleTestScheduledAutomation}
-                      disabled={
-                        testScheduledMutation.isPending ||
-                        stats.activeCount === 0
-                      }
-                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
-                      size="lg"
-                    >
-                      {testScheduledMutation.isPending ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
-                          Executando teste...
-                        </>
-                      ) : (
-                        <>
-                          <Clock className="h-4 w-4 mr-3" />
-                          Executar Teste Agendado
-                        </>
-                      )}
-                    </Button>
-                  </div>
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-green-50 group hover:scale-105">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                  Automações Ativas
+                </CardTitle>
+                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+                  <Zap className="h-5 w-5 text-white" />
                 </div>
               </div>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-3xl font-bold text-green-600 mb-1">
+                {stats.activeCount}
+              </div>
+              <p className="text-sm text-green-600 font-medium">
+                enviando mensagens automaticamente
+              </p>
+              <div className="flex items-center mt-2 gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-green-600">Em funcionamento</span>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Status e Alertas */}
-          <div className="space-y-4">
-            {/* Alerta quando não há automações ativas */}
-            {stats.activeCount === 0 && (
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50 group hover:scale-105 sm:col-span-2 lg:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                  Automações Inativas
+                </CardTitle>
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
+                  <Activity className="h-5 w-5 text-white" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-3xl font-bold text-blue-600 mb-1">
+                {stats.inactiveCount}
+              </div>
+              <p className="text-sm text-blue-600 font-medium">
+                pausadas ou desabilitadas
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Seção de Testes - Design Aprimorado */}
+        <Card className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-all duration-300 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
+          {/* Background decorativo */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
+
+          <CardHeader className="relative">
+            <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-xl blur-lg" />
-                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-lg">
+                  <TestTube className="h-6 w-6" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-xl ">Testar Automações</CardTitle>
+                <CardDescription className="text-base mt-1">
+                  Execute testes manuais para verificar o funcionamento das
+                  automações em tempo real
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="relative space-y-6">
+            {/* Grid de Testes */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Teste Completo */}
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative bg-gradient-to-br from-background to-blue-50/50 border border-blue-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-blue-300/80">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
+                        <Play className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-lg text-blue-900">
+                          Teste Completo
+                        </h4>
+                        <p className="text-sm text-blue-700">Execução global</p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Executa{" "}
+                      <span className="font-medium text-blue-600">
+                        todas as automações ativas
+                      </span>{" "}
+                      para verificar o funcionamento geral. Ideal para validar
+                      configurações após mudanças.
+                    </p>
+
+                    <div className="pt-2">
+                      <Button
+                        onClick={handleTestAllAutomation}
+                        disabled={
+                          testAllMutation.isPending || stats.activeCount === 0
+                        }
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
+                        size="lg"
+                      >
+                        {testAllMutation.isPending ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
+                            Executando teste...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-3" />
+                            Executar Teste Completo
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Teste Agendado */}
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative bg-gradient-to-br from-background to-green-50/50 border border-green-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-green-300/80">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
+                        <Clock className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-lg text-green-900">
+                          Teste Agendado
+                        </h4>
+                        <p className="text-sm text-green-700">
+                          Simulação temporal
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Executa apenas automações que{" "}
+                      <span className="font-medium text-green-600">
+                        correspondem ao horário atual
+                      </span>
+                      . Simula o comportamento da execução programada.
+                    </p>
+
+                    <div className="pt-2">
+                      <Button
+                        onClick={handleTestScheduledAutomation}
+                        disabled={
+                          testScheduledMutation.isPending ||
+                          stats.activeCount === 0
+                        }
+                        className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed h-11"
+                        size="lg"
+                      >
+                        {testScheduledMutation.isPending ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
+                            Executando teste...
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-4 w-4 mr-3" />
+                            Executar Teste Agendado
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Status e Alertas */}
+            <div className="space-y-4">
+              {/* Alerta quando não há automações ativas */}
+              {stats.activeCount === 0 && (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-xl blur-lg" />
+                  <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-md flex-shrink-0">
+                        <Settings className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-semibold text-amber-900">
+                            Nenhuma automação ativa
+                          </h5>
+                          <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse" />
+                        </div>
+                        <p className="text-sm text-amber-800 leading-relaxed">
+                          Para testar as automações, você precisa ter pelo menos
+                          uma automação ativa.
+                          <br />
+                          <span className="font-medium">
+                            Crie uma nova automação ou ative uma existente
+                          </span>{" "}
+                          para habilitar os testes.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Dica informativa */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl blur-lg" />
+                <div className="relative bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-xl p-4 shadow-sm">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-md flex-shrink-0">
-                      <Settings className="h-5 w-5 text-white" />
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md flex-shrink-0">
+                      <MessageSquare className="h-5 w-5 text-white" />
                     </div>
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <h5 className="font-semibold text-amber-900">
-                          Nenhuma automação ativa
+                        <h5 className="font-semibold text-blue-900">
+                          💡 Dica sobre os testes
                         </h5>
-                        <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse" />
                       </div>
-                      <p className="text-sm text-amber-800 leading-relaxed">
-                        Para testar as automações, você precisa ter pelo menos
-                        uma automação ativa.
-                        <br />
-                        <span className="font-medium">
-                          Crie uma nova automação ou ative uma existente
-                        </span>{" "}
-                        para habilitar os testes.
-                      </p>
+                      <div className="text-sm text-blue-800 leading-relaxed space-y-1">
+                        <p>
+                          • Os testes verificam apenas{" "}
+                          <span className="font-medium">
+                            clientes com aniversário hoje
+                          </span>
+                        </p>
+                        <p>
+                          • Resultados aparecem na seção{" "}
+                          <span className="font-medium">
+                            "Resultados das Automações"
+                          </span>{" "}
+                          abaixo
+                        </p>
+                        <p>
+                          • Use o{" "}
+                          <span className="font-medium text-blue-600">
+                            Teste Agendado
+                          </span>{" "}
+                          para simular execução em horário específico
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Dica informativa */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl blur-lg" />
-              <div className="relative bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-xl p-4 shadow-sm">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md flex-shrink-0">
-                    <MessageSquare className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h5 className="font-semibold text-blue-900">
-                        💡 Dica sobre os testes
-                      </h5>
-                    </div>
-                    <div className="text-sm text-blue-800 leading-relaxed space-y-1">
-                      <p>
-                        • Os testes verificam apenas{" "}
-                        <span className="font-medium">
-                          clientes com aniversário hoje
-                        </span>
-                      </p>
-                      <p>
-                        • Resultados aparecem na seção{" "}
-                        <span className="font-medium">
-                          "Resultados das Automações"
-                        </span>{" "}
-                        abaixo
-                      </p>
-                      <p>
-                        • Use o{" "}
-                        <span className="font-medium text-blue-600">
-                          Teste Agendado
-                        </span>{" "}
-                        para simular execução em horário específico
-                      </p>
-                    </div>
+              {/* Indicador de status das automações ativas */}
+              {stats.activeCount > 0 && (
+                <div className="flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-green-800">
+                      {stats.activeCount} automação
+                      {stats.activeCount > 1 ? "ões" : ""} ativa
+                      {stats.activeCount > 1 ? "s" : ""} pronta
+                      {stats.activeCount > 1 ? "s" : ""} para teste
+                    </span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Indicador de status das automações ativas */}
-            {stats.activeCount > 0 && (
-              <div className="flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-green-800">
-                    {stats.activeCount} automação
-                    {stats.activeCount > 1 ? "ões" : ""} ativa
-                    {stats.activeCount > 1 ? "s" : ""} pronta
-                    {stats.activeCount > 1 ? "s" : ""} para teste
-                  </span>
-                </div>
+        {/* Lista de automações */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Automações Configuradas</CardTitle>
+            <CardDescription>
+              {automations.length === 0
+                ? "Nenhuma automação configurada ainda."
+                : `${automations.length} automação${
+                    automations.length > 1 ? "ões" : ""
+                  } configurada${automations.length > 1 ? "s" : ""}.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {automations.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium">
+                  Nenhuma automação configurada
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Crie sua primeira automação para começar a enviar mensagens de
+                  aniversário automaticamente.
+                </p>
+                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Primeira Automação
+                </Button>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 3xl:grid-cols-3 gap-4 sm:gap-6">
+                {automations.map((automation, index) => (
+                  <Card
+                    key={automation.id}
+                    className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white via-emerald-50/30 to-blue-50/30 hover:scale-[1.01] lg:hover:scale-[1.02] relative overflow-hidden"
+                  >
+                    {/* Gradiente decorativo */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-blue-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      {/* Lista de automações */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Automações Configuradas</CardTitle>
-          <CardDescription>
-            {automations.length === 0
-              ? "Nenhuma automação configurada ainda."
-              : `${automations.length} automação${
-                  automations.length > 1 ? "ões" : ""
-                } configurada${automations.length > 1 ? "s" : ""}.`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {automations.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium">
-                Nenhuma automação configurada
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Crie sua primeira automação para começar a enviar mensagens de
-                aniversário automaticamente.
-              </p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Primeira Automação
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {automations.map((automation, index) => (
-                <Card
-                  key={automation.id}
-                  className="relative hover:shadow-lg transition-all duration-200 hover:border-primary/30 bg-gradient-to-r from-background to-muted/20"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                      <div className="space-y-4 flex-1 min-w-0">
-                        {/* Header com status e horário */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-muted/30">
+                    <CardContent className="relative p-4 sm:p-6">
+                      <div className="space-y-5">
+                        {/* Header moderno com status - Responsivo */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           <div className="flex items-center gap-3">
-                            <Badge
-                              variant={
-                                automation.enabled ? "default" : "secondary"
-                              }
-                              className={`px-3 py-1 font-medium ${
-                                automation.enabled
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : "bg-gray-100 text-gray-600 border-gray-200"
-                              }`}
-                            >
+                            <div className="relative flex-shrink-0">
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 ${
+                                className={`p-2 sm:p-3 rounded-xl shadow-md ${
                                   automation.enabled
-                                    ? "bg-green-500"
+                                    ? "bg-gradient-to-br from-emerald-500 to-green-600"
+                                    : "bg-gradient-to-br from-gray-400 to-gray-500"
+                                }`}
+                              >
+                                <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                              </div>
+                              <div
+                                className={`absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white shadow-sm ${
+                                  automation.enabled
+                                    ? "bg-green-500 animate-pulse"
                                     : "bg-gray-400"
                                 }`}
-                              />
-                              {automation.enabled ? "Ativa" : "Inativa"}
-                            </Badge>
-                            <div className="text-sm text-muted-foreground">
-                              Automação #{index + 1}
+                              ></div>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">
+                                Automação #{index + 1}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge
+                                  className={`px-2 sm:px-3 py-1 font-semibold border-0 shadow-sm text-xs sm:text-sm ${
+                                    automation.enabled
+                                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                  }`}
+                                >
+                                  <span className="hidden xs:inline">
+                                    {automation.enabled
+                                      ? "🟢 Ativa"
+                                      : "⚫ Inativa"}
+                                  </span>
+                                  <span className="xs:hidden">
+                                    {automation.enabled ? "🟢" : "⚫"}
+                                  </span>
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full">
-                            <Clock className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium">
-                              {automation.sendTime}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              • {getDaysBeforeLabel(automation.daysBefore)}
-                            </span>
+
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-teal-50 px-3 sm:px-4 py-2 rounded-xl border border-blue-200/60 self-start sm:self-auto">
+                            <Calendar className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            <div className="text-center">
+                              <div className="text-xs sm:text-sm font-semibold text-blue-700">
+                                {automation.sendTime}
+                              </div>
+                              <div className="text-xs text-blue-600 hidden xs:block">
+                                {getDaysBeforeLabel(automation.daysBefore)}
+                              </div>
+                              <div className="text-xs text-blue-600 xs:hidden">
+                                {automation.daysBefore === 0
+                                  ? "No dia"
+                                  : `${automation.daysBefore}d antes`}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Informações principais */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Canal */}
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-medium text-muted-foreground">
-                                Canal de envio
-                              </span>
-                            </div>
-                            <div className="pl-6">
-                              <p className="text-sm font-medium break-all">
-                                {getChannelName(
-                                  automation.externalChannelId || ""
-                                )}
-                              </p>
-                            </div>
-                          </div>
-
-                          {automation.externalTemplateId && (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 bg-primary/10 rounded flex items-center justify-center">
-                                  <span className="text-xs text-primary font-bold">
-                                    T
-                                  </span>
-                                </div>
-                                <span className="text-sm font-medium text-muted-foreground">
-                                  Template
-                                </span>
+                        {/* Informações detalhadas - Layout responsivo */}
+                        <div className="space-y-3 sm:space-y-4">
+                          {/* Canal de envio */}
+                          <div className="bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border border-blue-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg shadow-md flex-shrink-0">
+                                <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                               </div>
-                              <div className="pl-6">
-                                <p className="text-sm font-medium break-all">
-                                  {getTemplateName(
-                                    automation.externalTemplateId
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-blue-900 mb-1 text-sm sm:text-base">
+                                  Canal de Envio
+                                </h4>
+                                <p className="text-xs sm:text-sm text-blue-700 break-all leading-relaxed">
+                                  {getChannelName(
+                                    automation.externalChannelId || ""
                                   )}
                                 </p>
                               </div>
                             </div>
+                          </div>
+
+                          {/* Template */}
+                          {automation.externalTemplateId && (
+                            <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border border-emerald-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg shadow-md flex-shrink-0">
+                                  <span className="text-white font-bold text-xs sm:text-sm">
+                                    T
+                                  </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-emerald-900 mb-1 text-sm sm:text-base">
+                                    Template
+                                  </h4>
+                                  <p className="text-xs sm:text-sm text-emerald-700 break-all leading-relaxed">
+                                    {getTemplateName(
+                                      automation.externalTemplateId
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           )}
 
-                          {/* Arquivo de mídia */}
+                          {/* Arquivo de mídia - Layout otimizado para mobile */}
                           {automation.externalFileUrl && (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Image className="h-4 w-4 text-primary" />
-                                <span className="text-sm font-medium text-muted-foreground">
-                                  Arquivo de mídia
-                                </span>
-                              </div>
-                              <div className="pl-6">
-                                <div className="flex items-start gap-3">
-                                  <div className="relative group">
-                                    <img
-                                      src={automation.externalFileUrl}
-                                      alt="Mídia da automação"
-                                      className="w-16 h-16 object-cover rounded-lg border-2 border-muted hover:border-primary/50 transition-colors shadow-sm"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                      }}
-                                    />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
-                                  </div>
-                                  <div className="flex-1 min-w-0 space-y-1">
-                                    <p className="text-xs text-green-600 font-medium">
-                                      ✓ Arquivo configurado
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Será enviado com a mensagem
-                                    </p>
-                                    {automation.externalFileId && (
-                                      <p className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
-                                        {automation.externalFileId}
+                            <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 border border-purple-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-md flex-shrink-0">
+                                  <Image className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-purple-900 mb-2 text-sm sm:text-base">
+                                    Arquivo de Mídia
+                                  </h4>
+
+                                  {/* Layout responsivo para preview da imagem */}
+                                  <div className="flex flex-col xs:flex-row items-start gap-3">
+                                    <div className="relative group flex-shrink-0">
+                                      <img
+                                        src={automation.externalFileUrl}
+                                        alt="Mídia da automação"
+                                        className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 object-cover rounded-lg border-2 border-white shadow-md group-hover:shadow-lg transition-all duration-300"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display =
+                                            "none";
+                                        }}
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full" />
+                                        <span className="text-xs font-medium text-green-600">
+                                          Arquivo configurado
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-purple-700 leading-relaxed">
+                                        <span className="hidden sm:inline">
+                                          Este arquivo será enviado
+                                          automaticamente junto com a mensagem
+                                        </span>
+                                        <span className="sm:hidden">
+                                          Enviado junto com a mensagem
+                                        </span>
                                       </p>
-                                    )}
+                                      {automation.externalFileId && (
+                                        <div className="bg-white/60 rounded border px-2 py-1">
+                                          <p className="text-xs text-purple-600 font-mono break-all">
+                                            <span className="hidden sm:inline">
+                                              ID:{" "}
+                                            </span>
+                                            {automation.externalFileId}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -1536,739 +1714,801 @@ export function AutomationManagement() {
                           )}
                         </div>
 
-                        {/* Modelo da mensagem */}
-                        {/* {automation.externalTemplateId && (
-                          <div className="space-y-2 mt-4 pt-4 border-t border-muted/30">
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 bg-primary/10 rounded flex items-center justify-center">
-                                <span className="text-xs text-primary font-bold">
-                                  T
-                                </span>
-                              </div>
-                              <span className="text-sm font-medium text-muted-foreground">
-                                ID do Template
+                        {/* Controles modernos - Layout responsivo */}
+                        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-4 pt-4 border-t border-gray-200/60">
+                          {/* Switch de controle */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-center">
+                              <Switch
+                                checked={automation.enabled}
+                                onCheckedChange={() =>
+                                  handleToggleEnabled(automation)
+                                }
+                                disabled={updateMutation.isPending}
+                                className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-200"
+                              />
+                              <span className="text-xs text-gray-600 mt-1 block font-medium">
+                                {automation.enabled ? "Ativado" : "Desativado"}
                               </span>
                             </div>
-                            <div className="pl-6">
-                              <div className="bg-muted/30 border border-muted/50 rounded-lg p-4 max-h-24 overflow-y-auto">
-                                <p className="text-sm text-foreground/80 leading-relaxed">
-                                  {automation.externalTemplateId}
-                                </p>
-                              </div>
-                            </div>
                           </div>
-                        )} */}
-                      </div>
 
-                      {/* Controles laterais */}
-                      <div className="flex flex-row lg:flex-col items-center gap-4 lg:gap-3 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-muted/30 lg:pl-6">
-                        {/* Switch de ativação */}
-                        <div className="flex flex-col items-center gap-2 order-2 lg:order-1">
-                          <Switch
-                            checked={automation.enabled}
-                            onCheckedChange={() =>
-                              handleToggleEnabled(automation)
-                            }
-                            disabled={updateMutation.isPending}
-                            className="data-[state=checked]:bg-green-500"
-                          />
-                          <span className="text-xs text-muted-foreground text-center">
-                            {automation.enabled ? "ativado" : "desativado"}
-                          </span>
-                        </div>
+                          {/* Botões de ação - Responsivos */}
+                          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full xs:w-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingAutomation(automation)}
+                              className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-300 font-medium text-xs xs:text-sm"
+                              title="Editar automação"
+                            >
+                              <Edit className="h-3 w-3 xs:h-4 xs:w-4 mr-1 xs:mr-2" />
+                              <span className="hidden xs:inline">Editar</span>
+                              <span className="xs:hidden">
+                                Editar Automação
+                              </span>
+                            </Button>
 
-                        {/* Botões de ação */}
-                        <div className="flex items-center gap-2 order-1 lg:order-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingAutomation(automation)}
-                            className="h-9 w-9 p-0 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
-                            title="Editar automação"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-9 w-9 p-0 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
-                                title="Remover automação"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="max-w-md">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Remover Automação
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja remover esta automação?
-                                  Esta ação não pode ser desfeita e todos os
-                                  arquivos associados serão deletados.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() =>
-                                    handleDeleteAutomation(automation)
-                                  }
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r from-red-50 to-pink-50 border-red-200 hover:from-red-100 hover:to-pink-100 hover:border-red-300 text-red-700 hover:text-red-800 transition-all duration-300 font-medium text-xs xs:text-sm"
+                                  title="Remover automação"
                                 >
-                                  Remover
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Trash2 className="h-3 w-3 xs:h-4 xs:w-4 mr-1 xs:mr-2" />
+                                  <span className="hidden xs:inline">
+                                    Remover
+                                  </span>
+                                  <span className="xs:hidden">
+                                    Remover Automação
+                                  </span>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="max-w-md mx-4">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Remover Automação
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja remover esta
+                                    automação? Esta ação não pode ser desfeita e
+                                    todos os arquivos associados serão
+                                    deletados.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="flex-col xs:flex-row gap-2">
+                                  <AlertDialogCancel className="w-full xs:w-auto">
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() =>
+                                      handleDeleteAutomation(automation)
+                                    }
+                                    className="w-full xs:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Remover
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Logs/resultados das automações */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items- justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Resultados das Automações
-            </div>
-
-            <Button variant="outline" size="sm" onClick={() => refetchLogs()}>
-              <RefreshCcw
-                className={cn(
-                  "h-4 w-4",
-
-                  isFetchingLogs && "animate-spin"
-                )}
-              />
-              {isFetchingLogs ? "Atualizando..." : "Atualizar"}
-            </Button>
-          </CardTitle>
-          <CardDescription>
-            Veja o histórico de mensagens disparadas pelas automações.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingAutomations ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-sm text-muted-foreground">
-                Carregando filtros...
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col gap-4 mb-6">
-                {/* Header dos filtros com botão de limpar */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Filtros
-                  </h3>
-                  {(selectedAutomationId || selectedStatus !== "all") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleResetFilters}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Limpar filtros
-                    </Button>
-                  )}
+        {/* Logs/resultados das automações - Design minimalista */}
+        <Card className="border border-gray-200/60 shadow-sm bg-white">
+          <CardHeader className="border-b border-gray-100 bg-gray-50/50 px-4 sm:px-6 py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-gray-600" />
                 </div>
-
-                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                  {/* Filtro por automação */}
-                  <div className="flex flex-col gap-2 flex-1">
-                    <Label className="text-sm font-medium">Automação</Label>
-                    <Select
-                      value={selectedAutomationId || "all"}
-                      onValueChange={(value) => {
-                        setSelectedAutomationId(value === "all" ? null : value);
-                        setLogsPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Todas as automações" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as automações</SelectItem>
-                        {isLoadingAutomations ? (
-                          <SelectItem value="loading" disabled>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                              <span>Carregando automações...</span>
-                            </div>
-                          </SelectItem>
-                        ) : automations.length === 0 ? (
-                          <SelectItem value="empty" disabled>
-                            Nenhuma automação disponível
-                          </SelectItem>
-                        ) : (
-                          automations.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              <div className="flex flex-col items-start">
-                                <span className="font-medium">
-                                  {getChannelName(a.externalChannelId || "")}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {getDaysBeforeLabel(a.daysBefore)} às{" "}
-                                  {a.sendTime}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Filtro por status */}
-                  <div className="flex flex-col gap-2 flex-1 max-w-xs">
-                    <Label className="text-sm font-medium">Status</Label>
-                    <Select
-                      value={selectedStatus}
-                      onValueChange={(
-                        value: "agendado" | "enviado" | "falhou" | "all"
-                      ) => {
-                        setSelectedStatus(value);
-                        setLogsPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                            <span>Todos os status</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="enviado">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                            <span>Enviado</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="falhou">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-red-500" />
-                            <span>Falhou</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="agendado">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                            <span>Agendado</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Resultados das Automações
+                  </CardTitle>
+                  <CardDescription className="text-gray-500 text-sm mt-0.5">
+                    Histórico de execução e status das mensagens
+                  </CardDescription>
                 </div>
               </div>
 
-              {/* Resumo dos Resultados */}
-              {!isLoadingLogs && logsData && (
-                <div className="bg-muted/50 rounded-lg p-4 mb-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          {logsData.data.length}
-                        </span>{" "}
-                        resultado{logsData.data.length !== 1 ? "s" : ""}{" "}
-                        encontrado{logsData.data.length !== 1 ? "s" : ""}
-                      </div>
-
-                      {/* Contadores por Status */}
-                      {logsData.data.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-3">
-                          {(() => {
-                            const statusCounts = logsData.data.reduce(
-                              (acc, log) => {
-                                acc[log.status] = (acc[log.status] || 0) + 1;
-                                return acc;
-                              },
-                              {} as Record<string, number>
-                            );
-
-                            return Object.entries(statusCounts).map(
-                              ([status, count]) => {
-                                const config = getStatusConfig(status);
-                                return (
-                                  <div
-                                    key={status}
-                                    className="flex items-center gap-1.5 text-xs"
-                                  >
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${config.color}`}
-                                    />
-                                    <span className="text-muted-foreground">
-                                      {config.label}:{" "}
-                                      <span className="font-medium text-foreground">
-                                        {count}
-                                      </span>
-                                    </span>
-                                  </div>
-                                );
-                              }
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Botão de Reset dos Filtros */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchLogs()}
+                className="border-gray-200 hover:bg-gray-50 text-gray-700 hover:text-gray-900 w-full sm:w-auto"
+              >
+                <RefreshCcw
+                  className={cn(
+                    "h-3 w-3 mr-2",
+                    isFetchingLogs && "animate-spin"
+                  )}
+                />
+                <span className="text-sm">
+                  {isFetchingLogs ? "Atualizando..." : "Atualizar"}
+                </span>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {isLoadingAutomations ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3" />
+                <p className="text-sm text-gray-500">Carregando filtros...</p>
+              </div>
+            ) : (
+              <>
+                {/* Filtros minimalistas */}
+                <div className="mb-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium text-gray-700">
+                      Filtros
+                    </h3>
                     {(selectedAutomationId || selectedStatus !== "all") && (
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={handleResetFilters}
-                        className="flex items-center gap-2"
+                        className="text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 p-2 h-auto"
                       >
-                        <RotateCcw className="h-3 w-3" />
-                        Limpar Filtros
+                        <X className="h-3 w-3 mr-1" />
+                        Limpar
                       </Button>
                     )}
                   </div>
-                </div>
-              )}
 
-              {isLoadingLogs ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="text-sm text-muted-foreground">
-                    Carregando resultados...
-                  </p>
-                </div>
-              ) : !logsData || logsData.data.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">
-                    Nenhum resultado encontrado
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-center max-w-md">
-                    {selectedAutomationId
-                      ? "Esta automação ainda não enviou mensagens ou não há logs para exibir."
-                      : "Ainda não há mensagens enviadas pelas automações."}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Desktop Table */}
-                  <div className="hidden lg:block">
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b">
-                            <th className="px-4 py-3 text-left font-medium">
-                              Cliente
-                            </th>
-                            <th className="px-4 py-3 text-left font-medium">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-center font-medium">
-                              Tentativas
-                            </th>
-                            <th className="px-4 py-3 text-left font-medium">
-                              Agendado para
-                            </th>
-                            <th className="px-4 py-3 text-left font-medium">
-                              Enviado em
-                            </th>
-                            <th className="px-4 py-3 text-left font-medium">
-                              Erro
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {logsData.data.map((log) => (
-                            <tr
-                              key={log.id}
-                              className="border-b last:border-b-0 hover:bg-muted/30 transition-colors"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Filtro por automação */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                        Automação
+                      </Label>
+                      <Select
+                        value={selectedAutomationId || "all"}
+                        onValueChange={(value) => {
+                          setSelectedAutomationId(
+                            value === "all" ? null : value
+                          );
+                          setLogsPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9 border-gray-200 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
+                          <SelectValue placeholder="Todas as automações" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all" className="text-sm">
+                            Todas as automações
+                          </SelectItem>
+                          {isLoadingAutomations ? (
+                            <SelectItem
+                              value="loading"
+                              disabled
+                              className="text-sm"
                             >
-                              <td className="px-4 py-3 font-medium">
-                                {log.client?.name || log.clientId}
-                              </td>
-                              <td className="px-4 py-3">
-                                {(() => {
-                                  const config = getStatusConfig(log.status);
-                                  return (
-                                    <div
-                                      className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}
-                                    >
-                                      <div
-                                        className={`w-2 h-2 rounded-full ${config.color}`}
-                                      />
-                                      <span>{config.label}</span>
-                                    </div>
-                                  );
-                                })()}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs">
-                                  {log.attempts}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-muted-foreground">
-                                {log.scheduledSendAt
-                                  ? new Date(
-                                      log.scheduledSendAt
-                                    ).toLocaleString("pt-BR")
-                                  : "-"}
-                              </td>
-                              <td className="px-4 py-3 text-muted-foreground">
-                                {log.actualSendAt
-                                  ? new Date(log.actualSendAt).toLocaleString(
-                                      "pt-BR"
-                                    )
-                                  : "-"}
-                              </td>
-                              <td className="px-4 py-3">
-                                {log.lastError ? (
-                                  <div className="max-w-xs">
-                                    <p
-                                      className="text-xs text-destructive truncate"
-                                      title={log.lastError}
-                                    >
-                                      {log.lastError}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">
-                                    -
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                <span>Carregando...</span>
+                              </div>
+                            </SelectItem>
+                          ) : automations.length === 0 ? (
+                            <SelectItem
+                              value="empty"
+                              disabled
+                              className="text-sm text-gray-400"
+                            >
+                              Nenhuma automação disponível
+                            </SelectItem>
+                          ) : (
+                            automations.map((a) => (
+                              <SelectItem
+                                key={a.id}
+                                value={a.id}
+                                className="text-sm"
+                              >
+                                <div className="flex flex-col items-start py-1">
+                                  <span className="font-medium text-gray-900">
+                                    {getChannelName(a.externalChannelId || "")}
                                   </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                  <span className="text-xs text-gray-500">
+                                    {getDaysBeforeLabel(a.daysBefore)} às{" "}
+                                    {a.sendTime}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Filtro por status */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                        Status
+                      </Label>
+                      <Select
+                        value={selectedStatus}
+                        onValueChange={(
+                          value: "agendado" | "enviado" | "falhou" | "all"
+                        ) => {
+                          setSelectedStatus(value);
+                          setLogsPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9 border-gray-200 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all" className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-gray-400" />
+                              <span>Todos</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="enviado" className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              <span>Enviado</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="falhou" className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span>Falhou</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="agendado" className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-amber-500" />
+                              <span>Agendado</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+                </div>
 
-                  {/* Mobile Cards */}
-                  <div className="lg:hidden space-y-3">
-                    {logsData.data.map((log) => (
-                      <Card key={log.id} className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium truncate">
-                                {log.client?.name || log.clientId}
-                              </h4>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Cliente ID: {log.clientId.slice(-8)}
-                              </p>
-                            </div>
+                {/* Resumo minimalista dos resultados */}
+                {!isLoadingLogs && logsData && (
+                  <div className="border border-gray-100 rounded-lg bg-gray-50/50 p-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="text-sm text-gray-600">
+                          <span className="font-semibold text-gray-900">
+                            {logsData.data.length}
+                          </span>{" "}
+                          {logsData.data.length === 1
+                            ? "resultado"
+                            : "resultados"}
+                        </div>
+
+                        {/* Contadores minimalistas por status */}
+                        {logsData.data.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-3">
                             {(() => {
-                              const config = getStatusConfig(log.status);
-                              return (
-                                <div
-                                  className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ml-2 ${config.bgColor} ${config.textColor}`}
-                                >
-                                  <div
-                                    className={`w-2 h-2 rounded-full ${config.color}`}
-                                  />
-                                  <span>{config.label}</span>
-                                </div>
+                              const statusCounts = logsData.data.reduce(
+                                (acc, log) => {
+                                  acc[log.status] = (acc[log.status] || 0) + 1;
+                                  return acc;
+                                },
+                                {} as Record<string, number>
+                              );
+
+                              return Object.entries(statusCounts).map(
+                                ([status, count]) => {
+                                  const config = getStatusConfig(
+                                    status as "agendado" | "enviado" | "falhou"
+                                  );
+                                  return (
+                                    <div
+                                      key={status}
+                                      className="flex items-center gap-1.5 px-2 py-1 bg-white rounded text-xs border border-gray-200"
+                                    >
+                                      <div
+                                        className={`w-1.5 h-1.5 rounded-full ${config.color}`}
+                                      />
+                                      <span className="text-gray-600">
+                                        {config.label}:{" "}
+                                        <span className="font-medium text-gray-900">
+                                          {count}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  );
+                                }
                               );
                             })()}
                           </div>
-
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">
-                                Tentativas:
-                              </span>
-                              <span className="ml-1 font-medium">
-                                {log.attempts}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Agendado:
-                              </span>
-                              <div className="text-xs mt-1">
-                                {log.scheduledSendAt
-                                  ? new Date(
-                                      log.scheduledSendAt
-                                    ).toLocaleString("pt-BR")
-                                  : "-"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {log.actualSendAt && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">
-                                Enviado em:
-                              </span>
-                              <div className="mt-1">
-                                {new Date(log.actualSendAt).toLocaleString(
-                                  "pt-BR"
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {log.lastError && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">
-                                Erro:
-                              </span>
-                              <p className="text-destructive mt-1 leading-relaxed">
-                                {log.lastError}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Visualização das automações com mídia - versão mobile otimizada */}
-                  <div className="lg:hidden space-y-4 mt-8">
-                    {automations.filter(
-                      (automation) => automation.externalFileUrl
-                    ).length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b border-muted/30">
-                          <Image className="h-5 w-5 text-primary" />
-                          <h4 className="font-semibold text-base">
-                            Automações com Mídia
-                          </h4>
-                          <Badge variant="secondary" className="ml-auto">
-                            {
-                              automations.filter(
-                                (automation) => automation.externalFileUrl
-                              ).length
-                            }
-                          </Badge>
-                        </div>
-                        {automations
-                          .filter((automation) => automation.externalFileUrl)
-                          .map((automation, index) => (
-                            <Card
-                              key={`mobile-media-${automation.id}`}
-                              className="overflow-hidden border-l-4 border-l-primary/50 hover:border-l-primary transition-colors"
-                            >
-                              <CardContent className="p-4">
-                                <div className="space-y-4">
-                                  {/* Header */}
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <Badge
-                                          variant={
-                                            automation.enabled
-                                              ? "default"
-                                              : "secondary"
-                                          }
-                                          className={`text-xs ${
-                                            automation.enabled
-                                              ? "bg-green-100 text-green-800"
-                                              : "bg-gray-100 text-gray-600"
-                                          }`}
-                                        >
-                                          {automation.enabled
-                                            ? "Ativa"
-                                            : "Inativa"}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground">
-                                          Automação #{index + 1}
-                                        </span>
-                                      </div>
-                                      <h5 className="font-medium text-sm truncate">
-                                        {getChannelName(
-                                          automation.externalChannelId || ""
-                                        )}
-                                      </h5>
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{automation.sendTime}</span>
-                                        <span>•</span>
-                                        <span>
-                                          {getDaysBeforeLabel(
-                                            automation.daysBefore
-                                          )}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Mídia */}
-                                  <div className="bg-muted/30 rounded-lg p-3">
-                                    <div className="flex items-start gap-3">
-                                      <div className="relative group">
-                                        <img
-                                          src={automation.externalFileUrl}
-                                          alt="Mídia da automação"
-                                          className="w-20 h-20 object-cover rounded-lg border-2 border-muted group-hover:border-primary/50 transition-all shadow-sm"
-                                          onError={(e) => {
-                                            e.currentTarget.style.display =
-                                              "none";
-                                          }}
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
-                                      </div>
-                                      <div className="flex-1 min-w-0 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                          <span className="text-xs font-medium text-green-600">
-                                            Arquivo configurado
-                                          </span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground leading-relaxed">
-                                          Este arquivo será enviado
-                                          automaticamente junto com a mensagem
-                                          de aniversário para os clientes.
-                                        </p>
-                                        {automation.externalFileId && (
-                                          <div className="bg-background rounded border px-2 py-1">
-                                            <p className="text-xs text-muted-foreground font-mono break-all">
-                                              ID: {automation.externalFileId}
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* Paginação */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-4 border-t">
-                    <div className="text-sm text-muted-foreground text-center sm:text-left">
-                      Mostrando página {logsData.page} de{" "}
-                      {Math.ceil(logsData.total / logsData.pageSize)}
-                      <span className="hidden sm:inline">
-                        {" "}
-                        • {logsData.total} registro
-                        {logsData.total !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setLogsPage((p) => Math.max(1, p - 1))}
-                        disabled={logsData.page === 1}
-                        className="px-3"
-                      >
-                        <span className="hidden sm:inline">Anterior</span>
-                        <span className="sm:hidden">‹</span>
-                      </Button>
-
-                      <div className="flex items-center gap-1 mx-2">
-                        {Array.from(
-                          {
-                            length: Math.min(
-                              5,
-                              Math.ceil(logsData.total / logsData.pageSize)
-                            ),
-                          },
-                          (_, i) => {
-                            const totalPages = Math.ceil(
-                              logsData.total / logsData.pageSize
-                            );
-                            let pageNumber;
-
-                            if (totalPages <= 5) {
-                              pageNumber = i + 1;
-                            } else {
-                              const current = logsData.page;
-                              if (current <= 3) {
-                                pageNumber = i + 1;
-                              } else if (current >= totalPages - 2) {
-                                pageNumber = totalPages - 4 + i;
-                              } else {
-                                pageNumber = current - 2 + i;
-                              }
-                            }
-
-                            return (
-                              <Button
-                                key={pageNumber}
-                                variant={
-                                  logsData.page === pageNumber
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                onClick={() => setLogsPage(pageNumber)}
-                                className="w-8 h-8 p-0 text-xs"
-                              >
-                                {pageNumber}
-                              </Button>
-                            );
-                          }
                         )}
                       </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setLogsPage((p) => p + 1)}
-                        disabled={
-                          logsData.page >=
-                          Math.ceil(logsData.total / logsData.pageSize)
-                        }
-                        className="px-3"
-                      >
-                        <span className="hidden sm:inline">Próxima</span>
-                        <span className="sm:hidden">›</span>
-                      </Button>
+                      {/* Botão de reset minimalista */}
+                      {(selectedAutomationId || selectedStatus !== "all") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResetFilters}
+                          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 text-xs"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1.5" />
+                          Resetar
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+                )}
 
-      {/* Dialog de edição */}
-      <Dialog
-        open={!!editingAutomation}
-        onOpenChange={() => setEditingAutomation(null)}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar Automação</DialogTitle>
-            <DialogDescription>
-              Faça as alterações necessárias na automação de mensagens.
-            </DialogDescription>
-          </DialogHeader>
-          {editingAutomation && (
-            <AutomationForm
-              automation={editingAutomation}
-              channels={channels}
-              templates={templates}
-              onSubmit={handleUpdateAutomation}
-              onCancel={() => setEditingAutomation(null)}
-              isLoading={updateMutation.isPending}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+                {isLoadingLogs ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3" />
+                    <p className="text-sm text-gray-500">
+                      Carregando resultados...
+                    </p>
+                  </div>
+                ) : !logsData || logsData.data.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                      <MessageSquare className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-base font-medium text-gray-900 mb-1">
+                      Nenhum resultado encontrado
+                    </h3>
+                    <p className="text-sm text-gray-500 max-w-sm">
+                      {selectedAutomationId
+                        ? "Esta automação ainda não enviou mensagens."
+                        : "Ainda não há mensagens enviadas pelas automações."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Tabela desktop minimalista */}
+                    <div className="hidden lg:block">
+                      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50/80 border-b border-gray-100">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Cliente
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Status
+                              </th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Tentativas
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Agendado
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Enviado
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                Erro
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {logsData.data.map((log, index) => (
+                              <tr
+                                key={log.id}
+                                className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
+                                  index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                                }`}
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-gray-900">
+                                    {log.client?.name || log.clientId}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {(() => {
+                                    const config = getStatusConfig(log.status);
+                                    return (
+                                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs border">
+                                        <div
+                                          className={`w-1.5 h-1.5 rounded-full ${config.color}`}
+                                        />
+                                        <span className="font-medium">
+                                          {config.label}
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-100 text-xs font-medium text-gray-700">
+                                    {log.attempts}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 text-xs">
+                                  {log.scheduledSendAt
+                                    ? new Date(
+                                        log.scheduledSendAt
+                                      ).toLocaleString("pt-BR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 text-xs">
+                                  {log.actualSendAt
+                                    ? new Date(log.actualSendAt).toLocaleString(
+                                        "pt-BR",
+                                        {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        }
+                                      )
+                                    : "—"}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {log.lastError ? (
+                                    <div className="max-w-xs">
+                                      <p
+                                        className="text-xs text-red-600 truncate font-mono"
+                                        title={log.lastError}
+                                      >
+                                        {log.lastError}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">
+                                      —
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Cards móveis minimalistas */}
+                    <div className="lg:hidden space-y-3">
+                      {logsData.data.map((log) => (
+                        <div
+                          key={log.id}
+                          className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50/50 transition-colors"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate text-sm">
+                                  {log.client?.name || log.clientId}
+                                </h4>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  ID: {log.clientId.slice(-8)}
+                                </p>
+                              </div>
+                              {(() => {
+                                const config = getStatusConfig(log.status);
+                                return (
+                                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs border">
+                                    <div
+                                      className={`w-1.5 h-1.5 rounded-full ${config.color}`}
+                                    />
+                                    <span className="font-medium">
+                                      {config.label}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <div className="text-gray-500 mb-1">
+                                  Tentativas
+                                </div>
+                                <div className="font-semibold text-gray-900">
+                                  {log.attempts}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500 mb-1">
+                                  Agendado
+                                </div>
+                                <div className="text-gray-700">
+                                  {log.scheduledSendAt
+                                    ? new Date(
+                                        log.scheduledSendAt
+                                      ).toLocaleString("pt-BR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "—"}
+                                </div>
+                              </div>
+                            </div>
+
+                            {log.actualSendAt && (
+                              <div className="text-xs pt-2 border-t border-gray-100">
+                                <div className="text-gray-500 mb-1">
+                                  Enviado em
+                                </div>
+                                <div className="text-gray-700">
+                                  {new Date(log.actualSendAt).toLocaleString(
+                                    "pt-BR",
+                                    {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {log.lastError && (
+                              <div className="text-xs pt-2 border-t border-red-100 bg-red-50/50 -mx-4 -mb-4 px-4 pb-4 mt-3">
+                                <div className="text-red-700 font-medium mb-1">
+                                  Erro
+                                </div>
+                                <p className="text-red-600 leading-relaxed font-mono">
+                                  {log.lastError}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Visualização das automações com mídia - versão mobile otimizada */}
+                    <div className="lg:hidden space-y-4 mt-8">
+                      {automations.filter(
+                        (automation) => automation.externalFileUrl
+                      ).length > 0 && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 pb-2 border-b border-muted/30">
+                            <Image className="h-5 w-5 text-primary" />
+                            <h4 className="font-semibold text-base">
+                              Automações com Mídia
+                            </h4>
+                            <Badge variant="secondary" className="ml-auto">
+                              {
+                                automations.filter(
+                                  (automation) => automation.externalFileUrl
+                                ).length
+                              }
+                            </Badge>
+                          </div>
+                          {automations
+                            .filter((automation) => automation.externalFileUrl)
+                            .map((automation, index) => (
+                              <Card
+                                key={`mobile-media-${automation.id}`}
+                                className="overflow-hidden border-l-4 border-l-primary/50 hover:border-l-primary transition-colors"
+                              >
+                                <CardContent className="p-4">
+                                  <div className="space-y-4">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <Badge
+                                            variant={
+                                              automation.enabled
+                                                ? "default"
+                                                : "secondary"
+                                            }
+                                            className={`text-xs ${
+                                              automation.enabled
+                                                ? "bg-green-100 text-green-800"
+                                                : "bg-gray-100 text-gray-600"
+                                            }`}
+                                          >
+                                            {automation.enabled
+                                              ? "Ativa"
+                                              : "Inativa"}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            Automação #{index + 1}
+                                          </span>
+                                        </div>
+                                        <h5 className="font-medium text-sm truncate">
+                                          {getChannelName(
+                                            automation.externalChannelId || ""
+                                          )}
+                                        </h5>
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                          <Clock className="h-3 w-3" />
+                                          <span>{automation.sendTime}</span>
+                                          <span>•</span>
+                                          <span>
+                                            {getDaysBeforeLabel(
+                                              automation.daysBefore
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Mídia */}
+                                    <div className="bg-muted/30 rounded-lg p-3">
+                                      <div className="flex items-start gap-3">
+                                        <div className="relative group">
+                                          <img
+                                            src={automation.externalFileUrl}
+                                            alt="Mídia da automação"
+                                            className="w-20 h-20 object-cover rounded-lg border-2 border-muted group-hover:border-primary/50 transition-all shadow-sm"
+                                            onError={(e) => {
+                                              e.currentTarget.style.display =
+                                                "none";
+                                            }}
+                                          />
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                            <span className="text-xs font-medium text-green-600">
+                                              Arquivo configurado
+                                            </span>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground leading-relaxed">
+                                            Este arquivo será enviado
+                                            automaticamente junto com a mensagem
+                                            de aniversário para os clientes.
+                                          </p>
+                                          {automation.externalFileId && (
+                                            <div className="bg-background rounded border px-2 py-1">
+                                              <p className="text-xs text-muted-foreground font-mono break-all">
+                                                ID: {automation.externalFileId}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Paginação minimalista */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-6 border-t border-gray-200">
+                      <div className="text-xs text-gray-500 text-center sm:text-left">
+                        Página{" "}
+                        <span className="font-medium text-gray-900">
+                          {logsData.page}
+                        </span>{" "}
+                        de{" "}
+                        <span className="font-medium text-gray-900">
+                          {Math.ceil(logsData.total / logsData.pageSize)}
+                        </span>
+                        <span className="hidden sm:inline text-gray-400">
+                          {" "}
+                          • {logsData.total} resultado
+                          {logsData.total !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLogsPage((p) => Math.max(1, p - 1))}
+                          disabled={logsData.page === 1}
+                          className="px-3 h-8 text-gray-600 hover:bg-gray-100 disabled:hover:bg-transparent border border-gray-200 disabled:border-gray-100"
+                        >
+                          <span className="hidden sm:inline">Anterior</span>
+                          <span className="sm:hidden">‹</span>
+                        </Button>
+
+                        <div className="flex items-center gap-1 mx-2">
+                          {Array.from(
+                            {
+                              length: Math.min(
+                                5,
+                                Math.ceil(logsData.total / logsData.pageSize)
+                              ),
+                            },
+                            (_, i) => {
+                              const totalPages = Math.ceil(
+                                logsData.total / logsData.pageSize
+                              );
+                              let pageNumber;
+
+                              if (totalPages <= 5) {
+                                pageNumber = i + 1;
+                              } else {
+                                const current = logsData.page;
+                                if (current <= 3) {
+                                  pageNumber = i + 1;
+                                } else if (current >= totalPages - 2) {
+                                  pageNumber = totalPages - 4 + i;
+                                } else {
+                                  pageNumber = current - 2 + i;
+                                }
+                              }
+
+                              return (
+                                <Button
+                                  key={pageNumber}
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setLogsPage(pageNumber)}
+                                  className={`w-8 h-8 p-0 text-xs border ${
+                                    logsData.page === pageNumber
+                                      ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+                                      : "border-gray-200 text-gray-700 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {pageNumber}
+                                </Button>
+                              );
+                            }
+                          )}
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLogsPage((p) => p + 1)}
+                          disabled={
+                            logsData.page >=
+                            Math.ceil(logsData.total / logsData.pageSize)
+                          }
+                          className="px-3 h-8 text-gray-600 hover:bg-gray-100 disabled:hover:bg-transparent border border-gray-200 disabled:border-gray-100"
+                        >
+                          <span className="hidden sm:inline">Próxima</span>
+                          <span className="sm:hidden">›</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dialog de edição */}
+        <Dialog
+          open={!!editingAutomation}
+          onOpenChange={() => setEditingAutomation(null)}
+        >
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Automação</DialogTitle>
+              <DialogDescription>
+                Faça as alterações necessárias na automação de mensagens.
+              </DialogDescription>
+            </DialogHeader>
+            {editingAutomation && (
+              <AutomationForm
+                automation={editingAutomation}
+                channels={channels}
+                templates={templates}
+                onSubmit={handleUpdateAutomation}
+                onCancel={() => setEditingAutomation(null)}
+                isLoading={updateMutation.isPending}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
