@@ -1057,21 +1057,21 @@ export default function EventsManagement() {
                     key={event.id}
                     className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
                   >
-                    <div className="flex flex-col">
-                      {/* Imagem de Capa 16:9 */}
-                      {event.imageUrl && (
-                        <div className="w-full aspect-video overflow-hidden bg-slate-100 dark:bg-slate-900">
-                          <img
-                            src={event.imageUrl}
-                            alt={event.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="p-4 sm:p-6 space-y-4">
-                        {/* Header com título, categoria e status */}
-                        <div className="flex items-start justify-between gap-3">
+                    <div className="p-4 sm:p-6 space-y-4">
+                      {/* Header com imagem de capa, título, categoria e status */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* Imagem de Capa Retangular Horizontal */}
+                          {event.imageUrl && (
+                            <div className="w-32 h-20 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900 flex-shrink-0">
+                              <img
+                                src={event.imageUrl}
+                                alt={event.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                            </div>
+                          )}
+                          
                           <div className="flex items-start gap-3 flex-1 min-w-0">
                             <div className="p-2 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 flex-shrink-0">
                               <CalendarIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
@@ -1085,10 +1085,11 @@ export default function EventsManagement() {
                               </p>
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
-                            {getStatusBadge(event.status)}
-                          </div>
                         </div>
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(event.status)}
+                        </div>
+                      </div>
 
                       {/* Informações do evento */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
@@ -1197,7 +1198,6 @@ export default function EventsManagement() {
                         >
                           <TrashIcon className="h-4 w-4" />
                         </Button>
-                      </div>
                       </div>
                     </div>
                   </div>
