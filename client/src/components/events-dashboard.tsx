@@ -863,14 +863,14 @@ export default function EventsDashboard() {
 
                     {/* Imagem de Capa com efeito esmaecido */}
                     {event.imageUrl && (
-                      <div className="relative w-full h-32 overflow-hidden">
+                      <div className="relative w-full h-40 overflow-hidden">
                         <img
                           src={event.imageUrl}
                           alt={event.name}
                           className="w-full h-full object-cover"
                         />
-                        {/* Gradiente esmaecido para transição */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white" />
+                        {/* Gradiente esmaecido suave para transição */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% via-white/30 via-70% to-white" />
                       </div>
                     )}
 
