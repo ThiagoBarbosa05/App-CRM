@@ -80,6 +80,7 @@ interface Event {
   category: string;
   status: "planejado" | "ativo" | "finalizado" | "cancelado";
   notes: string | null;
+  imageUrl: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -99,6 +100,7 @@ interface EventFormData {
   category: string;
   status: string;
   notes: string;
+  imageUrl?: string | null;
   attachments: EventAttachment[];
 }
 
@@ -172,11 +174,64 @@ export default function EventsManagement() {
     category: "Geral",
     status: "planejado",
     notes: "",
+    imageUrl: null,
     attachments: [],
   });
 
   const [isUploading, setIsUploading] = useState(false);
   const [removingAttachments, setRemovingAttachments] = useState<number[]>([]);
+
+  // Função para upload de imagem do evento
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione uma imagem válida",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+
+      const uploadFormData = new FormData();
+      uploadFormData.append("image", file);
+
+      const response = await fetch("/api/events/upload-image", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro no upload da imagem");
+      }
+
+      const result = await response.json();
+      setFormData(prev => ({ ...prev, imageUrl: result.imageUrl }));
+      
+      toast({
+        title: "Sucesso",
+        description: "Imagem carregada com sucesso",
+      });
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao fazer upload da imagem",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, imageUrl: null }));
+  };
 
   // Função para upload de arquivo
   const handleFileUpload = async (file: File) => {
@@ -501,6 +556,7 @@ export default function EventsManagement() {
       category: "Geral",
       status: "planejado",
       notes: "",
+      imageUrl: null,
       attachments: [],
     });
     setRemovingAttachments([]);
@@ -592,6 +648,7 @@ export default function EventsManagement() {
       pricePerPerson: event.pricePerPerson,
       maxCapacity: event.maxCapacity?.toString() || "",
       category: event.category,
+      imageUrl: event.imageUrl || null,
       status: event.status,
       notes: event.notes || "",
       attachments: event.attachments || [],
@@ -1258,6 +1315,69 @@ export default function EventsManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            {/* Imagem do Evento */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                Imagem do Evento
+              </h3>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Imagem de Capa
+                </Label>
+                {formData.imageUrl ? (
+                  <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-4">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={removeImage}
+                      className="absolute top-6 right-6"
+                      data-testid="button-remove-image"
+                    >
+                      <XIcon className="h-4 w-4 mr-2" />
+                      Remover
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-orange-400 transition-colors">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      data-testid="input-image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-12 w-12 text-orange-500 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-12 w-12 text-slate-400" />
+                      )}
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {isUploading
+                          ? "Fazendo upload..."
+                          : "Clique para selecionar uma imagem"}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500">
+                        PNG, JPG ou JPEG (máx. 5MB)
+                      </p>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
