@@ -3843,6 +3843,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload de imagem para evento
+  app.post("/api/events/upload-image", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhuma imagem foi enviada" });
+      }
+
+      const fileExtension = req.file.originalname.split('.').pop();
+      const fileName = `event-${nanoid()}.${fileExtension}`;
+      
+      // Upload para Cloudflare R2
+      const uploadCommand = new PutObjectCommand({
+        Bucket: process.env.CLOUDFLARE_BUCKET_NAME || "",
+        Key: fileName,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      });
+
+      await s3.send(uploadCommand);
+
+      const imageUrl = `${process.env.CLOUDFLARE_PUBLIC_URL}/${fileName}`;
+      
+      res.json({ imageUrl });
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      res.status(500).json({ message: "Erro ao fazer upload da imagem" });
+    }
+  });
+
   app.post("/api/events", async (req, res) => {
     try {
       const userId = req.headers["x-user-id"] as string;
