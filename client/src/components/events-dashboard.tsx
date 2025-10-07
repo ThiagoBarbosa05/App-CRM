@@ -38,6 +38,7 @@ interface Event {
   id: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   eventDate: string;
   registrationDeadline: string | null;
   location: string;
@@ -845,11 +846,11 @@ export default function EventsDashboard() {
                 return (
                   <div
                     key={event.id}
-                    className="group relative bg-white border border-gray-200 rounded-md p-6 hover:border-gray-300 hover:shadow-md transition-all duration-200 ease-in-out"
+                    className="group relative bg-white border border-gray-200 rounded-md overflow-hidden hover:border-gray-300 hover:shadow-md transition-all duration-200 ease-in-out"
                   >
                     {/* Indicador de urgência lateral */}
                     <div
-                      className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${
+                      className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${
                         isToday
                           ? "bg-red-500"
                           : isTomorrow
@@ -860,8 +861,21 @@ export default function EventsDashboard() {
                       }`}
                     />
 
+                    {/* Imagem de Capa com efeito esmaecido */}
+                    {event.imageUrl && (
+                      <div className="relative w-full h-32 overflow-hidden">
+                        <img
+                          src={event.imageUrl}
+                          alt={event.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Gradiente esmaecido para transição */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white" />
+                      </div>
+                    )}
+
                     {/* Header do Card */}
-                    <div className="pl-2">
+                    <div className={`p-6 pl-8 ${event.imageUrl ? '-mt-6 relative z-10' : ''}`}>
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-lg text-gray-900 mb-3 overflow-hidden text-ellipsis">
