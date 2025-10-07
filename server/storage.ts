@@ -4557,6 +4557,7 @@ export class DatabaseStorage implements IStorage {
           id: events.id,
           name: events.name,
           description: events.description,
+          imageUrl: events.imageUrl,
           eventDate: events.eventDate,
           registrationDeadline: events.registrationDeadline,
           location: events.location,
