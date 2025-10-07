@@ -113,7 +113,7 @@ import { getTemplatesController } from "./controllers/get-templates-controller";
 
 // Configure multer for file uploads
 const upload = multer({
-  // limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
 });
 
 const s3 = new S3Client({
@@ -3848,6 +3848,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "Nenhuma imagem foi enviada" });
+      }
+
+      // Validar tipo de arquivo (JPEG, JPG, PNG)
+      const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          message: "Formato de arquivo inválido. Use JPEG, JPG ou PNG" 
+        });
+      }
+
+      // Validar tamanho (15MB máximo)
+      if (req.file.size > 15 * 1024 * 1024) {
+        return res.status(400).json({ 
+          message: "Arquivo muito grande. O tamanho máximo é 15MB" 
+        });
       }
 
       const fileExtension = req.file.originalname.split('.').pop();

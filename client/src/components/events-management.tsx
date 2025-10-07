@@ -81,7 +81,6 @@ interface Event {
   category: string;
   status: "planejado" | "ativo" | "finalizado" | "cancelado";
   notes: string | null;
-  imageUrl: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -187,10 +186,23 @@ export default function EventsManagement() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    // Validar tipo de arquivo (JPEG, JPG, PNG)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione uma imagem válida",
+        description: "Por favor, selecione uma imagem JPEG, JPG ou PNG",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar tamanho (15MB máximo)
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxSize) {
+      toast({
+        title: "Erro",
+        description: "A imagem deve ter no máximo 15MB",
         variant: "destructive",
       });
       return;
@@ -208,7 +220,8 @@ export default function EventsManagement() {
       });
 
       if (!response.ok) {
-        throw new Error("Erro no upload da imagem");
+        const error = await response.json();
+        throw new Error(error.message || "Erro no upload da imagem");
       }
 
       const result = await response.json();
@@ -222,7 +235,7 @@ export default function EventsManagement() {
       console.error("Erro no upload:", error);
       toast({
         title: "Erro",
-        description: "Falha ao fazer upload da imagem",
+        description: error instanceof Error ? error.message : "Falha ao fazer upload da imagem",
         variant: "destructive",
       });
     } finally {
@@ -1043,9 +1056,9 @@ export default function EventsManagement() {
                     className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
                   >
                     <div className="flex flex-col">
-                      {/* Imagem de Capa */}
+                      {/* Imagem de Capa 16:9 */}
                       {event.imageUrl && (
-                        <div className="w-full h-48 overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <div className="w-full aspect-video overflow-hidden bg-slate-100 dark:bg-slate-900">
                           <img
                             src={event.imageUrl}
                             alt={event.name}
@@ -1341,15 +1354,17 @@ export default function EventsManagement() {
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Imagem de Capa
+                  Imagem de Capa (16:9)
                 </Label>
                 {formData.imageUrl ? (
                   <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-4">
-                    <img
-                      src={formData.imageUrl}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
+                    <div className="w-full aspect-video overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
+                      <img
+                        src={formData.imageUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <Button
                       type="button"
                       variant="destructive"
@@ -1363,18 +1378,18 @@ export default function EventsManagement() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-orange-400 transition-colors">
+                  <div className="w-full aspect-video border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-center hover:border-orange-400 transition-colors flex items-center justify-center bg-slate-50 dark:bg-slate-900/50">
                     <input
                       type="file"
                       id="image-upload"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png"
                       onChange={handleImageUpload}
                       className="hidden"
                       data-testid="input-image-upload"
                     />
                     <label
                       htmlFor="image-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
+                      className="cursor-pointer flex flex-col items-center gap-2 p-8"
                     >
                       {isUploading ? (
                         <Loader2 className="h-12 w-12 text-orange-500 animate-spin" />
@@ -1387,7 +1402,7 @@ export default function EventsManagement() {
                           : "Clique para selecionar uma imagem"}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-500">
-                        PNG, JPG ou JPEG (máx. 5MB)
+                        JPEG, JPG ou PNG • Formato 16:9 • Máx. 15MB
                       </p>
                     </label>
                   </div>
