@@ -92,10 +92,13 @@ import {
   userServiceChannel,
   events,
   eventParticipants,
+  eventAttachments,
   type InsertEvent,
   type Event,
   type InsertEventParticipant,
   type EventParticipant,
+  type InsertEventAttachment,
+  type EventAttachment,
   type InsertMarkerGoal,
   type MarkerGoal,
   type InsertMarkerWeeklyResult,
@@ -225,7 +228,9 @@ export interface IStorage {
     stage: Partial<InsertFunnelStage>
   ): Promise<FunnelStage | undefined>;
   deleteFunnelStage(id: string): Promise<boolean>;
-  reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean>;
+  reorderFunnelStages(
+    stageUpdates: { id: string; order: number }[]
+  ): Promise<boolean>;
 
   // Deals
   getDeals(
@@ -450,10 +455,7 @@ export interface IStorage {
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
 
   // Marker Goals methods
-  getMarkerGoals(
-    userId?: string,
-    userRole?: string
-  ): Promise<MarkerGoal[]>;
+  getMarkerGoals(userId?: string, userRole?: string): Promise<MarkerGoal[]>;
   getMarkerGoalsByMonthYear(
     month: number,
     year: number,
@@ -469,7 +471,15 @@ export interface IStorage {
   getMarkerStatsByPeriod(
     month: number,
     year: number
-  ): Promise<{ markerName: string; totalClients: number; userId: string; userName: string; userEmail: string }[]>;
+  ): Promise<
+    {
+      markerName: string;
+      totalClients: number;
+      userId: string;
+      userName: string;
+      userEmail: string;
+    }[]
+  >;
 
   // Method to get clients without recent contact
   getClientsWithoutRecentContact(
@@ -541,9 +551,22 @@ export interface IStorage {
   updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event>;
   deleteEvent(eventId: string): Promise<boolean>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
-  addEventParticipant(participantData: InsertEventParticipant): Promise<EventParticipant>;
-  updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>): Promise<EventParticipant>;
+  addEventParticipant(
+    participantData: InsertEventParticipant
+  ): Promise<EventParticipant>;
+  updateEventParticipant(
+    participantId: string,
+    participantData: Partial<InsertEventParticipant>
+  ): Promise<EventParticipant>;
   removeEventParticipant(participantId: string): Promise<boolean>;
+
+  // Event Attachments methods
+  getEventAttachments(eventId: string): Promise<EventAttachment[]>;
+  addEventAttachment(
+    attachmentData: InsertEventAttachment
+  ): Promise<EventAttachment>;
+  deleteEventAttachment(attachmentId: string): Promise<boolean>;
+  deleteEventAttachmentsByEventId(eventId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1263,20 +1286,22 @@ export class DatabaseStorage implements IStorage {
           .where(eq(deals.stageId, id));
 
         // Excluir a etapa
-        await tx
-          .delete(funnelStages)
-          .where(eq(funnelStages.id, id));
+        await tx.delete(funnelStages).where(eq(funnelStages.id, id));
       });
 
       return true;
     } catch (error) {
-      console.error('Erro ao excluir etapa:', error);
+      console.error("Erro ao excluir etapa:", error);
       throw error;
     }
   }
 
-  async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean>;
-  async reorderFunnelStages(stageUpdates: { id: string; order: number }[]): Promise<boolean> {
+  async reorderFunnelStages(
+    stageUpdates: { id: string; order: number }[]
+  ): Promise<boolean>;
+  async reorderFunnelStages(
+    stageUpdates: { id: string; order: number }[]
+  ): Promise<boolean> {
     try {
       await this.db.transaction(async (tx) => {
         for (const stageUpdate of stageUpdates) {
@@ -1288,7 +1313,7 @@ export class DatabaseStorage implements IStorage {
       });
       return true;
     } catch (error) {
-      console.error('Error reordering funnel stages:', error);
+      console.error("Error reordering funnel stages:", error);
       return false;
     }
   }
@@ -1327,7 +1352,7 @@ export class DatabaseStorage implements IStorage {
         company: companies,
         assignedUser: users,
         stage: funnelStages,
-        funnel: salesFunnels
+        funnel: salesFunnels,
       })
       .from(deals)
       .leftJoin(clients, eq(deals.clientId, clients.id))
@@ -1339,7 +1364,8 @@ export class DatabaseStorage implements IStorage {
     // Aplicar condições de filtro
     const conditions = [];
     if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
-    if (userRole === "vendedor" && userId) conditions.push(eq(deals.assignedTo, userId));
+    if (userRole === "vendedor" && userId)
+      conditions.push(eq(deals.assignedTo, userId));
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
@@ -1354,7 +1380,7 @@ export class DatabaseStorage implements IStorage {
       company: row.company,
       assignedUser: row.assignedUser,
       stage: row.stage,
-      funnel: row.funnel
+      funnel: row.funnel,
     }));
 
     return dealsWithClients;
@@ -1640,7 +1666,9 @@ export class DatabaseStorage implements IStorage {
       const targetMonth = targetDate.getMonth() + 1; // getMonth() returns 0-11
       const targetDay = targetDate.getDate();
 
-      console.log(`[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth}`);
+      console.log(
+        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth}`
+      );
 
       // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
       const birthdayClients = await this.db
@@ -1662,12 +1690,16 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log(`[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) para ${targetDay}/${targetMonth}`);
+      console.log(
+        `[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) para ${targetDay}/${targetMonth}`
+      );
 
       return birthdayClients;
-
     } catch (error) {
-      console.error("[Storage] Erro ao buscar clientes aniversariantes:", error);
+      console.error(
+        "[Storage] Erro ao buscar clientes aniversariantes:",
+        error
+      );
       return [];
     }
   }
@@ -1859,8 +1891,12 @@ export class DatabaseStorage implements IStorage {
         typeof insertInteraction.date === "string"
           ? new Date(insertInteraction.date)
           : insertInteraction.date,
-      latitude: insertInteraction.latitude ? String(insertInteraction.latitude) : undefined,
-      longitude: insertInteraction.longitude ? String(insertInteraction.longitude) : undefined,
+      latitude: insertInteraction.latitude
+        ? String(insertInteraction.latitude)
+        : undefined,
+      longitude: insertInteraction.longitude
+        ? String(insertInteraction.longitude)
+        : undefined,
     };
 
     const [interaction] = await this.db
@@ -1882,7 +1918,9 @@ export class DatabaseStorage implements IStorage {
           ? new Date(updateData.date)
           : updateData.date,
       latitude: updateData.latitude ? String(updateData.latitude) : undefined,
-      longitude: updateData.longitude ? String(updateData.longitude) : undefined,
+      longitude: updateData.longitude
+        ? String(updateData.longitude)
+        : undefined,
       updatedAt: new Date(),
     };
 
@@ -2368,10 +2406,12 @@ export class DatabaseStorage implements IStorage {
       baseQuery = baseQuery.where(eq(clients.responsavelId, userId));
     }
 
-    const rawTransactions = await baseQuery.orderBy(cashbackTransactions.createdAt);
+    const rawTransactions = await baseQuery.orderBy(
+      cashbackTransactions.createdAt
+    );
 
     // Transformar os dados para o formato esperado
-    const transactions = rawTransactions.map(row => ({
+    const transactions = rawTransactions.map((row) => ({
       id: row.transactionId,
       clientId: row.clientId,
       dealId: row.dealId,
@@ -2392,10 +2432,12 @@ export class DatabaseStorage implements IStorage {
         email: row.clientEmail,
       },
       // Adicionar informações do responsável
-      responsible: row.responsibleId ? {
-        id: row.responsibleId,
-        name: row.responsibleName,
-      } : null,
+      responsible: row.responsibleId
+        ? {
+            id: row.responsibleId,
+            name: row.responsibleName,
+          }
+        : null,
     })) as any;
 
     return transactions;
@@ -3078,7 +3120,12 @@ export class DatabaseStorage implements IStorage {
     let query = this.db
       .select()
       .from(clientRegistrationGoals)
-      .where(and(eq(clientRegistrationGoals.month, month), eq(clientRegistrationGoals.year, year)));
+      .where(
+        and(
+          eq(clientRegistrationGoals.month, month),
+          eq(clientRegistrationGoals.year, year)
+        )
+      );
 
     // Vendedores só veem suas próprias metas
     if (userRole !== "admin" && userRole !== "administrador" && userId) {
@@ -3257,9 +3304,7 @@ export class DatabaseStorage implements IStorage {
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      query = query.where(
-        eq(markerGoals.userId, userId)
-      ) as typeof query;
+      query = query.where(eq(markerGoals.userId, userId)) as typeof query;
     }
 
     const goals = await query.orderBy(desc(markerGoals.createdAt));
@@ -3296,10 +3341,7 @@ export class DatabaseStorage implements IStorage {
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      whereConditions = and(
-        whereConditions,
-        eq(markerGoals.userId, userId)
-      );
+      whereConditions = and(whereConditions, eq(markerGoals.userId, userId));
     }
 
     const goals = await query
@@ -3309,10 +3351,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMarkerGoal(data: InsertMarkerGoal): Promise<MarkerGoal> {
-    const [goal] = await this.db
-      .insert(markerGoals)
-      .values(data)
-      .returning();
+    const [goal] = await this.db.insert(markerGoals).values(data).returning();
     return goal;
   }
 
@@ -3358,9 +3397,7 @@ export class DatabaseStorage implements IStorage {
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
-      query = query.where(
-        eq(interactionGoals.userId, userId)
-      ) as typeof query;
+      query = query.where(eq(interactionGoals.userId, userId)) as typeof query;
     }
 
     const goals = await query.orderBy(desc(interactionGoals.createdAt));
@@ -3409,7 +3446,9 @@ export class DatabaseStorage implements IStorage {
     return goals as InteractionGoal[];
   }
 
-  async createInteractionGoal(data: InsertInteractionGoal): Promise<InteractionGoal> {
+  async createInteractionGoal(
+    data: InsertInteractionGoal
+  ): Promise<InteractionGoal> {
     const [goal] = await this.db
       .insert(interactionGoals)
       .values(data)
@@ -3439,7 +3478,15 @@ export class DatabaseStorage implements IStorage {
   async getInteractionStatsByPeriod(
     month: number,
     year: number
-  ): Promise<{ interactionType: string; totalInteractions: number; userId: string; userName: string; userEmail: string }[]> {
+  ): Promise<
+    {
+      interactionType: string;
+      totalInteractions: number;
+      userId: string;
+      userName: string;
+      userEmail: string;
+    }[]
+  > {
     try {
       // Get all interactions in the period
       const interactionsInPeriod = await this.db
@@ -3462,15 +3509,17 @@ export class DatabaseStorage implements IStorage {
         );
 
       // Process the results in JavaScript to count interactions per user and type
-      const interactionStats: { [key: string]: { 
-        interactionType: string; 
-        totalInteractions: number; 
-        userId: string; 
-        userName: string; 
-        userEmail: string 
-      } } = {};
+      const interactionStats: {
+        [key: string]: {
+          interactionType: string;
+          totalInteractions: number;
+          userId: string;
+          userName: string;
+          userEmail: string;
+        };
+      } = {};
 
-      interactionsInPeriod.forEach(interaction => {
+      interactionsInPeriod.forEach((interaction) => {
         if (interaction.type && interaction.userId) {
           const key = `${interaction.type}-${interaction.userId}`;
           if (!interactionStats[key]) {
@@ -3478,8 +3527,8 @@ export class DatabaseStorage implements IStorage {
               interactionType: interaction.type,
               totalInteractions: 0,
               userId: interaction.userId,
-              userName: interaction.userName || '',
-              userEmail: interaction.userEmail || '',
+              userName: interaction.userName || "",
+              userEmail: interaction.userEmail || "",
             };
           }
           interactionStats[key].totalInteractions++;
@@ -3488,7 +3537,7 @@ export class DatabaseStorage implements IStorage {
 
       return Object.values(interactionStats);
     } catch (error) {
-      console.error('Error getting interaction stats by period:', error);
+      console.error("Error getting interaction stats by period:", error);
       throw error;
     }
   }
@@ -3496,7 +3545,15 @@ export class DatabaseStorage implements IStorage {
   async getMarkerStatsByPeriod(
     month: number,
     year: number
-  ): Promise<{ markerName: string; totalClients: number; userId: string; userName: string; userEmail: string }[]> {
+  ): Promise<
+    {
+      markerName: string;
+      totalClients: number;
+      userId: string;
+      userName: string;
+      userEmail: string;
+    }[]
+  > {
     try {
       // Since unnest is complex with Drizzle, get all clients with markers in the period
       // and process them in JavaScript
@@ -3521,15 +3578,17 @@ export class DatabaseStorage implements IStorage {
         );
 
       // Process the results in JavaScript to count markers per user
-      const markerStats: { [key: string]: { 
-        markerName: string; 
-        totalClients: number; 
-        userId: string; 
-        userName: string; 
-        userEmail: string 
-      } } = {};
+      const markerStats: {
+        [key: string]: {
+          markerName: string;
+          totalClients: number;
+          userId: string;
+          userName: string;
+          userEmail: string;
+        };
+      } = {};
 
-      clientsWithMarkers.forEach(client => {
+      clientsWithMarkers.forEach((client) => {
         if (client.markers && client.responsavelId) {
           client.markers.forEach((marker: string) => {
             const key = `${marker}-${client.responsavelId}`;
@@ -3537,9 +3596,9 @@ export class DatabaseStorage implements IStorage {
               markerStats[key] = {
                 markerName: marker,
                 totalClients: 0,
-                userId: client.responsavelId || '',
-                userName: client.userName || '',
-                userEmail: client.userEmail || ''
+                userId: client.responsavelId || "",
+                userName: client.userName || "",
+                userEmail: client.userEmail || "",
               };
             }
             markerStats[key].totalClients++;
@@ -3555,7 +3614,7 @@ export class DatabaseStorage implements IStorage {
         return b.totalClients - a.totalClients;
       });
     } catch (error) {
-      console.error('Erro ao buscar estatísticas de marcadores:', error);
+      console.error("Erro ao buscar estatísticas de marcadores:", error);
       return [];
     }
   }
@@ -4521,12 +4580,26 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(events.createdBy, users.id))
         .orderBy(desc(events.eventDate));
 
+      let eventsResult: Event[];
       // Se não for admin, filtrar apenas eventos do usuário
       if (userRole !== "admin" && userRole !== "administrador" && userId) {
-        return await baseQuery.where(eq(events.createdBy, userId));
+        eventsResult = await baseQuery.where(eq(events.createdBy, userId));
+      } else {
+        eventsResult = await baseQuery;
       }
 
-      return await baseQuery;
+      // Para cada evento, buscar seus anexos
+      const eventsWithAttachments = await Promise.all(
+        eventsResult.map(async (event) => {
+          const attachments = await this.getEventAttachments(event.id);
+          return {
+            ...event,
+            attachments,
+          };
+        })
+      );
+
+      return eventsWithAttachments;
     } catch (error) {
       console.error("Error fetching events:", error);
       throw error;
@@ -4546,7 +4619,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event> {
+  async updateEvent(
+    eventId: string,
+    eventData: Partial<InsertEvent>
+  ): Promise<Event> {
     try {
       const [updatedEvent] = await this.db
         .update(events)
@@ -4563,9 +4639,14 @@ export class DatabaseStorage implements IStorage {
   async deleteEvent(eventId: string): Promise<boolean> {
     try {
       // First, delete all participants related to the event
-      await this.db.delete(eventParticipants).where(eq(eventParticipants.eventId, eventId));
+      await this.db
+        .delete(eventParticipants)
+        .where(eq(eventParticipants.eventId, eventId));
 
-      // Then, delete the event itself
+      // Then, delete all attachments related to the event
+      await this.deleteEventAttachmentsByEventId(eventId);
+
+      // Finally, delete the event itself
       const [deletedEvent] = await this.db
         .delete(events)
         .where(eq(events.id, eventId))
@@ -4605,7 +4686,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async addEventParticipant(participantData: InsertEventParticipant): Promise<EventParticipant> {
+  async addEventParticipant(
+    participantData: InsertEventParticipant
+  ): Promise<EventParticipant> {
     try {
       // Verificar se o cliente já está inscrito no evento
       const existingParticipant = await this.db
@@ -4623,14 +4706,26 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Verificar se a capacidade máxima do evento foi atingida
-      const event = await this.db.select().from(events).where(eq(events.id, participantData.eventId)).limit(1);
+      const event = await this.db
+        .select()
+        .from(events)
+        .where(eq(events.id, participantData.eventId))
+        .limit(1);
       if (event && event[0]) {
         const currentParticipants = await this.db
           .select({ count: count() })
           .from(eventParticipants)
-          .where(and(eq(eventParticipants.eventId, participantData.eventId), eq(eventParticipants.status, 'confirmado')));
+          .where(
+            and(
+              eq(eventParticipants.eventId, participantData.eventId),
+              eq(eventParticipants.status, "confirmado")
+            )
+          );
 
-        if (event[0].maxCapacity && currentParticipants[0].count >= event[0].maxCapacity) {
+        if (
+          event[0].maxCapacity &&
+          currentParticipants[0].count >= event[0].maxCapacity
+        ) {
           throw new Error("Capacidade máxima do evento atingida");
         }
       }
@@ -4646,7 +4741,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateEventParticipant(participantId: string, participantData: Partial<InsertEventParticipant>): Promise<EventParticipant> {
+  async updateEventParticipant(
+    participantId: string,
+    participantData: Partial<InsertEventParticipant>
+  ): Promise<EventParticipant> {
     try {
       const [updatedParticipant] = await this.db
         .update(eventParticipants)
@@ -4669,6 +4767,61 @@ export class DatabaseStorage implements IStorage {
       return !!removedParticipant;
     } catch (error) {
       console.error("Error removing event participant:", error);
+      throw error;
+    }
+  }
+
+  // Event Attachments methods
+  async getEventAttachments(eventId: string): Promise<EventAttachment[]> {
+    try {
+      const attachments = await this.db
+        .select()
+        .from(eventAttachments)
+        .where(eq(eventAttachments.eventId, eventId))
+        .orderBy(eventAttachments.uploadedAt);
+      return attachments;
+    } catch (error) {
+      console.error("Error fetching event attachments:", error);
+      throw error;
+    }
+  }
+
+  async addEventAttachment(
+    attachmentData: InsertEventAttachment
+  ): Promise<EventAttachment> {
+    try {
+      const [newAttachment] = await this.db
+        .insert(eventAttachments)
+        .values(attachmentData)
+        .returning();
+      return newAttachment;
+    } catch (error) {
+      console.error("Error adding event attachment:", error);
+      throw error;
+    }
+  }
+
+  async deleteEventAttachment(attachmentId: string): Promise<boolean> {
+    try {
+      const [deletedAttachment] = await this.db
+        .delete(eventAttachments)
+        .where(eq(eventAttachments.id, attachmentId))
+        .returning();
+      return !!deletedAttachment;
+    } catch (error) {
+      console.error("Error deleting event attachment:", error);
+      throw error;
+    }
+  }
+
+  async deleteEventAttachmentsByEventId(eventId: string): Promise<boolean> {
+    try {
+      await this.db
+        .delete(eventAttachments)
+        .where(eq(eventAttachments.eventId, eventId));
+      return true;
+    } catch (error) {
+      console.error("Error deleting event attachments by event id:", error);
       throw error;
     }
   }

@@ -9,9 +9,30 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, MapPinIcon, UsersIcon, ClockIcon } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import {
+  CalendarIcon,
+  MapPinIcon,
+  UsersIcon,
+  ClockIcon,
+  ImageIcon,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, baseS3Url } from "@/lib/utils";
+
+interface EventAttachment {
+  id?: string;
+  eventId?: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt?: string;
+}
 
 interface Event {
   id: string;
@@ -30,6 +51,7 @@ interface Event {
   updatedAt: string;
   creatorName: string;
   participantCount: number;
+  attachments?: EventAttachment[];
 }
 
 const EVENT_STATUS = [
@@ -187,6 +209,190 @@ export default function EventsDashboard() {
     .status-presente { background-color: #d1fae5; color: #047857; }
     .status-ausente { background-color: #fed7aa; color: #ea580c; }
     .status-cancelado { background-color: #fee2e2; color: #dc2626; }
+    .event-images {
+      margin: 25px 0;
+      page-break-inside: avoid;
+    }
+    .event-images h3 {
+      color: #4f46e5;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .images-gallery {
+      position: relative;
+    }
+    .images-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 15px;
+    }
+    .images-grid.single {
+      grid-template-columns: 1fr;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .images-grid.dual {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .images-grid.multi {
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: repeat(2, 1fr);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .images-grid.grid-layout {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .image-container {
+      position: relative;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .image-container:hover {
+      border-color: #4f46e5;
+      box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
+      transform: translateY(-2px);
+    }
+    .image-container.main-image {
+      grid-row: 1 / 3;
+      aspect-ratio: 4/3;
+      max-height: 250px;
+      max-width: 300px;
+    }
+    .image-container.side-image {
+      aspect-ratio: 16/9;
+      max-height: 120px;
+      max-width: 200px;
+    }
+    .image-container.single-image {
+      aspect-ratio: 16/9;
+      max-height: 300px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .image-container.grid-image {
+      aspect-ratio: 4/3;
+      max-height: 200px;
+      max-width: 300px;
+    }
+    .image-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .image-container:hover img {
+      transform: scale(1.05);
+    }
+    .image-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        135deg, 
+        rgba(79, 70, 229, 0.1) 0%, 
+        rgba(139, 92, 246, 0.1) 100%
+      );
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-container:hover .image-overlay {
+      opacity: 1;
+    }
+    .zoom-icon {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 50%;
+      padding: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: scale(0.8);
+      transition: transform 0.2s ease;
+    }
+    .image-container:hover .zoom-icon {
+      transform: scale(1);
+    }
+    .image-fallback {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      color: #64748b;
+    }
+    .fallback-content {
+      text-align: center;
+      padding: 20px;
+    }
+    .image-icon {
+      font-size: 2.5em;
+      margin-bottom: 12px;
+      opacity: 0.7;
+    }
+    .image-name {
+      font-size: 13px;
+      font-weight: 500;
+      word-break: break-word;
+      max-width: 180px;
+      line-height: 1.4;
+    }
+    .image-counter {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(8px);
+    }
+    .images-navigation {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 15px;
+    }
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .nav-dot.active {
+      background: #4f46e5;
+      transform: scale(1.2);
+    }
     .footer {
       margin-top: 40px;
       text-align: center;
@@ -198,6 +404,74 @@ export default function EventsDashboard() {
     @media print {
       body { margin: 0; }
       .no-print { display: none; }
+
+      .event-images {
+        page-break-inside: avoid;
+        margin: 20px 0;
+      }
+
+      .images-grid.single {
+        grid-template-columns: 1fr;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+
+      .images-grid.dual {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .images-grid.multi {
+        grid-template-columns: 2fr 1fr;
+        gap: 8px;
+        max-width: 350px;
+        margin: 0 auto;
+      }
+
+      .images-grid.grid-layout {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        max-width: 450px;
+        margin: 0 auto;
+      }
+
+      .image-container {
+        break-inside: avoid;
+        border-width: 1px;
+        box-shadow: none;
+      }
+
+      .image-container.single-image {
+        max-height: 200px;
+        max-width: 300px;
+      }
+
+      .image-container.main-image {
+        max-height: 150px;
+        max-width: 200px;
+      }
+
+      .image-container.side-image {
+        max-height: 100px;
+        max-width: 150px;
+      }
+
+      .image-container.grid-image {
+        max-height: 100px;
+        max-width: 150px;
+      }
+
+      .image-overlay,
+      .zoom-icon {
+        display: none !important;
+      }
+
+      .image-counter {
+        background: rgba(0, 0, 0, 0.9);
+        font-size: 11px;
+      }
     }
   </style>
 </head>
@@ -243,6 +517,214 @@ export default function EventsDashboard() {
     ${
       event.description
         ? `<div class="info-item"><span class="info-label">Descrição:</span> ${event.description}</div>`
+        : ""
+    }
+    ${
+      event.attachments && event.attachments.length > 0
+        ? `
+        <div class="event-images">
+          <h3>
+            <span style="color: #4f46e5; font-size: 18px;">📸</span>
+            Galeria do Evento (${event.attachments.length} ${
+            event.attachments.length === 1 ? "imagem" : "imagens"
+          })
+          </h3>
+          <div class="images-gallery">
+            ${
+              event.attachments.length === 1
+                ? `
+                <!-- Layout para uma imagem -->
+                <div class="images-grid single">
+                  <div class="image-container single-image">
+                    <div class="image-wrapper">
+                      <img 
+                        src="${baseS3Url}${event.attachments[0].fileUrl}" 
+                        alt="${event.attachments[0].fileName}"
+                        onerror="this.style.display='none'; this.parentNode.nextElementSibling.style.display='flex';"
+                      />
+                      <div class="image-overlay">
+                        <div class="zoom-icon">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="image-fallback" style="display: none;">
+                      <div class="fallback-content">
+                        <div class="image-icon">📷</div>
+                        <div class="image-name">${event.attachments[0].fileName}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                `
+                : event.attachments.length === 2
+                ? `
+                <!-- Layout para duas imagens -->
+                <div class="images-grid dual">
+                  ${event.attachments
+                    .map(
+                      (attachment, index) => `
+                    <div class="image-container side-image">
+                      <div class="image-wrapper">
+                        <img 
+                          src="${baseS3Url}${attachment.fileUrl}" 
+                          alt="${attachment.fileName}"
+                          onerror="this.style.display='none'; this.parentNode.nextElementSibling.style.display='flex';"
+                        />
+                        <div class="image-overlay">
+                          <div class="zoom-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                              <circle cx="11" cy="11" r="8"></circle>
+                              <path d="m21 21-4.35-4.35"></path>
+                              <line x1="11" y1="8" x2="11" y2="14"></line>
+                              <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="image-fallback" style="display: none;">
+                        <div class="fallback-content">
+                          <div class="image-icon">📷</div>
+                          <div class="image-name">${attachment.fileName}</div>
+                        </div>
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join("")}
+                </div>
+                `
+                : event.attachments.length === 3
+                ? `
+                <!-- Layout especial para três imagens -->
+                <div class="images-grid multi">
+                  <div class="image-container main-image">
+                    <div class="image-wrapper">
+                      <img 
+                        src="${baseS3Url}${event.attachments[0].fileUrl}" 
+                        alt="${event.attachments[0].fileName}"
+                        onerror="this.style.display='none'; this.parentNode.nextElementSibling.style.display='flex';"
+                      />
+                      <div class="image-overlay">
+                        <div class="zoom-icon">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="image-fallback" style="display: none;">
+                      <div class="fallback-content">
+                        <div class="image-icon">📷</div>
+                        <div class="image-name">${
+                          event.attachments[0].fileName
+                        }</div>
+                      </div>
+                    </div>
+                  </div>
+                  ${event.attachments
+                    .slice(1, 3)
+                    .map(
+                      (attachment, index) => `
+                    <div class="image-container side-image">
+                      <div class="image-wrapper">
+                        <img 
+                          src="${baseS3Url}${attachment.fileUrl}" 
+                          alt="${attachment.fileName}"
+                          onerror="this.style.display='none'; this.parentNode.nextElementSibling.style.display='flex';"
+                        />
+                        <div class="image-overlay">
+                          <div class="zoom-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                              <circle cx="11" cy="11" r="8"></circle>
+                              <path d="m21 21-4.35-4.35"></path>
+                              <line x1="11" y1="8" x2="11" y2="14"></line>
+                              <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="image-fallback" style="display: none;">
+                        <div class="fallback-content">
+                          <div class="image-icon">📷</div>
+                          <div class="image-name">${attachment.fileName}</div>
+                        </div>
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join("")}
+                </div>
+                `
+                : `
+                <!-- Layout em grid para 4+ imagens -->
+                <div class="images-grid grid-layout">
+                  ${event.attachments
+                    .slice(0, 6)
+                    .map(
+                      (attachment, index) => `
+                    <div class="image-container grid-image">
+                      <div class="image-wrapper">
+                        <img 
+                          src="${baseS3Url}${attachment.fileUrl}" 
+                          alt="${attachment.fileName}"
+                          onerror="this.style.display='none'; this.parentNode.nextElementSibling.style.display='flex';"
+                        />
+                        <div class="image-overlay">
+                          <div class="zoom-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2">
+                              <circle cx="11" cy="11" r="8"></circle>
+                              <path d="m21 21-4.35-4.35"></path>
+                              <line x1="11" y1="8" x2="11" y2="14"></line>
+                              <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                          </div>
+                        </div>
+                        ${
+                          index === 5 &&
+                          event.attachments &&
+                          event.attachments.length > 6
+                            ? `
+                          <div class="image-counter">
+                            +${event.attachments.length - 6} mais
+                          </div>
+                        `
+                            : ""
+                        }
+                      </div>
+                      <div class="image-fallback" style="display: none;">
+                        <div class="fallback-content">
+                          <div class="image-icon">�</div>
+                          <div class="image-name">${attachment.fileName}</div>
+                        </div>
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join("")}
+                </div>
+                ${
+                  event.attachments.length > 6
+                    ? `
+                  <div style="text-align: center; margin-top: 15px; color: #64748b; font-size: 14px;">
+                    <em>Mostrando 6 de ${event.attachments.length} imagens</em>
+                  </div>
+                `
+                    : ""
+                }
+                `
+            }
+          </div>
+        </div>
+        `
         : ""
     }
   </div>
@@ -489,6 +971,109 @@ export default function EventsDashboard() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Imagens do evento */}
+                      {event.attachments && event.attachments.length > 0 && (
+                        <div className="mb-5">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="p-1.5 bg-purple-50 rounded-lg">
+                              <ImageIcon className="h-4 w-4 text-purple-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">
+                              {event.attachments.length} imagem
+                              {event.attachments.length !== 1 ? "s" : ""} do
+                              evento
+                            </span>
+                          </div>
+
+                          {/* Carousel de imagens */}
+                          <div className="relative">
+                            <Carousel
+                              opts={{
+                                align: "start",
+                                loop: true,
+                              }}
+                              className="w-full"
+                            >
+                              <CarouselContent className="-ml-2 md:-ml-4">
+                                {event.attachments.map((attachment, index) => (
+                                  <CarouselItem
+                                    key={index}
+                                    className="pl-2 md:pl-4 basis-full"
+                                  >
+                                    <div className="relative group aspect-video bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg overflow-hidden border border-purple-200 hover:border-purple-300 transition-all shadow-sm hover:shadow-md">
+                                      <img
+                                        src={`${baseS3Url}${attachment.fileUrl}`}
+                                        alt={attachment.fileName}
+                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                        onError={(e) => {
+                                          const target =
+                                            e.target as HTMLImageElement;
+                                          target.style.display = "none";
+                                          target.nextElementSibling?.classList.remove(
+                                            "hidden"
+                                          );
+                                        }}
+                                      />
+                                      <div className="hidden absolute inset-0 bg-gradient-to-br from-purple-50 to-purple-100">
+                                        <div className="flex items-center justify-center h-full">
+                                          <div className="text-center text-purple-600">
+                                            <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                                            <span className="text-sm font-medium break-words px-2">
+                                              {attachment.fileName}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Overlay sutil com informações */}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                                          <div className="text-white text-xs font-medium truncate">
+                                            {attachment.fileName}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Indicador de posição */}
+                                      {event.attachments && event.attachments.length > 1 && (
+                                        <div className="absolute top-3 right-3">
+                                          <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                                            {index + 1}/
+                                            {event.attachments.length}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+
+                              {/* Botões de navegação - só aparecem se houver mais de 1 imagem */}
+                              {event.attachments.length > 1 && (
+                                <>
+                                  <CarouselPrevious className="absolute -left-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-white/90 hover:bg-white border-purple-200 hover:border-purple-300 text-purple-600 hover:text-purple-700 shadow-lg" />
+                                  <CarouselNext className="absolute -right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-white/90 hover:bg-white border-purple-200 hover:border-purple-300 text-purple-600 hover:text-purple-700 shadow-lg" />
+                                </>
+                              )}
+                            </Carousel>
+
+                            {/* Indicadores de pontos para navegação */}
+                            {event.attachments.length > 1 &&
+                              event.attachments.length <= 5 && (
+                                <div className="flex justify-center mt-3 gap-2">
+                                  {event.attachments.map((_, index) => (
+                                    <div
+                                      key={index}
+                                      className="w-2 h-2 rounded-full bg-purple-200 hover:bg-purple-400 transition-colors cursor-pointer"
+                                      title={`Imagem ${index + 1}`}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Descrição */}
                       {event.description && (

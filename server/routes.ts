@@ -32,6 +32,7 @@ import {
   createScriptSchema,
   insertProductSchema,
   insertEventSchema,
+  insertEventAttachmentSchema,
   insertEventParticipantSchema,
   insertMarkerGoalSchema,
   insertInteractionGoalSchema,
@@ -114,21 +115,6 @@ import { getTemplatesController } from "./controllers/get-templates-controller";
 const upload = multer({
   // limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
-
-// Initialize Replit Object Storage client
-let objectStorageClient: Client | null = null;
-try {
-  // Skip Object Storage in development to avoid bucket configuration issues
-  if (process.env.NODE_ENV === "production") {
-    objectStorageClient = new Client();
-    console.log("Object Storage initialized successfully");
-  } else {
-    console.log("Object Storage disabled in development mode");
-  }
-} catch (error) {
-  console.warn("Object Storage not available:", error);
-  objectStorageClient = null;
-}
 
 const s3 = new S3Client({
   region: "auto",
@@ -3487,6 +3473,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete file from S3
+  app.delete("/api/delete-file", async (req, res) => {
+    try {
+      const { fileUrl } = req.body;
+
+      if (!fileUrl) {
+        return res
+          .status(400)
+          .json({ message: "URL do arquivo é obrigatória" });
+      }
+
+      // Remover arquivo do S3
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: "crm-test",
+          Key: fileUrl,
+        })
+      );
+
+      res.json({ message: "Arquivo removido com sucesso" });
+    } catch (error) {
+      console.error("Erro ao deletar arquivo:", error);
+      res.status(500).json({ message: "Erro ao deletar arquivo" });
+    }
+  });
+
   // Client Debts Routes
   app.get("/api/client-debts", async (req, res) => {
     try {
@@ -3890,11 +3902,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      const validatedData = insertEventSchema.parse(eventData);
+      // Separar dados do evento e anexos
+      const { attachments, ...eventDataOnly } = eventData;
+
+      const validatedData = insertEventSchema.parse(eventDataOnly);
       console.log("Dados validados:", validatedData);
 
       const event = await storage.createEvent(validatedData);
       console.log("Evento criado com sucesso:", event.id);
+
+      // Se há imagens/anexos, salvá-los
+      if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+        for (const attachment of attachments) {
+          if (attachment.fileUrl && attachment.fileName) {
+            await storage.addEventAttachment({
+              eventId: event.id,
+              fileName: attachment.fileName,
+              fileUrl: attachment.fileUrl,
+            });
+          }
+        }
+      }
 
       res.status(201).json(event);
     } catch (error) {
@@ -3929,8 +3957,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      const validatedData = insertEventSchema.partial().parse(eventData);
+      // Separar dados do evento e anexos
+      const { attachments, ...eventDataOnly } = eventData;
+
+      const validatedData = insertEventSchema.partial().parse(eventDataOnly);
       const event = await storage.updateEvent(id, validatedData);
+
+      // Se há informações de anexos, gerenciar as imagens
+      if (attachments !== undefined) {
+        // Remove todos os anexos existentes
+        await storage.deleteEventAttachmentsByEventId(id);
+
+        // Adiciona os novos anexos se houver
+        if (Array.isArray(attachments) && attachments.length > 0) {
+          for (const attachment of attachments) {
+            if (attachment.fileUrl && attachment.fileName) {
+              await storage.addEventAttachment({
+                eventId: id,
+                fileName: attachment.fileName,
+                fileUrl: attachment.fileUrl,
+              });
+            }
+          }
+        }
+      }
+
       res.json(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -4036,6 +4087,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error removing event participant:", error);
         res.status(500).json({ message: "Erro ao remover participante" });
+      }
+    }
+  );
+
+  // Event attachments routes
+  app.get("/api/events/:id/attachments", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const attachments = await storage.getEventAttachments(id);
+      res.json(attachments);
+    } catch (error) {
+      console.error("Error fetching event attachments:", error);
+      res.status(500).json({ message: "Erro ao buscar anexos do evento" });
+    }
+  });
+
+  app.post("/api/events/:id/attachments", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { fileName, fileUrl } = req.body;
+
+      if (!fileName || !fileUrl) {
+        return res.status(400).json({
+          message: "Nome do arquivo e URL são obrigatórios",
+        });
+      }
+
+      const attachment = await storage.addEventAttachment({
+        eventId: id,
+        fileName,
+        fileUrl,
+      });
+
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Error adding event attachment:", error);
+      res.status(500).json({ message: "Erro ao adicionar anexo do evento" });
+    }
+  });
+
+  app.delete(
+    "/api/events/:eventId/attachments/:attachmentId",
+    async (req, res) => {
+      try {
+        const { attachmentId } = req.params;
+        const success = await storage.deleteEventAttachment(attachmentId);
+
+        if (!success) {
+          return res.status(404).json({ message: "Anexo não encontrado" });
+        }
+
+        res.json({ message: "Anexo removido com sucesso" });
+      } catch (error) {
+        console.error("Error deleting event attachment:", error);
+        res.status(500).json({ message: "Erro ao remover anexo do evento" });
       }
     }
   );

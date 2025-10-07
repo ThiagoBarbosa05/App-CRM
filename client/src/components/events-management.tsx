@@ -51,11 +51,22 @@ import {
   Loader2,
   CalendarDays,
   Filter,
+  ImageIcon,
+  UploadIcon,
+  XIcon,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, baseS3Url } from "@/lib/utils";
 import EventParticipantsModal from "@/components/event-participants-modal";
+
+interface EventAttachment {
+  id?: string;
+  eventId?: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt?: string;
+}
 
 interface Event {
   id: string;
@@ -74,6 +85,7 @@ interface Event {
   updatedAt: string;
   creatorName: string;
   participantCount: number;
+  attachments?: EventAttachment[];
 }
 
 interface EventFormData {
@@ -87,6 +99,7 @@ interface EventFormData {
   category: string;
   status: string;
   notes: string;
+  attachments: EventAttachment[];
 }
 
 const EVENT_CATEGORIES = [
@@ -159,7 +172,157 @@ export default function EventsManagement() {
     category: "Geral",
     status: "planejado",
     notes: "",
+    attachments: [],
   });
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [removingAttachments, setRemovingAttachments] = useState<number[]>([]);
+
+  // Função para upload de arquivo
+  const handleFileUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro no upload do arquivo");
+      }
+
+      const result = await response.json();
+      return {
+        fileName: file.name,
+        fileUrl: result.url,
+      };
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao fazer upload da imagem",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Função para adicionar anexo
+  const handleAddAttachment = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo (apenas imagens)
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione apenas arquivos de imagem",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "A imagem deve ter no máximo 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const attachment = await handleFileUpload(file);
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, attachment],
+      }));
+    } catch (error) {
+      // Erro já tratado na função handleFileUpload
+    }
+
+    // Limpar input
+    event.target.value = "";
+  };
+
+  // Função para remover anexo do S3
+  const deleteFileFromS3 = async (fileUrl: string) => {
+    try {
+      const response = await fetch(`/api/delete-file`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileUrl }),
+      });
+
+      if (!response.ok) {
+        console.warn("Erro ao deletar arquivo do S3:", fileUrl);
+      }
+    } catch (error) {
+      console.error("Erro ao deletar arquivo do S3:", error);
+    }
+  };
+
+  // Função para remover anexo
+  const handleRemoveAttachment = async (index: number) => {
+    const attachment = formData.attachments[index];
+
+    // Adicionar ao estado de loading
+    setRemovingAttachments((prev) => [...prev, index]);
+
+    try {
+      // Se o anexo já tem ID (existe no banco), remover do banco também
+      if (attachment.id && editingEvent) {
+        const response = await fetch(
+          `/api/events/${editingEvent.id}/attachments/${attachment.id}`,
+          {
+            method: "DELETE",
+            headers: {
+              "x-user-id": user?.id || "",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Erro ao remover anexo do banco de dados");
+        }
+      }
+
+      // Remover arquivo do S3
+      await deleteFileFromS3(attachment.fileUrl);
+
+      // Remover do estado local
+      setFormData((prev) => ({
+        ...prev,
+        attachments: prev.attachments.filter((_, i) => i !== index),
+      }));
+
+      toast({
+        title: "Sucesso",
+        description: "Imagem removida com sucesso",
+      });
+    } catch (error) {
+      console.error("Erro ao remover anexo:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao remover imagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      // Remover do estado de loading
+      setRemovingAttachments((prev) => prev.filter((i) => i !== index));
+    }
+  };
 
   const {
     data: events = [],
@@ -194,6 +357,7 @@ export default function EventsManagement() {
           registrationDeadline: data.registrationDeadline
             ? new Date(data.registrationDeadline).toISOString()
             : null,
+          attachments: data.attachments, // Incluir attachments
           createdBy: user?.id,
         };
 
@@ -263,6 +427,7 @@ export default function EventsManagement() {
           registrationDeadline: data.registrationDeadline
             ? new Date(data.registrationDeadline)
             : null,
+          attachments: data.attachments, // Incluir attachments
         }),
       });
 
@@ -336,7 +501,9 @@ export default function EventsManagement() {
       category: "Geral",
       status: "planejado",
       notes: "",
+      attachments: [],
     });
+    setRemovingAttachments([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -427,6 +594,7 @@ export default function EventsManagement() {
       category: event.category,
       status: event.status,
       notes: event.notes || "",
+      attachments: event.attachments || [],
     });
   };
 
@@ -673,17 +841,17 @@ export default function EventsManagement() {
       <div className="flex flex-col h-full">
         <Card className="flex flex-col flex-1 overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
           <CardHeader className="bg-gradient-to-r from-orange-100 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex-1">
+            <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+              <div className="flex-1 min-w-0">
                 <CardTitle className="flex items-center gap-3 text-slate-800 dark:text-slate-200">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-700 dark:to-amber-700">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-700 dark:to-amber-700 flex-shrink-0">
                     <CalendarDays className="h-5 w-5 text-orange-600 dark:text-orange-300" />
                   </div>
-                  <span className="bg-gradient-to-r from-orange-600 to-amber-600 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold">
+                  <span className="bg-gradient-to-r from-orange-600 to-amber-600 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold truncate">
                     Gestão de Eventos
                   </span>
                 </CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400 mt-1">
+                <CardDescription className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
                   Gerencie eventos, participantes e acompanhe o engajamento da
                   sua empresa
                 </CardDescription>
@@ -691,7 +859,7 @@ export default function EventsManagement() {
 
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto flex-shrink-0"
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 Novo Evento
@@ -699,28 +867,28 @@ export default function EventsManagement() {
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 gap-6 p-4 md:p-6">
+          <CardContent className="flex flex-col flex-1 min-h-0 gap-6 p-3 md:p-6">
             {/* Filtros modernos */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row gap-4">
+              <div className="relative flex-1 min-w-0">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4 z-10" />
                 <Input
-                  placeholder="Buscar eventos por nome, local ou categoria..."
+                  placeholder="Buscar eventos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  className="pl-10 pr-10 border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800 w-full"
                 />
                 {isFetching && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 z-10">
                     <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-slate-500" />
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Filter className="h-4 w-4 text-slate-500 hidden sm:block" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48 border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
-                    <SelectValue placeholder="Filtrar por status" />
+                  <SelectTrigger className="w-full sm:w-48 border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os status</SelectItem>
@@ -788,19 +956,20 @@ export default function EventsManagement() {
                     Criar Primeiro Evento
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       onClick={() => {
                         setSearchTerm("");
                         setStatusFilter("all");
                       }}
+                      className="w-full sm:w-auto"
                     >
                       Limpar filtros
                     </Button>
                     <Button
                       onClick={() => setIsCreateModalOpen(true)}
-                      className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
+                      className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white w-full sm:w-auto"
                     >
                       <CalendarIcon className="h-4 w-4 mr-2" />
                       Novo Evento
@@ -813,64 +982,106 @@ export default function EventsManagement() {
                 {filteredEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
+                    className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
                   >
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                      {/* Informações principais */}
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 mt-1">
+                    <div className="flex flex-col space-y-4">
+                      {/* Header com título, categoria e status */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 flex-shrink-0">
                             <CalendarIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                            <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-base leading-tight">
                               {event.name}
                             </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                               {event.category}
                             </p>
                           </div>
-                          <div className="flex-shrink-0">
-                            {getStatusBadge(event.status)}
-                          </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                          <div className="flex items-center gap-1">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span>{formatDate(event.eventDate)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPinIcon className="h-4 w-4" />
-                            <span className="truncate max-w-[200px]">
-                              {event.location}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="font-medium text-slate-900 dark:text-slate-100">
-                              {formatCurrency(parseFloat(event.pricePerPerson))}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <UsersIcon className="h-4 w-4" />
-                            <span>
-                              {event.participantCount}
-                              {event.maxCapacity &&
-                                `/${event.maxCapacity}`}{" "}
-                              participantes
-                            </span>
-                          </div>
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(event.status)}
                         </div>
                       </div>
 
+                      {/* Informações do evento */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                          <CalendarIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {formatDate(event.eventDate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                          <MapPinIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate" title={event.location}>
+                            {event.location}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            Preço:
+                          </span>
+                          <span className="font-medium text-slate-900 dark:text-slate-100">
+                            {formatCurrency(parseFloat(event.pricePerPerson))}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                          <UsersIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {event.participantCount}
+                            {event.maxCapacity && `/${event.maxCapacity}`}{" "}
+                            pessoas
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Imagens do evento (se houver) */}
+                      {event.attachments && event.attachments.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-500 dark:text-slate-400 flex-shrink-0">
+                            {event.attachments.length} imagem
+                            {event.attachments.length !== 1 ? "s" : ""}
+                          </span>
+                          <div className="flex gap-1 overflow-x-auto">
+                            {event.attachments
+                              .slice(0, 4)
+                              .map((attachment, index) => (
+                                <div
+                                  key={index}
+                                  className="w-8 h-8 flex-shrink-0 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800"
+                                >
+                                  <img
+                                    src={`${baseS3Url}${attachment.fileUrl}`}
+                                    alt={attachment.fileName}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            {event.attachments.length > 4 && (
+                              <div className="w-8 h-8 flex-shrink-0 rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400">
+                                +{event.attachments.length - 4}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Ações */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 lg:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setParticipantsEvent(event)}
                           title="Gerenciar Participantes"
-                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-9 w-9 p-0 rounded-lg"
                         >
                           <UserCheckIcon className="h-4 w-4" />
                         </Button>
@@ -879,7 +1090,7 @@ export default function EventsManagement() {
                           size="sm"
                           onClick={() => handlePrintParticipants(event)}
                           title="Imprimir Lista"
-                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/20"
+                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/20 h-9 w-9 p-0 rounded-lg"
                         >
                           <PrinterIcon className="h-4 w-4" />
                         </Button>
@@ -888,7 +1099,7 @@ export default function EventsManagement() {
                           size="sm"
                           onClick={() => handleEdit(event)}
                           title="Editar Evento"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-9 w-9 p-0 rounded-lg"
                         >
                           <EditIcon className="h-4 w-4" />
                         </Button>
@@ -897,7 +1108,7 @@ export default function EventsManagement() {
                           size="sm"
                           onClick={() => setEventToDelete(event)}
                           title="Excluir Evento"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-9 w-9 p-0 rounded-lg"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </Button>
@@ -976,253 +1187,410 @@ export default function EventsManagement() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border-slate-200 dark:border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border-slate-200 dark:border-slate-700">
+          <DialogHeader className="pb-6 border-b border-slate-200 dark:border-slate-700">
+            <DialogTitle className="flex items-center gap-3 text-slate-800 dark:text-slate-200 text-xl">
               <div className="p-2 rounded-lg bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-700 dark:to-amber-700">
                 {editingEvent ? (
-                  <EditIcon className="h-4 w-4 text-orange-600 dark:text-orange-300" />
+                  <EditIcon className="h-5 w-5 text-orange-600 dark:text-orange-300" />
                 ) : (
-                  <CalendarDays className="h-4 w-4 text-orange-600 dark:text-orange-300" />
+                  <CalendarDays className="h-5 w-5 text-orange-600 dark:text-orange-300" />
                 )}
               </div>
               {editingEvent ? "Editar Evento" : "Novo Evento"}
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400">
+            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
               {editingEvent
                 ? "Atualize as informações do evento selecionado"
                 : "Preencha as informações para criar um novo evento"}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label
-                  htmlFor="name"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Nome do Evento
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                  className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
-                />
-              </div>
-              <div>
-                <Label
-                  htmlFor="category"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Categoria
-                </Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, category: value }))
-                  }
-                >
-                  <SelectTrigger className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EVENT_CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+            {/* Informações Básicas */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                Informações Básicas
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 required"
+                  >
+                    Nome do Evento *
+                  </Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    required
+                    placeholder="Ex: Workshop de Vinhos Premium"
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="category"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Categoria
+                  </Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, category: value }))
+                    }
+                  >
+                    <SelectTrigger className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EVENT_CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="description"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
+            {/* Descrição */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
                 Descrição
-              </Label>
-              <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:border-orange-400 focus-within:ring-1 focus-within:ring-orange-400 dark:focus-within:border-orange-500 transition-colors">
-                <ReactQuill
-                  value={formData.description}
-                  onChange={(value) =>
-                    setFormData((prev) => ({ ...prev, description: value }))
-                  }
-                  modules={quillModules}
-                  formats={quillFormats}
-                  placeholder="Descrição do evento..."
-                  style={{
-                    minHeight: "120px",
-                    border: "none",
-                  }}
-                  theme="snow"
-                />
+              </h3>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="description"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Descrição do Evento
+                </Label>
+                <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden focus-within:border-orange-400 focus-within:ring-1 focus-within:ring-orange-400 dark:focus-within:border-orange-500 transition-colors">
+                  <ReactQuill
+                    value={formData.description}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, description: value }))
+                    }
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="Descreva os detalhes do evento, agenda, palestrantes..."
+                    style={{
+                      minHeight: "120px",
+                      border: "none",
+                    }}
+                    theme="snow"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            {/* Data e Local */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                Data e Local
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="eventDate"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 required"
+                  >
+                    Data do Evento *
+                  </Label>
+                  <Input
+                    id="eventDate"
+                    type="datetime-local"
+                    value={formData.eventDate}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        eventDate: e.target.value,
+                      }))
+                    }
+                    required
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="registrationDeadline"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Prazo de Inscrição
+                  </Label>
+                  <Input
+                    id="registrationDeadline"
+                    type="datetime-local"
+                    value={formData.registrationDeadline}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        registrationDeadline: e.target.value,
+                      }))
+                    }
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label
-                  htmlFor="eventDate"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  htmlFor="location"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300 required"
                 >
-                  Data do Evento
+                  Local do Evento *
                 </Label>
                 <Input
-                  id="eventDate"
-                  type="datetime-local"
-                  value={formData.eventDate}
+                  id="location"
+                  value={formData.location}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      eventDate: e.target.value,
+                      location: e.target.value,
                     }))
                   }
                   required
+                  placeholder="Ex: Auditório Central, Hotel Premium, Salão de Eventos..."
                   className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
                 />
               </div>
-              <div>
+            </div>
+
+            {/* Configurações do Evento */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                Configurações
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="pricePerPerson"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 required"
+                  >
+                    Valor por Pessoa (R$) *
+                  </Label>
+                  <Input
+                    id="pricePerPerson"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.pricePerPerson}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        pricePerPerson: e.target.value,
+                      }))
+                    }
+                    required
+                    placeholder="150.00"
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="maxCapacity"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Capacidade Máxima
+                  </Label>
+                  <Input
+                    id="maxCapacity"
+                    type="number"
+                    min="1"
+                    value={formData.maxCapacity}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        maxCapacity: e.target.value,
+                      }))
+                    }
+                    placeholder="50"
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="status"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EVENT_STATUS.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção de Upload de Imagens */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                    Imagens do Evento
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Adicione imagens para ilustrar seu evento (máx. 5MB cada)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAddAttachment}
+                    disabled={isUploading}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border border-orange-300 rounded-lg cursor-pointer hover:bg-orange-50 dark:border-orange-600 dark:hover:bg-orange-900/20 transition-colors ${
+                      isUploading
+                        ? "opacity-50 cursor-not-allowed"
+                        : "text-orange-600 hover:text-orange-700"
+                    }`}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UploadIcon className="h-4 w-4" />
+                    )}
+                    {isUploading ? "Carregando..." : "Adicionar Imagem"}
+                  </label>
+                </div>
+              </div>
+
+              {/* Lista de imagens anexadas */}
+              {formData.attachments.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {formData.attachments.map((attachment, index) => (
+                    <div
+                      key={index}
+                      className="relative group border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800 hover:shadow-md transition-shadow"
+                    >
+                      <div className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
+                        <img
+                          src={`${baseS3Url}${attachment.fileUrl}`}
+                          alt={attachment.fileName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                            target.nextElementSibling?.classList.remove(
+                              "hidden"
+                            );
+                          }}
+                        />
+                        <div className="hidden flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-4">
+                          <ImageIcon className="h-8 w-8 mb-2" />
+                          <span className="text-xs text-center">
+                            {attachment.fileName}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Overlay com ações */}
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(index)}
+                          disabled={removingAttachments.includes(index)}
+                          className="opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed text-white p-2 rounded-full transition-all duration-200 transform scale-90 group-hover:scale-100 shadow-lg"
+                          title="Remover imagem"
+                        >
+                          {removingAttachments.includes(index) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Nome do arquivo */}
+                      <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                        <p
+                          className="text-xs text-slate-600 dark:text-slate-400 truncate"
+                          title={attachment.fileName}
+                        >
+                          {attachment.fileName}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Mensagem quando não há imagens */}
+              {formData.attachments.length === 0 && (
+                <div className="text-center py-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:border-orange-300 dark:hover:border-orange-600 transition-colors">
+                  <ImageIcon className="h-16 w-16 mx-auto text-slate-400 mb-4" />
+                  <p className="text-base font-medium text-slate-500 dark:text-slate-400 mb-2">
+                    Nenhuma imagem adicionada
+                  </p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
+                    Clique em "Adicionar Imagem" para incluir fotos do evento
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Observações */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                Observações Adicionais
+              </h3>
+
+              <div className="space-y-2">
                 <Label
-                  htmlFor="registrationDeadline"
+                  htmlFor="notes"
                   className="text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Prazo de Inscrição
+                  Notas do Evento
                 </Label>
-                <Input
-                  id="registrationDeadline"
-                  type="datetime-local"
-                  value={formData.registrationDeadline}
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
                   onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      registrationDeadline: e.target.value,
-                    }))
+                    setFormData((prev) => ({ ...prev, notes: e.target.value }))
                   }
-                  className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  rows={4}
+                  placeholder="Adicione observações importantes, requisitos especiais, informações de contato..."
+                  className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800 resize-none"
                 />
               </div>
             </div>
 
-            <div>
-              <Label
-                htmlFor="location"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Local
-              </Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, location: e.target.value }))
-                }
-                required
-                placeholder="Ex: Auditório Central, Hotel Premium..."
-                className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label
-                  htmlFor="pricePerPerson"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Valor por Pessoa (R$)
-                </Label>
-                <Input
-                  id="pricePerPerson"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.pricePerPerson}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      pricePerPerson: e.target.value,
-                    }))
-                  }
-                  required
-                  placeholder="0,00"
-                  className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
-                />
-              </div>
-              <div>
-                <Label
-                  htmlFor="maxCapacity"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Capacidade Máxima
-                </Label>
-                <Input
-                  id="maxCapacity"
-                  type="number"
-                  min="1"
-                  value={formData.maxCapacity}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      maxCapacity: e.target.value,
-                    }))
-                  }
-                  placeholder="Opcional"
-                  className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
-                />
-              </div>
-              <div>
-                <Label
-                  htmlFor="status"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EVENT_STATUS.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="notes"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Observações
-              </Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, notes: e.target.value }))
-                }
-                rows={3}
-                placeholder="Observações adicionais sobre o evento..."
-                className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800 resize-none"
-              />
-            </div>
-
-            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 pt-6 border-t border-slate-200 dark:border-slate-700 mt-8">
               <Button
                 type="button"
                 variant="outline"
@@ -1231,16 +1599,18 @@ export default function EventsManagement() {
                   setEditingEvent(null);
                   resetForm();
                 }}
-                className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 w-full sm:w-auto px-8"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={
-                  createEventMutation.isPending || updateEventMutation.isPending
+                  createEventMutation.isPending ||
+                  updateEventMutation.isPending ||
+                  isUploading
                 }
-                className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-8"
               >
                 {createEventMutation.isPending ||
                 updateEventMutation.isPending ? (
@@ -1248,8 +1618,16 @@ export default function EventsManagement() {
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                     {editingEvent ? "Atualizando..." : "Criando..."}
                   </div>
+                ) : isUploading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    Fazendo upload...
+                  </div>
                 ) : (
-                  `${editingEvent ? "Atualizar" : "Criar"} Evento`
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {editingEvent ? "Atualizar" : "Criar"} Evento
+                  </div>
                 )}
               </Button>
             </DialogFooter>
@@ -1262,25 +1640,29 @@ export default function EventsManagement() {
         open={!!eventToDelete}
         onOpenChange={() => setEventToDelete(null)}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader className="text-center pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400">
-              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                <TrashIcon className="h-5 w-5" />
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader className="text-center pb-6 border-b border-slate-200 dark:border-slate-700">
+            <DialogTitle className="flex items-center justify-center gap-3 text-red-600 dark:text-red-400 text-xl">
+              <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
+                <TrashIcon className="h-6 w-6" />
               </div>
               Confirmar Exclusão
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-3 text-base">
               Tem certeza que deseja excluir o evento{" "}
-              <strong>"{eventToDelete?.name}"</strong>?<br />
-              Esta ação não pode ser desfeita.
+              <strong className="text-slate-800 dark:text-slate-200">
+                "{eventToDelete?.name}"
+              </strong>
+              ?
+              <br />
+              <span className="text-sm">Esta ação não pode ser desfeita.</span>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 pt-6">
             <Button
               variant="outline"
               onClick={() => setEventToDelete(null)}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 w-full sm:w-auto px-6"
             >
               Cancelar
             </Button>
@@ -1290,7 +1672,7 @@ export default function EventsManagement() {
                 eventToDelete && deleteEventMutation.mutate(eventToDelete.id)
               }
               disabled={deleteEventMutation.isPending}
-              className="bg-red-500 hover:bg-red-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-red-500 hover:bg-red-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto px-6"
             >
               {deleteEventMutation.isPending ? (
                 <div className="flex items-center gap-2">
@@ -1298,7 +1680,10 @@ export default function EventsManagement() {
                   Excluindo...
                 </div>
               ) : (
-                "Excluir"
+                <div className="flex items-center gap-2">
+                  <TrashIcon className="h-4 w-4" />
+                  Excluir Evento
+                </div>
               )}
             </Button>
           </DialogFooter>

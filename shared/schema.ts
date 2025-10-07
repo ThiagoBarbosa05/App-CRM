@@ -640,21 +640,18 @@ export const markerGoals = pgTable(
 );
 
 // Tabela de resultados semanais das metas de marcadores
-export const markerWeeklyResults = pgTable(
-  "marker_weekly_results",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    markerGoalId: varchar("marker_goal_id")
-      .references(() => markerGoals.id, { onDelete: "cascade" })
-      .notNull(),
-    week: integer("week").notNull(), // Semana do mês (1-4)
-    quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes com o marcador
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
-);
+export const markerWeeklyResults = pgTable("marker_weekly_results", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  markerGoalId: varchar("marker_goal_id")
+    .references(() => markerGoals.id, { onDelete: "cascade" })
+    .notNull(),
+  week: integer("week").notNull(), // Semana do mês (1-4)
+  quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes com o marcador
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Tabela de metas de interações com clientes
 export const interactionGoals = pgTable(
@@ -680,21 +677,18 @@ export const interactionGoals = pgTable(
 );
 
 // Tabela de resultados semanais das metas de interações
-export const interactionWeeklyResults = pgTable(
-  "interaction_weekly_results",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    interactionGoalId: varchar("interaction_goal_id")
-      .references(() => interactionGoals.id, { onDelete: "cascade" })
-      .notNull(),
-    week: integer("week").notNull(), // Semana do mês (1-4)
-    quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de interações realizadas
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
-);
+export const interactionWeeklyResults = pgTable("interaction_weekly_results", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  interactionGoalId: varchar("interaction_goal_id")
+    .references(() => interactionGoals.id, { onDelete: "cascade" })
+    .notNull(),
+  week: integer("week").notNull(), // Semana do mês (1-4)
+  quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de interações realizadas
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(
@@ -928,9 +922,7 @@ export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   updatedAt: true,
 });
 
-export const insertMarkerGoalSchema = createInsertSchema(
-  markerGoals
-).omit({
+export const insertMarkerGoalSchema = createInsertSchema(markerGoals).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -1041,12 +1033,17 @@ export type ClientRegistrationWeeklyResult =
   typeof clientRegistrationWeeklyResults.$inferSelect;
 export type InsertMarkerGoal = z.infer<typeof insertMarkerGoalSchema>;
 export type MarkerGoal = typeof markerGoals.$inferSelect;
-export type InsertMarkerWeeklyResult = z.infer<typeof insertMarkerWeeklyResultSchema>;
+export type InsertMarkerWeeklyResult = z.infer<
+  typeof insertMarkerWeeklyResultSchema
+>;
 export type MarkerWeeklyResult = typeof markerWeeklyResults.$inferSelect;
 export type InsertInteractionGoal = z.infer<typeof insertInteractionGoalSchema>;
 export type InteractionGoal = typeof interactionGoals.$inferSelect;
-export type InsertInteractionWeeklyResult = z.infer<typeof insertInteractionWeeklyResultSchema>;
-export type InteractionWeeklyResult = typeof interactionWeeklyResults.$inferSelect;
+export type InsertInteractionWeeklyResult = z.infer<
+  typeof insertInteractionWeeklyResultSchema
+>;
+export type InteractionWeeklyResult =
+  typeof interactionWeeklyResults.$inferSelect;
 
 export type InsertTrainingAttachment = z.infer<typeof insertTrainingAttachment>;
 export type TrainingAttachment = typeof trainingAttachments.$inferSelect;
@@ -1511,6 +1508,18 @@ export const events = pgTable("events", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const eventAttachments = pgTable("event_attachments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
 // Tabela de participantes dos eventos
 export const eventParticipants = pgTable("event_participants", {
   id: varchar("id")
@@ -1567,7 +1576,18 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   participants: many(eventParticipants),
   guests: many(eventGuests),
+  attachments: many(eventAttachments),
 }));
+
+export const eventAttachmentsRelations = relations(
+  eventAttachments,
+  ({ one }) => ({
+    event: one(events, {
+      fields: [eventAttachments.eventId],
+      references: [events.id],
+    }),
+  })
+);
 
 export const eventParticipantsRelations = relations(
   eventParticipants,
@@ -1587,25 +1607,29 @@ export const eventParticipantsRelations = relations(
   })
 );
 
-export const eventGuestsRelations = relations(
-  eventGuests,
-  ({ one }) => ({
-    event: one(events, {
-      fields: [eventGuests.eventId],
-      references: [events.id],
-    }),
-    registeredByUser: one(users, {
-      fields: [eventGuests.registeredBy],
-      references: [users.id],
-    }),
-  })
-);
+export const eventGuestsRelations = relations(eventGuests, ({ one }) => ({
+  event: one(events, {
+    fields: [eventGuests.eventId],
+    references: [events.id],
+  }),
+  registeredByUser: one(users, {
+    fields: [eventGuests.registeredBy],
+    references: [users.id],
+  }),
+}));
 
 // Schemas de inserção para eventos
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertEventAttachmentSchema = createInsertSchema(
+  eventAttachments
+).omit({
+  id: true,
+  uploadedAt: true,
 });
 
 export const insertEventParticipantSchema = createInsertSchema(
@@ -1624,6 +1648,8 @@ export const insertEventParticipantSchema = createInsertSchema(
 // Tipos para eventos
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
+export type InsertEventAttachment = z.infer<typeof insertEventAttachmentSchema>;
+export type EventAttachment = typeof eventAttachments.$inferSelect;
 export type InsertEventParticipant = z.infer<
   typeof insertEventParticipantSchema
 >;
@@ -1637,4 +1663,5 @@ export interface EventWithDetails extends Event {
     registeredByUser: User;
   })[];
   participantCount?: number;
+  attachments?: EventAttachment[];
 }
