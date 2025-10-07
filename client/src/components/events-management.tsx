@@ -225,7 +225,9 @@ export default function EventsManagement() {
       }
 
       const result = await response.json();
-      setFormData(prev => ({ ...prev, imageUrl: result.imageUrl }));
+      // Construir URL completa com baseS3Url
+      const fullImageUrl = `${baseS3Url}${result.imageUrl}`;
+      setFormData(prev => ({ ...prev, imageUrl: fullImageUrl }));
       
       toast({
         title: "Sucesso",

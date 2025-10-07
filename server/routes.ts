@@ -3868,19 +3868,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileExtension = req.file.originalname.split('.').pop();
       const fileName = `event-${nanoid()}.${fileExtension}`;
       
-      // Upload para Cloudflare R2
-      const uploadCommand = new PutObjectCommand({
-        Bucket: process.env.CLOUDFLARE_BUCKET_NAME || "",
-        Key: fileName,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
-      });
+      // Upload para S3
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: "crm-test",
+          Body: req.file.buffer,
+          Key: fileName,
+          ContentType: req.file.mimetype,
+        })
+      );
 
-      await s3.send(uploadCommand);
-
-      const imageUrl = `${process.env.CLOUDFLARE_PUBLIC_URL}/${fileName}`;
-      
-      res.json({ imageUrl });
+      res.json({ imageUrl: fileName });
     } catch (error) {
       console.error("Erro ao fazer upload da imagem:", error);
       res.status(500).json({ message: "Erro ao fazer upload da imagem" });
