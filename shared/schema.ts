@@ -1501,6 +1501,7 @@ export const events = pgTable("events", {
     .notNull()
     .default("planejado"),
   notes: text("notes"),
+  imageUrl: text("image_url"),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
