@@ -101,6 +101,11 @@ import {
   getSalesStatisticsController,
   getSalesHistoryController,
 } from "./controllers/sales";
+import {
+  getCompanyReportsController,
+  getGeneralReportsController,
+  getClientReportsController,
+} from "./controllers/reports";
 import { createMessageAutomationSettingsController } from "./controllers/create-message-automation-settings.controller";
 import { getMessageAutomationSettingsController } from "./controllers/get-message-automation-settings.controller";
 import { updateMessageAutomationSettingsController } from "./controllers/update-message-automation-settings.controller";
@@ -1980,6 +1985,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reports routes
+  app.get("/api/reports/general", getGeneralReportsController);
+  app.get("/api/reports/clients", getClientReportsController);
+  app.get("/api/reports/companies", getCompanyReportsController);
+
   // Sales routes
   app.get("/api/sales-statistics", getSalesStatisticsController);
   app.get("/api/sales-history", getSalesHistoryController);
@@ -3844,46 +3854,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload de imagem para evento
-  app.post("/api/events/upload-image", upload.single("image"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "Nenhuma imagem foi enviada" });
+  app.post(
+    "/api/events/upload-image",
+    upload.single("image"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res
+            .status(400)
+            .json({ message: "Nenhuma imagem foi enviada" });
+        }
+
+        // Validar tipo de arquivo (JPEG, JPG, PNG)
+        const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png"];
+        if (!allowedMimeTypes.includes(req.file.mimetype)) {
+          return res.status(400).json({
+            message: "Formato de arquivo inválido. Use JPEG, JPG ou PNG",
+          });
+        }
+
+        // Validar tamanho (15MB máximo)
+        if (req.file.size > 15 * 1024 * 1024) {
+          return res.status(400).json({
+            message: "Arquivo muito grande. O tamanho máximo é 15MB",
+          });
+        }
+
+        const fileExtension = req.file.originalname.split(".").pop();
+        const fileName = `event-${nanoid()}.${fileExtension}`;
+
+        // Upload para S3
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: "crm-test",
+            Body: req.file.buffer,
+            Key: fileName,
+            ContentType: req.file.mimetype,
+          })
+        );
+
+        res.json({ imageUrl: fileName });
+      } catch (error) {
+        console.error("Erro ao fazer upload da imagem:", error);
+        res.status(500).json({ message: "Erro ao fazer upload da imagem" });
       }
-
-      // Validar tipo de arquivo (JPEG, JPG, PNG)
-      const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedMimeTypes.includes(req.file.mimetype)) {
-        return res.status(400).json({ 
-          message: "Formato de arquivo inválido. Use JPEG, JPG ou PNG" 
-        });
-      }
-
-      // Validar tamanho (15MB máximo)
-      if (req.file.size > 15 * 1024 * 1024) {
-        return res.status(400).json({ 
-          message: "Arquivo muito grande. O tamanho máximo é 15MB" 
-        });
-      }
-
-      const fileExtension = req.file.originalname.split('.').pop();
-      const fileName = `event-${nanoid()}.${fileExtension}`;
-      
-      // Upload para S3
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: "crm-test",
-          Body: req.file.buffer,
-          Key: fileName,
-          ContentType: req.file.mimetype,
-        })
-      );
-
-      res.json({ imageUrl: fileName });
-    } catch (error) {
-      console.error("Erro ao fazer upload da imagem:", error);
-      res.status(500).json({ message: "Erro ao fazer upload da imagem" });
     }
-  });
+  );
 
   app.post("/api/events", async (req, res) => {
     try {

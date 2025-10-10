@@ -15,6 +15,8 @@ import {
   Mail,
   Building2,
   FileText,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import {
   format,
@@ -26,6 +28,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import Sidebar from "@/components/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompanyReports } from "@/hooks/useReports";
 
 interface Client {
   id: string;
@@ -61,6 +64,10 @@ interface Company {
 export default function Reports() {
   const { user } = useAuth();
 
+  // Hook otimizado para dados de empresas
+  const { data: companyReports, isLoading: companyReportsLoading } =
+    useCompanyReports();
+
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients", user?.id, user?.role, "all"],
     queryFn: async () => {
@@ -74,7 +81,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
@@ -95,7 +102,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -152,7 +159,7 @@ export default function Reports() {
         const thisYearBirthday = new Date(
           currentYear,
           birthday.getMonth(),
-          birthday.getDate()
+          birthday.getDate(),
         );
 
         // Se já passou este ano, considerar o próximo ano
@@ -165,7 +172,7 @@ export default function Reports() {
           ...client,
           nextBirthday,
           daysUntil: Math.ceil(
-            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
           ),
         };
       })
@@ -173,7 +180,7 @@ export default function Reports() {
         isWithinInterval(client.nextBirthday, {
           start: today,
           end: next30Days,
-        })
+        }),
       )
       .sort((a, b) => a.daysUntil - b.daysUntil);
   };
@@ -188,110 +195,76 @@ export default function Reports() {
   const totalCompanies = companiesArray.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
-  const clientsByCategory = clientsArray.reduce((acc, client) => {
-    const category = client.categoria;
-    // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
-    if (!category) {
-      acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
-    } else if (validCategoryNames.has(category)) {
-      acc[category] = (acc[category] || 0) + 1;
-    }
-    // Ignora categorias que foram excluídas das configurações
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByCategory = clientsArray.reduce(
+    (acc, client) => {
+      const category = client.categoria;
+      // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
+      if (!category) {
+        acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
+      } else if (validCategoryNames.has(category)) {
+        acc[category] = (acc[category] || 0) + 1;
+      }
+      // Ignora categorias que foram excluídas das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por origem (apenas origens válidas)
-  const clientsByOrigin = clientsArray.reduce((acc, client) => {
-    const origin = client.origem;
-    // Só contar se a origem ainda existe nas configurações ou se não tem origem
-    if (!origin) {
-      acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
-    } else if (validOriginNames.has(origin)) {
-      acc[origin] = (acc[origin] || 0) + 1;
-    }
-    // Ignora origens que foram excluídas das configurações
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByOrigin = clientsArray.reduce(
+    (acc, client) => {
+      const origin = client.origem;
+      // Só contar se a origem ainda existe nas configurações ou se não tem origem
+      if (!origin) {
+        acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
+      } else if (validOriginNames.has(origin)) {
+        acc[origin] = (acc[origin] || 0) + 1;
+      }
+      // Ignora origens que foram excluídas das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por usuário responsável
-  const clientsByUser = clientsArray.reduce((acc, client) => {
-    const responsibleId = client.responsavelId;
-    if (!responsibleId) {
-      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
-    } else if (validUserIds.has(responsibleId)) {
-      const user = users.find((u) => u.id === responsibleId);
-      const userName = user ? user.name : "Usuário não encontrado";
-      acc[userName] = (acc[userName] || 0) + 1;
-    }
-    // Ignora usuários que foram removidos do sistema
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByUser = clientsArray.reduce(
+    (acc, client) => {
+      const responsibleId = client.responsavelId;
+      if (!responsibleId) {
+        acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
+      } else if (validUserIds.has(responsibleId)) {
+        const user = users.find((u) => u.id === responsibleId);
+        const userName = user ? user.name : "Usuário não encontrado";
+        acc[userName] = (acc[userName] || 0) + 1;
+      }
+      // Ignora usuários que foram removidos do sistema
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por marcadores
-  const clientsByMarkers = clientsArray.reduce((acc, client) => {
-    const clientMarkers = client.markers || [];
-    const validClientMarkers = clientMarkers.filter((markerName) =>
-      validMarkerNames.has(markerName)
-    );
+  const clientsByMarkers = clientsArray.reduce(
+    (acc, client) => {
+      const clientMarkers = client.markers || [];
+      const validClientMarkers = clientMarkers.filter((markerName) =>
+        validMarkerNames.has(markerName),
+      );
 
-    if (validClientMarkers.length === 0) {
-      acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
-    } else {
-      validClientMarkers.forEach((markerName) => {
-        acc[markerName] = (acc[markerName] || 0) + 1;
-      });
-    }
-    // Ignora marcadores que foram excluídos das configurações
-    return acc;
-  }, {} as Record<string, number>);
+      if (validClientMarkers.length === 0) {
+        acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
+      } else {
+        validClientMarkers.forEach((markerName) => {
+          acc[markerName] = (acc[markerName] || 0) + 1;
+        });
+      }
+      // Ignora marcadores que foram excluídos das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  // Estatísticas de empresas por setor
-  const companiesBySector = companiesArray.reduce((acc, company) => {
-    const sectorId = company.sectorId;
-    if (!sectorId) {
-      acc["Sem setor"] = (acc["Sem setor"] || 0) + 1;
-    } else if (validSectorIds.has(sectorId)) {
-      const sector = sectors.find((s) => s.id === sectorId);
-      const sectorName = sector ? sector.name : "Setor não encontrado";
-      acc[sectorName] = (acc[sectorName] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Estatísticas de empresas por usuário responsável
-  const companiesByUser = companiesArray.reduce((acc, company) => {
-    const responsibleId = company.responsavelId;
-    if (!responsibleId) {
-      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
-    } else if (validUserIds.has(responsibleId)) {
-      const user = users.find((u) => u.id === responsibleId);
-      const userName = user ? user.name : "Usuário não encontrado";
-      acc[userName] = (acc[userName] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Estatísticas de empresas por estado
-  const companiesByState = companiesArray.reduce((acc, company) => {
-    const state = company.state;
-    if (!state) {
-      acc["Sem estado"] = (acc["Sem estado"] || 0) + 1;
-    } else {
-      acc[state] = (acc[state] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Estatísticas de empresas por cidade
-  const companiesByCity = companiesArray.reduce((acc, company) => {
-    const city = company.city;
-    if (!city) {
-      acc["Sem cidade"] = (acc["Sem cidade"] || 0) + 1;
-    } else {
-      acc[city] = (acc[city] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  // Mantemos apenas as estatísticas de clientes, empresas foram movidas para useCompanyReports
 
   // Use useQuery hook to fetch upcoming birthdays, filtering by user if not admin
   const { data: upcomingBirthdaysFiltered = [] } = useQuery<Client[]>({
@@ -366,7 +339,7 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-700 dark:text-blue-400 mb-2">
-                  {totalCompanies}
+                  {companyReports?.totalCompanies || totalCompanies}
                 </div>
                 <p className="text-sm text-blue-600/70 dark:text-blue-400/70 font-medium">
                   empresas cadastradas no sistema
@@ -408,7 +381,7 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 mb-2">
-                  {Object.keys(companiesBySector).length}
+                  {companyReports?.companiesBySector.length || 0}
                 </div>
                 <p className="text-sm text-emerald-600/70 dark:text-emerald-400/70 font-medium">
                   setores diferentes
@@ -504,19 +477,19 @@ export default function Reports() {
                               const thisYearBirthday = new Date(
                                 currentYear,
                                 birthday.getMonth(),
-                                birthday.getDate()
+                                birthday.getDate(),
                               );
                               const nextBirthday =
                                 thisYearBirthday < today
                                   ? new Date(
                                       currentYear + 1,
                                       birthday.getMonth(),
-                                      birthday.getDate()
+                                      birthday.getDate(),
                                     )
                                   : thisYearBirthday;
                               const daysUntil = Math.ceil(
                                 (nextBirthday.getTime() - today.getTime()) /
-                                  (1000 * 60 * 60 * 24)
+                                  (1000 * 60 * 60 * 24),
                               );
 
                               if (daysUntil === 0) return "Hoje";
@@ -750,6 +723,93 @@ export default function Reports() {
             </div>
           </div>
 
+          {/* Cards de Status das Empresas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-semibold text-gray-700">
+                  Empresas Ativas
+                </CardTitle>
+                <div className="bg-green-100 rounded-xl p-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-700 mb-2">
+                  {companyReportsLoading
+                    ? "..."
+                    : companyReports?.companiesActive || 0}
+                </div>
+                <p className="text-sm text-green-600 font-medium">
+                  empresas ativas
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-red-50 to-rose-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-semibold text-gray-700">
+                  Empresas Inativas
+                </CardTitle>
+                <div className="bg-red-100 rounded-xl p-3">
+                  <XCircle className="h-5 w-5 text-red-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-red-700 mb-2">
+                  {companyReportsLoading
+                    ? "..."
+                    : companyReports?.companiesInactive || 0}
+                </div>
+                <p className="text-sm text-red-600 font-medium">
+                  empresas inativas
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-semibold text-gray-700">
+                  Com CNPJ
+                </CardTitle>
+                <div className="bg-blue-100 rounded-xl p-3">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-700 mb-2">
+                  {companyReportsLoading
+                    ? "..."
+                    : companyReports?.companiesWithCNPJ || 0}
+                </div>
+                <p className="text-sm text-blue-600 font-medium">
+                  empresas com CNPJ
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-gray-50 to-slate-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-semibold text-gray-700">
+                  Sem CNPJ
+                </CardTitle>
+                <div className="bg-gray-100 rounded-xl p-3">
+                  <XCircle className="h-5 w-5 text-gray-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-700 mb-2">
+                  {companyReportsLoading
+                    ? "..."
+                    : companyReports?.companiesWithoutCNPJ || 0}
+                </div>
+                <p className="text-sm text-gray-600 font-medium">
+                  empresas sem CNPJ
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Estatísticas por Setor e Usuário (Empresas) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/10 dark:to-cyan-900/10">
@@ -765,30 +825,36 @@ export default function Reports() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="space-y-3">
-                  {Object.entries(companiesBySector)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([sector, count]) => (
-                      <div
-                        key={sector}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-teal-100 dark:border-teal-800/30 hover:border-teal-200 dark:hover:border-teal-700/50 hover:shadow-sm transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="secondary"
-                            className="bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/50 dark:text-teal-300 font-medium px-3 py-1"
-                          >
-                            {sector}
-                          </Badge>
+                {companyReportsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Carregando dados otimizados...
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(companyReports?.companiesBySector || [])
+                      .sort((a, b) => b.count - a.count)
+                      .map((item) => (
+                        <div
+                          key={item.sectorId || "no-sector"}
+                          className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-teal-100 dark:border-teal-800/30 hover:border-teal-200 dark:hover:border-teal-700/50 hover:shadow-sm transition-all duration-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="secondary"
+                              className="bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/50 dark:text-teal-300 font-medium px-3 py-1"
+                            >
+                              {item.sectorName}
+                            </Badge>
+                          </div>
+                          <div className="bg-teal-100 dark:bg-teal-900/30 px-3 py-1.5 rounded-lg">
+                            <span className="font-bold text-teal-700 dark:text-teal-300 text-lg">
+                              {item.count}
+                            </span>
+                          </div>
                         </div>
-                        <div className="bg-teal-100 dark:bg-teal-900/30 px-3 py-1.5 rounded-lg">
-                          <span className="font-bold text-teal-700 dark:text-teal-300 text-lg">
-                            {count}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                      ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -805,30 +871,36 @@ export default function Reports() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="space-y-3">
-                  {Object.entries(companiesByUser)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([userName, count]) => (
-                      <div
-                        key={userName}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-violet-100 dark:border-violet-800/30 hover:border-violet-200 dark:hover:border-violet-700/50 hover:shadow-sm transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="default"
-                            className="bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-600 font-medium px-3 py-1"
-                          >
-                            {userName}
-                          </Badge>
+                {companyReportsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Carregando dados otimizados...
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(companyReports?.companiesByUser || [])
+                      .sort((a, b) => b.count - a.count)
+                      .map((item) => (
+                        <div
+                          key={item.userId || "no-user"}
+                          className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-violet-100 dark:border-violet-800/30 hover:border-violet-200 dark:hover:border-violet-700/50 hover:shadow-sm transition-all duration-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="default"
+                              className="bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-600 font-medium px-3 py-1"
+                            >
+                              {item.userName}
+                            </Badge>
+                          </div>
+                          <div className="bg-violet-100 dark:bg-violet-900/30 px-3 py-1.5 rounded-lg">
+                            <span className="font-bold text-violet-700 dark:text-violet-300 text-lg">
+                              {item.count}
+                            </span>
+                          </div>
                         </div>
-                        <div className="bg-violet-100 dark:bg-violet-900/30 px-3 py-1.5 rounded-lg">
-                          <span className="font-bold text-violet-700 dark:text-violet-300 text-lg">
-                            {count}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                      ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -848,30 +920,36 @@ export default function Reports() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="space-y-3">
-                  {Object.entries(companiesByState)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([state, count]) => (
-                      <div
-                        key={state}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-200 dark:hover:border-emerald-700/50 hover:shadow-sm transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20 font-medium px-3 py-1"
-                          >
-                            {state}
-                          </Badge>
+                {companyReportsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Carregando dados otimizados...
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(companyReports?.companiesByState || [])
+                      .sort((a, b) => b.count - a.count)
+                      .map((item) => (
+                        <div
+                          key={item.state || "no-state"}
+                          className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-200 dark:hover:border-emerald-700/50 hover:shadow-sm transition-all duration-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20 font-medium px-3 py-1"
+                            >
+                              {item.state}
+                            </Badge>
+                          </div>
+                          <div className="bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg">
+                            <span className="font-bold text-emerald-700 dark:text-emerald-300 text-lg">
+                              {item.count}
+                            </span>
+                          </div>
                         </div>
-                        <div className="bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg">
-                          <span className="font-bold text-emerald-700 dark:text-emerald-300 text-lg">
-                            {count}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                      ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -884,45 +962,53 @@ export default function Reports() {
                   Empresas por Cidade
                 </CardTitle>
                 <CardDescription className="text-lime-700/70 dark:text-lime-300/70 font-medium">
-                  Distribuição das empresas por cidade
+                  Distribuição das empresas por cidade (Top 10)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="space-y-3">
-                  {Object.entries(companiesByCity)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 10) // Mostrar apenas as 10 principais cidades
-                    .map(([city, count]) => (
-                      <div
-                        key={city}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-lime-100 dark:border-lime-800/30 hover:border-lime-200 dark:hover:border-lime-700/50 hover:shadow-sm transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            variant="outline"
-                            className="border-lime-200 text-lime-700 hover:bg-lime-50 dark:border-lime-700 dark:text-lime-300 dark:hover:bg-lime-900/20 font-medium px-3 py-1"
-                          >
-                            {city}
-                          </Badge>
-                        </div>
-                        <div className="bg-lime-100 dark:bg-lime-900/30 px-3 py-1.5 rounded-lg">
-                          <span className="font-bold text-lime-700 dark:text-lime-300 text-lg">
-                            {count}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                {Object.keys(companiesByCity).length > 10 && (
-                  <div className="mt-4 p-3 bg-lime-50 dark:bg-lime-900/20 rounded-lg border border-lime-100 dark:border-lime-800/30">
-                    <p className="text-sm text-lime-700 dark:text-lime-300 font-medium text-center">
-                      Mostrando as 10 principais cidades de{" "}
-                      <span className="font-bold">
-                        {Object.keys(companiesByCity).length}
-                      </span>{" "}
-                      total
-                    </p>
+                {companyReportsLoading ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Carregando dados otimizados...
                   </div>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {(companyReports?.companiesByCity || [])
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 10)
+                        .map((item) => (
+                          <div
+                            key={item.city || "no-city"}
+                            className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-lime-100 dark:border-lime-800/30 hover:border-lime-200 dark:hover:border-lime-700/50 hover:shadow-sm transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Badge
+                                variant="outline"
+                                className="border-lime-200 text-lime-700 hover:bg-lime-50 dark:border-lime-700 dark:text-lime-300 dark:hover:bg-lime-900/20 font-medium px-3 py-1"
+                              >
+                                {item.city}
+                              </Badge>
+                            </div>
+                            <div className="bg-lime-100 dark:bg-lime-900/30 px-3 py-1.5 rounded-lg">
+                              <span className="font-bold text-lime-700 dark:text-lime-300 text-lg">
+                                {item.count}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                    {(companyReports?.companiesByCity.length || 0) > 10 && (
+                      <div className="mt-4 p-3 bg-lime-50 dark:bg-lime-900/20 rounded-lg border border-lime-100 dark:border-lime-800/30">
+                        <p className="text-sm text-lime-700 dark:text-lime-300 font-medium text-center">
+                          Mostrando as 10 principais cidades de{" "}
+                          <span className="font-bold">
+                            {companyReports?.companiesByCity.length}
+                          </span>{" "}
+                          total
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>

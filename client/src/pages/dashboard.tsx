@@ -436,7 +436,7 @@ export default function Dashboard() {
                               title="Ligar para cliente"
                             >
                               <Phone className="h-4 w-4" />
-                              <span className="ml-2 xs:hidden">Ligar</span>
+                              <span className="ml-2 hidden sm:inline-block">Ligar</span>
                             </Button>
                             {debt.client.email && (
                               <Button
@@ -452,7 +452,7 @@ export default function Dashboard() {
                                 title="Enviar email"
                               >
                                 <Mail className="h-4 w-4" />
-                                <span className="ml-2 xs:hidden">Email</span>
+                                <span className="sm:inline-block hidden">Email</span>
                               </Button>
                             )}
                             <Button
@@ -462,7 +462,7 @@ export default function Dashboard() {
                               onClick={() => setSelectedClient(debt.client)}
                             >
                               <User className="h-4 w-4 xs:mr-2" />
-                              <span className="ml-2 xs:ml-0 truncate">
+                              <span className="sm:inline-block hidden">
                                 Ver Cliente
                               </span>
                             </Button>
