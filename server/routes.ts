@@ -3947,18 +3947,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Valor por pessoa deve ser um número válido" });
       }
 
-      // Converter strings de data para objetos Date preservando timezone local
+      // Converter strings de data para objetos Date preservando timezone brasileiro
       if (typeof eventData.eventDate === "string") {
-        // Para datetime-local, interpretar como hora local
-        eventData.eventDate = new Date(eventData.eventDate + ":00"); // Adicionar segundos se necessário
+        // Para datetime-local, tratar como horário de São Paulo
+        // O datetime-local vem no formato YYYY-MM-DDTHH:mm
+        eventData.eventDate = new Date(eventData.eventDate + ":00-03:00"); // Forçar timezone brasileiro
       }
       if (
         eventData.registrationDeadline &&
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline + ":00"
-        );
+          eventData.registrationDeadline + ":00-03:00"
+        ); // Forçar timezone brasileiro
       }
 
       // Separar dados do evento e anexos
@@ -4002,19 +4003,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // Converter strings de data para objetos Date preservando timezone local
+      // Converter strings de data para objetos Date preservando timezone brasileiro
       const eventData = { ...req.body };
       if (eventData.eventDate && typeof eventData.eventDate === "string") {
-        // Para datetime-local, interpretar como hora local
-        eventData.eventDate = new Date(eventData.eventDate + ":00");
+        // Para datetime-local, tratar como horário de São Paulo
+        eventData.eventDate = new Date(eventData.eventDate + ":00-03:00"); // Forçar timezone brasileiro
       }
       if (
         eventData.registrationDeadline &&
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline + ":00"
-        );
+          eventData.registrationDeadline + ":00-03:00"
+        ); // Forçar timezone brasileiro
       }
 
       // Separar dados do evento e anexos

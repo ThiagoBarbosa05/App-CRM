@@ -57,7 +57,13 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatDate, baseS3Url } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatEventDateTime,
+  convertUTCToLocalDatetime,
+  baseS3Url,
+} from "@/lib/utils";
 import EventParticipantsModal from "@/components/event-participants-modal";
 
 interface EventAttachment {
@@ -619,10 +625,15 @@ export default function EventsManagement() {
       return;
     }
 
-    // Validar se a data do evento não é no passado
-    const eventDate = new Date(formData.eventDate);
+    // Validar se a data do evento não é no passado (considerando fuso brasileiro)
+    const eventDate = new Date(formData.eventDate + ":00-03:00");
     const now = new Date();
-    if (eventDate < now) {
+    // Obter hora atual no fuso brasileiro para comparação justa
+    const nowInBrasilia = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+    );
+
+    if (eventDate < nowInBrasilia) {
       toast({
         title: "Erro",
         description: "A data do evento não pode ser no passado",
@@ -633,7 +644,7 @@ export default function EventsManagement() {
 
     // Validar se o prazo de inscrição não é após a data do evento
     if (formData.registrationDeadline) {
-      const deadline = new Date(formData.registrationDeadline);
+      const deadline = new Date(formData.registrationDeadline + ":00-03:00");
       if (deadline > eventDate) {
         toast({
           title: "Erro",
@@ -654,12 +665,13 @@ export default function EventsManagement() {
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
+
     setFormData({
       name: event.name,
       description: event.description || "",
-      eventDate: new Date(event.eventDate).toISOString().slice(0, 16),
+      eventDate: convertUTCToLocalDatetime(event.eventDate),
       registrationDeadline: event.registrationDeadline
-        ? new Date(event.registrationDeadline).toISOString().slice(0, 16)
+        ? convertUTCToLocalDatetime(event.registrationDeadline)
         : "",
       location: event.location,
       pricePerPerson: event.pricePerPerson,
@@ -820,7 +832,9 @@ export default function EventsManagement() {
     <div class="event-details">
       <div>
         <div class="info-item">
-          <span class="info-label">Data:</span> ${formatDate(event.eventDate)}
+          <span class="info-label">Data:</span> ${formatEventDateTime(
+            event.eventDate
+          )}
         </div>
         <div class="info-item">
           <span class="info-label">Local:</span> ${event.location}
@@ -1097,7 +1111,7 @@ export default function EventsManagement() {
                         <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                           <CalendarIcon className="h-4 w-4 flex-shrink-0" />
                           <span className="truncate">
-                            {formatDate(event.eventDate)}
+                            {formatEventDateTime(event.eventDate)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">

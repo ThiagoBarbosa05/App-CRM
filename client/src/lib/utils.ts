@@ -27,9 +27,23 @@ export function formatDate(dateString: string): string {
     return `${day}/${month}/${year}`;
   }
 
-  // Para outras datas, usar Date normal
+  // Para datas de eventos (timestamps), usar formatação brasileira com timezone ajustado
   const date = new Date(dateString);
-  return date.toLocaleDateString("pt-BR");
+
+  // Verificar se é uma data válida
+  if (isNaN(date.getTime())) {
+    return dateString; // Retorna string original se não conseguir parsear
+  }
+
+  // Formatação completa para eventos (incluindo hora)
+  return date.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatCurrency(value: number): string {
@@ -37,6 +51,83 @@ export function formatCurrency(value: number): string {
     style: "currency",
     currency: "BRL",
   });
+}
+
+export function formatEventDate(dateString: string): string {
+  const date = new Date(dateString);
+
+  // Verificar se é uma data válida
+  if (isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  // Formatação apenas com data para eventos (sem hora)
+  return date.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+export function formatEventDateTime(dateString: string): string {
+  const date = new Date(dateString);
+
+  // Verificar se é uma data válida
+  if (isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  // Formatação completa com data e hora para eventos
+  return date.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Função para converter data UTC para datetime-local brasileiro
+export function convertUTCToLocalDatetime(dateString: string): string {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+
+  if (isNaN(date.getTime())) {
+    return "";
+  }
+
+  // Converter para fuso brasileiro usando Intl.DateTimeFormat
+  const formatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  const hour = parts.find((p) => p.type === "hour")?.value;
+  const minute = parts.find((p) => p.type === "minute")?.value;
+
+  // Formato datetime-local: YYYY-MM-DDTHH:MM
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+// Função para converter datetime-local brasileiro para string com timezone
+export function convertLocalDatetimeToUTC(datetimeLocal: string): string {
+  if (!datetimeLocal) return "";
+
+  // O input datetime-local retorna no formato YYYY-MM-DDTHH:MM
+  // Precisamos interpretar isso como horário de Brasília
+  return datetimeLocal + ":00-03:00";
 }
 
 export function validateCpf(cpf: string): boolean {

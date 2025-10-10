@@ -24,7 +24,12 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, baseS3Url } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatEventDateTime,
+  baseS3Url,
+} from "@/lib/utils";
 
 interface EventAttachment {
   id?: string;
@@ -486,7 +491,9 @@ export default function EventsDashboard() {
     <div class="event-details">
       <div>
         <div class="info-item">
-          <span class="info-label">Data:</span> ${formatDate(event.eventDate)}
+          <span class="info-label">Data:</span> ${formatEventDateTime(
+            event.eventDate
+          )}
         </div>
         <div class="info-item">
           <span class="info-label">Local:</span> ${event.location}
@@ -875,7 +882,11 @@ export default function EventsDashboard() {
                     )}
 
                     {/* Header do Card */}
-                    <div className={`p-6 pl-8 ${event.imageUrl ? '-mt-6 relative z-10' : ''}`}>
+                    <div
+                      className={`p-6 pl-8 ${
+                        event.imageUrl ? "-mt-6 relative z-10" : ""
+                      }`}
+                    >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-lg text-gray-900 mb-3 overflow-hidden text-ellipsis">
@@ -929,7 +940,7 @@ export default function EventsDashboard() {
                           </div>
                           <div className="flex-1">
                             <div className="font-medium text-gray-900">
-                              {formatDate(event.eventDate)}
+                              {formatEventDateTime(event.eventDate)}
                             </div>
                             <div className="text-sm">
                               {isToday && (
@@ -1050,14 +1061,15 @@ export default function EventsDashboard() {
                                       </div>
 
                                       {/* Indicador de posição */}
-                                      {event.attachments && event.attachments.length > 1 && (
-                                        <div className="absolute top-3 right-3">
-                                          <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                                            {index + 1}/
-                                            {event.attachments.length}
+                                      {event.attachments &&
+                                        event.attachments.length > 1 && (
+                                          <div className="absolute top-3 right-3">
+                                            <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                                              {index + 1}/
+                                              {event.attachments.length}
+                                            </div>
                                           </div>
-                                        </div>
-                                      )}
+                                        )}
                                     </div>
                                   </CarouselItem>
                                 ))}
@@ -1109,7 +1121,7 @@ export default function EventsDashboard() {
                               ⏰ Prazo de inscrição
                             </div>
                             <div className="mt-1">
-                              {formatDate(event.registrationDeadline)}
+                              {formatEventDateTime(event.registrationDeadline)}
                             </div>
                           </div>
                         </div>
