@@ -182,12 +182,14 @@ export default function EventsManagement() {
   const [removingAttachments, setRemovingAttachments] = useState<number[]>([]);
 
   // Função para upload de imagem do evento
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Validar tipo de arquivo (JPEG, JPG, PNG)
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
     if (!allowedTypes.includes(file.type.toLowerCase())) {
       toast({
         title: "Erro",
@@ -227,8 +229,8 @@ export default function EventsManagement() {
       const result = await response.json();
       // Construir URL completa com baseS3Url
       const fullImageUrl = `${baseS3Url}${result.imageUrl}`;
-      setFormData(prev => ({ ...prev, imageUrl: fullImageUrl }));
-      
+      setFormData((prev) => ({ ...prev, imageUrl: fullImageUrl }));
+
       toast({
         title: "Sucesso",
         description: "Imagem carregada com sucesso",
@@ -237,7 +239,10 @@ export default function EventsManagement() {
       console.error("Erro no upload:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Falha ao fazer upload da imagem",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Falha ao fazer upload da imagem",
         variant: "destructive",
       });
     } finally {
@@ -246,7 +251,7 @@ export default function EventsManagement() {
   };
 
   const removeImage = () => {
-    setFormData(prev => ({ ...prev, imageUrl: null }));
+    setFormData((prev) => ({ ...prev, imageUrl: null }));
   };
 
   // Função para upload de arquivo
@@ -424,10 +429,8 @@ export default function EventsManagement() {
           ...data,
           pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
-          eventDate: new Date(data.eventDate).toISOString(),
-          registrationDeadline: data.registrationDeadline
-            ? new Date(data.registrationDeadline).toISOString()
-            : null,
+          eventDate: data.eventDate, // Enviar como string datetime-local
+          registrationDeadline: data.registrationDeadline || null,
           attachments: data.attachments, // Incluir attachments
           createdBy: user?.id,
         };
@@ -494,10 +497,8 @@ export default function EventsManagement() {
           ...data,
           pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
-          eventDate: new Date(data.eventDate),
-          registrationDeadline: data.registrationDeadline
-            ? new Date(data.registrationDeadline)
-            : null,
+          eventDate: data.eventDate, // Enviar como string datetime-local
+          registrationDeadline: data.registrationDeadline || null,
           attachments: data.attachments, // Incluir attachments
         }),
       });
@@ -1071,7 +1072,7 @@ export default function EventsManagement() {
                               />
                             </div>
                           )}
-                          
+
                           <div className="flex items-start gap-3 flex-1 min-w-0">
                             <div className="p-2 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 flex-shrink-0">
                               <CalendarIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
@@ -1160,8 +1161,8 @@ export default function EventsManagement() {
                         </div>
                       )}
 
-                        {/* Ações */}
-                        <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-100 dark:border-slate-700">
+                      {/* Ações */}
+                      <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <Button
                           variant="ghost"
                           size="sm"

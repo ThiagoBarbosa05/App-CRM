@@ -3947,16 +3947,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Valor por pessoa deve ser um número válido" });
       }
 
-      // Converter strings de data para objetos Date
+      // Converter strings de data para objetos Date preservando timezone local
       if (typeof eventData.eventDate === "string") {
-        eventData.eventDate = new Date(eventData.eventDate);
+        // Para datetime-local, interpretar como hora local
+        eventData.eventDate = new Date(eventData.eventDate + ":00"); // Adicionar segundos se necessário
       }
       if (
         eventData.registrationDeadline &&
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline
+          eventData.registrationDeadline + ":00"
         );
       }
 
@@ -4001,17 +4002,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // Converter strings de data para objetos Date se necessário
+      // Converter strings de data para objetos Date preservando timezone local
       const eventData = { ...req.body };
       if (eventData.eventDate && typeof eventData.eventDate === "string") {
-        eventData.eventDate = new Date(eventData.eventDate);
+        // Para datetime-local, interpretar como hora local
+        eventData.eventDate = new Date(eventData.eventDate + ":00");
       }
       if (
         eventData.registrationDeadline &&
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline
+          eventData.registrationDeadline + ":00"
         );
       }
 
