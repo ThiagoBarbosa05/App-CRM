@@ -4,6 +4,13 @@ import {
   type Deal,
   type InsertDeal,
   type DealWithClient,
+  type DealQuestion,
+  type InsertDealQuestion,
+  type UpdateDealQuestion,
+  type DealAnswer,
+  type InsertDealAnswer,
+  type DealAnswerWithQuestion,
+  type DealWithDetails,
   type Company,
   type InsertCompany,
   type User,
@@ -42,6 +49,8 @@ import {
   type InsertClientDebt,
   clients,
   deals,
+  dealQuestions,
+  dealAnswers,
   companies,
   users,
   salesFunnels,
@@ -4823,6 +4832,453 @@ export class DatabaseStorage implements IStorage {
       return true;
     } catch (error) {
       console.error("Error deleting event attachments by event id:", error);
+      throw error;
+    }
+  }
+
+  // Deal Questions Management
+  async getDealQuestions(filters?: {
+    category?: string;
+    isActive?: boolean;
+  }): Promise<DealQuestion[]> {
+    try {
+      let query = this.db
+        .select()
+        .from(dealQuestions)
+        .orderBy(dealQuestions.displayOrder, dealQuestions.createdAt);
+
+      const conditions = [];
+
+      if (filters?.category) {
+        conditions.push(eq(dealQuestions.category, filters.category));
+      }
+
+      if (filters?.isActive !== undefined) {
+        conditions.push(eq(dealQuestions.isActive, filters.isActive));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      return await query;
+    } catch (error) {
+      console.error("Error fetching deal questions:", error);
+      throw error;
+    }
+  }
+
+  async createDealQuestion(data: InsertDealQuestion): Promise<DealQuestion> {
+    try {
+      const [question] = await this.db
+        .insert(dealQuestions)
+        .values(data)
+        .returning();
+      return question;
+    } catch (error) {
+      console.error("Error creating deal question:", error);
+      throw error;
+    }
+  }
+
+  async updateDealQuestion(
+    id: string,
+    data: UpdateDealQuestion
+  ): Promise<DealQuestion | null> {
+    try {
+      const [question] = await this.db
+        .update(dealQuestions)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(dealQuestions.id, id))
+        .returning();
+      return question || null;
+    } catch (error) {
+      console.error("Error updating deal question:", error);
+      throw error;
+    }
+  }
+
+  async deleteDealQuestion(id: string): Promise<boolean> {
+    try {
+      // First delete all answers for this question
+      await this.db.delete(dealAnswers).where(eq(dealAnswers.questionId, id));
+
+      // Then delete the question
+      const [deleted] = await this.db
+        .delete(dealQuestions)
+        .where(eq(dealQuestions.id, id))
+        .returning();
+
+      return !!deleted;
+    } catch (error) {
+      console.error("Error deleting deal question:", error);
+      throw error;
+    }
+  }
+
+  // Deal Answers Management
+  async getDealAnswers(dealId: string): Promise<DealAnswerWithQuestion[]> {
+    try {
+      return await this.db
+        .select({
+          id: dealAnswers.id,
+          dealId: dealAnswers.dealId,
+          questionId: dealAnswers.questionId,
+          answer: dealAnswers.answer,
+          answerBoolean: dealAnswers.answerBoolean,
+          answerNumber: dealAnswers.answerNumber,
+          answerText: dealAnswers.answerText,
+          createdAt: dealAnswers.createdAt,
+          updatedAt: dealAnswers.updatedAt,
+          question: {
+            id: dealQuestions.id,
+            question: dealQuestions.question,
+            questionType: dealQuestions.questionType,
+            options: dealQuestions.options,
+            category: dealQuestions.category,
+            isRequired: dealQuestions.isRequired,
+            isActive: dealQuestions.isActive,
+            displayOrder: dealQuestions.displayOrder,
+            helpText: dealQuestions.helpText,
+            placeholder: dealQuestions.placeholder,
+            createdBy: dealQuestions.createdBy,
+            createdAt: dealQuestions.createdAt,
+            updatedAt: dealQuestions.updatedAt,
+          },
+        })
+        .from(dealAnswers)
+        .innerJoin(dealQuestions, eq(dealAnswers.questionId, dealQuestions.id))
+        .where(eq(dealAnswers.dealId, dealId))
+        .orderBy(dealQuestions.displayOrder);
+    } catch (error) {
+      console.error("Error fetching deal answers:", error);
+      throw error;
+    }
+  }
+
+  async saveDealAnswers(
+    dealId: string,
+    answers: InsertDealAnswer[]
+  ): Promise<DealAnswer[]> {
+    try {
+      const results: DealAnswer[] = [];
+
+      for (const answerData of answers) {
+        // Check if answer already exists
+        const [existingAnswer] = await this.db
+          .select()
+          .from(dealAnswers)
+          .where(
+            and(
+              eq(dealAnswers.dealId, dealId),
+              eq(dealAnswers.questionId, answerData.questionId)
+            )
+          );
+
+        if (existingAnswer) {
+          // Update existing answer
+          const [updatedAnswer] = await this.db
+            .update(dealAnswers)
+            .set({
+              ...answerData,
+              dealId,
+              updatedAt: new Date(),
+            })
+            .where(eq(dealAnswers.id, existingAnswer.id))
+            .returning();
+          results.push(updatedAnswer);
+        } else {
+          // Create new answer
+          const [newAnswer] = await this.db
+            .insert(dealAnswers)
+            .values({
+              ...answerData,
+              dealId,
+            })
+            .returning();
+          results.push(newAnswer);
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error("Error saving deal answers:", error);
+      throw error;
+    }
+  }
+
+  async getDealWithAnswers(dealId: string): Promise<DealWithDetails | null> {
+    try {
+      // Get the deal with basic relations
+      const [deal] = await this.db
+        .select({
+          deal: deals,
+          client: clients,
+          company: companies,
+          assignedUser: {
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+          },
+          stage: funnelStages,
+          funnel: salesFunnels,
+        })
+        .from(deals)
+        .leftJoin(clients, eq(deals.clientId, clients.id))
+        .leftJoin(companies, eq(deals.companyId, companies.id))
+        .leftJoin(users, eq(deals.assignedTo, users.id))
+        .leftJoin(funnelStages, eq(deals.stageId, funnelStages.id))
+        .leftJoin(salesFunnels, eq(deals.funnelId, salesFunnels.id))
+        .where(eq(deals.id, dealId));
+
+      if (!deal) {
+        return null;
+      }
+
+      // Get answers for this deal
+      const answers = await this.getDealAnswers(dealId);
+
+      return {
+        ...deal.deal,
+        client: deal.client,
+        company: deal.company,
+        assignedUser: deal.assignedUser,
+        stage: deal.stage,
+        funnel: deal.funnel,
+        answers,
+      };
+    } catch (error) {
+      console.error("Error fetching deal with answers:", error);
+      throw error;
+    }
+  }
+
+  async getDealQuestionsStats(): Promise<{
+    totalQuestions: number;
+    activeQuestions: number;
+    categoriesCount: number;
+    usageStats: Array<{
+      questionId: string;
+      question: string;
+      answeredCount: number;
+      totalDeals: number;
+      completionRate: number;
+    }>;
+  }> {
+    try {
+      // Get total and active questions count
+      const [questionsStats] = await this.db
+        .select({
+          total: sql<number>`count(*)`,
+          active: sql<number>`count(*) filter (where ${dealQuestions.isActive} = true)`,
+          categories: sql<number>`count(distinct ${dealQuestions.category})`,
+        })
+        .from(dealQuestions);
+
+      // Get usage statistics for each question
+      const usageStats = await this.db
+        .select({
+          questionId: dealQuestions.id,
+          question: dealQuestions.question,
+          answeredCount: sql<number>`count(${dealAnswers.id})`,
+          totalDeals: sql<number>`(select count(*) from ${deals})`,
+        })
+        .from(dealQuestions)
+        .leftJoin(dealAnswers, eq(dealQuestions.id, dealAnswers.questionId))
+        .where(eq(dealQuestions.isActive, true))
+        .groupBy(dealQuestions.id, dealQuestions.question);
+
+      const statsWithCompletionRate = usageStats.map((stat) => ({
+        ...stat,
+        completionRate:
+          stat.totalDeals > 0
+            ? Math.round((stat.answeredCount / stat.totalDeals) * 100)
+            : 0,
+      }));
+
+      return {
+        totalQuestions: questionsStats.total,
+        activeQuestions: questionsStats.active,
+        categoriesCount: questionsStats.categories,
+        usageStats: statsWithCompletionRate,
+      };
+    } catch (error) {
+      console.error("Error fetching deal questions stats:", error);
+      throw error;
+    }
+  }
+
+  async seedDefaultDealQuestions(): Promise<void> {
+    try {
+      // Check if questions already exist
+      const existingQuestions = await this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(dealQuestions);
+
+      if (existingQuestions[0]?.count > 0) {
+        // Questions already exist, don't seed again
+        return;
+      }
+
+      const defaultQuestions = [
+        {
+          question: "O cliente já conhece nossos vinhos?",
+          questionType: "boolean" as const,
+          category: "Conhecimento do Produto",
+          isRequired: true,
+          displayOrder: 1,
+          isActive: true,
+          helpText:
+            "Verificar se o cliente já teve contato anterior com nossos produtos",
+        },
+        {
+          question: "Quantos rótulos nossos tem na carta atual?",
+          questionType: "number" as const,
+          category: "Conhecimento do Produto",
+          isRequired: true,
+          displayOrder: 2,
+          isActive: true,
+          placeholder: "0",
+          helpText: "Número de vinhos da nossa marca que o cliente já oferece",
+        },
+        {
+          question: "Há quanto tempo é nosso cliente?",
+          questionType: "select" as const,
+          category: "Conhecimento do Produto",
+          options: [
+            "Cliente novo",
+            "Menos de 6 meses",
+            "6 meses a 1 ano",
+            "1 a 2 anos",
+            "Mais de 2 anos",
+          ],
+          isRequired: false,
+          displayOrder: 3,
+          isActive: true,
+        },
+        {
+          question: "Tipos de vinho preferidos",
+          questionType: "multiselect" as const,
+          category: "Perfil de Consumo",
+          options: [
+            "Tinto",
+            "Branco",
+            "Rosé",
+            "Espumante",
+            "Pós-refeição",
+            "Orgânicos",
+          ],
+          isRequired: false,
+          displayOrder: 4,
+          isActive: true,
+          helpText:
+            "Selecione todos os tipos que o cliente demonstra interesse",
+        },
+        {
+          question: "Faixa de preço de trabalho",
+          questionType: "select" as const,
+          category: "Perfil de Consumo",
+          options: [
+            "Até R$ 50",
+            "R$ 51 a R$ 100",
+            "R$ 101 a R$ 200",
+            "R$ 201 a R$ 300",
+            "Acima de R$ 300",
+          ],
+          isRequired: false,
+          displayOrder: 5,
+          isActive: true,
+        },
+        {
+          question: "Volume mensal estimado (garrafas)",
+          questionType: "number" as const,
+          category: "Perfil de Consumo",
+          isRequired: false,
+          displayOrder: 6,
+          isActive: true,
+          placeholder: "Ex: 50",
+          helpText: "Estimativa de consumo mensal em garrafas",
+        },
+        {
+          question: "Principais concorrentes atuais",
+          questionType: "text" as const,
+          category: "Competitividade",
+          isRequired: false,
+          displayOrder: 7,
+          isActive: true,
+          placeholder: "Ex: Marca A, Marca B...",
+          helpText: "Outras marcas de vinho que o cliente trabalha",
+        },
+        {
+          question: "Nosso diferencial percebido pelo cliente",
+          questionType: "text" as const,
+          category: "Competitividade",
+          isRequired: false,
+          displayOrder: 8,
+          isActive: true,
+          helpText: "O que o cliente enxerga como vantagem em nossos produtos",
+        },
+        {
+          question: "Potencial de crescimento do cliente",
+          questionType: "select" as const,
+          category: "Potencial de Negócio",
+          options: [
+            "Baixo potencial",
+            "Médio potencial de crescimento",
+            "Alto potencial de crescimento",
+            "Potencial excepcional",
+          ],
+          isRequired: false,
+          displayOrder: 9,
+          isActive: true,
+        },
+        {
+          question: "Sazonalidade do negócio",
+          questionType: "select" as const,
+          category: "Potencial de Negócio",
+          options: [
+            "Constante o ano todo",
+            "Maior no verão",
+            "Maior no inverno",
+            "Eventos específicos",
+            "Fim de ano",
+          ],
+          isRequired: false,
+          displayOrder: 10,
+          isActive: true,
+        },
+        {
+          question: "Nível de relacionamento atual",
+          questionType: "select" as const,
+          category: "Relacionamento",
+          options: [
+            "Primeiro contato",
+            "Relacionamento inicial",
+            "Relacionamento estabelecido",
+            "Parceria consolidada",
+          ],
+          isRequired: false,
+          displayOrder: 11,
+          isActive: true,
+        },
+        {
+          question: "Observações importantes sobre o cliente/deal",
+          questionType: "text" as const,
+          category: "Relacionamento",
+          isRequired: false,
+          displayOrder: 12,
+          isActive: true,
+          placeholder: "Informações adicionais relevantes...",
+          helpText:
+            "Qualquer informação adicional que possa ser relevante para o fechamento do deal",
+        },
+      ];
+
+      // Insert default questions
+      await this.db.insert(dealQuestions).values(defaultQuestions);
+    } catch (error) {
+      console.error("Error seeding default deal questions:", error);
       throw error;
     }
   }

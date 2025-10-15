@@ -551,12 +551,59 @@ export async function getBirthdayBots() {
   }
 }
 
+export async function getBirthdayTodayBotsAutomation() {
+  try {
+    const response = await fetch(
+      "https://app-utalk.umbler.com/api/v1/bots/?organizationId=aGx7Jh43-au36EGi&query=(TESTE) ANIVERSÁRIO&Skip=0&Take=50&Behavior=GetSliceOnly",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch bots");
+    }
+
+    return (await response.json()) as BirthdayBotsResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
+    return null;
+  }
+}
+
+export async function getBirthdayDaysBeforeBotAutomation() {
+  try {
+    const response = await fetch(
+      "https://app-utalk.umbler.com/api/v1/bots/?organizationId=aGx7Jh43-au36EGi&query=(TESTE) ANIVERSÁRIO DIAS ANTES&Skip=0&Take=50&Behavior=GetSliceOnly",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch bots");
+    }
+
+    return (await response.json()) as BirthdayBotsResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
+    return null;
+  }
+}
+
 export async function startBirthdayBot(data: {
   chatId: string;
   botId: string;
   triggerName: string;
 }) {
   try {
+    console.log("Starting bot with data:", data);
     const response = await fetch(`${apiEndpoint}/chats/start-bot`, {
       method: "POST",
       headers: {
@@ -567,7 +614,9 @@ export async function startBirthdayBot(data: {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to start bot" + (await response.json()));
+      const error = await response.json();
+      console.error("Error starting bot:", error);
+      throw new Error("Failed to start bot" + error);
     }
 
     return response.json();

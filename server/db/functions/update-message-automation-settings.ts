@@ -19,7 +19,26 @@ export const updateMessageAutomationSettingSchema = createInsertSchema(
       .int()
       .min(0, "Os dias anteriores devem ser um número não negativo")
       .optional(),
+    type: z.enum(["template", "bot"]).optional(),
     externalTemplateId: z.string().optional(),
+    externalFileId: z.string().optional(),
+    externalFileUrl: z
+      .string()
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (!val || val === "") return null;
+        return val;
+      })
+      .refine((val) => {
+        if (val === null) return true;
+        try {
+          new URL(val);
+          return true;
+        } catch {
+          return false;
+        }
+      }, "URL inválida"),
   }
 )
   .partial()

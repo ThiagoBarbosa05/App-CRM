@@ -154,6 +154,7 @@ interface MessageAutomationSetting {
   enabled: boolean;
   sendTime: string;
   daysBefore: number;
+  type: "template" | "bot";
   externalTemplateId?: string;
   externalChannelId?: string;
   externalFileId?: string;
@@ -202,10 +203,29 @@ interface UmblerTemplate {
   carousel: Array<any>;
 }
 
+interface UmblerBot {
+  _t: string;
+  triggers: string[];
+  manualTriggers: string[];
+  steps: any[];
+  channels: any[];
+  title: string;
+  order: number;
+  final: boolean;
+  active: boolean;
+  groupIds: any[];
+  updatedAtUTC: string;
+  executionsCount: number;
+  executionsDateUTC: string;
+  id: string;
+  createdAtUTC: string;
+}
+
 interface AutomationFormData {
   enabled: boolean;
   sendTime: string;
   daysBefore: number;
+  type: "template" | "bot";
   externalTemplateId: string;
   externalChannelId: string;
   externalFileId?: string;
@@ -274,6 +294,32 @@ function useUmblerTemplates() {
       const response = await fetch("/api/templates?approved=true");
       if (!response.ok) throw new Error("Failed to fetch templates");
       return response.json();
+    },
+  });
+}
+
+// Hook para buscar bots de aniversário do dia
+function useUmblerBotsToday() {
+  return useQuery<UmblerBot[]>({
+    queryKey: ["umbler-bots-today"],
+    queryFn: async () => {
+      const response = await fetch("/api/umbler/birthday-bots-today");
+      if (!response.ok) throw new Error("Failed to fetch bots");
+      const data = await response.json();
+      return data.items || [];
+    },
+  });
+}
+
+// Hook para buscar bots de aniversário dias antes
+function useUmblerBotsDaysBefore() {
+  return useQuery<UmblerBot[]>({
+    queryKey: ["umbler-bots-days-before"],
+    queryFn: async () => {
+      const response = await fetch("/api/umbler/birthday-bots-days-before");
+      if (!response.ok) throw new Error("Failed to fetch bots");
+      const data = await response.json();
+      return data.items || [];
     },
   });
 }
@@ -667,6 +713,8 @@ function AutomationForm({
   automation,
   channels,
   templates,
+  botsToday,
+  botsDaysBefore,
   onSubmit,
   onCancel,
   isLoading,
@@ -674,6 +722,8 @@ function AutomationForm({
   automation?: MessageAutomationSetting;
   channels: UmblerChannel[];
   templates: UmblerTemplate[];
+  botsToday: UmblerBot[];
+  botsDaysBefore: UmblerBot[];
   onSubmit: (data: AutomationFormData) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -682,6 +732,7 @@ function AutomationForm({
     enabled: automation?.enabled ?? true,
     sendTime: automation?.sendTime ?? "09:00",
     daysBefore: automation?.daysBefore ?? 0,
+    type: automation?.type ?? "template",
     externalTemplateId: automation?.externalTemplateId ?? "",
     externalChannelId: automation?.externalChannelId ?? "",
     externalFileId: automation?.externalFileId ?? "",
@@ -704,10 +755,19 @@ function AutomationForm({
       return;
     }
 
-    if (!formData.externalTemplateId) {
+    if (formData.type === "template" && !formData.externalTemplateId) {
       toast({
         title: "Template obrigatório",
         description: "Selecione um template para as mensagens.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.type === "bot" && !formData.externalTemplateId) {
+      toast({
+        title: "Bot obrigatório",
+        description: "Selecione um bot para automação.",
         variant: "destructive",
       });
       return;
@@ -807,6 +867,24 @@ function AutomationForm({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="type">Tipo de Automação</Label>
+          <Select
+            value={formData.type}
+            onValueChange={(type: "template" | "bot") =>
+              setFormData({ ...formData, type, externalTemplateId: "" })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="template">Template de Mensagem</SelectItem>
+              <SelectItem value="bot">Bot de Automação</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="channel">Canal de envio</Label>
           <Select
             value={formData.externalChannelId}
@@ -834,41 +912,99 @@ function AutomationForm({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="externalTemplateId">Template de Mensagem</Label>
-          <Select
-            value={formData.externalTemplateId}
-            onValueChange={(externalTemplateId) =>
-              setFormData({ ...formData, externalTemplateId })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um template" />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.length === 0 ? (
-                <SelectItem value="empty" disabled>
-                  Nenhum template aprovado disponível
-                </SelectItem>
-              ) : (
-                templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{template.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {template.category} • {template.templateType}
-                      </span>
-                    </div>
+        {formData.type === "template" && (
+          <div className="space-y-2">
+            <Label htmlFor="externalTemplateId">Template de Mensagem</Label>
+            <Select
+              value={formData.externalTemplateId}
+              onValueChange={(externalTemplateId) =>
+                setFormData({ ...formData, externalTemplateId })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.length === 0 ? (
+                  <SelectItem value="empty" disabled>
+                    Nenhum template aprovado disponível
                   </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-muted-foreground">
-            Template de mensagem que será usado para enviar as mensagens
-            automáticas de aniversário.
-          </p>
-        </div>
+                ) : (
+                  templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{template.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {template.category} • {template.templateType}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Template de mensagem que será usado para enviar as mensagens
+              automáticas de aniversário.
+            </p>
+          </div>
+        )}
+
+        {formData.type === "bot" && (
+          <div className="space-y-2">
+            <Label htmlFor="externalTemplateId">Bot de Automação</Label>
+            <Select
+              value={formData.externalTemplateId}
+              onValueChange={(externalTemplateId) =>
+                setFormData({ ...formData, externalTemplateId })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um bot" />
+              </SelectTrigger>
+              <SelectContent>
+                {formData.daysBefore === 0 ? (
+                  // Bots para o dia do aniversário
+                  botsToday.length === 0 ? (
+                    <SelectItem value="empty" disabled>
+                      Nenhum bot de aniversário disponível
+                    </SelectItem>
+                  ) : (
+                    botsToday.map((bot) => (
+                      <SelectItem key={bot.id} value={bot.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{bot.title}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Execuções: {bot.executionsCount}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )
+                ) : // Bots para dias antes do aniversário
+                botsDaysBefore.length === 0 ? (
+                  <SelectItem value="empty" disabled>
+                    Nenhum bot para dias antes disponível
+                  </SelectItem>
+                ) : (
+                  botsDaysBefore.map((bot) => (
+                    <SelectItem key={bot.id} value={bot.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{bot.title}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Execuções: {bot.executionsCount}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Bot que será executado automaticamente para aniversários.
+            </p>
+          </div>
+        )}
 
         {/* <div className="space-y-2">
           <Label htmlFor="externalTemplateId">ID do Template Externo</Label>
@@ -886,12 +1022,14 @@ function AutomationForm({
           </p>
         </div> */}
 
-        <FileUploadComponent
-          currentFileId={formData.externalFileId}
-          currentFileUrl={formData.externalFileUrl}
-          onFileUpload={handleFileUpload}
-          onFileRemove={handleFileRemove}
-        />
+        {formData.type === "template" && (
+          <FileUploadComponent
+            currentFileId={formData.externalFileId}
+            currentFileUrl={formData.externalFileUrl}
+            onFileUpload={handleFileUpload}
+            onFileRemove={handleFileRemove}
+          />
+        )}
       </div>
 
       <div className="flex justify-end space-x-2">
@@ -918,6 +1056,10 @@ export function AutomationManagement() {
     useUmblerChannels();
   const { data: templates = [], isLoading: isLoadingTemplates } =
     useUmblerTemplates();
+  const { data: botsToday = [], isLoading: isLoadingBotsToday } =
+    useUmblerBotsToday();
+  const { data: botsDaysBefore = [], isLoading: isLoadingBotsDaysBefore } =
+    useUmblerBotsDaysBefore();
 
   const createMutation = useCreateAutomation();
   const updateMutation = useUpdateAutomation();
@@ -926,7 +1068,11 @@ export function AutomationManagement() {
   const testScheduledMutation = useTestAutomationScheduled();
 
   const isLoading =
-    isLoadingAutomations || isLoadingChannels || isLoadingTemplates;
+    isLoadingAutomations ||
+    isLoadingChannels ||
+    isLoadingTemplates ||
+    isLoadingBotsToday ||
+    isLoadingBotsDaysBefore;
 
   // Logs de automação (paginados)
   const [logsPage, setLogsPage] = useState(1);
@@ -1012,6 +1158,16 @@ export function AutomationManagement() {
     return template
       ? `${template.label} (${template.category})`
       : "Template não encontrado";
+  };
+
+  const getBotName = (botId: string) => {
+    const botFromToday = botsToday.find((b) => b.id === botId);
+    if (botFromToday) return botFromToday.title;
+
+    const botFromDaysBefore = botsDaysBefore.find((b) => b.id === botId);
+    if (botFromDaysBefore) return botFromDaysBefore.title;
+
+    return "Bot não encontrado";
   };
 
   const getDaysBeforeLabel = (days: number) => {
@@ -1197,6 +1353,8 @@ export function AutomationManagement() {
                   <AutomationForm
                     channels={channels}
                     templates={templates}
+                    botsToday={botsToday}
+                    botsDaysBefore={botsDaysBefore}
                     onSubmit={handleCreateAutomation}
                     onCancel={() => setIsCreateDialogOpen(false)}
                     isLoading={createMutation.isPending}
@@ -1632,21 +1790,51 @@ export function AutomationManagement() {
 
                           {/* Template */}
                           {automation.externalTemplateId && (
-                            <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border border-emerald-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                            <div
+                              className={`bg-gradient-to-r ${
+                                automation.type === "bot"
+                                  ? "from-purple-50/50 to-indigo-50/50 border-purple-200/60"
+                                  : "from-emerald-50/50 to-teal-50/50 border-emerald-200/60"
+                              } border rounded-lg sm:rounded-xl p-3 sm:p-4`}
+                            >
                               <div className="flex items-start gap-2 sm:gap-3">
-                                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg shadow-md flex-shrink-0">
+                                <div
+                                  className={`p-1.5 sm:p-2 ${
+                                    automation.type === "bot"
+                                      ? "bg-gradient-to-br from-purple-500 to-indigo-600"
+                                      : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                                  } rounded-lg shadow-md flex-shrink-0`}
+                                >
                                   <span className="text-white font-bold text-xs sm:text-sm">
-                                    T
+                                    {automation.type === "bot" ? "B" : "T"}
                                   </span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-emerald-900 mb-1 text-sm sm:text-base">
-                                    Template
+                                  <h4
+                                    className={`font-semibold ${
+                                      automation.type === "bot"
+                                        ? "text-purple-900"
+                                        : "text-emerald-900"
+                                    } mb-1 text-sm sm:text-base`}
+                                  >
+                                    {automation.type === "bot"
+                                      ? "Bot de Automação"
+                                      : "Template"}
                                   </h4>
-                                  <p className="text-xs sm:text-sm text-emerald-700 break-all leading-relaxed">
-                                    {getTemplateName(
-                                      automation.externalTemplateId
-                                    )}
+                                  <p
+                                    className={`text-xs sm:text-sm ${
+                                      automation.type === "bot"
+                                        ? "text-purple-700"
+                                        : "text-emerald-700"
+                                    } break-all leading-relaxed`}
+                                  >
+                                    {automation.type === "bot"
+                                      ? getBotName(
+                                          automation.externalTemplateId || ""
+                                        )
+                                      : getTemplateName(
+                                          automation.externalTemplateId || ""
+                                        )}
                                   </p>
                                 </div>
                               </div>
@@ -1654,64 +1842,65 @@ export function AutomationManagement() {
                           )}
 
                           {/* Arquivo de mídia - Layout otimizado para mobile */}
-                          {automation.externalFileUrl && (
-                            <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 border border-purple-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
-                              <div className="flex items-start gap-2 sm:gap-3">
-                                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-md flex-shrink-0">
-                                  <Image className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-purple-900 mb-2 text-sm sm:text-base">
-                                    Arquivo de Mídia
-                                  </h4>
+                          {automation.type === "template" &&
+                            automation.externalFileUrl && (
+                              <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 border border-purple-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                                <div className="flex items-start gap-2 sm:gap-3">
+                                  <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-md flex-shrink-0">
+                                    <Image className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-purple-900 mb-2 text-sm sm:text-base">
+                                      Arquivo de Mídia
+                                    </h4>
 
-                                  {/* Layout responsivo para preview da imagem */}
-                                  <div className="flex flex-col xs:flex-row items-start gap-3">
-                                    <div className="relative group flex-shrink-0">
-                                      <img
-                                        src={automation.externalFileUrl}
-                                        alt="Mídia da automação"
-                                        className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 object-cover rounded-lg border-2 border-white shadow-md group-hover:shadow-lg transition-all duration-300"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display =
-                                            "none";
-                                        }}
-                                      />
-                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
-                                    </div>
-
-                                    <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full" />
-                                        <span className="text-xs font-medium text-green-600">
-                                          Arquivo configurado
-                                        </span>
+                                    {/* Layout responsivo para preview da imagem */}
+                                    <div className="flex flex-col xs:flex-row items-start gap-3">
+                                      <div className="relative group flex-shrink-0">
+                                        <img
+                                          src={automation.externalFileUrl}
+                                          alt="Mídia da automação"
+                                          className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 object-cover rounded-lg border-2 border-white shadow-md group-hover:shadow-lg transition-all duration-300"
+                                          onError={(e) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-lg transition-colors" />
                                       </div>
-                                      <p className="text-xs text-purple-700 leading-relaxed">
-                                        <span className="hidden sm:inline">
-                                          Este arquivo será enviado
-                                          automaticamente junto com a mensagem
-                                        </span>
-                                        <span className="sm:hidden">
-                                          Enviado junto com a mensagem
-                                        </span>
-                                      </p>
-                                      {automation.externalFileId && (
-                                        <div className="bg-white/60 rounded border px-2 py-1">
-                                          <p className="text-xs text-purple-600 font-mono break-all">
-                                            <span className="hidden sm:inline">
-                                              ID:{" "}
-                                            </span>
-                                            {automation.externalFileId}
-                                          </p>
+
+                                      <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full" />
+                                          <span className="text-xs font-medium text-green-600">
+                                            Arquivo configurado
+                                          </span>
                                         </div>
-                                      )}
+                                        <p className="text-xs text-purple-700 leading-relaxed">
+                                          <span className="hidden sm:inline">
+                                            Este arquivo será enviado
+                                            automaticamente junto com a mensagem
+                                          </span>
+                                          <span className="sm:hidden">
+                                            Enviado junto com a mensagem
+                                          </span>
+                                        </p>
+                                        {automation.externalFileId && (
+                                          <div className="bg-white/60 rounded border px-2 py-1">
+                                            <p className="text-xs text-purple-600 font-mono break-all">
+                                              <span className="hidden sm:inline">
+                                                ID:{" "}
+                                              </span>
+                                              {automation.externalFileId}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
                         </div>
 
                         {/* Controles modernos - Layout responsivo */}
@@ -2276,7 +2465,9 @@ export function AutomationManagement() {
                     {/* Visualização das automações com mídia - versão mobile otimizada */}
                     <div className="lg:hidden space-y-4 mt-8">
                       {automations.filter(
-                        (automation) => automation.externalFileUrl
+                        (automation) =>
+                          automation.type === "template" &&
+                          automation.externalFileUrl
                       ).length > 0 && (
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 pb-2 border-b border-muted/30">
@@ -2287,13 +2478,19 @@ export function AutomationManagement() {
                             <Badge variant="secondary" className="ml-auto">
                               {
                                 automations.filter(
-                                  (automation) => automation.externalFileUrl
+                                  (automation) =>
+                                    automation.type === "template" &&
+                                    automation.externalFileUrl
                                 ).length
                               }
                             </Badge>
                           </div>
                           {automations
-                            .filter((automation) => automation.externalFileUrl)
+                            .filter(
+                              (automation) =>
+                                automation.type === "template" &&
+                                automation.externalFileUrl
+                            )
                             .map((automation, index) => (
                               <Card
                                 key={`mobile-media-${automation.id}`}
@@ -2501,6 +2698,8 @@ export function AutomationManagement() {
                 automation={editingAutomation}
                 channels={channels}
                 templates={templates}
+                botsToday={botsToday}
+                botsDaysBefore={botsDaysBefore}
                 onSubmit={handleUpdateAutomation}
                 onCancel={() => setEditingAutomation(null)}
                 isLoading={updateMutation.isPending}

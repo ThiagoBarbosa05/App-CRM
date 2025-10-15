@@ -5,6 +5,7 @@ import {
   createChat,
   sendTemplateMessage,
   SendTemplateMessageRequest,
+  startBirthdayBot,
 } from "../integrations/umbler";
 import { createMessageJobsLog } from "../db/functions/create-message-jobs-logs";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
@@ -458,11 +459,11 @@ async function processClientBirthday(
       `[Birthday Job] Chat criado - Chat ID: ${chatResult.result} (${chatResult.attempts} tentativas)`
     );
 
-    // 4. Enviar template message de aniversário com retry
-    const templateResult = await retryWithBackoff(
-      () => sendBirthdayTemplateMessage(automation, client),
+    // 4. Enviar automação de aniversário (template ou bot) com retry
+    const automationResult = await retryWithBackoff(
+      () => sendBirthdayAutomation(automation, client),
       retryConfig,
-      `envio de template message para ${client.name}`
+      `envio de automação para ${client.name}`
     );
 
     // 5. Marcar como enviado
@@ -470,7 +471,7 @@ async function processClientBirthday(
     jobLog.attempts = Math.max(
       umblerContactResult.attempts,
       chatResult.attempts,
-      templateResult.attempts
+      automationResult.attempts
     );
 
     if (config.logging.logSuccessfulSends) {
@@ -555,46 +556,68 @@ async function createChatForClient(
 }
 
 /**
- * Envia template message de aniversário para o cliente
+ * Envia template message ou dispara bot de aniversário para o cliente
  */
-async function sendBirthdayTemplateMessage(
+async function sendBirthdayAutomation(
   automation: any,
   client: ProcessedClient
 ): Promise<void> {
   try {
     if (!client.chatId) {
-      throw new Error("Chat ID não disponível para enviar template message");
+      throw new Error("Chat ID não disponível para automação");
     }
 
-    console.log(
-      `[Birthday Job] Enviando template message para ${client.name} - Template ID: ${automation.externalTemplateId}`
-    );
+    if (automation.type === "bot") {
+      // Disparar bot de automação
+      console.log(
+        `[Birthday Job] Disparando bot de aniversário para ${client.name} - Bot ID: ${automation.externalTemplateId}`
+      );
 
-    // Preparar parâmetros do template (nome do cliente)
-    const templateParams = [client.name.split(" ")[0]];
+      const result = await startBirthdayBot({
+        chatId: client.chatId,
+        botId: automation.externalTemplateId!,
+        triggerName: "Início", // Trigger padrão para aniversário
+      });
 
-    // Preparar dados para envio do template message
-    const templateMessageData: SendTemplateMessageRequest = {
-      templateId: automation.externalTemplateId || "aMmf3pAPj514EiPb",
-      chatId: client.chatId,
-      organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
-      fileId: automation.externalFileId,
-      params: templateParams,
-    };
+      if (!result) {
+        throw new Error("Falha ao disparar bot de aniversário");
+      }
 
-    // Enviar template message
-    const result = await sendTemplateMessage(templateMessageData);
+      console.log(
+        `[Birthday Job] Bot de aniversário disparado com sucesso para ${client.name} - Bot ID: ${automation.externalTemplateId}`
+      );
+    } else {
+      // Enviar template message (comportamento original)
+      console.log(
+        `[Birthday Job] Enviando template message para ${client.name} - Template ID: ${automation.externalTemplateId}`
+      );
 
-    if (!result) {
-      throw new Error("Falha ao enviar template message de aniversário");
+      // Preparar parâmetros do template (nome do cliente)
+      const templateParams = [client.name.split(" ")[0]];
+
+      // Preparar dados para envio do template message
+      const templateMessageData: SendTemplateMessageRequest = {
+        templateId: automation.externalTemplateId || "aMmf3pAPj514EiPb",
+        chatId: client.chatId,
+        organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+        fileId: automation.externalFileId,
+        params: templateParams,
+      };
+
+      // Enviar template message
+      const result = await sendTemplateMessage(templateMessageData);
+
+      if (!result) {
+        throw new Error("Falha ao enviar template message de aniversário");
+      }
+
+      console.log(
+        `[Birthday Job] Template message enviado com sucesso para ${client.name} - Message ID: ${result.id}`
+      );
     }
-
-    console.log(
-      `[Birthday Job] Template message enviado com sucesso para ${client.name} - Message ID: ${result.id}`
-    );
   } catch (error) {
     console.error(
-      "[Birthday Job] Erro ao enviar template message de aniversário:",
+      "[Birthday Job] Erro ao processar automação de aniversário:",
       error
     );
     throw error;

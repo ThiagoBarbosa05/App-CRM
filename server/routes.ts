@@ -6,6 +6,9 @@ import {
   insertCompanySchema,
   insertDealSchema,
   updateDealSchema,
+  insertDealQuestionSchema,
+  updateDealQuestionSchema,
+  insertDealAnswerSchema,
   insertUserSchema,
   insertSalesFunnelSchema,
   insertFunnelStageSchema,
@@ -72,6 +75,8 @@ import {
   createChat,
   createContactSchema,
   getBirthdayBots,
+  getBirthdayTodayBotsAutomation,
+  getBirthdayDaysBeforeBotAutomation,
   getBot,
   getBotCashback,
   getCashbackField,
@@ -421,6 +426,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar bots de aniversário:", error);
       res.status(500).json({ message: "Erro ao buscar bots de aniversário" });
+    }
+  });
+
+  app.get("/api/umbler/birthday-bots-today", async (req, res) => {
+    try {
+      const bots = await getBirthdayTodayBotsAutomation();
+
+      res.json({ items: bots?.items || [] });
+    } catch (error) {
+      console.error("Erro ao buscar bots de aniversário do dia:", error);
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar bots de aniversário do dia" });
+    }
+  });
+
+  app.get("/api/umbler/birthday-bots-days-before", async (req, res) => {
+    try {
+      const bots = await getBirthdayDaysBeforeBotAutomation();
+
+      res.json({ items: bots?.items || [] });
+    } catch (error) {
+      console.error("Erro ao buscar bots de aniversário dias antes:", error);
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar bots de aniversário dias antes" });
     }
   });
 
@@ -1526,6 +1557,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ message: "Erro ao criar negócios em lote para clientes" });
+    }
+  });
+
+  // Deal Questions Management Routes
+  // Get all deal questions
+  app.get("/api/deal-questions", async (req, res) => {
+    try {
+      const { category, isActive } = req.query;
+      const questions = await storage.getDealQuestions({
+        category: category as string,
+        isActive:
+          isActive === "true" ? true : isActive === "false" ? false : undefined,
+      });
+      res.json(questions);
+    } catch (error) {
+      console.error("Erro ao buscar perguntas dos deals:", error);
+      res.status(500).json({ message: "Erro ao buscar perguntas dos deals" });
+    }
+  });
+
+  // Create new deal question
+  app.post("/api/deal-questions", async (req, res) => {
+    try {
+      const validatedData = insertDealQuestionSchema.parse(req.body);
+      const question = await storage.createDealQuestion(validatedData);
+      res.status(201).json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao criar pergunta do deal:", error);
+      res.status(500).json({ message: "Erro ao criar pergunta do deal" });
+    }
+  });
+
+  // Update deal question
+  app.put("/api/deal-questions/:id", async (req, res) => {
+    try {
+      const validatedData = updateDealQuestionSchema.parse(req.body);
+      const question = await storage.updateDealQuestion(
+        req.params.id,
+        validatedData
+      );
+      if (!question) {
+        return res.status(404).json({ message: "Pergunta não encontrada" });
+      }
+      res.json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Erro ao atualizar pergunta do deal:", error);
+      res.status(500).json({ message: "Erro ao atualizar pergunta do deal" });
+    }
+  });
+
+  // Delete deal question
+  app.delete("/api/deal-questions/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteDealQuestion(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Pergunta não encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao deletar pergunta do deal:", error);
+      res.status(500).json({ message: "Erro ao deletar pergunta do deal" });
+    }
+  });
+
+  // Deal Answers Routes
+  // Get answers for a specific deal
+  app.get("/api/deals/:dealId/answers", async (req, res) => {
+    try {
+      const answers = await storage.getDealAnswers(req.params.dealId);
+      res.json(answers);
+    } catch (error) {
+      console.error("Erro ao buscar respostas do deal:", error);
+      res.status(500).json({ message: "Erro ao buscar respostas do deal" });
+    }
+  });
+
+  // Save/update answers for a deal
+  app.post("/api/deals/:dealId/answers", async (req, res) => {
+    try {
+      const { answers } = req.body;
+
+      if (!Array.isArray(answers)) {
+        return res.status(400).json({ message: "Answers deve ser um array" });
+      }
+
+      const dealAnswers = await storage.saveDealAnswers(
+        req.params.dealId,
+        answers
+      );
+      res.json(dealAnswers);
+    } catch (error) {
+      console.error("Erro ao salvar respostas do deal:", error);
+      res.status(500).json({ message: "Erro ao salvar respostas do deal" });
+    }
+  });
+
+  // Get deal with all information including answers
+  app.get("/api/deals/:dealId/complete", async (req, res) => {
+    try {
+      const deal = await storage.getDealWithAnswers(req.params.dealId);
+      if (!deal) {
+        return res.status(404).json({ message: "Deal não encontrado" });
+      }
+      res.json(deal);
+    } catch (error) {
+      console.error("Erro ao buscar deal completo:", error);
+      res.status(500).json({ message: "Erro ao buscar deal completo" });
+    }
+  });
+
+  // Get deal questions statistics
+  app.get("/api/deal-questions/stats", async (req, res) => {
+    try {
+      const stats = await storage.getDealQuestionsStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas das perguntas:", error);
+      res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas das perguntas" });
+    }
+  });
+
+  // Seed default questions
+  app.post("/api/deal-questions/seed", async (req, res) => {
+    try {
+      await storage.seedDefaultDealQuestions();
+      res.json({ message: "Perguntas padrão criadas com sucesso" });
+    } catch (error) {
+      console.error("Erro ao popular perguntas padrão:", error);
+      res.status(500).json({ message: "Erro ao popular perguntas padrão" });
     }
   });
 
@@ -4303,6 +4473,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/health", async (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Seed default deal questions (development only)
+  app.post("/api/admin/seed-deal-questions", async (req, res) => {
+    try {
+      const { createdBy } = req.body;
+
+      if (!createdBy) {
+        return res.status(400).json({ message: "createdBy é obrigatório" });
+      }
+
+      const { seedDefaultDealQuestions } = await import(
+        "./db/seeds/default-deal-questions"
+      );
+      await seedDefaultDealQuestions(createdBy);
+
+      res.json({ message: "Perguntas padrão inseridas com sucesso!" });
+    } catch (error) {
+      console.error("Erro ao inserir perguntas padrão:", error);
+      res.status(500).json({ message: "Erro ao inserir perguntas padrão" });
+    }
   });
 
   const httpServer = createServer(app);
