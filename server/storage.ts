@@ -1400,6 +1400,16 @@ export class DatabaseStorage implements IStorage {
     return deal || undefined;
   }
 
+  async getDealById(id: string): Promise<Deal | null> {
+    try {
+      const [deal] = await this.db.select().from(deals).where(eq(deals.id, id));
+      return deal || null;
+    } catch (error) {
+      console.error("Erro ao buscar deal por ID:", error);
+      throw error;
+    }
+  }
+
   async createDeal(insertDeal: InsertDeal): Promise<Deal> {
     try {
       console.log(
@@ -4919,39 +4929,62 @@ export class DatabaseStorage implements IStorage {
   // Deal Answers Management
   async getDealAnswers(dealId: string): Promise<DealAnswerWithQuestion[]> {
     try {
-      return await this.db
-        .select({
-          id: dealAnswers.id,
-          dealId: dealAnswers.dealId,
-          questionId: dealAnswers.questionId,
-          answer: dealAnswers.answer,
-          answerBoolean: dealAnswers.answerBoolean,
-          answerNumber: dealAnswers.answerNumber,
-          answerText: dealAnswers.answerText,
-          createdAt: dealAnswers.createdAt,
-          updatedAt: dealAnswers.updatedAt,
-          question: {
-            id: dealQuestions.id,
-            question: dealQuestions.question,
-            questionType: dealQuestions.questionType,
-            options: dealQuestions.options,
-            category: dealQuestions.category,
-            isRequired: dealQuestions.isRequired,
-            isActive: dealQuestions.isActive,
-            displayOrder: dealQuestions.displayOrder,
-            helpText: dealQuestions.helpText,
-            placeholder: dealQuestions.placeholder,
-            createdBy: dealQuestions.createdBy,
-            createdAt: dealQuestions.createdAt,
-            updatedAt: dealQuestions.updatedAt,
-          },
-        })
+      console.log("Buscando respostas para deal:", dealId);
+
+      const results = await this.db
+        .select()
         .from(dealAnswers)
         .innerJoin(dealQuestions, eq(dealAnswers.questionId, dealQuestions.id))
         .where(eq(dealAnswers.dealId, dealId))
         .orderBy(dealQuestions.displayOrder);
+
+      // Mapear para a estrutura esperada
+      const mappedResults = results.map((row) => ({
+        id: row.deal_answers.id,
+        dealId: row.deal_answers.dealId,
+        questionId: row.deal_answers.questionId,
+        answerBoolean: row.deal_answers.answerBoolean,
+        answerNumber: row.deal_answers.answerNumber,
+        answerText: row.deal_answers.answerText,
+        createdAt: row.deal_answers.createdAt,
+        updatedAt: row.deal_answers.updatedAt,
+        question: {
+          id: row.deal_questions.id,
+          question: row.deal_questions.question,
+          questionType: row.deal_questions.questionType,
+          options: row.deal_questions.options,
+          category: row.deal_questions.category,
+          isRequired: row.deal_questions.isRequired,
+          isActive: row.deal_questions.isActive,
+          displayOrder: row.deal_questions.displayOrder,
+          helpText: row.deal_questions.helpText,
+          placeholder: row.deal_questions.placeholder,
+          createdAt: row.deal_questions.createdAt,
+          updatedAt: row.deal_questions.updatedAt,
+        },
+      }));
+
+      console.log("Respostas encontradas:", mappedResults.length);
+
+      // Retornar array vazio se não houver respostas
+      if (!mappedResults || mappedResults.length === 0) {
+        console.log("Nenhuma resposta encontrada para deal:", dealId);
+        return [];
+      }
+
+      return mappedResults;
     } catch (error) {
       console.error("Error fetching deal answers:", error);
+      console.error(
+        "Stack trace:",
+        error instanceof Error ? error.stack : error
+      );
+
+      // Verificar se o erro é específico sobre o campo createdBy
+      if (error instanceof Error && error.message.includes("createdBy")) {
+        console.error("Erro relacionado ao campo createdBy que foi removido");
+      }
+
       throw error;
     }
   }

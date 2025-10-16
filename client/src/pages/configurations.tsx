@@ -24,6 +24,7 @@ import {
   Tag,
   Tags,
   Users,
+  HelpCircle,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
@@ -37,6 +38,7 @@ import DataExportManagement from "@/components/data-export-management";
 import EventsManagement from "@/components/events-management";
 import { Separator } from "@/components/ui/separator";
 import { AutomationManagement } from "@/components/automation-management";
+import { DealQuestionsManagement } from "@/components/deal-questions-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -107,7 +109,7 @@ export default function Configurations() {
           <Tabs defaultValue="users" className="space-y-6 mt-6">
             <div className="relative">
               <TabsList className="w-full h-auto p-1 bg-white shadow-sm dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-11 gap-1">
+                <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-12 gap-1">
                   <TabsTrigger
                     value="users"
                     className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
@@ -206,6 +208,15 @@ export default function Configurations() {
                     <Bot className="size-4" />
                     <span className="text-xs font-medium ">Automação</span>
                   </TabsTrigger>
+
+                  <TabsTrigger
+                    value="deal-questions"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar perguntas dos deals"
+                  >
+                    <HelpCircle className="size-4" />
+                    <span className="text-xs font-medium ">Perguntas</span>
+                  </TabsTrigger>
                 </div>
               </TabsList>
             </div>
@@ -252,6 +263,10 @@ export default function Configurations() {
 
             <TabsContent value="automation">
               <AutomationManagement />
+            </TabsContent>
+
+            <TabsContent value="deal-questions">
+              <DealQuestionsManagement />
             </TabsContent>
           </Tabs>
         </div>

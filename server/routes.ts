@@ -2,6 +2,17 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
+  validateBody,
+  validateParams,
+  validateQuery,
+  requireAuth,
+  errorHandler,
+  dealQuestionParamsSchema,
+  dealAnswersParamsSchema,
+  dealQuestionsQuerySchema,
+  saveDealAnswersBodySchema,
+} from "./middleware/validation";
+import {
   insertClientSchema,
   insertCompanySchema,
   insertDealSchema,
@@ -1562,104 +1573,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Deal Questions Management Routes
   // Get all deal questions
-  app.get("/api/deal-questions", async (req, res) => {
-    try {
-      const { category, isActive } = req.query;
-      const questions = await storage.getDealQuestions({
-        category: category as string,
-        isActive:
-          isActive === "true" ? true : isActive === "false" ? false : undefined,
-      });
-      res.json(questions);
-    } catch (error) {
-      console.error("Erro ao buscar perguntas dos deals:", error);
-      res.status(500).json({ message: "Erro ao buscar perguntas dos deals" });
+  app.get(
+    "/api/deal-questions",
+    validateQuery(dealQuestionsQuerySchema),
+    async (req, res) => {
+      try {
+        const { category, isActive } = req.query;
+
+        // Converter parâmetros já validados pelo middleware
+        const filters: { category?: string; isActive?: boolean } = {};
+
+        if (category) {
+          filters.category = category as string;
+        }
+
+        if (isActive) {
+          filters.isActive = isActive === "true";
+        }
+
+        const questions = await storage.getDealQuestions(filters);
+        res.json(questions);
+      } catch (error) {
+        console.error("Erro ao buscar perguntas dos deals:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao buscar perguntas",
+          error:
+            process.env.NODE_ENV === "development"
+              ? (error as Error).message
+              : undefined,
+        });
+      }
     }
-  });
+  );
 
   // Create new deal question
-  app.post("/api/deal-questions", async (req, res) => {
-    try {
-      const validatedData = insertDealQuestionSchema.parse(req.body);
-      const question = await storage.createDealQuestion(validatedData);
-      res.status(201).json(question);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
+  app.post(
+    "/api/deal-questions",
+    requireAuth,
+    validateBody(insertDealQuestionSchema),
+    async (req, res) => {
+      try {
+        const questionData = req.body;
+
+        const question = await storage.createDealQuestion(questionData);
+        res.status(201).json(question);
+      } catch (error) {
+        console.error("Erro ao criar pergunta do deal:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao criar pergunta",
+          error:
+            process.env.NODE_ENV === "development"
+              ? (error as Error).message
+              : undefined,
+        });
       }
-      console.error("Erro ao criar pergunta do deal:", error);
-      res.status(500).json({ message: "Erro ao criar pergunta do deal" });
     }
-  });
+  );
 
   // Update deal question
-  app.put("/api/deal-questions/:id", async (req, res) => {
-    try {
-      const validatedData = updateDealQuestionSchema.parse(req.body);
-      const question = await storage.updateDealQuestion(
-        req.params.id,
-        validatedData
-      );
-      if (!question) {
-        return res.status(404).json({ message: "Pergunta não encontrada" });
+  app.put(
+    "/api/deal-questions/:id",
+    validateParams(dealQuestionParamsSchema),
+    validateBody(updateDealQuestionSchema),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        // Verificar se a pergunta existe antes de atualizar
+        const existingQuestions = await storage.getDealQuestions();
+        const existingQuestion = existingQuestions.find((q) => q.id === id);
+
+        if (!existingQuestion) {
+          return res.status(404).json({ message: "Pergunta não encontrada" });
+        }
+
+        const question = await storage.updateDealQuestion(id, req.body);
+
+        if (!question) {
+          return res.status(404).json({ message: "Pergunta não encontrada" });
+        }
+
+        res.json(question);
+      } catch (error) {
+        console.error("Erro ao atualizar pergunta do deal:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao atualizar pergunta",
+          error:
+            process.env.NODE_ENV === "development"
+              ? (error as Error).message
+              : undefined,
+        });
       }
-      res.json(question);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro ao atualizar pergunta do deal:", error);
-      res.status(500).json({ message: "Erro ao atualizar pergunta do deal" });
     }
-  });
+  );
 
   // Delete deal question
-  app.delete("/api/deal-questions/:id", async (req, res) => {
-    try {
-      const success = await storage.deleteDealQuestion(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Pergunta não encontrada" });
+  app.delete(
+    "/api/deal-questions/:id",
+    validateParams(dealQuestionParamsSchema),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        // Validar ID
+        if (!id || typeof id !== "string" || id.trim().length === 0) {
+          return res
+            .status(400)
+            .json({ message: "ID da pergunta é obrigatório" });
+        }
+
+        // Verificar se a pergunta existe
+        const existingQuestions = await storage.getDealQuestions();
+        const existingQuestion = existingQuestions.find((q) => q.id === id);
+
+        if (!existingQuestion) {
+          return res.status(404).json({ message: "Pergunta não encontrada" });
+        }
+
+        const success = await storage.deleteDealQuestion(id);
+        if (!success) {
+          return res.status(500).json({ message: "Falha ao deletar pergunta" });
+        }
+
+        res.status(204).send();
+      } catch (error) {
+        console.error("Erro ao deletar pergunta do deal:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao deletar pergunta",
+          // error:
+          //   process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
       }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Erro ao deletar pergunta do deal:", error);
-      res.status(500).json({ message: "Erro ao deletar pergunta do deal" });
     }
-  });
+  );
 
   // Deal Answers Routes
   // Get answers for a specific deal
-  app.get("/api/deals/:dealId/answers", async (req, res) => {
-    try {
-      const answers = await storage.getDealAnswers(req.params.dealId);
-      res.json(answers);
-    } catch (error) {
-      console.error("Erro ao buscar respostas do deal:", error);
-      res.status(500).json({ message: "Erro ao buscar respostas do deal" });
+  app.get(
+    "/api/deals/:dealId/answers",
+    validateParams(dealAnswersParamsSchema),
+    async (req, res) => {
+      try {
+        const { dealId } = req.params;
+
+        // Validar dealId
+        if (
+          !dealId ||
+          typeof dealId !== "string" ||
+          dealId.trim().length === 0
+        ) {
+          return res.status(400).json({ message: "ID do deal é obrigatório" });
+        }
+
+        // Verificar se o deal existe
+        const deal = await storage.getDealById(dealId);
+        if (!deal) {
+          return res.status(404).json({ message: "Deal não encontrado" });
+        }
+
+        const answers = await storage.getDealAnswers(dealId);
+        res.json(answers || []);
+      } catch (error) {
+        console.error("Erro ao buscar respostas do deal:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao buscar respostas",
+          // error:
+          //   process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
     }
-  });
+  );
 
   // Save/update answers for a deal
-  app.post("/api/deals/:dealId/answers", async (req, res) => {
-    try {
-      const { answers } = req.body;
+  app.post(
+    "/api/deals/:dealId/answers",
+    validateParams(dealAnswersParamsSchema),
+    validateBody(saveDealAnswersBodySchema),
+    async (req, res) => {
+      try {
+        const { dealId } = req.params;
+        const { answers } = req.body;
 
-      if (!Array.isArray(answers)) {
-        return res.status(400).json({ message: "Answers deve ser um array" });
+        // Verificar se o deal existe
+        const deal = await storage.getDealById(dealId);
+        if (!deal) {
+          return res.status(404).json({ message: "Deal não encontrado" });
+        }
+
+        // Verificar se todas as perguntas referenciadas existem
+        const questionIds = answers.map((a: any) => a.questionId);
+        const questions = await storage.getDealQuestions();
+        const existingQuestionIds = questions.map((q) => q.id);
+
+        const invalidQuestionIds = questionIds.filter(
+          (id: string) => !existingQuestionIds.includes(id)
+        );
+        if (invalidQuestionIds.length > 0) {
+          return res.status(400).json({
+            message: "Algumas perguntas não existem",
+            invalidQuestionIds,
+          });
+        }
+
+        // Os dados já foram validados pelo middleware, apenas garantir que dealId está correto
+        const answersWithDealId = answers.map((answer: any) => ({
+          dealId,
+          questionId: answer.questionId,
+          answerBoolean: answer.answerBoolean,
+          answerNumber: answer.answerNumber,
+          answerText: answer.answerText,
+        }));
+
+        const dealAnswers = await storage.saveDealAnswers(
+          dealId,
+          answersWithDealId
+        );
+        res.json(dealAnswers);
+      } catch (error) {
+        console.error("Erro ao salvar respostas do deal:", error);
+        res.status(500).json({
+          message: "Erro interno do servidor ao salvar respostas",
+          error:
+            process.env.NODE_ENV === "development"
+              ? (error as Error).message
+              : undefined,
+        });
       }
-
-      const dealAnswers = await storage.saveDealAnswers(
-        req.params.dealId,
-        answers
-      );
-      res.json(dealAnswers);
-    } catch (error) {
-      console.error("Erro ao salvar respostas do deal:", error);
-      res.status(500).json({ message: "Erro ao salvar respostas do deal" });
     }
-  });
+  );
 
   // Get deal with all information including answers
   app.get("/api/deals/:dealId/complete", async (req, res) => {
@@ -4495,6 +4636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao inserir perguntas padrão" });
     }
   });
+
+  // Middleware de tratamento de erros deve ser o último
+  app.use(errorHandler);
 
   const httpServer = createServer(app);
   return httpServer;

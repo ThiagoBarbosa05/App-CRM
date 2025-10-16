@@ -9,6 +9,9 @@ import {
   boolean,
   real,
   numeric,
+  index,
+  check,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -143,25 +146,45 @@ export const deals = pgTable("deals", {
 });
 
 // Tabela de configurações de perguntas para deals
-export const dealQuestions = pgTable("deal_questions", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  question: text("question").notNull(), // Texto da pergunta
-  questionType: text("question_type", {
-    enum: ["boolean", "number", "text", "select", "multiselect"],
-  }).notNull(), // Tipo de resposta esperada
-  options: text("options").array().default([]), // Opções para select/multiselect
-  category: text("category").notNull().default("Geral"), // Categoria da pergunta
-  isRequired: boolean("is_required").notNull().default(false), // Se a pergunta é obrigatória
-  isActive: boolean("is_active").notNull().default(true), // Se a pergunta está ativa
-  displayOrder: integer("display_order").notNull().default(0), // Ordem de exibição
-  helpText: text("help_text"), // Texto de ajuda/descrição
-  placeholder: text("placeholder"), // Texto placeholder para inputs
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const dealQuestions = pgTable(
+  "deal_questions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    question: text("question").notNull(), // Texto da pergunta
+    questionType: text("question_type", {
+      enum: ["boolean", "number", "text", "select", "multiselect"],
+    }).notNull(), // Tipo de resposta esperada
+    options: text("options").array().default([]), // Opções para select/multiselect
+    category: text("category").notNull().default("Geral"), // Categoria da pergunta
+    isRequired: boolean("is_required").notNull().default(false), // Se a pergunta é obrigatória
+    isActive: boolean("is_active").notNull().default(true), // Se a pergunta está ativa
+    displayOrder: integer("display_order").notNull().default(0), // Ordem de exibição
+    helpText: text("help_text"), // Texto de ajuda/descrição
+    placeholder: text("placeholder"), // Texto placeholder para inputs
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Adicionar constraint para garantir que perguntas select/multiselect tenham opções
+    check(
+      "deal_questions_options_check",
+      sql`
+      (${table.questionType} IN ('select', 'multiselect') AND array_length(${table.options}, 1) > 0) 
+      OR 
+      (${table.questionType} NOT IN ('select', 'multiselect'))
+    `
+    ),
+    // Index para melhorar performance de queries por categoria e ordem
+    index("deal_questions_category_order_idx").on(
+      table.category,
+      table.displayOrder
+    ),
+    // Index para queries por status ativo
+    index("deal_questions_active_idx").on(table.isActive),
+  ]
+);
 
 // Tabela de respostas das perguntas dos deals
 export const dealAnswers = pgTable(
@@ -176,17 +199,31 @@ export const dealAnswers = pgTable(
     questionId: varchar("question_id")
       .references(() => dealQuestions.id, { onDelete: "cascade" })
       .notNull(),
-    answer: text("answer"), // Resposta em texto (pode ser JSON para respostas complexas)
-    answerBoolean: boolean("answer_boolean"), // Para respostas do tipo boolean
-    answerNumber: decimal("answer_number", { precision: 15, scale: 2 }), // Para respostas numéricas
-    answerText: text("answer_text"), // Para respostas de texto longo
+    // Removido campo 'answer' genérico - usar campos tipados específicos
+    answerBoolean: boolean("answer_boolean"), // Para questionType = 'boolean'
+    answerNumber: decimal("answer_number", { precision: 15, scale: 2 }), // Para questionType = 'number'
+    answerText: text("answer_text"), // Para questionType = 'text', 'select', 'multiselect'
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    // Constraint para garantir que cada pergunta só tenha uma resposta por deal
-    uniqueDealQuestion: sql`UNIQUE (${table.dealId}, ${table.questionId})`,
-  })
+  (table) => [
+    // Constraint para garantir uma resposta única por pergunta por deal
+    unique("deal_answers_unique_deal_question").on(
+      table.dealId,
+      table.questionId
+    ),
+    // Constraint para garantir que apenas um campo de resposta esteja preenchido
+    check(
+      "deal_answers_single_answer_check",
+      sql`
+      (${table.answerBoolean} IS NOT NULL)::int + 
+      (${table.answerNumber} IS NOT NULL)::int + 
+      (${table.answerText} IS NOT NULL)::int = 1
+    `
+    ),
+    // Index para melhorar performance de queries por deal
+    index("deal_answers_deal_id_idx").on(table.dealId),
+  ]
 );
 
 export const trainings = pgTable("trainings", {
@@ -368,10 +405,6 @@ export const dealsRelations = relations(deals, ({ one, many }) => ({
 export const dealQuestionsRelations = relations(
   dealQuestions,
   ({ one, many }) => ({
-    creator: one(users, {
-      fields: [dealQuestions.createdBy],
-      references: [users.id],
-    }),
     answers: many(dealAnswers),
   })
 );
@@ -844,41 +877,86 @@ export const updateDealSchema = createInsertSchema(deals)
   .partial();
 
 // Schemas para perguntas dos deals
-export const insertDealQuestionSchema = createInsertSchema(dealQuestions)
+const baseDealQuestionSchema = createInsertSchema(dealQuestions)
   .omit({
     id: true,
-    createdBy: true,
     createdAt: true,
     updatedAt: true,
   })
   .extend({
+    question: z.string().min(5, "Pergunta deve ter pelo menos 5 caracteres"),
     options: z.array(z.string()).default([]),
-    displayOrder: z.number().default(0),
+    displayOrder: z.number().min(0).default(0),
+    category: z.string().min(1, "Categoria é obrigatória"),
   });
 
-export const updateDealQuestionSchema = insertDealQuestionSchema.partial();
+export const insertDealQuestionSchema = baseDealQuestionSchema.refine(
+  (data) => {
+    // Se for select/multiselect, deve ter pelo menos uma opção
+    if (data.questionType === "select" || data.questionType === "multiselect") {
+      return data.options && data.options.length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Perguntas do tipo seleção devem ter pelo menos uma opção",
+    path: ["options"],
+  }
+);
+
+export const updateDealQuestionSchema = baseDealQuestionSchema
+  .omit({ questionType: true }) // Não permitir alterar o tipo após criação
+  .partial();
 
 // Schema para respostas dos deals
-export const insertDealAnswerSchema = createInsertSchema(dealAnswers)
+const baseDealAnswerSchema = createInsertSchema(dealAnswers)
   .omit({
     id: true,
     createdAt: true,
     updatedAt: true,
   })
   .extend({
-    // Permitir que apenas um campo de resposta seja preenchido baseado no tipo
-    answer: z.string().optional(),
+    // Campos específicos por tipo - apenas um deve estar preenchido
     answerBoolean: z.boolean().optional(),
     answerNumber: z
       .union([z.string(), z.number()])
       .optional()
+      .nullable()
       .transform((val) => {
-        if (val === null || val === undefined || val === "") return null;
+        if (val === null || val === undefined || val === "") return undefined;
         const num = typeof val === "string" ? parseFloat(val) : val;
-        return isNaN(num) ? null : num.toString();
+        return isNaN(num) ? undefined : num.toString();
       }),
-    answerText: z.string().optional(),
+    answerText: z
+      .string()
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (val === null || val === undefined || val === "") return undefined;
+        return val;
+      }),
   });
+
+export const insertDealAnswerSchema = baseDealAnswerSchema.refine(
+  (data) => {
+    // Garantir que apenas um campo de resposta esteja preenchido
+    // Usar typeof para distinguir boolean false de undefined
+    const hasBoolean = typeof data.answerBoolean === "boolean";
+    const hasNumber =
+      data.answerNumber !== undefined && data.answerNumber !== "";
+    const hasText = data.answerText !== undefined && data.answerText !== "";
+
+    const filledFields = [hasBoolean, hasNumber, hasText].filter(
+      Boolean
+    ).length;
+
+    return filledFields === 1;
+  },
+  {
+    message: "Apenas um campo de resposta deve estar preenchido",
+    path: ["root"],
+  }
+);
 
 export const insertBirthdayReminderSchema = createInsertSchema(
   birthdayReminders
