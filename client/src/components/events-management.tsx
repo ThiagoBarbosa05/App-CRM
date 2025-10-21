@@ -722,6 +722,13 @@ export default function EventsManagement() {
         return statusConfig?.label || status;
       };
 
+      // Função para escapar HTML
+      const escapeHtml = (text: string) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      };
+
       // Gerar linhas da tabela
       const participantRows =
         participants.length > 0
@@ -729,8 +736,8 @@ export default function EventsManagement() {
               .map(
                 (participant: any) => `
             <tr>
-              <td>${participant.clientName || "N/A"}</td>
-              <td>${participant.clientPhone || "N/A"}</td>
+              <td>${escapeHtml(participant.clientName || "N/A")}</td>
+              <td>${escapeHtml(participant.clientPhone || "N/A")}</td>
               <td style="text-align: center; font-weight: bold;">${
                 participant.numberOfParticipants || 1
               }</td>
@@ -738,23 +745,33 @@ export default function EventsManagement() {
                 participant.status
               }">${getStatusLabel(participant.status)}</span></td>
               <td>${formatDate(participant.registrationDate)}</td>
-              <td>${participant.notes || ""}</td>
+              <td>${escapeHtml(participant.notes || "")}</td>
             </tr>
           `
               )
               .join("")
           : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
+      // Calcular total de participantes
+      const totalParticipants = participants.reduce(
+        (total: number, p: any) => total + (p.numberOfParticipants || 1),
+        0
+      );
+
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <title>Lista de Participantes - ${event.name}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Participantes - ${escapeHtml(event.name)}</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: Arial, sans-serif; 
       margin: 20px;
       color: #333;
+      line-height: 1.6;
     }
     .header { 
       text-align: center; 
@@ -762,12 +779,17 @@ export default function EventsManagement() {
       border-bottom: 2px solid #ccc;
       padding-bottom: 20px;
     }
+    .header h1 {
+      font-size: 24px;
+      color: #333;
+    }
     .event-info { 
       margin-bottom: 30px; 
     }
     .event-info h2 { 
       color: #2563eb; 
-      margin-bottom: 10px;
+      margin-bottom: 15px;
+      font-size: 20px;
     }
     .event-details { 
       display: grid; 
@@ -776,21 +798,26 @@ export default function EventsManagement() {
       margin-bottom: 20px;
     }
     .info-item { 
-      margin-bottom: 8px; 
+      margin-bottom: 10px;
+      font-size: 14px;
     }
     .info-label { 
       font-weight: bold; 
       color: #666;
+      display: inline-block;
+      min-width: 120px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
       margin-top: 20px;
+      font-size: 13px;
     }
     th, td { 
       border: 1px solid #ddd; 
-      padding: 12px; 
-      text-align: left; 
+      padding: 10px 12px; 
+      text-align: left;
+      vertical-align: top;
     }
     th { 
       background-color: #f5f5f5; 
@@ -798,10 +825,12 @@ export default function EventsManagement() {
       color: #333;
     }
     .status-badge {
+      display: inline-block;
       padding: 4px 8px;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
+      white-space: nowrap;
     }
     .status-inscrito { background-color: #dbeafe; color: #1e40af; }
     .status-confirmado { background-color: #dcfce7; color: #15803d; }
@@ -816,9 +845,13 @@ export default function EventsManagement() {
       border-top: 1px solid #ccc;
       padding-top: 20px;
     }
+    .footer p {
+      margin: 5px 0;
+    }
     @media print {
-      body { margin: 0; }
+      body { margin: 10px; }
       .no-print { display: none; }
+      @page { margin: 1cm; }
     }
   </style>
 </head>
@@ -828,38 +861,28 @@ export default function EventsManagement() {
   </div>
 
   <div class="event-info">
-    <h2>${event.name}</h2>
+    <h2>${escapeHtml(event.name)}</h2>
     <div class="event-details">
       <div>
         <div class="info-item">
-          <span class="info-label">Data:</span> ${formatEventDateTime(
-            event.eventDate
-          )}
+          <span class="info-label">Data:</span> ${formatEventDateTime(event.eventDate)}
         </div>
         <div class="info-item">
-          <span class="info-label">Local:</span> ${event.location}
+          <span class="info-label">Local:</span> ${escapeHtml(event.location)}
         </div>
         <div class="info-item">
-          <span class="info-label">Categoria:</span> ${event.category}
+          <span class="info-label">Categoria:</span> ${escapeHtml(event.category)}
         </div>
       </div>
       <div>
         <div class="info-item">
-          <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(
-            parseFloat(event.pricePerPerson)
-          )}
+          <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(parseFloat(event.pricePerPerson))}
         </div>
         <div class="info-item">
-          <span class="info-label">Capacidade:</span> ${
-            event.maxCapacity
-              ? `${event.participantCount}/${event.maxCapacity}`
-              : event.participantCount
-          }
+          <span class="info-label">Capacidade:</span> ${event.maxCapacity ? `${event.participantCount}/${event.maxCapacity}` : event.participantCount}
         </div>
         <div class="info-item">
-          <span class="info-label">Status:</span> ${getEventStatusLabel(
-            event.status
-          )}
+          <span class="info-label">Status:</span> ${getEventStatusLabel(event.status)}
         </div>
       </div>
     </div>
@@ -870,7 +893,7 @@ export default function EventsManagement() {
       <tr>
         <th>Nome do Cliente</th>
         <th>Telefone</th>
-        <th>Nº Participantes</th>
+        <th style="text-align: center;">Nº Participantes</th>
         <th>Status</th>
         <th>Data de Inscrição</th>
         <th>Observações</th>
@@ -882,20 +905,15 @@ export default function EventsManagement() {
   </table>
 
   <div class="footer">
-    <p>Lista gerada em ${new Date().toLocaleDateString(
-      "pt-BR"
-    )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
-    <p>Total de participantes: ${participants.reduce(
-      (total: number, p: any) => total + (p.numberOfParticipants || 1),
-      0
-    )}</p>
+    <p><strong>Lista gerada em:</strong> ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</p>
+    <p><strong>Total de participantes:</strong> ${totalParticipants}</p>
   </div>
 
   <script>
     window.onload = function() {
       setTimeout(function() {
         window.print();
-      }, 500);
+      }, 800);
     };
   </script>
 </body>
