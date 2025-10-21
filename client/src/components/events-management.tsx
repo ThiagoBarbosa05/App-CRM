@@ -769,96 +769,100 @@ export default function EventsManagement() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: Arial, sans-serif; 
-      margin: 15px;
-      color: #333;
-      line-height: 1.4;
+      margin: 20px;
+      color: #000;
+      line-height: 1.5;
     }
     .header { 
       text-align: center; 
-      margin-bottom: 20px;
-      border-bottom: 2px solid #333;
-      padding-bottom: 12px;
+      margin-bottom: 25px;
+      border-bottom: 3px solid #000;
+      padding-bottom: 15px;
     }
     .header h1 {
-      font-size: 22px;
-      color: #333;
+      font-size: 28px;
+      color: #000;
       font-weight: bold;
     }
     .event-info { 
-      margin-bottom: 20px; 
+      margin-bottom: 25px; 
     }
     .event-info h2 { 
-      color: #2563eb; 
-      margin-bottom: 12px;
-      font-size: 18px;
+      color: #1e40af; 
+      margin-bottom: 15px;
+      font-size: 22px;
       font-weight: bold;
     }
     .event-details { 
       display: grid; 
-      grid-template-columns: 1fr 1fr; 
-      gap: 15px; 
-      margin-bottom: 15px;
+      grid-template-columns: 1fr 1fr 1fr; 
+      gap: 20px; 
+      margin-bottom: 20px;
     }
     .info-item { 
-      margin-bottom: 6px;
-      font-size: 13px;
-      line-height: 1.4;
+      margin-bottom: 8px;
+      font-size: 15px;
+      line-height: 1.6;
     }
     .info-label { 
       font-weight: bold; 
-      color: #333;
+      color: #000;
       display: inline-block;
-      min-width: 110px;
+      min-width: 130px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin-top: 10px;
-      font-size: 12px;
+      margin-top: 15px;
+      font-size: 14px;
     }
     th, td { 
-      border: 1px solid #999; 
-      padding: 8px 10px; 
+      border: 2px solid #666; 
+      padding: 12px 14px; 
       text-align: left;
-      vertical-align: top;
-      line-height: 1.3;
+      vertical-align: middle;
+      line-height: 1.4;
     }
     th { 
-      background-color: #f0f0f0; 
+      background-color: #e5e7eb; 
       font-weight: bold;
       color: #000;
-      font-size: 12px;
+      font-size: 15px;
+    }
+    td {
+      color: #000;
     }
     .status-badge {
       display: inline-block;
-      padding: 3px 7px;
-      border-radius: 3px;
-      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 13px;
       font-weight: bold;
       white-space: nowrap;
     }
-    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
-    .status-confirmado { background-color: #dcfce7; color: #15803d; }
-    .status-presente { background-color: #d1fae5; color: #047857; }
-    .status-ausente { background-color: #fed7aa; color: #ea580c; }
-    .status-cancelado { background-color: #fee2e2; color: #dc2626; }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; border: 1px solid #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; border: 1px solid #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; border: 1px solid #047857; }
+    .status-ausente { background-color: #fed7aa; color: #ea580c; border: 1px solid #ea580c; }
+    .status-cancelado { background-color: #fee2e2; color: #dc2626; border: 1px solid #dc2626; }
     .footer {
-      margin-top: 20px;
+      margin-top: 25px;
       text-align: center;
-      font-size: 11px;
-      color: #666;
-      border-top: 1px solid #999;
-      padding-top: 10px;
+      font-size: 13px;
+      color: #333;
+      border-top: 2px solid #666;
+      padding-top: 15px;
     }
     .footer p {
-      margin: 3px 0;
+      margin: 5px 0;
+      font-weight: 500;
     }
     @media print {
-      body { margin: 8px; }
+      body { margin: 12px; }
       .no-print { display: none; }
       @page { 
-        margin: 0.8cm;
-        size: A4 portrait;
+        margin: 1cm;
+        size: A4 landscape;
       }
     }
   </style>
