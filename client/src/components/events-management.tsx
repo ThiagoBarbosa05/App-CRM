@@ -769,102 +769,96 @@ export default function EventsManagement() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: Arial, sans-serif; 
-      margin: 20px;
-      color: #000;
-      line-height: 1.5;
+      margin: 15px;
+      color: #333;
+      line-height: 1.4;
     }
     .header { 
       text-align: center; 
-      margin-bottom: 30px;
-      border-bottom: 4px solid #000;
-      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 12px;
     }
     .header h1 {
-      font-size: 56px;
-      color: #000;
+      font-size: 22px;
+      color: #333;
       font-weight: bold;
     }
     .event-info { 
-      margin-bottom: 30px; 
+      margin-bottom: 20px; 
     }
     .event-info h2 { 
-      color: #1e40af; 
-      margin-bottom: 20px;
-      font-size: 44px;
+      color: #2563eb; 
+      margin-bottom: 12px;
+      font-size: 18px;
       font-weight: bold;
     }
     .event-details { 
       display: grid; 
-      grid-template-columns: 1fr 1fr 1fr; 
-      gap: 25px; 
-      margin-bottom: 25px;
+      grid-template-columns: 1fr 1fr; 
+      gap: 15px; 
+      margin-bottom: 15px;
     }
     .info-item { 
-      margin-bottom: 12px;
-      font-size: 30px;
-      line-height: 1.6;
-      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 13px;
+      line-height: 1.4;
     }
     .info-label { 
       font-weight: bold; 
-      color: #000;
+      color: #333;
       display: inline-block;
-      min-width: 260px;
+      min-width: 110px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin-top: 20px;
-      font-size: 28px;
+      margin-top: 10px;
+      font-size: 12px;
     }
     th, td { 
-      border: 3px solid #666; 
-      padding: 16px 18px; 
+      border: 1px solid #999; 
+      padding: 8px 10px; 
       text-align: left;
-      vertical-align: middle;
-      line-height: 1.4;
+      vertical-align: top;
+      line-height: 1.3;
     }
     th { 
-      background-color: #e5e7eb; 
+      background-color: #f0f0f0; 
       font-weight: bold;
       color: #000;
-      font-size: 30px;
-    }
-    td {
-      color: #000;
-      font-weight: bold;
+      font-size: 12px;
     }
     .status-badge {
       display: inline-block;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 26px;
+      padding: 3px 7px;
+      border-radius: 3px;
+      font-size: 11px;
       font-weight: bold;
       white-space: nowrap;
     }
-    .status-inscrito { background-color: #dbeafe; color: #1e40af; border: 2px solid #1e40af; }
-    .status-confirmado { background-color: #dcfce7; color: #15803d; border: 2px solid #15803d; }
-    .status-presente { background-color: #d1fae5; color: #047857; border: 2px solid #047857; }
-    .status-ausente { background-color: #fed7aa; color: #ea580c; border: 2px solid #ea580c; }
-    .status-cancelado { background-color: #fee2e2; color: #dc2626; border: 2px solid #dc2626; }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; }
+    .status-ausente { background-color: #fed7aa; color: #ea580c; }
+    .status-cancelado { background-color: #fee2e2; color: #dc2626; }
     .footer {
-      margin-top: 30px;
+      margin-top: 20px;
       text-align: center;
-      font-size: 26px;
-      color: #333;
-      border-top: 3px solid #666;
-      padding-top: 20px;
+      font-size: 11px;
+      color: #666;
+      border-top: 1px solid #999;
+      padding-top: 10px;
     }
     .footer p {
-      margin: 8px 0;
-      font-weight: bold;
+      margin: 3px 0;
     }
     @media print {
-      body { margin: 12px; }
+      body { margin: 8px; }
       .no-print { display: none; }
       @page { 
-        margin: 1cm;
-        size: A4 landscape;
+        margin: 0.8cm;
+        size: A4 portrait;
       }
     }
   </style>
