@@ -151,38 +151,53 @@ export default function CompanyInteractionsTab({
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-medium">Histórico de Interações</h3>
-          <p className="text-sm text-muted-foreground">
-            Acompanhe todas as interações com {company.nomeFantasia}
+    <div className="p-4 lg:p-6">
+      <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-between items-start sm:items-center mb-6">
+        <div className="flex-1">
+          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-1">
+            Histórico de Interações
+          </h3>
+          <p className="text-sm lg:text-base text-muted-foreground">
+            Acompanhe todas as interações com{" "}
+            <span className="font-medium text-gray-700">
+              {company.nomeFantasia}
+            </span>
           </p>
         </div>
-        <Button onClick={handleAddNewInteraction}>
+        <Button
+          onClick={handleAddNewInteraction}
+          className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm transition-all duration-200"
+        >
           <Plus className="h-4 w-4 mr-2" />
-          Nova Interação
+          <span className="hidden sm:inline">Nova Interação</span>
+          <span className="sm:hidden">Nova</span>
         </Button>
       </div>
 
       {interactions.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 to-gray-100">
+          <CardContent className="flex flex-col items-center justify-center py-12 lg:py-16 px-6">
+            <div className="bg-blue-100 p-4 rounded-full mb-6">
+              <MessageSquare className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600" />
+            </div>
+            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-2 text-center">
               Nenhuma interação registrada
             </h3>
-            <p className="text-sm text-gray-500 text-center mb-4">
-              Comece registrando a primeira interação com esta empresa.
+            <p className="text-sm lg:text-base text-gray-500 text-center mb-6 max-w-md">
+              Comece registrando a primeira interação com esta empresa para
+              acompanhar o relacionamento.
             </p>
-            <Button onClick={handleAddNewInteraction}>
+            <Button
+              onClick={handleAddNewInteraction}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Primeira Interação
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 lg:space-y-4">
           {interactions.map((interaction) => {
             const typeConfig =
               interactionTypeConfig[
@@ -196,35 +211,41 @@ export default function CompanyInteractionsTab({
             return (
               <div
                 key={interaction.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="bg-white border border-gray-200 rounded-lg p-4 lg:p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200 hover:bg-gradient-to-r hover:from-white hover:to-gray-50"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-full ${typeConfig.color}`}>
-                        <IconComponent className="h-4 w-4" />
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div
+                        className={`p-2 lg:p-3 rounded-full ${typeConfig.color} shadow-sm flex-shrink-0`}
+                      >
+                        <IconComponent className="h-4 w-4 lg:h-5 lg:w-5" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 text-sm lg:text-base mb-1 truncate">
                           {interaction.subject}
                         </h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatDateTime(interaction.date)}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs lg:text-sm text-gray-600">
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Calendar className="h-3 w-3 lg:h-4 lg:w-4" />
+                            <span className="font-medium">
+                              {formatDateTime(interaction.date)}
+                            </span>
                           </div>
                           {interaction.callResult &&
                             interaction.type === "telemarketing" && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {interaction.callResult}
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Phone className="h-3 w-3 lg:h-4 lg:w-4" />
+                                <span className="text-gray-700 font-medium">
+                                  {interaction.callResult}
+                                </span>
                               </div>
                             )}
                         </div>
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-3">
+                    <p className="text-gray-700 text-sm lg:text-base mb-4 leading-relaxed">
                       {interaction.description}
                     </p>
 
@@ -232,53 +253,63 @@ export default function CompanyInteractionsTab({
                     {interaction.type === "visit" &&
                       (interaction.address ||
                         (interaction.latitude && interaction.longitude)) && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 lg:p-4 mb-4 shadow-sm">
                           <div className="flex items-center gap-2 mb-2">
-                            <MapPin className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-900">
+                            <div className="bg-blue-100 p-1 rounded-full">
+                              <MapPin className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
+                            </div>
+                            <span className="text-sm lg:text-base font-semibold text-blue-900">
                               Localização da Visita
                             </span>
                           </div>
                           {interaction.address && (
-                            <p className="text-sm text-blue-800 mb-1">
+                            <p className="text-sm lg:text-base text-blue-800 mb-2 leading-relaxed">
                               {interaction.address}
                             </p>
                           )}
                           {interaction.latitude && interaction.longitude && (
-                            <p className="text-xs text-blue-600">
-                              Coordenadas:{" "}
-                              {Number(interaction.latitude).toFixed(6)},{" "}
-                              {Number(interaction.longitude).toFixed(6)}
-                            </p>
+                            <div className="bg-white bg-opacity-60 rounded px-2 py-1 inline-block">
+                              <p className="text-xs lg:text-sm text-blue-700 font-mono">
+                                📍 {Number(interaction.latitude).toFixed(6)},{" "}
+                                {Number(interaction.longitude).toFixed(6)}
+                              </p>
+                            </div>
                           )}
                         </div>
                       )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className={typeConfig.color}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className={`${typeConfig.color} shadow-sm font-medium text-xs lg:text-sm`}
+                        >
                           {typeConfig.label}
                         </Badge>
                         <Badge
                           variant="secondary"
-                          className={statusConfig_.color}
+                          className={`${statusConfig_.color} shadow-sm font-medium text-xs lg:text-sm`}
                         >
                           {statusConfig_.label}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {interaction.user?.name || "Usuário não encontrado"}
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <div className="text-xs lg:text-sm text-gray-500 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded">
+                          <User className="h-3 w-3 lg:h-4 lg:w-4" />
+                          <span className="font-medium">
+                            {interaction.user?.name || "Usuário não encontrado"}
+                          </span>
                         </div>
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditInteraction(interaction)}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            title="Editar interação"
                           >
-                            <Edit className="h-3 w-3" />
+                            <Edit className="h-3 w-3 lg:h-4 lg:w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -286,9 +317,10 @@ export default function CompanyInteractionsTab({
                             onClick={() =>
                               deleteInteractionMutation.mutate(interaction.id)
                             }
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+                            title="Excluir interação"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3 lg:h-4 lg:w-4" />
                           </Button>
                         </div>
                       </div>

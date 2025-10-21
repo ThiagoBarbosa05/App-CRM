@@ -12,13 +12,13 @@ import {
   Clock,
   AlertCircle,
   RefreshCw,
-  Eye,
-  EyeOff,
   Check,
   Hash,
   Type,
   List,
   CheckSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { DealQuestionsForm } from "./deal-questions-form-improved";
 // import { toast } from "sonner"; // Comentado - usar console.log por enquanto
@@ -79,7 +79,9 @@ const fetchDealAnswers = async (dealId: string): Promise<DealAnswer[]> => {
 
 export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
   const [showQuestionsForm, setShowQuestionsForm] = useState(false);
-  const [showAnswers, setShowAnswers] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
   const queryClient = useQueryClient();
 
   // Queries com cache otimizado
@@ -257,11 +259,14 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
     setShowQuestionsForm((prev) => !prev);
   }, []);
 
-  const toggleAnswersView = useCallback(() => {
-    setShowAnswers((prev) => !prev);
+  const toggleCategory = useCallback((category: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
   }, []);
 
-  // Helper function para renderizar o valor da resposta
+  // Helper function para renderizar o valor da resposta com responsividade
   const renderAnswerValue = useCallback((answer: DealAnswer) => {
     const { question } = answer;
 
@@ -274,7 +279,9 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
             }`}
           />
           <span
-            className={answer.answerBoolean ? "text-green-700" : "text-red-700"}
+            className={`text-sm lg:text-base font-medium ${
+              answer.answerBoolean ? "text-green-700" : "text-red-700"
+            }`}
           >
             {answer.answerBoolean ? "Sim" : "Não"}
           </span>
@@ -286,7 +293,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       return (
         <div className="flex items-center gap-2">
           <Hash className="h-4 w-4 text-blue-600" />
-          <span className="text-blue-700 font-medium">
+          <span className="text-blue-700 font-medium text-sm lg:text-base">
             {answer.answerNumber}
           </span>
         </div>
@@ -300,11 +307,15 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       if (isMultiSelect) {
         const options = answer.answerText.split(",");
         return (
-          <div className="flex items-start gap-2">
-            <CheckSquare className="h-4 w-4 text-purple-600 mt-0.5" />
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+            <CheckSquare className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
             <div className="flex flex-wrap gap-1">
               {options.map((option, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="text-xs lg:text-sm"
+                >
                   {option.trim()}
                 </Badge>
               ))}
@@ -317,7 +328,10 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         return (
           <div className="flex items-center gap-2">
             <List className="h-4 w-4 text-indigo-600" />
-            <Badge variant="outline" className="text-indigo-700">
+            <Badge
+              variant="outline"
+              className="text-indigo-700 text-sm lg:text-base"
+            >
               {answer.answerText}
             </Badge>
           </div>
@@ -326,16 +340,20 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
 
       // Text answer
       return (
-        <div className="flex items-start gap-2">
-          <Type className="h-4 w-4 text-gray-600 mt-0.5" />
-          <p className="text-gray-700 text-sm leading-relaxed">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+          <Type className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
+          <p className="text-gray-700 text-sm lg:text-base leading-relaxed break-words">
             {answer.answerText}
           </p>
         </div>
       );
     }
 
-    return <span className="text-gray-500 italic">Sem resposta</span>;
+    return (
+      <span className="text-gray-500 italic text-sm lg:text-base">
+        Sem resposta
+      </span>
+    );
   }, []);
 
   // Agrupar perguntas por categoria com suas respostas
@@ -351,10 +369,12 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         }
 
         const answer = answersByQuestionId.get(question.id);
+        const isAnswered = !!answer;
+
         acc[question.category].push({
           question,
           answer: answer || null,
-          isAnswered: !!answer,
+          isAnswered,
         });
 
         return acc;
@@ -369,6 +389,26 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       >
     );
   }, [questions, answers]);
+
+  // Inicializar categorias expandidas
+  const initializeExpandedCategories = useCallback(() => {
+    const categories = Object.keys(questionsWithAnswers);
+    const initialState = categories.reduce((acc, category) => {
+      acc[category] = true; // Expandir todas por padrão
+      return acc;
+    }, {} as Record<string, boolean>);
+    setExpandedCategories(initialState);
+  }, [questionsWithAnswers]);
+
+  // Inicializar quando questionsWithAnswers mudar
+  React.useEffect(() => {
+    if (
+      Object.keys(questionsWithAnswers).length > 0 &&
+      Object.keys(expandedCategories).length === 0
+    ) {
+      initializeExpandedCategories();
+    }
+  }, [questionsWithAnswers, expandedCategories, initializeExpandedCategories]);
 
   // Loading state
   const isLoading = questionsLoading || answersLoading;
@@ -411,31 +451,33 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className="space-y-6">
-      {/* Header com estatísticas otimizado */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-full ${statusInfo.color}`}>
-                <StatusIcon className="h-6 w-6" />
+    <div className="space-y-4 lg:space-y-6">
+      {/* Header com estatísticas otimizado e responsivo */}
+      <Card className="shadow-sm border-0 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardContent className="p-4 lg:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div
+                className={`p-2 lg:p-3 rounded-full ${statusInfo.color} shadow-sm`}
+              >
+                <StatusIcon className="h-5 w-5 lg:h-6 lg:w-6" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-base lg:text-lg font-semibold text-gray-900">
                   Informações Adicionais
                 </h3>
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 text-xs lg:text-sm">
                   {statusInfo.description}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between lg:justify-end gap-4">
               <Button
                 onClick={handleRefresh}
                 variant="ghost"
                 size="sm"
-                className="p-2"
+                className="p-2 hover:bg-white/50"
                 disabled={isLoading}
                 title="Atualizar dados"
               >
@@ -446,14 +488,17 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
 
               <div className="text-right">
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className={statusInfo.color}>
+                  <Badge
+                    variant="outline"
+                    className={`${statusInfo.color} bg-white border-current shadow-sm`}
+                  >
                     {statusInfo.text}
                   </Badge>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs lg:text-sm text-gray-600 font-medium">
                     {stats.questionsAnswered}/{stats.totalQuestions}
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-xl lg:text-2xl font-bold text-blue-600">
                   {stats.completionPercentage}%
                 </div>
               </div>
@@ -461,18 +506,18 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
           </div>
 
           {/* Barra de progresso otimizada */}
-          <div className="mt-4">
+          <div className="mt-4 lg:mt-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-xs lg:text-sm text-gray-600 font-medium">
                 Progresso das respostas
               </span>
-              <span className="text-sm font-medium">
+              <span className="text-xs lg:text-sm font-semibold text-gray-700">
                 {stats.completionPercentage}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-2 lg:h-3 shadow-inner">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 lg:h-3 rounded-full transition-all duration-700 ease-out shadow-sm"
                 style={{ width: `${stats.completionPercentage}%` }}
               />
             </div>
@@ -480,55 +525,34 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Seção de ações otimizada */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
+      {/* Seção de ações otimizada e responsiva */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <CardTitle className="text-base lg:text-lg">
               {showQuestionsForm
                 ? "Respondendo Perguntas"
-                : showAnswers
-                ? "Visualizando Respostas"
                 : "Perguntas do Deal"}
             </CardTitle>
 
-            <div className="flex items-center gap-2">
-              {!showQuestionsForm && stats.questionsAnswered > 0 && (
-                <Button
-                  onClick={toggleAnswersView}
-                  variant="ghost"
-                  className="flex items-center gap-2"
-                >
-                  {showAnswers ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      Ocultar Respostas
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      Ver Respostas
-                    </>
-                  )}
-                </Button>
-              )}
-
+            <div className="flex flex-wrap items-center gap-2">
               {!showQuestionsForm && (
                 <Button
                   onClick={toggleQuestionsForm}
                   variant={stats.questionsAnswered > 0 ? "outline" : "default"}
+                  size="sm"
                   className="flex items-center gap-2"
                   disabled={stats.totalQuestions === 0}
                 >
                   {stats.questionsAnswered > 0 ? (
                     <>
                       <Edit2 className="h-4 w-4" />
-                      Editar Respostas
+                      <span className="hidden sm:inline">Editar</span>
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4" />
-                      Responder Perguntas
+                      <span className="hidden sm:inline">Responder</span>
                     </>
                   )}
                 </Button>
@@ -538,174 +562,248 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                 <Button
                   onClick={toggleQuestionsForm}
                   variant="outline"
+                  size="sm"
                   className="flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
-                  Cancelar
+                  <span className="hidden sm:inline">Cancelar</span>
                 </Button>
               )}
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-4 lg:p-6">
           {showQuestionsForm ? (
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-gradient-to-br from-gray-50 to-gray-100">
               <DealQuestionsForm
                 dealId={dealId}
                 onSave={handleQuestionsUpdated}
               />
             </div>
-          ) : showAnswers && stats.questionsAnswered > 0 ? (
+          ) : stats.questionsAnswered > 0 ? (
             // Seção de visualização das respostas
-            <div className="space-y-6">
-              {Object.keys(questionsWithAnswers).map((category) => (
-                <div key={category} className="space-y-4">
-                  <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-                    <Badge variant="outline" className="text-sm font-medium">
-                      {category}
-                    </Badge>
-                    <span className="text-xs text-gray-500">
-                      (
-                      {
-                        questionsWithAnswers[category].filter(
-                          (item) => item.isAnswered
-                        ).length
-                      }
-                      /{questionsWithAnswers[category].length} respondidas)
-                    </span>
-                  </div>
+            <div className="space-y-4 lg:space-y-6">
+              {Object.keys(questionsWithAnswers).map((category) => {
+                const categoryItems = questionsWithAnswers[category];
+                const answeredCount = categoryItems.filter(
+                  (item) => item.isAnswered
+                ).length;
+                const isExpanded = expandedCategories[category];
 
-                  <div className="space-y-4">
-                    {questionsWithAnswers[category].map((item, index) => (
-                      <div
-                        key={item.question.id}
-                        className={`p-4 rounded-lg border transition-all ${
-                          item.isAnswered
-                            ? "bg-green-50 border-green-200"
-                            : "bg-gray-50 border-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
+                if (categoryItems.length === 0) return null;
+
+                return (
+                  <div key={category} className="space-y-3">
+                    {/* Header da categoria com expansão */}
+                    <div
+                      className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => toggleCategory(category)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant="outline"
+                          className="text-sm font-medium bg-white"
+                        >
+                          {category}
+                        </Badge>
+                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                          {answeredCount}/{categoryItems.length} respondida
+                          {answeredCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      )}
+                    </div>
+
+                    {/* Conteúdo da categoria */}
+                    {isExpanded && (
+                      <div className="space-y-3 ml-2">
+                        {categoryItems.map((item, index) => (
                           <div
-                            className={`p-2 rounded-full ${
+                            key={item.question.id}
+                            className={`p-4 lg:p-5 rounded-lg border transition-all hover:shadow-sm ${
                               item.isAnswered
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-500"
+                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-sm"
+                                : "bg-gray-50 border-gray-200"
                             }`}
                           >
-                            {item.isAnswered ? (
-                              <CheckCircle className="h-4 w-4" />
-                            ) : (
-                              <Clock className="h-4 w-4" />
-                            )}
-                          </div>
-
-                          <div className="flex-1 space-y-2">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-1">
-                                {item.question.question}
-                                {item.question.isRequired && (
-                                  <span className="text-red-500 ml-1">*</span>
+                            <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+                              <div
+                                className={`p-2 rounded-full flex-shrink-0 ${
+                                  item.isAnswered
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {item.isAnswered ? (
+                                  <CheckCircle className="h-4 w-4" />
+                                ) : (
+                                  <Clock className="h-4 w-4" />
                                 )}
-                              </h4>
-
-                              {item.question.helpText && (
-                                <p className="text-xs text-gray-500 mb-2">
-                                  {item.question.helpText}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="mt-2">
-                              {item.isAnswered && item.answer ? (
-                                <div className="bg-white p-3 rounded border border-gray-100">
-                                  {renderAnswerValue(item.answer)}
-                                </div>
-                              ) : (
-                                <div className="bg-gray-100 p-3 rounded border border-gray-200 text-center">
-                                  <span className="text-gray-500 text-sm italic">
-                                    Pergunta não respondida
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            {item.isAnswered && item.answer && (
-                              <div className="text-xs text-gray-500 mt-2">
-                                Respondida em:{" "}
-                                {new Date(
-                                  item.answer.createdAt
-                                ).toLocaleDateString("pt-BR", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
                               </div>
-                            )}
+
+                              <div className="flex-1 space-y-3">
+                                <div>
+                                  <h4 className="text-sm lg:text-base font-medium text-gray-900 mb-1 leading-relaxed">
+                                    {item.question.question}
+                                    {item.question.isRequired && (
+                                      <span className="text-red-500 ml-1">
+                                        *
+                                      </span>
+                                    )}
+                                  </h4>
+
+                                  {item.question.helpText && (
+                                    <p className="text-xs lg:text-sm text-gray-500 mb-2 italic">
+                                      {item.question.helpText}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="mt-3">
+                                  {item.isAnswered && item.answer ? (
+                                    <div className="bg-white p-3 lg:p-4 rounded-lg border border-gray-100 shadow-sm">
+                                      {renderAnswerValue(item.answer)}
+                                    </div>
+                                  ) : (
+                                    <div className="bg-gray-100 p-3 lg:p-4 rounded-lg border border-gray-200 text-center">
+                                      <span className="text-gray-500 text-sm italic">
+                                        Pergunta não respondida
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {item.isAnswered && item.answer && (
+                                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>
+                                      Respondida em:{" "}
+                                      {new Date(
+                                        item.answer.createdAt
+                                      ).toLocaleDateString("pt-BR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {Object.keys(questionsWithAnswers).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📝</div>
-                  <p className="font-medium mb-1">
+                <div className="text-center py-12 lg:py-16 text-gray-500">
+                  <div className="text-4xl lg:text-5xl mb-4">📝</div>
+                  <p className="font-medium mb-2">
                     Nenhuma pergunta configurada
                   </p>
                 </div>
               )}
             </div>
           ) : (
-            // Seção de resumo (exibição padrão)
+            // Seção de resumo melhorada (exibição padrão)
             <div className="space-y-4">
               {stats.totalQuestions === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📝</div>
-                  <p className="font-medium mb-1">
+                <div className="text-center py-12 lg:py-16 text-gray-500">
+                  <div className="text-4xl lg:text-5xl mb-4">📝</div>
+                  <p className="font-medium mb-2">
                     Nenhuma pergunta configurada
                   </p>
-                  <p className="text-sm">
+                  <p className="text-sm max-w-md mx-auto">
                     Um administrador precisa configurar as perguntas primeiro
                     nas configurações do sistema.
                   </p>
                 </div>
               ) : stats.questionsAnswered === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">🤔</div>
-                  <p className="font-medium mb-1">
+                <div className="text-center py-12 lg:py-16 text-gray-500">
+                  <div className="text-4xl lg:text-5xl mb-4">🤔</div>
+                  <p className="font-medium mb-2">
                     Nenhuma pergunta respondida ainda
                   </p>
-                  <p className="text-sm">
+                  <p className="text-sm max-w-md mx-auto mb-4">
                     Responda às perguntas para adicionar informações importantes
                     sobre este deal
                   </p>
+                  <Button
+                    onClick={toggleQuestionsForm}
+                    className="mt-2"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Começar Agora
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    {stats.questionsAnswered} pergunta(s) respondida(s)
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <div className="text-sm font-medium text-green-800">
+                          {stats.questionsAnswered} pergunta(s) respondida(s)
+                        </div>
+                        <div className="text-xs text-green-600">
+                          {stats.completionPercentage}% concluído
+                        </div>
+                      </div>
+                    </div>
+
+                    {stats.pendingQuestions > 0 && (
+                      <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <Clock className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                        <div>
+                          <div className="text-sm font-medium text-yellow-800">
+                            {stats.pendingQuestions} pergunta(s) pendente(s)
+                          </div>
+                          <div className="text-xs text-yellow-600">
+                            Continue respondendo
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {stats.pendingQuestions > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Clock className="h-4 w-4 text-yellow-600" />
-                      {stats.pendingQuestions} pergunta(s) pendente(s)
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <div className="text-lg">💡</div>
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium mb-1">
+                          Dica de Produtividade
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          Informações completas ajudam na análise e comparação
+                          entre deals. Continue respondendo para ter uma visão
+                          mais detalhada.
+                        </p>
+                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-800">
-                      💡 <strong>Dica:</strong> Informações completas ajudam na
-                      análise e comparação entre deals.
-                    </p>
+                  {/* Quick actions */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Button
+                      onClick={toggleQuestionsForm}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      Continuar Respondendo
+                    </Button>
                   </div>
                 </div>
               )}
@@ -714,14 +812,14 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Informações adicionais otimizadas */}
+      {/* Informações adicionais otimizadas e responsivas */}
       {stats.questionsAnswered > 0 && !showQuestionsForm && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="shadow-sm">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs lg:text-sm">
                   Última atualização:{" "}
                   {answers.length > 0
                     ? new Date(
@@ -739,10 +837,20 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                 </span>
               </div>
 
-              <div className="text-xs text-gray-500">
-                {stats.completionPercentage === 100
-                  ? "✅ Completo"
-                  : "⏳ Em andamento"}
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    stats.completionPercentage === 100 ? "default" : "secondary"
+                  }
+                  className="text-xs"
+                >
+                  {stats.completionPercentage === 100
+                    ? "✅ Completo"
+                    : "⏳ Em andamento"}
+                </Badge>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  {Object.values(questionsWithAnswers).flat().length} perguntas
+                </span>
               </div>
             </div>
           </CardContent>

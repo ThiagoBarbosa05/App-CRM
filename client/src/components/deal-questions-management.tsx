@@ -906,10 +906,7 @@ export function DealQuestionsManagement() {
                     : "Nenhuma pergunta corresponde aos filtros selecionados."}
                 </p>
                 {questions.length === 0 && (
-                  <Button
-                    onClick={handleCreateQuestion}
-                    className="bg-gray-900 hover:bg-gray-800"
-                  >
+                  <Button onClick={handleCreateQuestion}>
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Primeira Pergunta
                   </Button>
@@ -1699,11 +1696,7 @@ function QuestionFormDialog({
                 <X className="h-4 w-4 mr-2" />
                 Cancelar
               </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="bg-gray-900 hover:bg-gray-800"
-              >
+              <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
                 {question ? "Atualizar Pergunta" : "Criar Pergunta"}

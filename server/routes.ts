@@ -131,6 +131,7 @@ import { getMessageJobsLogsController } from "./controllers/get-message-jobs-log
 import { updateMessageJobsLogController } from "./controllers/update-message-jobs-logs.controller";
 import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
 import { getTemplatesController } from "./controllers/get-templates-controller";
+import { getDealAnsweredQuestionsController } from "./controllers/get-deal-answered-questions.controller";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -2794,6 +2795,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get answered questions for a specific deal of a company
+  app.get(
+    "/api/companies/:companyId/deals/:dealId/answered-questions",
+    getDealAnsweredQuestionsController
+  );
+
   // app.post("/api/interactions", async (req, res) => {
   //   try {
   //     const interaction = await storage.createClientInteraction(req.body);
@@ -4625,10 +4632,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "createdBy é obrigatório" });
       }
 
-      const { seedDefaultDealQuestions } = await import(
-        "./db/seeds/default-deal-questions"
-      );
-      await seedDefaultDealQuestions(createdBy);
+      // const { seedDefaultDealQuestions } = await import(
+      //   "./db/seeds/default-deal-questions"
+      // );
+      // await seedDefaultDealQuestions(createdBy);
 
       res.json({ message: "Perguntas padrão inseridas com sucesso!" });
     } catch (error) {

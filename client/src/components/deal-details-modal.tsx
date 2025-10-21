@@ -57,18 +57,26 @@ export default function DealDetailsModal({
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="details" className="h-full">
-            <TabsList className="grid w-full grid-cols-2 mx-6 mb-4">
-              <TabsTrigger value="details" className="flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                Detalhes
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-gradient-to-r from-gray-50 to-gray-100 p-1 rounded-lg border border-gray-200 shadow-sm">
+              <TabsTrigger
+                value="details"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 rounded-md"
+              >
+                <Info className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Detalhes</span>
+                <span className="sm:hidden">Info</span>
               </TabsTrigger>
               <TabsTrigger
                 value="questions"
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 rounded-md"
               >
-                <HelpCircle className="h-4 w-4" />
-                Perguntas
-                <Badge variant="outline" className="ml-1 text-xs">
+                <HelpCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Perguntas</span>
+                <span className="sm:hidden">FAQ</span>
+                <Badge
+                  variant="outline"
+                  className="ml-1 text-xs bg-green-100 text-green-700 border-green-300 px-1.5 py-0.5 font-medium"
+                >
                   Novo
                 </Badge>
               </TabsTrigger>

@@ -30,6 +30,7 @@ import {
   Wine,
   MessageSquare,
   Target,
+  HelpCircle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Company, Sector } from "@shared/schema";
@@ -37,6 +38,7 @@ import { useQuery } from "@tanstack/react-query";
 import CompanyWineListModal from "./company-wine-list-modal";
 import CompanyInteractionsTab from "./company-interactions-tab";
 import CompanyFunnelsTab from "./company-funnels-tab";
+import CompanyAnsweredQuestionsTab from "./company-answered-questions-tab";
 
 interface CompanyDetailsModalProps {
   company: Company | null;
@@ -134,34 +136,53 @@ export default function CompanyDetailsModal({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-50 p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gray-50 p-1 rounded-lg gap-1 sm:gap-0">
             <TabsTrigger
               value="info"
-              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
-              <Building2 className="h-4 w-4" />
-              Informações
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:hidden lg:inline">
+                Informações
+              </span>
+              <span className="xs:hidden sm:inline lg:hidden">Info</span>
             </TabsTrigger>
             <TabsTrigger
               value="carta"
-              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
-              <Wine className="h-4 w-4" />
-              Carta de Vinhos
+              <Wine className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:hidden lg:inline">
+                Carta de Vinhos
+              </span>
+              <span className="xs:hidden sm:inline lg:hidden">Carta</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="questions"
+              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+            >
+              <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:hidden lg:inline">
+                Perguntas
+              </span>
+              <span className="xs:hidden sm:inline lg:hidden">Q&A</span>
             </TabsTrigger>
             <TabsTrigger
               value="interactions"
-              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
-              <MessageSquare className="h-4 w-4" />
-              Interações
+              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span>Interações</span>
             </TabsTrigger>
             <TabsTrigger
               value="funnels"
-              className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
-              <Target className="h-4 w-4" />
-              Funis
+              <Target className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline sm:hidden lg:inline">
+                Funis
+              </span>
+              <span className="xs:hidden sm:inline lg:hidden">Meta</span>
             </TabsTrigger>
           </TabsList>
 
@@ -478,6 +499,10 @@ export default function CompanyDetailsModal({
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="questions" className="mt-6">
+            <CompanyAnsweredQuestionsTab company={company} />
           </TabsContent>
 
           <TabsContent value="interactions" className="mt-6">
