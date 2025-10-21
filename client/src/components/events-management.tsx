@@ -769,65 +769,70 @@ export default function EventsManagement() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: Arial, sans-serif; 
-      margin: 20px;
+      margin: 15px;
       color: #333;
-      line-height: 1.6;
+      line-height: 1.4;
     }
     .header { 
       text-align: center; 
-      margin-bottom: 30px;
-      border-bottom: 2px solid #ccc;
-      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 12px;
     }
     .header h1 {
-      font-size: 24px;
+      font-size: 22px;
       color: #333;
+      font-weight: bold;
     }
     .event-info { 
-      margin-bottom: 30px; 
+      margin-bottom: 20px; 
     }
     .event-info h2 { 
       color: #2563eb; 
-      margin-bottom: 15px;
-      font-size: 20px;
+      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: bold;
     }
     .event-details { 
       display: grid; 
       grid-template-columns: 1fr 1fr; 
-      gap: 20px; 
-      margin-bottom: 20px;
+      gap: 15px; 
+      margin-bottom: 15px;
     }
     .info-item { 
-      margin-bottom: 10px;
-      font-size: 14px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      line-height: 1.4;
     }
     .info-label { 
       font-weight: bold; 
-      color: #666;
+      color: #333;
       display: inline-block;
-      min-width: 120px;
+      min-width: 110px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin-top: 20px;
-      font-size: 13px;
+      margin-top: 10px;
+      font-size: 12px;
     }
     th, td { 
-      border: 1px solid #ddd; 
-      padding: 10px 12px; 
+      border: 1px solid #999; 
+      padding: 8px 10px; 
       text-align: left;
       vertical-align: top;
+      line-height: 1.3;
     }
     th { 
-      background-color: #f5f5f5; 
+      background-color: #f0f0f0; 
       font-weight: bold;
-      color: #333;
+      color: #000;
+      font-size: 12px;
     }
     .status-badge {
       display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 3px 7px;
+      border-radius: 3px;
       font-size: 11px;
       font-weight: bold;
       white-space: nowrap;
@@ -838,20 +843,23 @@ export default function EventsManagement() {
     .status-ausente { background-color: #fed7aa; color: #ea580c; }
     .status-cancelado { background-color: #fee2e2; color: #dc2626; }
     .footer {
-      margin-top: 40px;
+      margin-top: 20px;
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
-      border-top: 1px solid #ccc;
-      padding-top: 20px;
+      border-top: 1px solid #999;
+      padding-top: 10px;
     }
     .footer p {
-      margin: 5px 0;
+      margin: 3px 0;
     }
     @media print {
-      body { margin: 10px; }
+      body { margin: 8px; }
       .no-print { display: none; }
-      @page { margin: 1cm; }
+      @page { 
+        margin: 0.8cm;
+        size: A4 portrait;
+      }
     }
   </style>
 </head>
