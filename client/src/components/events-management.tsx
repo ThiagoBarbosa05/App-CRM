@@ -775,50 +775,51 @@ export default function EventsManagement() {
     }
     .header { 
       text-align: center; 
-      margin-bottom: 25px;
-      border-bottom: 3px solid #000;
-      padding-bottom: 15px;
+      margin-bottom: 30px;
+      border-bottom: 4px solid #000;
+      padding-bottom: 20px;
     }
     .header h1 {
-      font-size: 28px;
+      font-size: 56px;
       color: #000;
       font-weight: bold;
     }
     .event-info { 
-      margin-bottom: 25px; 
+      margin-bottom: 30px; 
     }
     .event-info h2 { 
       color: #1e40af; 
-      margin-bottom: 15px;
-      font-size: 22px;
+      margin-bottom: 20px;
+      font-size: 44px;
       font-weight: bold;
     }
     .event-details { 
       display: grid; 
       grid-template-columns: 1fr 1fr 1fr; 
-      gap: 20px; 
-      margin-bottom: 20px;
+      gap: 25px; 
+      margin-bottom: 25px;
     }
     .info-item { 
-      margin-bottom: 8px;
-      font-size: 15px;
+      margin-bottom: 12px;
+      font-size: 30px;
       line-height: 1.6;
+      font-weight: bold;
     }
     .info-label { 
       font-weight: bold; 
       color: #000;
       display: inline-block;
-      min-width: 130px;
+      min-width: 260px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin-top: 15px;
-      font-size: 14px;
+      margin-top: 20px;
+      font-size: 28px;
     }
     th, td { 
-      border: 2px solid #666; 
-      padding: 12px 14px; 
+      border: 3px solid #666; 
+      padding: 16px 18px; 
       text-align: left;
       vertical-align: middle;
       line-height: 1.4;
@@ -827,35 +828,36 @@ export default function EventsManagement() {
       background-color: #e5e7eb; 
       font-weight: bold;
       color: #000;
-      font-size: 15px;
+      font-size: 30px;
     }
     td {
       color: #000;
+      font-weight: bold;
     }
     .status-badge {
       display: inline-block;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 26px;
       font-weight: bold;
       white-space: nowrap;
     }
-    .status-inscrito { background-color: #dbeafe; color: #1e40af; border: 1px solid #1e40af; }
-    .status-confirmado { background-color: #dcfce7; color: #15803d; border: 1px solid #15803d; }
-    .status-presente { background-color: #d1fae5; color: #047857; border: 1px solid #047857; }
-    .status-ausente { background-color: #fed7aa; color: #ea580c; border: 1px solid #ea580c; }
-    .status-cancelado { background-color: #fee2e2; color: #dc2626; border: 1px solid #dc2626; }
+    .status-inscrito { background-color: #dbeafe; color: #1e40af; border: 2px solid #1e40af; }
+    .status-confirmado { background-color: #dcfce7; color: #15803d; border: 2px solid #15803d; }
+    .status-presente { background-color: #d1fae5; color: #047857; border: 2px solid #047857; }
+    .status-ausente { background-color: #fed7aa; color: #ea580c; border: 2px solid #ea580c; }
+    .status-cancelado { background-color: #fee2e2; color: #dc2626; border: 2px solid #dc2626; }
     .footer {
-      margin-top: 25px;
+      margin-top: 30px;
       text-align: center;
-      font-size: 13px;
+      font-size: 26px;
       color: #333;
-      border-top: 2px solid #666;
-      padding-top: 15px;
+      border-top: 3px solid #666;
+      padding-top: 20px;
     }
     .footer p {
-      margin: 5px 0;
-      font-weight: 500;
+      margin: 8px 0;
+      font-weight: bold;
     }
     @media print {
       body { margin: 12px; }
