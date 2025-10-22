@@ -89,10 +89,20 @@ export default function EventsDashboard() {
   };
 
   const getDaysUntilEvent = (eventDate: string) => {
+    // Normalizar a data de hoje para o início do dia (00:00:00) em horário de Brasília
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Converter a data do evento para Date e normalizar para o início do dia
     const event = new Date(eventDate);
+    event.setHours(0, 0, 0, 0);
+    
+    // Calcular a diferença em milissegundos
     const diffTime = event.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Converter para dias (arredondar para baixo para evitar contar dias extras)
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
     return diffDays;
   };
 
