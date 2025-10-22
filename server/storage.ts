@@ -559,6 +559,7 @@ export interface IStorage {
   createEvent(eventData: InsertEvent): Promise<Event>;
   updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event>;
   deleteEvent(eventId: string): Promise<boolean>;
+  updateExpiredEvents(): Promise<number>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
   addEventParticipant(
     participantData: InsertEventParticipant
@@ -4674,6 +4675,32 @@ export class DatabaseStorage implements IStorage {
       return !!deletedEvent;
     } catch (error) {
       console.error("Error deleting event:", error);
+      throw error;
+    }
+  }
+
+  async updateExpiredEvents(): Promise<number> {
+    try {
+      // Obter a data de hoje no formato YYYY-MM-DD
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Atualizar eventos cuja data já passou e ainda não estão finalizados ou cancelados
+      // Usando SQL raw completo para evitar problemas com conversão de timestamp
+      const result = await this.db.execute(sql`
+        UPDATE events
+        SET status = 'finalizado', updated_at = NOW()
+        WHERE DATE(event_date) < DATE(${todayStr})
+          AND status NOT IN ('finalizado', 'cancelado')
+        RETURNING *
+      `);
+
+      const affectedRows = result.rowCount || 0;
+      console.log(`[Auto-Update] ${affectedRows} evento(s) atualizado(s) para "finalizado"`);
+      return affectedRows;
+    } catch (error) {
+      console.error("Error updating expired events:", error);
       throw error;
     }
   }
