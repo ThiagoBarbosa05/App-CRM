@@ -139,17 +139,6 @@ export default function EventsDashboard() {
         return statusConfig?.label || status;
       };
 
-      // Função para formatar data de aniversário
-      const formatBirthDate = (birthDate: string | null) => {
-        if (!birthDate) return "";
-        try {
-          const date = new Date(birthDate);
-          return date.toLocaleDateString("pt-BR");
-        } catch {
-          return "";
-        }
-      };
-
       // Gerar linhas da tabela
       const participantRows =
         participants.length > 0
@@ -159,7 +148,7 @@ export default function EventsDashboard() {
             <tr>
               <td>${participant.clientName || "N/A"}</td>
               <td>${participant.clientPhone || "N/A"}</td>
-              <td>${formatBirthDate(participant.clientBirthDate)}</td>
+              <td></td>
               <td style="text-align: center; font-weight: bold;">${
                 participant.numberOfParticipants || 1
               }</td>
