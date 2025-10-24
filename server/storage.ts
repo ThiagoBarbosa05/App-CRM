@@ -4720,6 +4720,7 @@ export class DatabaseStorage implements IStorage {
           clientName: clients.name,
           clientPhone: clients.phone,
           clientEmail: clients.email,
+          clientBirthDate: clients.birthDate,
           registeredByName: users.name,
         })
         .from(eventParticipants)

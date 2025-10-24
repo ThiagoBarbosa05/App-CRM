@@ -729,6 +729,17 @@ export default function EventsManagement() {
         return div.innerHTML;
       };
 
+      // Função para formatar data de aniversário
+      const formatBirthDate = (birthDate: string | null) => {
+        if (!birthDate) return "";
+        try {
+          const date = new Date(birthDate);
+          return date.toLocaleDateString("pt-BR");
+        } catch {
+          return "";
+        }
+      };
+
       // Gerar linhas da tabela
       const participantRows =
         participants.length > 0
@@ -738,6 +749,7 @@ export default function EventsManagement() {
             <tr>
               <td>${escapeHtml(participant.clientName || "N/A")}</td>
               <td>${escapeHtml(participant.clientPhone || "N/A")}</td>
+              <td>${formatBirthDate(participant.clientBirthDate)}</td>
               <td style="text-align: center; font-weight: bold;">${
                 participant.numberOfParticipants || 1
               }</td>
@@ -750,7 +762,7 @@ export default function EventsManagement() {
           `
               )
               .join("")
-          : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
+          : '<tr><td colspan="7" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
       // Calcular total de participantes
       const totalParticipants = participants.reduce(
@@ -901,6 +913,7 @@ export default function EventsManagement() {
       <tr>
         <th>Nome do Cliente</th>
         <th>Telefone</th>
+        <th>Data de Aniversário</th>
         <th style="text-align: center;">Nº Participantes</th>
         <th>Status</th>
         <th>Data de Inscrição</th>

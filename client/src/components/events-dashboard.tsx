@@ -139,6 +139,17 @@ export default function EventsDashboard() {
         return statusConfig?.label || status;
       };
 
+      // Função para formatar data de aniversário
+      const formatBirthDate = (birthDate: string | null) => {
+        if (!birthDate) return "";
+        try {
+          const date = new Date(birthDate);
+          return date.toLocaleDateString("pt-BR");
+        } catch {
+          return "";
+        }
+      };
+
       // Gerar linhas da tabela
       const participantRows =
         participants.length > 0
@@ -148,6 +159,7 @@ export default function EventsDashboard() {
             <tr>
               <td>${participant.clientName || "N/A"}</td>
               <td>${participant.clientPhone || "N/A"}</td>
+              <td>${formatBirthDate(participant.clientBirthDate)}</td>
               <td style="text-align: center; font-weight: bold;">${
                 participant.numberOfParticipants || 1
               }</td>
@@ -160,7 +172,7 @@ export default function EventsDashboard() {
           `
               )
               .join("")
-          : '<tr><td colspan="6" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
+          : '<tr><td colspan="7" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
 
       // Gerar HTML para impressão
       const printContent = `<!DOCTYPE html>
@@ -752,6 +764,7 @@ export default function EventsDashboard() {
       <tr>
         <th>Nome do Cliente</th>
         <th>Telefone</th>
+        <th>Data de Aniversário</th>
         <th>Nº Participantes</th>
         <th>Status</th>
         <th>Data de Inscrição</th>
