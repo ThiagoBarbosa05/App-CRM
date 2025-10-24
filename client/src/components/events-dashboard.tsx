@@ -226,6 +226,10 @@ export default function EventsDashboard() {
       font-weight: bold;
       color: #333;
     }
+    th:nth-child(3), td:nth-child(3) {
+      width: 140px;
+      min-width: 140px;
+    }
     .status-badge {
       padding: 4px 8px;
       border-radius: 4px;

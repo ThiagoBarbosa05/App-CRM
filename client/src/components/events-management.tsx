@@ -841,6 +841,10 @@ export default function EventsManagement() {
       color: #000;
       font-size: 12px;
     }
+    th:nth-child(3), td:nth-child(3) {
+      width: 140px;
+      min-width: 140px;
+    }
     .status-badge {
       display: inline-block;
       padding: 3px 7px;
