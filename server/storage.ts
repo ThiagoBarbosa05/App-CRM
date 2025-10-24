@@ -4707,7 +4707,7 @@ export class DatabaseStorage implements IStorage {
 
   async getEventParticipants(eventId: string): Promise<EventParticipant[]> {
     try {
-      return await this.db
+      const results = await this.db
         .select({
           id: eventParticipants.id,
           eventId: eventParticipants.eventId,
@@ -4717,17 +4717,30 @@ export class DatabaseStorage implements IStorage {
           numberOfParticipants: eventParticipants.numberOfParticipants,
           notes: eventParticipants.notes,
           registeredBy: eventParticipants.registeredBy,
-          clientName: clients.name,
-          clientPhone: clients.phone,
-          clientEmail: clients.email,
-          clientBirthDate: clients.birthDate,
-          registeredByName: users.name,
+          client: clients,
+          user: users,
         })
         .from(eventParticipants)
         .leftJoin(clients, eq(eventParticipants.clientId, clients.id))
         .leftJoin(users, eq(eventParticipants.registeredBy, users.id))
         .where(eq(eventParticipants.eventId, eventId))
         .orderBy(desc(eventParticipants.registrationDate));
+
+      return results.map((row) => ({
+        id: row.id,
+        eventId: row.eventId,
+        clientId: row.clientId,
+        registrationDate: row.registrationDate,
+        status: row.status,
+        numberOfParticipants: row.numberOfParticipants,
+        notes: row.notes,
+        registeredBy: row.registeredBy,
+        clientName: row.client?.name || null,
+        clientPhone: row.client?.phone || null,
+        clientEmail: row.client?.email || null,
+        clientBirthDate: row.client?.birthday || null,
+        registeredByName: row.user?.name || null,
+      }));
     } catch (error) {
       console.error("Error fetching event participants:", error);
       throw error;
