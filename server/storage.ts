@@ -231,6 +231,7 @@ export interface IStorage {
 
   // Funnel Stages
   getFunnelStages(funnelId: string): Promise<FunnelStage[]>;
+  getFunnelStage(id: string): Promise<FunnelStage | undefined>;
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
   updateFunnelStage(
     id: string,
@@ -1233,6 +1234,14 @@ export class DatabaseStorage implements IStorage {
       .from(funnelStages)
       .where(eq(funnelStages.funnelId, funnelId))
       .orderBy(funnelStages.order);
+  }
+
+  async getFunnelStage(id: string): Promise<FunnelStage | undefined> {
+    const [stage] = await this.db
+      .select()
+      .from(funnelStages)
+      .where(eq(funnelStages.id, id));
+    return stage || undefined;
   }
 
   async createFunnelStage(

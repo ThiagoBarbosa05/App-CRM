@@ -1331,6 +1331,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data.value = numeric.toString();
       }
 
+      // Auto-tagging: verificar se está movendo para "não tem interesse" no funil B2B Capital
+      if (data.stageId) {
+        try {
+          // Buscar o deal atual para verificar a empresa associada
+          const currentDeal = await storage.getDeal(dealId);
+          
+          if (currentDeal && currentDeal.companyId) {
+            // Buscar informações do estágio
+            const stage = await storage.getFunnelStage(data.stageId);
+            
+            if (stage) {
+              // Buscar informações do funil
+              const funnel = await storage.getSalesFunnel(stage.funnelId);
+              
+              // Verificar se é o funil B2B Capital e o estágio "não tem interesse"
+              if (funnel && funnel.name.toLowerCase().includes("b2b capital") && 
+                  stage.name.toLowerCase().includes("não tem interesse")) {
+                
+                // Buscar a empresa
+                const company = await storage.getCompany(currentDeal.companyId);
+                
+                if (company) {
+                  // Verificar se o marcador já existe
+                  const markerName = "Não tem interesse";
+                  const currentMarkers = company.markers || [];
+                  
+                  if (!currentMarkers.includes(markerName)) {
+                    // Adicionar o marcador
+                    const updatedMarkers = [...currentMarkers, markerName];
+                    await storage.updateCompany(currentDeal.companyId, {
+                      markers: updatedMarkers
+                    });
+                    
+                    console.log(`[Auto-tagging] Marcador "${markerName}" adicionado à empresa ${company.nomeFantasia}`);
+                  }
+                }
+              }
+            }
+          }
+        } catch (autoTagError) {
+          // Log do erro mas não falha a atualização do deal
+          console.error("[Auto-tagging] Erro ao adicionar marcador:", autoTagError);
+        }
+      }
+
       const deals = await storage.updateDeal(dealId, data);
       res.json(deals);
     } catch (error) {

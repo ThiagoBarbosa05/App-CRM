@@ -112,6 +112,7 @@ export const companies = pgTable("companies", {
   neighborhood: text("neighborhood"), // Bairro
   city: text("city"),
   state: text("state"),
+  markers: text("markers").array().default([]).notNull(),
   sectorId: varchar("sector_id").references(() => sectors.id), // Referência para setor
   responsavelId: varchar("responsavel_id").references(() => users.id), // Responsável pela empresa
   notes: text("notes"), // Observações
