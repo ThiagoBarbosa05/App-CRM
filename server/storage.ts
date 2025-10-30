@@ -1037,15 +1037,51 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCompany(id: string): Promise<boolean> {
-    const result = await this.db.delete(companies).where(eq(companies.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    try {
+      console.log('[DELETE COMPANY] Iniciando exclusão da empresa:', id);
+      
+      // Primeiro, deletar deals associados
+      const dealsDeleted = await this.db.delete(deals).where(eq(deals.companyId, id));
+      console.log('[DELETE COMPANY] Deals deletados:', dealsDeleted.rowCount);
+      
+      // Deletar interações associadas
+      const interactionsDeleted = await this.db.delete(clientInteractions).where(eq(clientInteractions.companyId, id));
+      console.log('[DELETE COMPANY] Interações deletadas:', interactionsDeleted.rowCount);
+      
+      // Agora deletar a empresa
+      const result = await this.db.delete(companies).where(eq(companies.id, id));
+      console.log('[DELETE COMPANY] Empresa deletada. RowCount:', result.rowCount);
+      
+      return result.rowCount !== null && result.rowCount > 0;
+    } catch (error) {
+      console.error('[DELETE COMPANY] Erro ao deletar empresa:', error);
+      throw error;
+    }
   }
 
   async deleteCompanies(ids: string[]): Promise<number> {
-    const result = await this.db
-      .delete(companies)
-      .where(inArray(companies.id, ids));
-    return result.rowCount || 0;
+    try {
+      console.log('[DELETE COMPANIES] Iniciando exclusão de empresas:', ids);
+      
+      // Primeiro, deletar deals associados
+      const dealsDeleted = await this.db.delete(deals).where(inArray(deals.companyId, ids));
+      console.log('[DELETE COMPANIES] Deals deletados:', dealsDeleted.rowCount);
+      
+      // Deletar interações associadas
+      const interactionsDeleted = await this.db.delete(clientInteractions).where(inArray(clientInteractions.companyId, ids));
+      console.log('[DELETE COMPANIES] Interações deletadas:', interactionsDeleted.rowCount);
+      
+      // Agora deletar as empresas
+      const result = await this.db
+        .delete(companies)
+        .where(inArray(companies.id, ids));
+      console.log('[DELETE COMPANIES] Empresas deletadas:', result.rowCount);
+      
+      return result.rowCount || 0;
+    } catch (error) {
+      console.error('[DELETE COMPANIES] Erro ao deletar empresas:', error);
+      throw error;
+    }
   }
 
   async getProducts(
