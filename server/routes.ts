@@ -1355,18 +1355,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const company = await storage.getCompany(currentDeal.companyId);
                 
                 if (company) {
-                  // Verificar se o marcador já existe
-                  const markerName = "Não tem interesse";
-                  const currentMarkers = company.markers || [];
+                  // Buscar o nome exato do marcador da tabela tags
+                  const markerTag = await storage.getMarkerByNamePattern("não tem interesse");
                   
-                  if (!currentMarkers.includes(markerName)) {
-                    // Adicionar o marcador
-                    const updatedMarkers = [...currentMarkers, markerName];
-                    await storage.updateCompany(currentDeal.companyId, {
-                      markers: updatedMarkers
-                    });
+                  if (markerTag) {
+                    const markerName = markerTag.name;
+                    const currentMarkers = company.markers || [];
                     
-                    console.log(`[Auto-tagging] Marcador "${markerName}" adicionado à empresa ${company.nomeFantasia}`);
+                    if (!currentMarkers.includes(markerName)) {
+                      // Adicionar o marcador
+                      const updatedMarkers = [...currentMarkers, markerName];
+                      await storage.updateCompany(currentDeal.companyId, {
+                        markers: updatedMarkers
+                      });
+                      
+                      console.log(`[Auto-tagging] Marcador "${markerName}" adicionado à empresa ${company.nomeFantasia}`);
+                    }
                   }
                 }
               }
