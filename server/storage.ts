@@ -920,7 +920,8 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (filters.marker) {
-        conditions.push(sql`${companies.markers} @> ARRAY[${filters.marker}]::text[]`);
+        const markerValue = filters.marker.replace(/'/g, "''");
+        conditions.push(sql`${companies.markers} @> ARRAY[${sql.raw(`'${markerValue}'`)}]::text[]`);
       }
 
       if (filters.search) {
