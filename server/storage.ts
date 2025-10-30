@@ -895,6 +895,7 @@ export class DatabaseStorage implements IStorage {
     pageSize: number = 20
   ): Promise<{ data: Company[]; total: number }> {
     try {
+      console.log('[DEBUG] getCompanies filters:', filters);
       let query = this.db.select().from(companies);
       const conditions: any[] = [];
 
@@ -920,7 +921,9 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (filters.marker) {
+        console.log('[DEBUG] Filtering by marker:', filters.marker);
         const markerValue = filters.marker.replace(/'/g, "''");
+        console.log('[DEBUG] Escaped marker value:', markerValue);
         conditions.push(sql`${companies.markers} @> ARRAY[${sql.raw(`'${markerValue}'`)}]::text[]`);
       }
 
@@ -935,14 +938,19 @@ export class DatabaseStorage implements IStorage {
         );
       }
 
+      console.log('[DEBUG] Number of conditions:', conditions.length);
+
       if (conditions.length > 0) {
         query = query.where(and(...conditions)) as typeof query;
       }
 
-      const totalQuery = this.db
+      let totalQuery = this.db
         .select({ count: count() })
-        .from(companies)
-        .where(and(...conditions));
+        .from(companies);
+      
+      if (conditions.length > 0) {
+        totalQuery = totalQuery.where(and(...conditions)) as typeof totalQuery;
+      }
 
       const offset = (page - 1) * pageSize;
       const result = await query
@@ -950,6 +958,8 @@ export class DatabaseStorage implements IStorage {
         .limit(pageSize)
         .offset(offset);
       const total = await totalQuery;
+
+      console.log('[DEBUG] Query result count:', result.length, 'Total:', total[0].count);
 
       return { data: result, total: total[0].count };
     } catch (error) {
