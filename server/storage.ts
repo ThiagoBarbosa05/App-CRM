@@ -157,6 +157,7 @@ export interface CompanyFilters {
   razaoSocial?: string;
   cnpj?: string;
   responsavelId?: string;
+  marker?: string;
 }
 
 export interface ProductFilters {
@@ -916,6 +917,10 @@ export class DatabaseStorage implements IStorage {
       }
       if (filters.responsavelId) {
         conditions.push(eq(companies.responsavelId, filters.responsavelId));
+      }
+
+      if (filters.marker) {
+        conditions.push(sql`${companies.markers} @> ARRAY[${filters.marker}]::text[]`);
       }
 
       if (filters.search) {

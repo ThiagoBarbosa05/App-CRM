@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -40,6 +42,7 @@ const companyFormSchema = z.object({
   responsavelId: z.string().optional(),
   notes: z.string().optional(),
   active: z.boolean().default(true),
+  markers: z.array(z.string()).optional(),
 });
 
 type CompanyFormData = z.infer<typeof companyFormSchema>;
@@ -74,6 +77,12 @@ export default function CompanyFormModal({
     enabled: isOpen,
   });
 
+  // Buscar marcadores das configurações
+  const { data: markers = [] } = useQuery({
+    queryKey: ["/api/markers"],
+    enabled: isOpen,
+  }) as { data: any[] };
+
   const {
     register,
     handleSubmit,
@@ -101,6 +110,7 @@ export default function CompanyFormModal({
       responsavelId: "none",
       notes: "",
       active: true,
+      markers: [],
     },
   });
 
@@ -128,6 +138,7 @@ export default function CompanyFormModal({
         responsavelId: company.responsavelId || "none",
         notes: company.notes || "",
         active: company.active,
+        markers: company.markers || [],
       });
     } else {
       reset({
@@ -148,6 +159,7 @@ export default function CompanyFormModal({
         sectorId: "",
         notes: "",
         active: true,
+        markers: [],
       });
     }
   }, [company, reset]);
@@ -499,6 +511,64 @@ export default function CompanyFormModal({
             />
             {errors.address && (
               <p className="text-sm text-destructive">{errors.address.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="markers">Marcadores</Label>
+            <Select
+              onValueChange={(value) => {
+                const currentMarkers = watch("markers") || [];
+                if (!currentMarkers.includes(value)) {
+                  setValue("markers", [...currentMarkers, value]);
+                }
+              }}
+              value=""
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione marcadores..." />
+              </SelectTrigger>
+              <SelectContent>
+                {markers
+                  .filter((marker: any) => marker.type === 'marcador')
+                  .length === 0 ? (
+                  <SelectItem value="no-markers" disabled>
+                    Nenhum marcador disponível
+                  </SelectItem>
+                ) : (
+                  markers
+                    .filter((marker: any) => marker.type === 'marcador')
+                    .map((marker: any) => (
+                      <SelectItem key={marker.id} value={marker.name}>
+                        {marker.name}
+                      </SelectItem>
+                    ))
+                )}
+              </SelectContent>
+            </Select>
+            {watch("markers") && watch("markers")!.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {watch("markers")!.map((marker: string, index: number) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                    data-testid={`badge-marker-${index}`}
+                  >
+                    {marker}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => {
+                        const newMarkers = watch("markers")!.filter(
+                          (m: string) => m !== marker
+                        );
+                        setValue("markers", newMarkers);
+                      }}
+                      data-testid={`button-remove-marker-${index}`}
+                    />
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
 

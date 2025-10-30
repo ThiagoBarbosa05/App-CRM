@@ -1098,6 +1098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         razaoSocial,
         cnpj,
         responsavelId,
+        marker,
       } = req.query;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -1108,6 +1109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         razaoSocial: razaoSocial as string | undefined,
         cnpj: cnpj as string | undefined,
         responsavelId: responsavelId as string | undefined,
+        marker: marker as string | undefined,
       };
 
       const { data, total } = await storage.getCompanies(

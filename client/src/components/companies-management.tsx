@@ -67,6 +67,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const [cnpjFilter, setCnpjFilter] = useState("");
   const [debouncedCnpjFilter, setDebouncedCnpjFilter] = useState("");
   const [responsavelFilter, setResponsavelFilter] = useState("");
+  const [markerFilter, setMarkerFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -102,6 +103,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       debouncedRazaoSocialFilter,
       debouncedCnpjFilter,
       responsavelFilter,
+      markerFilter,
       page,
       pageSize,
     ],
@@ -114,6 +116,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         params.append("razaoSocial", debouncedRazaoSocialFilter);
       if (debouncedCnpjFilter) params.append("cnpj", debouncedCnpjFilter);
       if (responsavelFilter) params.append("responsavelId", responsavelFilter);
+      if (markerFilter) params.append("marker", markerFilter);
       params.append("page", page.toString());
       params.append("pageSize", pageSize.toString());
 
@@ -134,6 +137,16 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
       const response = await fetch("/api/users");
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
+    },
+  });
+
+  const { data: markers = [] } = useQuery({
+    queryKey: ["/api/markers"],
+    queryFn: async () => {
+      const response = await fetch("/api/markers");
+      if (!response.ok) throw new Error("Failed to fetch markers");
+      const allMarkers = await response.json();
+      return allMarkers.filter((marker: any) => marker.type === 'marcador');
     },
   });
 
@@ -402,6 +415,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               placeholder="Filtrar por Nome Fantasia..."
               value={nomeFantasiaFilter}
               onChange={(e) => setNomeFantasiaFilter(e.target.value)}
+              data-testid="input-filter-nomefantasia"
             />
           </div>
           <div>
@@ -413,6 +427,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               placeholder="Filtrar por Razão Social..."
               value={razaoSocialFilter}
               onChange={(e) => setRazaoSocialFilter(e.target.value)}
+              data-testid="input-filter-razaosocial"
             />
           </div>
           <div>
@@ -424,6 +439,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               placeholder="Filtrar por CNPJ..."
               value={cnpjFilter}
               onChange={(e) => setCnpjFilter(e.target.value)}
+              data-testid="input-filter-cnpj"
             />
           </div>
           <div>
@@ -434,11 +450,30 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
               className="flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={responsavelFilter}
               onChange={(e) => setResponsavelFilter(e.target.value)}
+              data-testid="select-filter-responsavel"
             >
               <option value="">Todos os responsáveis</option>
               {users.map((user: any) => (
                 <option key={user.id} value={user.id}>
                   {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Marcador
+            </label>
+            <select
+              className="flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={markerFilter}
+              onChange={(e) => setMarkerFilter(e.target.value)}
+              data-testid="select-filter-marker"
+            >
+              <option value="">Todos os marcadores</option>
+              {markers.map((marker: any) => (
+                <option key={marker.id} value={marker.name}>
+                  {marker.name}
                 </option>
               ))}
             </select>
@@ -449,6 +484,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           razaoSocialFilter ||
           cnpjFilter ||
           responsavelFilter ||
+          markerFilter ||
           searchQuery) && (
           <div className="flex mt-4 justify-end">
             <Button
@@ -460,7 +496,9 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                 setRazaoSocialFilter("");
                 setCnpjFilter("");
                 setResponsavelFilter("");
+                setMarkerFilter("");
               }}
+              data-testid="button-clear-filters"
             >
               Limpar Filtros
             </Button>
@@ -553,6 +591,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                           Status
                         </div>
                       </TableHead>
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Badge className="h-4 w-4 text-purple-500" />
+                          Marcadores
+                        </div>
+                      </TableHead>
                       <TableHead className="text-right py-4 px-6 font-semibold text-gray-700">
                         <div className="flex items-center justify-end gap-2">
                           <Settings className="h-4 w-4 text-gray-500" />
@@ -564,7 +608,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                   <TableBody>
                     {sortedCompanies.length === 0 ? (
                       <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={9} className="text-center py-16">
+                        <TableCell colSpan={10} className="text-center py-16">
                           <div className="flex flex-col items-center gap-4">
                             <div className="p-4 bg-gray-100 rounded-full">
                               <Building2 className="h-8 w-8 text-gray-400" />
@@ -684,6 +728,24 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                             >
                               {company.active ? "Ativa" : "Inativa"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="py-4 px-6">
+                            {company.markers && company.markers.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {company.markers.map((marker, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant="secondary"
+                                    className="bg-purple-100 text-purple-800 hover:bg-purple-200 text-xs"
+                                    data-testid={`badge-marker-${company.id}-${idx}`}
+                                  >
+                                    {marker}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 italic">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right py-4 px-6">
                             <div className="flex items-center justify-end gap-1">
