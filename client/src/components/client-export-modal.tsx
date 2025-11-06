@@ -29,6 +29,7 @@ interface ClientExportModalProps {
   searchQuery?: string;
   userId?: string;
   userRole?: string;
+  totalItems?: number | null;
 }
 
 const AVAILABLE_FIELDS = [
@@ -57,7 +58,8 @@ export default function ClientExportModal({
   filters = {},
   searchQuery = "",
   userId,
-  userRole
+  userRole,
+  totalItems = null
 }: ClientExportModalProps) {
   const { toast } = useToast();
   const [selectedFields, setSelectedFields] = useState<string[]>(
@@ -252,6 +254,21 @@ export default function ClientExportModal({
         <DialogHeader>
           <DialogTitle>Selecionar Campos para Exportação</DialogTitle>
         </DialogHeader>
+
+        {selectedClients.length > 0 ? (
+          <div className="bg-blue-50 border border-blue-200 px-4 py-3 rounded-lg">
+            <p className="text-sm text-blue-900">
+              <strong>{selectedClients.length}</strong> {selectedClients.length === 1 ? 'cliente selecionado' : 'clientes selecionados'} será{selectedClients.length === 1 ? '' : 'ão'} exportado{selectedClients.length === 1 ? '' : 's'}
+            </p>
+          </div>
+        ) : totalItems !== null ? (
+          <div className="bg-green-50 border border-green-200 px-4 py-3 rounded-lg">
+            <p className="text-sm text-green-900">
+              <strong>{totalItems}</strong> {totalItems === 1 ? 'cliente será exportado' : 'clientes serão exportados'}
+              {(searchQuery || Object.values(filters).some(v => v && v !== 'all')) && ' (filtrados)'}
+            </p>
+          </div>
+        ) : null}
 
         <div className="space-y-4">
           <div className="space-y-2">

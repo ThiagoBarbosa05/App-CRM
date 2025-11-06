@@ -437,6 +437,7 @@ export default function Clients() {
         searchQuery={debouncedSearchQuery}
         userId={user?.id}
         userRole={user?.role}
+        totalItems={totalItems}
       />
 
       <BulkDealCreationModalForClients
