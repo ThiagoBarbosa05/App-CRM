@@ -18,15 +18,37 @@ export const getClientsExportFilteredController = async (
     const params = clientsService.processRequestParams(req);
     const format = (req.query.format as string) || "csv";
 
-    // Buscar clientes com filtros (sem paginação para exportar todos)
-    const allParams = {
-      ...params,
-      page: 1,
-      pageSize: 10000, // Exportar todos os clientes que correspondem aos filtros
-    };
+    // Buscar clientes em lotes até obter todos
+    const allClients: any[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+    const pageSize = 1000;
 
-    const result = await clientsService.getClients(allParams);
-    const clients = result.data;
+    while (hasMore) {
+      const result = await clientsService.getClients({
+        ...params,
+        page: currentPage,
+        pageSize,
+      });
+
+      allClients.push(...result.data);
+      hasMore = result.hasNextPage;
+      currentPage++;
+
+      // Limite de segurança: máximo 50.000 registros (50 páginas)
+      if (currentPage > 50) {
+        console.warn(`[Export] Limite de 50.000 registros atingido. Exportação truncada. Total exportado: ${allClients.length}`);
+        break;
+      }
+    }
+
+    const clients = allClients;
+    
+    if (currentPage > 50) {
+      console.log(`[Export] Exportação limitada a ${clients.length} registros devido ao limite de segurança.`);
+    } else {
+      console.log(`[Export] Exportando ${clients.length} clientes com filtros aplicados.`);
+    }
 
     if (format === "csv") {
       // Gerar CSV
