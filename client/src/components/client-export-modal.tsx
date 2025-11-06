@@ -165,35 +165,37 @@ export default function ClientExportModal({
         });
       } else {
         // Exportar com filtros aplicados usando o endpoint do backend
-        if (exportFormat === "csv") {
-          // Construir URL com filtros
-          const params = new URLSearchParams();
-          params.append("format", "csv");
-          
-          // Adicionar userId e userRole para autorização (se não for admin)
-          if (userRole !== "admin" && userId) {
-            params.append("userId", userId);
+        const params = new URLSearchParams();
+        params.append("format", exportFormat);
+        
+        // Adicionar userId e userRole para autorização (se não for admin)
+        if (userRole !== "admin" && userId) {
+          params.append("userId", userId);
+        }
+        if (userRole !== "admin" && userRole) {
+          params.append("userRole", userRole);
+        }
+        
+        // Adicionar busca
+        if (searchQuery) {
+          params.append("search", searchQuery);
+        }
+        
+        // Adicionar campos selecionados
+        params.append("fields", selectedFields.join(","));
+        
+        // Adicionar demais filtros
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value && value !== "all") {
+            params.append(key, String(value));
           }
-          if (userRole !== "admin" && userRole) {
-            params.append("userRole", userRole);
-          }
-          
-          // Adicionar busca
-          if (searchQuery) {
-            params.append("search", searchQuery);
-          }
-          
-          // Adicionar demais filtros
-          Object.entries(filters).forEach(([key, value]) => {
-            if (value && value !== "all") {
-              params.append(key, String(value));
-            }
-          });
+        });
 
-          // Fazer download direto do backend
-          const response = await fetch(`/api/clients/export?${params.toString()}`);
-          if (!response.ok) throw new Error("Erro ao exportar");
-          
+        const response = await fetch(`/api/clients/export?${params.toString()}`);
+        if (!response.ok) throw new Error("Erro ao exportar");
+        
+        if (exportFormat === "csv") {
+          // CSV: download direto do backend
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -209,33 +211,7 @@ export default function ClientExportModal({
             description: "Os clientes foram exportados em CSV com sucesso",
           });
         } else {
-          // Para Excel, buscar dados e exportar no frontend
-          const params = new URLSearchParams();
-          params.append("format", "excel");
-          
-          // Adicionar userId e userRole para autorização (se não for admin)
-          if (userRole !== "admin" && userId) {
-            params.append("userId", userId);
-          }
-          if (userRole !== "admin" && userRole) {
-            params.append("userRole", userRole);
-          }
-          
-          // Adicionar busca
-          if (searchQuery) {
-            params.append("search", searchQuery);
-          }
-          
-          // Adicionar demais filtros
-          Object.entries(filters).forEach(([key, value]) => {
-            if (value && value !== "all") {
-              params.append(key, String(value));
-            }
-          });
-
-          const response = await fetch(`/api/clients/export?${params.toString()}`);
-          if (!response.ok) throw new Error("Erro ao exportar");
-          
+          // Excel: buscar dados e exportar no frontend
           const clientsData = await response.json();
           const formattedData = formatSelectedClientData(clientsData);
           

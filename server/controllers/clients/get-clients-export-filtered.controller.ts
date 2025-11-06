@@ -17,6 +17,7 @@ export const getClientsExportFilteredController = async (
     // Processar parâmetros da requisição
     const params = clientsService.processRequestParams(req);
     const format = (req.query.format as string) || "csv";
+    const selectedFields = (req.query.fields as string)?.split(",") || [];
 
     // Buscar clientes em lotes até obter todos
     const allClients: any[] = [];
@@ -51,8 +52,8 @@ export const getClientsExportFilteredController = async (
     }
 
     if (format === "csv") {
-      // Gerar CSV
-      const csv = generateCSV(clients);
+      // Gerar CSV com campos selecionados
+      const csv = generateCSV(clients, selectedFields);
       
       // Definir headers para download de CSV
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
@@ -76,65 +77,99 @@ export const getClientsExportFilteredController = async (
 };
 
 /**
- * Gera CSV a partir dos dados de clientes
+ * Gera CSV a partir dos dados de clientes com campos selecionados
  */
-function generateCSV(clients: any[]): string {
+function generateCSV(clients: any[], selectedFields: string[]): string {
   if (clients.length === 0) {
     return "Nenhum cliente encontrado";
   }
 
-  // Definir cabeçalhos das colunas
-  const headers = [
-    "Nome",
-    "Telefone",
-    "Telefone Fixo",
-    "CPF",
-    "E-mail",
-    "Data de Nascimento",
-    "CEP",
-    "Endereço",
-    "Número",
-    "Bairro",
-    "Cidade",
-    "Estado",
-    "Categoria",
-    "Origem",
-    "Marcadores",
-    "Responsável",
-    "Data de Cadastro",
-  ];
+  // Mapeamento de campos para labels e extração de valores
+  const fieldConfig: Record<string, { label: string; getValue: (client: any) => string }> = {
+    name: {
+      label: "Nome",
+      getValue: (client) => escapeCSV(client.name || "")
+    },
+    phone: {
+      label: "Celular",
+      getValue: (client) => escapeCSV(client.phone || "")
+    },
+    fixedPhone: {
+      label: "Telefone Fixo",
+      getValue: (client) => escapeCSV(client.fixedPhone || "")
+    },
+    cpf: {
+      label: "CPF",
+      getValue: (client) => escapeCSV(client.cpf || "")
+    },
+    email: {
+      label: "E-mail",
+      getValue: (client) => escapeCSV(client.email || "")
+    },
+    birthday: {
+      label: "Data de Nascimento",
+      getValue: (client) => client.birthday ? new Date(client.birthday).toLocaleDateString("pt-BR") : ""
+    },
+    cep: {
+      label: "CEP",
+      getValue: (client) => escapeCSV(client.cep || "")
+    },
+    address: {
+      label: "Endereço",
+      getValue: (client) => {
+        const parts = [
+          client.address || "",
+          client.number || "",
+          client.neighborhood || "",
+          client.city || "",
+          client.state || ""
+        ].filter(Boolean);
+        return escapeCSV(parts.join(" "));
+      }
+    },
+    categoria: {
+      label: "Categoria",
+      getValue: (client) => escapeCSV(client.categoria || "")
+    },
+    origem: {
+      label: "Origem",
+      getValue: (client) => escapeCSV(client.origem || "")
+    },
+    markers: {
+      label: "Marcadores",
+      getValue: (client) => {
+        const markers = Array.isArray(client.markers) ? client.markers.join("; ") : client.markers || "";
+        return escapeCSV(markers);
+      }
+    },
+    responsible: {
+      label: "Responsável",
+      getValue: (client) => escapeCSV(client.responsavelName || "")
+    },
+    createdAt: {
+      label: "Data de Cadastro",
+      getValue: (client) => client.createdAt ? new Date(client.createdAt).toLocaleDateString("pt-BR") : ""
+    },
+    updatedAt: {
+      label: "Última Atualização",
+      getValue: (client) => client.updatedAt ? new Date(client.updatedAt).toLocaleDateString("pt-BR") : ""
+    }
+  };
+
+  // Se nenhum campo foi selecionado, usar todos os campos
+  const fieldsToExport = selectedFields.length > 0 ? selectedFields : Object.keys(fieldConfig);
+
+  // Gerar cabeçalhos baseados nos campos selecionados
+  const headers = fieldsToExport
+    .filter(field => fieldConfig[field])
+    .map(field => fieldConfig[field].label);
 
   // Criar linhas do CSV
   const rows = clients.map((client) => {
-    const birthday = client.birthday
-      ? new Date(client.birthday).toLocaleDateString("pt-BR")
-      : "";
-    const createdAt = client.createdAt
-      ? new Date(client.createdAt).toLocaleDateString("pt-BR")
-      : "";
-    const markers = Array.isArray(client.markers)
-      ? client.markers.join("; ")
-      : client.markers || "";
-
-    return [
-      escapeCSV(client.name || ""),
-      escapeCSV(client.phone || ""),
-      escapeCSV(client.fixedPhone || ""),
-      escapeCSV(client.cpf || ""),
-      escapeCSV(client.email || ""),
-      birthday,
-      escapeCSV(client.cep || ""),
-      escapeCSV(client.address || ""),
-      escapeCSV(client.number || ""),
-      escapeCSV(client.neighborhood || ""),
-      escapeCSV(client.city || ""),
-      escapeCSV(client.state || ""),
-      escapeCSV(client.categoria || ""),
-      escapeCSV(client.origem || ""),
-      escapeCSV(markers),
-      escapeCSV(client.responsavelName || ""),
-      createdAt,
-    ].join(",");
+    return fieldsToExport
+      .filter(field => fieldConfig[field])
+      .map(field => fieldConfig[field].getValue(client))
+      .join(",");
   });
 
   // Combinar cabeçalhos e linhas
