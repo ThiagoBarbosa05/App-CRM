@@ -127,11 +127,11 @@ export default function DealFormModal({
 
   // Buscar etapas do funil
   const { data: funnelStages = [] } = useQuery<FunnelStage[]>({
-    queryKey: [`/api/funnels/${funnelId}/stages`, funnelId],
+    queryKey: [`/api/funnels/stages/${funnelId}`, funnelId],
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/funnels/${funnelId}/stages`
+        `/api/funnels/stages/${funnelId}`
       );
       return response.json();
     },

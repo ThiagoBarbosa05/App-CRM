@@ -98,11 +98,11 @@ export default function FunnelStagesManager({
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
 
   const { data: funnelStages = [], isLoading } = useQuery<FunnelStage[]>({
-    queryKey: [`/api/funnels/${funnel.id}/stages`],
+    queryKey: [`/api/funnels/stages/${funnel.id}`],
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/funnels/${funnel.id}/stages`
+        `/api/funnels/stages/${funnel.id}`
       );
       return response.json();
     },
@@ -120,7 +120,7 @@ export default function FunnelStagesManager({
     }) => {
       return await apiRequest(
         "POST",
-        `/api/funnel-stages/${funnel.id}`,
+        `/api/funnels/stages/${funnel.id}`,
         stageData
       );
     },
@@ -131,8 +131,8 @@ export default function FunnelStagesManager({
       });
       // Forçar recarga completa da query
       queryClient.refetchQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`],
-        type: 'active'
+        queryKey: [`/api/funnels/stages/${funnel.id}`],
+        type: "active",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setIsCreateModalOpen(false);
@@ -156,7 +156,7 @@ export default function FunnelStagesManager({
       id: string;
       data: { name: string; color: string };
     }) => {
-      return await apiRequest("PUT", `/api/stages/${id}`, data);
+      return await apiRequest("PUT", `/api/funnels/stages/${id}`, data);
     },
     onSuccess: () => {
       toast({
@@ -164,7 +164,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi atualizada com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`],
+        queryKey: [`/api/funnels/stages/${funnel.id}`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setEditingStage(null);
@@ -182,7 +182,7 @@ export default function FunnelStagesManager({
 
   const deleteStageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/stages/${id}`);
+      return await apiRequest("DELETE", `/api/funnels/stages/${id}`);
     },
     onSuccess: () => {
       toast({
@@ -190,7 +190,7 @@ export default function FunnelStagesManager({
         description: "A etapa foi excluída com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`],
+        queryKey: [`/api/funnels/stages/${funnel.id}`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setDeletingStage(null);
@@ -206,7 +206,9 @@ export default function FunnelStagesManager({
 
   const reorderStagesMutation = useMutation({
     mutationFn: async (stageUpdates: { id: string; order: number }[]) => {
-      return await apiRequest("PUT", "/api/funnel-stages/reorder", { stageUpdates });
+      return await apiRequest("PUT", "/api/funnels/stages/reorder", {
+        stageUpdates,
+      });
     },
     onSuccess: () => {
       toast({
@@ -214,7 +216,7 @@ export default function FunnelStagesManager({
         description: "As etapas foram reordenadas com sucesso.",
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/funnels/${funnel.id}/stages`],
+        queryKey: [`/api/funnels/stages/${funnel.id}`],
       });
     },
     onError: (error: any) => {
@@ -294,7 +296,7 @@ export default function FunnelStagesManager({
 
   const handleDrop = (e: React.DragEvent, targetStage: FunnelStage) => {
     e.preventDefault();
-    
+
     if (!draggedItem || draggedItem.id === targetStage.id) {
       setDraggedItem(null);
       setDraggedOver(null);
@@ -303,8 +305,8 @@ export default function FunnelStagesManager({
 
     // Criar nova lista com as etapas reordenadas
     const sortedStages = [...funnelStages].sort((a, b) => a.order - b.order);
-    const draggedIndex = sortedStages.findIndex(s => s.id === draggedItem.id);
-    const targetIndex = sortedStages.findIndex(s => s.id === targetStage.id);
+    const draggedIndex = sortedStages.findIndex((s) => s.id === draggedItem.id);
+    const targetIndex = sortedStages.findIndex((s) => s.id === targetStage.id);
 
     // Remove o item arrastado e insere na nova posição
     const newStages = [...sortedStages];
@@ -314,7 +316,7 @@ export default function FunnelStagesManager({
     // Criar array com as novas ordens
     const stageUpdates = newStages.map((stage, index) => ({
       id: stage.id,
-      order: index + 1
+      order: index + 1,
     }));
 
     // Executar mutation
@@ -407,57 +409,63 @@ export default function FunnelStagesManager({
           {funnelStages
             .sort((a, b) => a.order - b.order)
             .map((stage: FunnelStage, index: number) => (
-            <Card 
-              key={stage.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, stage)}
-              onDragOver={(e) => handleDragOver(e, stage)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, stage)}
-              className={`cursor-move transition-all duration-200 ${
-                draggedItem?.id === stage.id 
-                  ? 'opacity-50 scale-95' 
-                  : draggedOver === stage.id 
-                    ? 'ring-2 ring-primary bg-primary/5 scale-105' 
-                    : 'hover:shadow-md'
-              }`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <GripVertical className={`h-5 w-5 ${
-                      draggedItem ? 'text-primary' : 'text-gray-400'
-                    }`} />
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: stage.color }}
-                    />
-                    <div>
-                      <CardTitle className="text-base">{stage.name}</CardTitle>
-                      <CardDescription>Posição: {stage.order}</CardDescription>
+              <Card
+                key={stage.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, stage)}
+                onDragOver={(e) => handleDragOver(e, stage)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, stage)}
+                className={`cursor-move transition-all duration-200 ${
+                  draggedItem?.id === stage.id
+                    ? "opacity-50 scale-95"
+                    : draggedOver === stage.id
+                    ? "ring-2 ring-primary bg-primary/5 scale-105"
+                    : "hover:shadow-md"
+                }`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <GripVertical
+                        className={`h-5 w-5 ${
+                          draggedItem ? "text-primary" : "text-gray-400"
+                        }`}
+                      />
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      <div>
+                        <CardTitle className="text-base">
+                          {stage.name}
+                        </CardTitle>
+                        <CardDescription>
+                          Posição: {stage.order}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(stage)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeletingStage(stage)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditModal(stage)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeletingStage(stage)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            ))}
 
           {funnelStages.length === 0 && (
             <Card>

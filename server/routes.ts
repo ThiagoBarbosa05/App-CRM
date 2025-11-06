@@ -132,6 +132,7 @@ import { updateMessageJobsLogController } from "./controllers/update-message-job
 import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
 import { getTemplatesController } from "./controllers/get-templates-controller";
 import { getDealAnsweredQuestionsController } from "./controllers/get-deal-answered-questions.controller";
+import { apiRouter } from "./routes/index";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -148,6 +149,13 @@ const s3 = new S3Client({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // === NOVA ARQUITETURA REFATORADA ===
+  // Usar novo sistema de rotas modular
+  app.use("/api", apiRouter);
+
+  // === ROTAS ANTIGAS (EM MIGRAÇÃO) ===
+  // TODO: Migrar gradualmente todas as rotas para a nova arquitetura
+
   // Umbler Integrations
   app.get("/api/umbler/channels", async (req, res) => {
     try {
@@ -817,67 +825,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  app.get("/api/clients", async (req, res) => {
-    try {
-      // Pegar informações do usuário logado da query string ou headers
-      const userId =
-        (req.query.userId as string) || (req.headers["x-user-id"] as string);
-      const userRole =
-        (req.query.userRole as string) ||
-        (req.headers["x-user-role"] as string);
+  // MIGRADO: GET /api/clients - Agora utiliza nova arquitetura modular
+  // app.get("/api/clients", async (req, res) => {
+  //   try {
+  //     // Pegar informações do usuário logado da query string ou headers
+  //     const userId =
+  //       (req.query.userId as string) || (req.headers["x-user-id"] as string);
+  //     const userRole =
+  //       (req.query.userRole as string) ||
+  //       (req.headers["x-user-role"] as string);
 
-      // Extrair paginação da query string
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 100;
+  //     // Extrair paginação da query string
+  //     const page = parseInt(req.query.page as string) || 1;
+  //     const pageSize = parseInt(req.query.pageSize as string) || 100;
 
-      // Extrair filtros da query string
-      const filters = {
-        search: req.query.search as string | undefined,
-        name: req.query.name as string | undefined,
-        phone: req.query.phone as string | undefined,
-        cpf: req.query.cpf as string | undefined,
-        responsavelId: req.query.responsavelId as string | undefined,
-        categoria: req.query.categoria as string | undefined,
-        origem: req.query.origem as string | undefined,
-        markers: req.query.markers as string | undefined,
-      };
+  //     // Extrair filtros da query string
+  //     const filters = {
+  //       search: req.query.search as string | undefined,
+  //       name: req.query.name as string | undefined,
+  //       phone: req.query.phone as string | undefined,
+  //       cpf: req.query.cpf as string | undefined,
+  //       responsavelId: req.query.responsavelId as string | undefined,
+  //       categoria: req.query.categoria as string | undefined,
+  //       origem: req.query.origem as string | undefined,
+  //       markers: req.query.markers as string | undefined,
+  //     };
 
-      const clients = await storage.getClients(
-        userId,
-        userRole,
-        filters,
-        page,
-        pageSize
-      );
+  //     const clients = await storage.getClients(
+  //       userId,
+  //       userRole,
+  //       filters,
+  //       page,
+  //       pageSize
+  //     );
 
-      // Por enquanto, retorna formato simples com estimativa baseada no tamanho da página
-      res.json({
-        data: clients,
-        currentPage: page,
-        hasNextPage: clients.length === pageSize,
-        totalPages: clients.length === pageSize ? page + 1 : page,
-        totalItems: null, // Será implementado depois
-      });
-    } catch (error) {
-      console.error("Erro ao buscar clientes:", error);
-      res.status(500).json({ message: "Erro ao buscar clientes" });
-    }
-  });
+  //     // Por enquanto, retorna formato simples com estimativa baseada no tamanho da página
+  //     res.json({
+  //       data: clients,
+  //       currentPage: page,
+  //       hasNextPage: clients.length === pageSize,
+  //       totalPages: clients.length === pageSize ? page + 1 : page,
+  //       totalItems: null, // Será implementado depois
+  //     });
+  //   } catch (error) {
+  //     console.error("Erro ao buscar clientes:", error);
+  //     res.status(500).json({ message: "Erro ao buscar clientes" });
+  //   }
+  // });
 
-  // Rota para buscar cliente por telefone
-  app.get("/api/clients/by-phone/:phone", async (req, res) => {
-    try {
-      const { phone } = req.params;
-      const client = await storage.getClientByPhone(phone);
-      if (!client) {
-        return res.status(404).json({ message: "Cliente não encontrado" });
-      }
-      res.json(client);
-    } catch (error) {
-      console.error("Erro ao buscar cliente por telefone:", error);
-      res.status(500).json({ message: "Erro ao buscar cliente por telefone" });
-    }
-  });
+  // MIGRADO: GET /api/clients/by-phone/:phone - Agora utiliza nova arquitetura modular
+  // app.get("/api/clients/by-phone/:phone", async (req, res) => {
+  //   try {
+  //     const { phone } = req.params;
+  //     const client = await storage.getClientByPhone(phone);
+  //     if (!client) {
+  //       return res.status(404).json({ message: "Cliente não encontrado" });
+  //     }
+  //     res.json(client);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar cliente por telefone:", error);
+  //     res.status(500).json({ message: "Erro ao buscar cliente por telefone" });
+  //   }
+  // });
 
   // Rota para buscar usuário por email
   app.get("/api/users/by-email/:email", async (req, res) => {
@@ -894,7 +903,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rota para buscar clientes sem contato recente
+  // MIGRATED: Rota para buscar clientes sem contato recente
+  // Migrated to server/routes/clients.routes.ts - GET /without-contact
+  /*
   app.get("/api/clients/without-contact", async (req, res) => {
     try {
       const userId =
@@ -915,8 +926,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar clientes sem contato" });
     }
   });
+  */
 
-  // Rota específica para exportação - retorna TODOS os clientes do sistema
+  // MIGRATED: Rota específica para exportação - retorna TODOS os clientes do sistema
+  // Migrated to server/routes/clients.routes.ts - GET /export-all
+  /*
   app.get("/api/clients/export-all", async (req, res) => {
     try {
       // Verificar se o usuário é admin (apenas admins podem exportar todos os dados)
@@ -936,7 +950,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar dados para exportação" });
     }
   });
+  */
 
+  // MIGRATED: POST /api/clients - Criação de cliente
+  // Migrated to server/routes/clients.routes.ts - POST /
+  /*
   app.post("/api/clients", async (req, res) => {
     try {
       console.log(
@@ -989,7 +1007,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar cliente" });
     }
   });
+  */
 
+  // MIGRATED: PUT /api/clients/:id - Atualização de cliente
+  // Migrated to server/routes/clients.routes.ts - PUT /:id
+  /*
   app.put("/api/clients/:id", async (req, res) => {
     try {
       // Pegar informações do usuário logado
@@ -1033,7 +1055,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar cliente" });
     }
   });
+  */
 
+  // MIGRATED: DELETE /api/clients/:id - Exclusão de cliente individual
+  // Migrated to server/routes/clients.routes.ts - DELETE /:id
+  /*
   app.delete("/api/clients/:id", async (req, res) => {
     try {
       const success = await storage.deleteClient(req.params.id);
@@ -1048,8 +1074,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir cliente" });
     }
   });
+  */
 
-  // Bulk delete clients (admin only)
+  // MIGRATED: DELETE /api/clients - Exclusão em lote de clientes (admin only)
+  /*
   app.delete("/api/clients", async (req, res) => {
     try {
       // Verificar se o usuário é administrador
@@ -1086,8 +1114,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
 
   // Company routes
+  // MIGRATED: GET /api/companies - Busca de empresas com filtros e paginação
+  /*
   app.get("/api/companies", async (req, res) => {
     try {
       const {
@@ -1098,7 +1129,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         razaoSocial,
         cnpj,
         responsavelId,
-        marker,
       } = req.query;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -1109,7 +1139,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         razaoSocial: razaoSocial as string | undefined,
         cnpj: cnpj as string | undefined,
         responsavelId: responsavelId as string | undefined,
-        marker: marker as string | undefined,
       };
 
       const { data, total } = await storage.getCompanies(
@@ -1131,7 +1160,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar empresas" });
     }
   });
+  */
 
+  // MIGRATED: POST /api/companies - Criação de empresa
+  /*
   app.post("/api/companies", async (req, res) => {
     try {
       const validatedData = insertCompanySchema.parse(req.body);
@@ -1145,7 +1177,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar empresa" });
     }
   });
+  */
 
+  // MIGRATED: PUT /api/companies/:id - Atualização de empresa
+  /*
   app.put("/api/companies/:id", async (req, res) => {
     try {
       const validatedData = insertCompanySchema.partial().parse(req.body);
@@ -1162,7 +1197,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar empresa" });
     }
   });
+  */
 
+  // MIGRATED: DELETE /api/companies/:id - Exclusão de empresa individual
+  /*
   app.delete("/api/companies/:id", async (req, res) => {
     try {
       const success = await storage.deleteCompany(req.params.id);
@@ -1175,7 +1213,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao deletar empresa" });
     }
   });
+  */
 
+  // MIGRATED: DELETE /api/companies - Exclusão em lote de empresas
+  /*
   app.delete("/api/companies", async (req, res) => {
     try {
       const { ids } = req.body;
@@ -1199,8 +1240,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir empresas" });
     }
   });
+  */
 
-  // Funnel route
+  // MIGRATED: GET /api/funnels - Busca de funis de vendas
+  /*
   app.get("/api/funnels", async (req, res) => {
     try {
       const funnels = await storage.getSalesFunnels();
@@ -1209,7 +1252,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar funis de vendas" });
     }
   });
+  */
 
+  // MIGRATED: POST /api/funnels - Criação de funil de vendas
+  /*
   app.post("/api/funnels", async (req, res) => {
     try {
       const validatedData = insertSalesFunnelSchema.parse(req.body);
@@ -1224,7 +1270,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar funil de vendas" });
     }
   });
+  */
 
+  // MIGRATED: PUT /api/funnels/:id - Atualização de funil de vendas
+  /*
   app.put("/api/funnels/:id", async (req, res) => {
     try {
       const funnelId = req.params.id;
@@ -1240,7 +1289,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar funil de vendas" });
     }
   });
+  */
 
+  // MIGRATED: DELETE /api/funnels/:id - Exclusão de funil de vendas
+  /*
   app.delete("/api/funnels/:id", async (req, res) => {
     try {
       const funnelsId = req.params.id;
@@ -1252,8 +1304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir funil de vendas" });
     }
   });
+  */
 
   // Funnel Stage routes
+  // MIGRADO: GET /api/funnels/:funnelId/stages - ver funnels.routes.ts
+  /*
   app.get("/api/funnels/:funnelId/stages", async (req, res) => {
     try {
       const stages = await storage.getFunnelStages(req.params.funnelId);
@@ -1262,7 +1317,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar estágios do funil" });
     }
   });
+  */
 
+  // MIGRADO: POST /api/funnel-stages/:funnelId - ver funnels.routes.ts
+  /*
   app.post("/api/funnel-stages/:funnelId", async (req, res) => {
     try {
       const validatedData = insertFunnelStageSchema.parse(req.body);
@@ -1280,7 +1338,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar estágio" });
     }
   });
+  */
 
+  // MIGRADO: PUT /api/funnel-stages/reorder - ver funnels.routes.ts
+  /*
   app.put("/api/funnel-stages/reorder", async (req, res) => {
     try {
       const { stageUpdates } = req.body;
@@ -1300,8 +1361,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao reordenar etapas" });
     }
   });
+  */
 
   // Deal routes
+  // MIGRADO: GET /api/deals - ver deals.routes.ts
+  /*
   app.get("/api/deals", async (req, res) => {
     try {
       const { userId, userRole, funnelId } = req.query;
@@ -1316,7 +1380,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar deals" });
     }
   });
+  */
 
+  // MIGRADO: PUT /api/deals/:dealId - ver deals.routes.ts
+  /*
   app.put("/api/deals/:dealId", async (req, res) => {
     try {
       const dealId = req.params.dealId;
@@ -1333,55 +1400,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data.value = numeric.toString();
       }
 
-      // Auto-tagging: verificar se está movendo para "não tem interesse" no funil B2B Capital
-      if (data.stageId) {
-        try {
-          // Buscar o deal atual para verificar a empresa associada
-          const currentDeal = await storage.getDeal(dealId);
-          
-          if (currentDeal && currentDeal.companyId) {
-            // Buscar informações do estágio
-            const stage = await storage.getFunnelStage(data.stageId);
-            
-            if (stage) {
-              // Buscar informações do funil
-              const funnel = await storage.getSalesFunnel(stage.funnelId);
-              
-              // Verificar se é o funil B2B Capital e o estágio "não tem interesse"
-              if (funnel && funnel.name.toLowerCase().includes("b2b capital") && 
-                  stage.name.toLowerCase().includes("não tem interesse")) {
-                
-                // Buscar a empresa
-                const company = await storage.getCompany(currentDeal.companyId);
-                
-                if (company) {
-                  // Buscar o nome exato do marcador da tabela tags
-                  const markerTag = await storage.getMarkerByNamePattern("não tem interesse");
-                  
-                  if (markerTag) {
-                    const markerName = markerTag.name;
-                    const currentMarkers = company.markers || [];
-                    
-                    if (!currentMarkers.includes(markerName)) {
-                      // Adicionar o marcador
-                      const updatedMarkers = [...currentMarkers, markerName];
-                      await storage.updateCompany(currentDeal.companyId, {
-                        markers: updatedMarkers
-                      });
-                      
-                      console.log(`[Auto-tagging] Marcador "${markerName}" adicionado à empresa ${company.nomeFantasia}`);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (autoTagError) {
-          // Log do erro mas não falha a atualização do deal
-          console.error("[Auto-tagging] Erro ao adicionar marcador:", autoTagError);
-        }
-      }
-
       const deals = await storage.updateDeal(dealId, data);
       res.json(deals);
     } catch (error) {
@@ -1389,7 +1407,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar deals" });
     }
   });
+  */
 
+  // MIGRADO: DELETE /api/deals/:id - ver deals.routes.ts
+  /*
   app.delete("/api/deals/:id", async (req, res) => {
     try {
       const success = await storage.deleteDeal(req.params.id);
@@ -1401,7 +1422,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao deletar negócio" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deals.routes.ts - POST /api/deals
+  /*
   app.post("/api/deals", async (req, res) => {
     try {
       const validatedData = insertDealSchema.parse(req.body);
@@ -1445,7 +1469,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar deal" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deals.routes.ts - POST /api/deals/bulk
+  /*
   // Bulk deal creation
   app.post("/api/deals/bulk", async (req, res) => {
     try {
@@ -1531,7 +1558,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar negócios em lote" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deals.routes.ts - POST /api/deals/bulk-clients
+  /*
   // Bulk deal creation for clients
   app.post("/api/deals/bulk-clients", async (req, res) => {
     try {
@@ -1622,7 +1652,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Erro ao criar negócios em lote para clientes" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - GET /api/deal-questions
+  /*
   // Deal Questions Management Routes
   // Get all deal questions
   app.get(
@@ -1657,7 +1690,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - POST /api/deal-questions
+  /*
   // Create new deal question
   app.post(
     "/api/deal-questions",
@@ -1681,7 +1717,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - PUT /api/deal-questions/:id
+  /*
   // Update deal question
   app.put(
     "/api/deal-questions/:id",
@@ -1718,9 +1757,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - DELETE /api/deal-questions/:id
   // Delete deal question
-  app.delete(
+  /*app.delete(
     "/api/deal-questions/:id",
     validateParams(dealQuestionParamsSchema),
     async (req, res) => {
@@ -1757,11 +1798,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     }
-  );
+  );*/
 
+  // MIGRADO PARA MODULAR: server/routes/deal-answers.routes.ts - GET /api/deals/:dealId/answers
   // Deal Answers Routes
   // Get answers for a specific deal
-  app.get(
+  /*app.get(
     "/api/deals/:dealId/answers",
     validateParams(dealAnswersParamsSchema),
     async (req, res) => {
@@ -1794,10 +1836,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     }
-  );
+  );*/
 
+  // MIGRADO PARA MODULAR: server/routes/deal-answers.routes.ts - POST /api/deals/:dealId/answers
   // Save/update answers for a deal
-  app.post(
+  /*app.post(
     "/api/deals/:dealId/answers",
     validateParams(dealAnswersParamsSchema),
     validateBody(saveDealAnswersBodySchema),
@@ -1852,7 +1895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     }
-  );
+  );*/
 
   // Get deal with all information including answers
   app.get("/api/deals/:dealId/complete", async (req, res) => {
