@@ -61,9 +61,8 @@ export const getClientsExportFilteredController = async (
         `attachment; filename="clientes_${new Date().toISOString().split("T")[0]}.csv"`
       );
       
-      // Adicionar BOM para suportar UTF-8 no Excel
-      res.write("\uFEFF");
-      res.send(csv);
+      // Adicionar BOM para suportar UTF-8 no Excel e enviar CSV
+      res.send("\uFEFF" + csv);
     } else {
       // Retornar JSON para o frontend processar como Excel
       res.json(clients);
