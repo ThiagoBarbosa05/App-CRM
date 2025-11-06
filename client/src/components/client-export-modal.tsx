@@ -11,6 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ClientExportModalProps {
   open: boolean;
@@ -18,6 +25,10 @@ interface ClientExportModalProps {
   clients: any[];
   selectedClients: any[];
   users?: any[];
+  filters?: any;
+  searchQuery?: string;
+  userId?: string;
+  userRole?: string;
 }
 
 const AVAILABLE_FIELDS = [
@@ -42,13 +53,18 @@ export default function ClientExportModal({
   onOpenChange, 
   clients, 
   selectedClients,
-  users = []
+  users = [],
+  filters = {},
+  searchQuery = "",
+  userId,
+  userRole
 }: ClientExportModalProps) {
   const { toast } = useToast();
   const [selectedFields, setSelectedFields] = useState<string[]>(
     AVAILABLE_FIELDS.filter(field => field.defaultChecked).map(field => field.key)
   );
   const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "excel">("csv");
 
   const toggleField = (fieldKey: string) => {
     setSelectedFields(prev => 
@@ -129,28 +145,109 @@ export default function ClientExportModal({
       return;
     }
 
-    const clientsToExport = selectedClients.length > 0 ? selectedClients : clients;
-    const exportType = selectedClients.length > 0 ? "selecionados" : "todos os";
-
-    if (!clientsToExport || clientsToExport.length === 0) {
-      toast({
-        title: "Nenhum dado para exportar",
-        description: "Não há clientes para exportar",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsExporting(true);
     try {
-      const { exportToExcel } = await import("@/lib/excel-export");
-      const formattedData = formatSelectedClientData(clientsToExport);
-      await exportToExcel(formattedData, "clientes");
+      // Se houver clientes selecionados, exportar apenas eles
+      if (selectedClients.length > 0) {
+        const formattedData = formatSelectedClientData(selectedClients);
+        
+        if (exportFormat === "csv") {
+          const { exportToCSV } = await import("@/lib/csv-export");
+          await exportToCSV(formattedData, `clientes_selecionados_${new Date().toISOString().split('T')[0]}`);
+        } else {
+          const { exportToExcel } = await import("@/lib/excel-export");
+          await exportToExcel(formattedData, `clientes_selecionados_${new Date().toISOString().split('T')[0]}`);
+        }
 
-      toast({
-        title: "Exportação concluída",
-        description: `${clientsToExport.length} ${exportType} clientes foram exportados com sucesso`,
-      });
+        toast({
+          title: "Exportação concluída",
+          description: `${selectedClients.length} clientes selecionados foram exportados com sucesso`,
+        });
+      } else {
+        // Exportar com filtros aplicados usando o endpoint do backend
+        if (exportFormat === "csv") {
+          // Construir URL com filtros
+          const params = new URLSearchParams();
+          params.append("format", "csv");
+          
+          // Adicionar userId e userRole para autorização (se não for admin)
+          if (userRole !== "admin" && userId) {
+            params.append("userId", userId);
+          }
+          if (userRole !== "admin" && userRole) {
+            params.append("userRole", userRole);
+          }
+          
+          // Adicionar busca
+          if (searchQuery) {
+            params.append("search", searchQuery);
+          }
+          
+          // Adicionar demais filtros
+          Object.entries(filters).forEach(([key, value]) => {
+            if (value && value !== "all") {
+              params.append(key, String(value));
+            }
+          });
+
+          // Fazer download direto do backend
+          const response = await fetch(`/api/clients/export?${params.toString()}`);
+          if (!response.ok) throw new Error("Erro ao exportar");
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          toast({
+            title: "Exportação concluída",
+            description: "Os clientes foram exportados em CSV com sucesso",
+          });
+        } else {
+          // Para Excel, buscar dados e exportar no frontend
+          const params = new URLSearchParams();
+          params.append("format", "excel");
+          
+          // Adicionar userId e userRole para autorização (se não for admin)
+          if (userRole !== "admin" && userId) {
+            params.append("userId", userId);
+          }
+          if (userRole !== "admin" && userRole) {
+            params.append("userRole", userRole);
+          }
+          
+          // Adicionar busca
+          if (searchQuery) {
+            params.append("search", searchQuery);
+          }
+          
+          // Adicionar demais filtros
+          Object.entries(filters).forEach(([key, value]) => {
+            if (value && value !== "all") {
+              params.append(key, String(value));
+            }
+          });
+
+          const response = await fetch(`/api/clients/export?${params.toString()}`);
+          if (!response.ok) throw new Error("Erro ao exportar");
+          
+          const clientsData = await response.json();
+          const formattedData = formatSelectedClientData(clientsData);
+          
+          const { exportToExcel } = await import("@/lib/excel-export");
+          await exportToExcel(formattedData, `clientes_${new Date().toISOString().split('T')[0]}`);
+
+          toast({
+            title: "Exportação concluída",
+            description: `${clientsData.length} clientes foram exportados em Excel com sucesso`,
+          });
+        }
+      }
       
       onOpenChange(false);
     } catch (error) {
@@ -181,6 +278,19 @@ export default function ClientExportModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="format">Formato de exportação</Label>
+            <Select value={exportFormat} onValueChange={(value: "csv" | "excel") => setExportFormat(value)}>
+              <SelectTrigger id="format">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">CSV (separado por vírgula)</SelectItem>
+                <SelectItem value="excel">Excel (XLSX)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex gap-2">
             <Button 
               variant="outline" 

@@ -3,6 +3,7 @@ import { getClientsController } from "../controllers/clients/get-clients.control
 import { getClientByPhoneController } from "../controllers/clients/get-client-by-phone.controller";
 import { getClientsWithoutContactController } from "../controllers/clients/get-clients-without-contact.controller";
 import { getClientsExportAllController } from "../controllers/clients/get-clients-export-all.controller";
+import { getClientsExportFilteredController } from "../controllers/clients/get-clients-export-filtered.controller";
 import { postClientController } from "../controllers/clients/post-client.controller";
 import { putClientController } from "../controllers/clients/put-client.controller";
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
@@ -56,6 +57,16 @@ clientsRouter.get("/by-phone/:phone", getClientByPhoneController);
  */
 clientsRouter.get("/without-contact", getClientsWithoutContactController);
 
+
+/**
+ * @route GET /api/clients/export
+ * @description Exporta clientes filtrados em CSV ou Excel
+ * @access Private
+ * @queryParams Mesmos filtros de GET /api/clients
+ * @queryParams {string} [format=csv] - Formato: "csv" ou "excel"
+ * @returns CSV file ou JSON dependendo do formato
+ */
+clientsRouter.get("/export", getClientsExportFilteredController);
 /**
  * @route GET /api/clients/export-all
  * @description Exporta todos os clientes do sistema (apenas para administradores)

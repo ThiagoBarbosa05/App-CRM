@@ -424,6 +424,10 @@ export default function Clients() {
         clients={clientsForExport}
         selectedClients={selectedClients}
         users={usersArray}
+        filters={clientFilters}
+        searchQuery={debouncedSearchQuery}
+        userId={user?.id}
+        userRole={user?.role}
       />
 
       <BulkDealCreationModalForClients
