@@ -60,21 +60,22 @@ export class ClientsService {
     }
 
     try {
-      // Buscar clientes e contagem total em paralelo
-      const [clients, totalItems] = await Promise.all([
-        this.clientsRepository.getClients(userId, userRole, filters, page, pageSize),
-        this.clientsRepository.countClients(userId, userRole, filters),
-      ]);
-
-      const totalPages = Math.ceil(totalItems / pageSize);
+      // Buscar clientes através do storage
+      const clients = await this.clientsRepository.getClients(
+        userId,
+        userRole,
+        filters,
+        page,
+        pageSize
+      );
 
       // Formatação da resposta conforme esperado pela API
       return {
         data: clients,
         currentPage: page,
-        hasNextPage: page < totalPages,
-        totalPages: totalPages,
-        totalItems: totalItems,
+        hasNextPage: clients.length === pageSize,
+        totalPages: clients.length === pageSize ? page + 1 : page,
+        totalItems: null, // Será implementado depois conforme comentário original
       };
     } catch (error) {
       console.error("Erro no ClientsService.getClients:", error);

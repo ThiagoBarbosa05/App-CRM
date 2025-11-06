@@ -99,13 +99,12 @@ export default function Clients() {
     enabled: !!user,
   });
 
-  const { clientsArray, totalPages, hasNextPage, totalItems } = useMemo(() => {
+  const { clientsArray, totalPages, hasNextPage } = useMemo(() => {
     const data = clientsResponse?.data || [];
     return {
       clientsArray: data,
       totalPages: clientsResponse?.totalPages || null,
       hasNextPage: clientsResponse?.hasNextPage ?? data.length === itemsPerPage,
-      totalItems: clientsResponse?.totalItems ?? null,
     };
   }, [clientsResponse]);
 
@@ -288,16 +287,8 @@ export default function Clients() {
                     Lista de Clientes
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    {totalItems !== null ? (
-                      <>
-                        Mostrando {clientsArray.length} de {totalItems} clientes
-                        {totalItems > itemsPerPage && ` (página ${currentPage} de ${totalPages})`}
-                      </>
-                    ) : (
-                      <>
-                        Mostrando {clientsArray.length} clientes (página {currentPage})
-                      </>
-                    )}
+                    Mostrando {clientsArray.length} de {itemsPerPage} clientes
+                    por página
                   </p>
                 </div>
               </div>
@@ -433,11 +424,6 @@ export default function Clients() {
         clients={clientsForExport}
         selectedClients={selectedClients}
         users={usersArray}
-        filters={clientFilters}
-        searchQuery={debouncedSearchQuery}
-        userId={user?.id}
-        userRole={user?.role}
-        totalItems={totalItems}
       />
 
       <BulkDealCreationModalForClients
