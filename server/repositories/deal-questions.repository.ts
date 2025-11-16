@@ -18,19 +18,14 @@ export class DealQuestionsRepository {
 
   /**
    * Busca todas as perguntas de deals com filtros opcionais
-   * @param filters - Filtros opcionais para categoria e status ativo
+   * @param filters - Filtros opcionais para status ativo
    * @returns Promise<DealQuestion[]> - Lista de perguntas de deals
    */
   async getDealQuestions(filters?: {
-    category?: string;
     isActive?: boolean;
   }): Promise<DealQuestion[]> {
     try {
       const conditions = [];
-
-      if (filters?.category) {
-        conditions.push(eq(dealQuestions.category, filters.category));
-      }
 
       if (filters?.isActive !== undefined) {
         conditions.push(eq(dealQuestions.isActive, filters.isActive));
@@ -41,13 +36,13 @@ export class DealQuestionsRepository {
           .select()
           .from(dealQuestions)
           .where(and(...conditions))
-          .orderBy(dealQuestions.displayOrder, dealQuestions.createdAt);
+          .orderBy(dealQuestions.createdAt);
       }
 
       return await this.db
         .select()
         .from(dealQuestions)
-        .orderBy(dealQuestions.displayOrder, dealQuestions.createdAt);
+        .orderBy(dealQuestions.createdAt);
     } catch (error) {
       console.error("Error fetching deal questions:", error);
       throw error;

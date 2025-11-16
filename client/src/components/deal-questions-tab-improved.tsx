@@ -17,8 +17,6 @@ import {
   Type,
   List,
   CheckSquare,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { DealQuestionsForm } from "./deal-questions-form-improved";
 // import { toast } from "sonner"; // Comentado - usar console.log por enquanto
@@ -79,9 +77,6 @@ const fetchDealAnswers = async (dealId: string): Promise<DealAnswer[]> => {
 
 export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
   const [showQuestionsForm, setShowQuestionsForm] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<
-    Record<string, boolean>
-  >({});
   const queryClient = useQueryClient();
 
   // Queries com cache otimizado
@@ -259,156 +254,121 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
     setShowQuestionsForm((prev) => !prev);
   }, []);
 
-  const toggleCategory = useCallback((category: string) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-  }, []);
-
   // Helper function para renderizar o valor da resposta com responsividade
-  const renderAnswerValue = useCallback((answer: DealAnswer) => {
-    const { question } = answer;
-
-    if (typeof answer.answerBoolean === "boolean") {
-      return (
-        <div className="flex items-center gap-2">
-          <Check
-            className={`h-4 w-4 ${
-              answer.answerBoolean ? "text-green-600" : "text-red-600"
-            }`}
-          />
-          <span
-            className={`text-sm lg:text-base font-medium ${
-              answer.answerBoolean ? "text-green-700" : "text-red-700"
-            }`}
-          >
-            {answer.answerBoolean ? "Sim" : "Não"}
-          </span>
-        </div>
-      );
-    }
-
-    if (answer.answerNumber) {
-      return (
-        <div className="flex items-center gap-2">
-          <Hash className="h-4 w-4 text-blue-600" />
-          <span className="text-blue-700 font-medium text-sm lg:text-base">
-            {answer.answerNumber}
-          </span>
-        </div>
-      );
-    }
-
-    if (answer.answerText) {
-      const isMultiSelect = question.questionType === "multiselect";
-      const isSelect = question.questionType === "select";
-
-      if (isMultiSelect) {
-        const options = answer.answerText.split(",");
+  const renderAnswerValue = useCallback(
+    (answer: DealAnswer, question: DealQuestion) => {
+      // Verificar se question existe
+      if (!question) {
         return (
-          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-            <CheckSquare className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-            <div className="flex flex-wrap gap-1">
-              {options.map((option, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="text-xs lg:text-sm"
-                >
-                  {option.trim()}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <span className="text-gray-500 italic text-sm lg:text-base">
+            Sem resposta
+          </span>
         );
       }
 
-      if (isSelect) {
+      if (typeof answer.answerBoolean === "boolean") {
         return (
           <div className="flex items-center gap-2">
-            <List className="h-4 w-4 text-indigo-600" />
-            <Badge
-              variant="outline"
-              className="text-indigo-700 text-sm lg:text-base"
+            <Check
+              className={`h-4 w-4 ${
+                answer.answerBoolean ? "text-green-600" : "text-red-600"
+              }`}
+            />
+            <span
+              className={`text-sm lg:text-base font-medium ${
+                answer.answerBoolean ? "text-green-700" : "text-red-700"
+              }`}
             >
-              {answer.answerText}
-            </Badge>
+              {answer.answerBoolean ? "Sim" : "Não"}
+            </span>
           </div>
         );
       }
 
-      // Text answer
+      if (answer.answerNumber) {
+        return (
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-blue-600" />
+            <span className="text-blue-700 font-medium text-sm lg:text-base">
+              {answer.answerNumber}
+            </span>
+          </div>
+        );
+      }
+
+      if (answer.answerText) {
+        const isMultiSelect = question.questionType === "multiselect";
+        const isSelect = question.questionType === "select";
+
+        if (isMultiSelect) {
+          const options = answer.answerText.split(",");
+          return (
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+              <CheckSquare className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+              <div className="flex flex-wrap gap-1">
+                {options.map((option, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="text-xs lg:text-sm"
+                  >
+                    {option.trim()}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if (isSelect) {
+          return (
+            <div className="flex items-center gap-2">
+              <List className="h-4 w-4 text-indigo-600" />
+              <Badge
+                variant="outline"
+                className="text-indigo-700 text-sm lg:text-base"
+              >
+                {answer.answerText}
+              </Badge>
+            </div>
+          );
+        }
+
+        // Text answer
+        return (
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+            <Type className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
+            <p className="text-gray-700 text-sm lg:text-base leading-relaxed break-words">
+              {answer.answerText}
+            </p>
+          </div>
+        );
+      }
+
       return (
-        <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-          <Type className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
-          <p className="text-gray-700 text-sm lg:text-base leading-relaxed break-words">
-            {answer.answerText}
-          </p>
-        </div>
+        <span className="text-gray-500 italic text-sm lg:text-base">
+          Sem resposta
+        </span>
       );
-    }
+    },
+    []
+  );
 
-    return (
-      <span className="text-gray-500 italic text-sm lg:text-base">
-        Sem resposta
-      </span>
-    );
-  }, []);
-
-  // Agrupar perguntas por categoria com suas respostas
+  // Criar lista de perguntas com suas respostas (sem agrupamento)
   const questionsWithAnswers = useMemo(() => {
     const answersByQuestionId = new Map(
       answers.map((answer) => [answer.questionId, answer])
     );
 
-    return questions.reduce(
-      (acc, question) => {
-        if (!acc[question.category]) {
-          acc[question.category] = [];
-        }
-
-        const answer = answersByQuestionId.get(question.id);
-        const isAnswered = !!answer;
-
-        acc[question.category].push({
-          question,
-          answer: answer || null,
-          isAnswered,
-        });
-
-        return acc;
-      },
-      {} as Record<
-        string,
-        Array<{
-          question: DealQuestion;
-          answer: DealAnswer | null;
-          isAnswered: boolean;
-        }>
-      >
-    );
+    return questions.map((question) => {
+      const answer = answersByQuestionId.get(question.id);
+      return {
+        question,
+        answer: answer || null,
+        isAnswered: !!answer,
+      };
+    });
   }, [questions, answers]);
-
-  // Inicializar categorias expandidas
-  const initializeExpandedCategories = useCallback(() => {
-    const categories = Object.keys(questionsWithAnswers);
-    const initialState = categories.reduce((acc, category) => {
-      acc[category] = true; // Expandir todas por padrão
-      return acc;
-    }, {} as Record<string, boolean>);
-    setExpandedCategories(initialState);
-  }, [questionsWithAnswers]);
-
-  // Inicializar quando questionsWithAnswers mudar
-  React.useEffect(() => {
-    if (
-      Object.keys(questionsWithAnswers).length > 0 &&
-      Object.keys(expandedCategories).length === 0
-    ) {
-      initializeExpandedCategories();
-    }
-  }, [questionsWithAnswers, expandedCategories, initializeExpandedCategories]);
 
   // Loading state
   const isLoading = questionsLoading || answersLoading;
@@ -530,31 +490,18 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         <CardHeader className="pb-3">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <CardTitle className="text-base lg:text-lg">
-              {showQuestionsForm
-                ? "Respondendo Perguntas"
-                : "Perguntas do Deal"}
+              Questionário do Deal
             </CardTitle>
 
             <div className="flex flex-wrap items-center gap-2">
-              {!showQuestionsForm && (
+              {!showQuestionsForm && stats.totalQuestions > 0 && (
                 <Button
                   onClick={toggleQuestionsForm}
-                  variant={stats.questionsAnswered > 0 ? "outline" : "default"}
                   size="sm"
-                  className="flex items-center gap-2"
-                  disabled={stats.totalQuestions === 0}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {stats.questionsAnswered > 0 ? (
-                    <>
-                      <Edit2 className="h-4 w-4" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">Responder</span>
-                    </>
-                  )}
+                  <Edit2 className="h-4 w-4" />
+                  <span>Responder</span>
                 </Button>
               )}
 
@@ -566,7 +513,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                   className="flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cancelar</span>
+                  <span>Cancelar Edição</span>
                 </Button>
               )}
             </div>
@@ -574,237 +521,93 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         </CardHeader>
 
         <CardContent className="p-4 lg:p-6">
-          {showQuestionsForm ? (
-            <div className="border rounded-lg p-4 bg-gradient-to-br from-gray-50 to-gray-100">
+          {stats.totalQuestions === 0 ? (
+            <div className="text-center py-12 lg:py-16 text-gray-500">
+              <div className="text-4xl lg:text-5xl mb-4">📝</div>
+              <p className="font-medium mb-2">Nenhuma pergunta configurada</p>
+              <p className="text-sm max-w-md mx-auto">
+                Um administrador precisa configurar as perguntas primeiro nas
+                configurações do sistema.
+              </p>
+            </div>
+          ) : showQuestionsForm ? (
+            <div className="rounded-lg">
               <DealQuestionsForm
                 dealId={dealId}
                 onSave={handleQuestionsUpdated}
               />
             </div>
-          ) : stats.questionsAnswered > 0 ? (
-            // Seção de visualização das respostas
-            <div className="space-y-4 lg:space-y-6">
-              {Object.keys(questionsWithAnswers).map((category) => {
-                const categoryItems = questionsWithAnswers[category];
-                const answeredCount = categoryItems.filter(
-                  (item) => item.isAnswered
-                ).length;
-                const isExpanded = expandedCategories[category];
-
-                if (categoryItems.length === 0) return null;
-
-                return (
-                  <div key={category} className="space-y-3">
-                    {/* Header da categoria com expansão */}
+          ) : (
+            // Seção de visualização das respostas - simplificada
+            <div className="space-y-3">
+              {questionsWithAnswers.map((item, index) => (
+                <div
+                  key={item.question.id}
+                  className={`p-4 rounded-lg border transition-all ${
+                    item.isAnswered
+                      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                      : "bg-gray-50 border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
                     <div
-                      className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => toggleCategory(category)}
+                      className={`p-2 rounded-full flex-shrink-0 mt-1 ${
+                        item.isAnswered ? "bg-green-100" : "bg-gray-100"
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Badge
-                          variant="outline"
-                          className="text-sm font-medium bg-white"
-                        >
-                          {category}
-                        </Badge>
-                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
-                          {answeredCount}/{categoryItems.length} respondida
-                          {answeredCount !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-gray-500" />
+                      {item.isAnswered ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                        <AlertCircle className="h-4 w-4 text-gray-400" />
                       )}
                     </div>
 
-                    {/* Conteúdo da categoria */}
-                    {isExpanded && (
-                      <div className="space-y-3 ml-2">
-                        {categoryItems.map((item, index) => (
-                          <div
-                            key={item.question.id}
-                            className={`p-4 lg:p-5 rounded-lg border transition-all hover:shadow-sm ${
-                              item.isAnswered
-                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-sm"
-                                : "bg-gray-50 border-gray-200"
-                            }`}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {item.question.question}
+                          </h4>
+                          {item.question.helpText && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {item.question.helpText}
+                            </p>
+                          )}
+                        </div>
+                        {item.question.isRequired && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-red-50 border-red-200 text-red-700 flex-shrink-0"
                           >
-                            <div className="flex flex-col lg:flex-row lg:items-start gap-3">
-                              <div
-                                className={`p-2 rounded-full flex-shrink-0 ${
-                                  item.isAnswered
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-500"
-                                }`}
-                              >
-                                {item.isAnswered ? (
-                                  <CheckCircle className="h-4 w-4" />
-                                ) : (
-                                  <Clock className="h-4 w-4" />
-                                )}
-                              </div>
-
-                              <div className="flex-1 space-y-3">
-                                <div>
-                                  <h4 className="text-sm lg:text-base font-medium text-gray-900 mb-1 leading-relaxed">
-                                    {item.question.question}
-                                    {item.question.isRequired && (
-                                      <span className="text-red-500 ml-1">
-                                        *
-                                      </span>
-                                    )}
-                                  </h4>
-
-                                  {item.question.helpText && (
-                                    <p className="text-xs lg:text-sm text-gray-500 mb-2 italic">
-                                      {item.question.helpText}
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div className="mt-3">
-                                  {item.isAnswered && item.answer ? (
-                                    <div className="bg-white p-3 lg:p-4 rounded-lg border border-gray-100 shadow-sm">
-                                      {renderAnswerValue(item.answer)}
-                                    </div>
-                                  ) : (
-                                    <div className="bg-gray-100 p-3 lg:p-4 rounded-lg border border-gray-200 text-center">
-                                      <span className="text-gray-500 text-sm italic">
-                                        Pergunta não respondida
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {item.isAnswered && item.answer && (
-                                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                      Respondida em:{" "}
-                                      {new Date(
-                                        item.answer.createdAt
-                                      ).toLocaleDateString("pt-BR", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            Obrigatória
+                          </Badge>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
 
-              {Object.keys(questionsWithAnswers).length === 0 && (
-                <div className="text-center py-12 lg:py-16 text-gray-500">
-                  <div className="text-4xl lg:text-5xl mb-4">📝</div>
-                  <p className="font-medium mb-2">
-                    Nenhuma pergunta configurada
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            // Seção de resumo melhorada (exibição padrão)
-            <div className="space-y-4">
-              {stats.totalQuestions === 0 ? (
-                <div className="text-center py-12 lg:py-16 text-gray-500">
-                  <div className="text-4xl lg:text-5xl mb-4">📝</div>
-                  <p className="font-medium mb-2">
-                    Nenhuma pergunta configurada
-                  </p>
-                  <p className="text-sm max-w-md mx-auto">
-                    Um administrador precisa configurar as perguntas primeiro
-                    nas configurações do sistema.
-                  </p>
-                </div>
-              ) : stats.questionsAnswered === 0 ? (
-                <div className="text-center py-12 lg:py-16 text-gray-500">
-                  <div className="text-4xl lg:text-5xl mb-4">🤔</div>
-                  <p className="font-medium mb-2">
-                    Nenhuma pergunta respondida ainda
-                  </p>
-                  <p className="text-sm max-w-md mx-auto mb-4">
-                    Responda às perguntas para adicionar informações importantes
-                    sobre este deal
-                  </p>
-                  <Button
-                    onClick={toggleQuestionsForm}
-                    className="mt-2"
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Começar Agora
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-green-800">
-                          {stats.questionsAnswered} pergunta(s) respondida(s)
-                        </div>
-                        <div className="text-xs text-green-600">
-                          {stats.completionPercentage}% concluído
-                        </div>
-                      </div>
-                    </div>
-
-                    {stats.pendingQuestions > 0 && (
-                      <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <Clock className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-                        <div>
-                          <div className="text-sm font-medium text-yellow-800">
-                            {stats.pendingQuestions} pergunta(s) pendente(s)
+                      <div className="pt-2">
+                        {item.isAnswered && item.answer ? (
+                          <div className="bg-white rounded-md p-3 border border-gray-200">
+                            {renderAnswerValue(item.answer, item.question)}
                           </div>
-                          <div className="text-xs text-yellow-600">
-                            Continue respondendo
+                        ) : (
+                          <div className="bg-white rounded-md p-3 border border-gray-200">
+                            <span className="text-gray-400 italic text-sm">
+                              Não respondida
+                            </span>
                           </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                    <div className="flex items-start gap-3">
-                      <div className="text-lg">💡</div>
-                      <div>
-                        <p className="text-sm text-blue-800 font-medium mb-1">
-                          Dica de Produtividade
-                        </p>
-                        <p className="text-sm text-blue-700">
-                          Informações completas ajudam na análise e comparação
-                          entre deals. Continue respondendo para ter uma visão
-                          mais detalhada.
-                        </p>
+                        )}
                       </div>
                     </div>
                   </div>
+                </div>
+              ))}
 
-                  {/* Quick actions */}
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Button
-                      onClick={toggleQuestionsForm}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      Continuar Respondendo
-                    </Button>
-                  </div>
+              {questionsWithAnswers.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-4xl mb-4">📝</div>
+                  <p className="font-medium mb-2">
+                    Nenhuma pergunta configurada
+                  </p>
                 </div>
               )}
             </div>
@@ -849,7 +652,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                     : "⏳ Em andamento"}
                 </Badge>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {Object.values(questionsWithAnswers).flat().length} perguntas
+                  {questionsWithAnswers.length} perguntas
                 </span>
               </div>
             </div>

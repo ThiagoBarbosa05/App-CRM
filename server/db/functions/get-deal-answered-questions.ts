@@ -47,7 +47,6 @@ export async function getDealAnsweredQuestions(
         id: dealQuestions.id,
         question: dealQuestions.question,
         questionType: dealQuestions.questionType,
-        category: dealQuestions.category,
         answerBoolean: dealAnswers.answerBoolean,
         answerNumber: dealAnswers.answerNumber,
         answerText: dealAnswers.answerText,
@@ -57,7 +56,7 @@ export async function getDealAnsweredQuestions(
       .from(dealAnswers)
       .innerJoin(dealQuestions, eq(dealAnswers.questionId, dealQuestions.id))
       .where(eq(dealAnswers.dealId, dealId))
-      .orderBy(dealQuestions.category, dealQuestions.displayOrder);
+      .orderBy(dealQuestions.createdAt);
 
     // Mapeia os resultados para o formato esperado
     const formattedResults: DealAnsweredQuestion[] = answeredQuestions.map(

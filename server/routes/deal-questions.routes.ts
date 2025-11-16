@@ -26,24 +26,20 @@ export const dealQuestionsRouter = Router();
  * @route GET /api/deal-questions
  * @description Busca todas as perguntas de deals com filtros opcionais
  * @access Private (requer autenticação via middleware)
- * @queryParams {string} [category] - Categoria da pergunta para filtrar (opcional)
  * @queryParams {string} [isActive] - Status ativo da pergunta: "true" ou "false" (opcional)
- * @returns {Array} Lista de perguntas de deals ordenada por displayOrder e createdAt
+ * @returns {Array} Lista de perguntas de deals ordenada por createdAt
  * @example Query Parameters:
  * - GET /api/deal-questions (todas as perguntas)
- * - GET /api/deal-questions?category=qualificacao (perguntas da categoria qualificacao)
  * - GET /api/deal-questions?isActive=true (apenas perguntas ativas)
- * - GET /api/deal-questions?category=qualificacao&isActive=true (combinação de filtros)
+ * - GET /api/deal-questions?isActive=false (apenas perguntas inativas)
  * @example Response:
  * [
  *   {
  *     "id": "question-1",
  *     "question": "Qual é o orçamento disponível para este projeto?",
- *     "category": "qualificacao",
  *     "type": "text",
  *     "isRequired": true,
  *     "isActive": true,
- *     "displayOrder": 1,
  *     "options": null,
  *     "placeholder": "Ex: R$ 50.000,00",
  *     "helpText": "Informe o valor aproximado do orçamento",
@@ -53,11 +49,9 @@ export const dealQuestionsRouter = Router();
  *   {
  *     "id": "question-2",
  *     "question": "Qual é o prazo esperado para conclusão?",
- *     "category": "timeline",
  *     "type": "select",
  *     "isRequired": true,
  *     "isActive": true,
- *     "displayOrder": 2,
  *     "options": ["1-3 meses", "3-6 meses", "6-12 meses", "Mais de 1 ano"],
  *     "placeholder": null,
  *     "helpText": "Selecione o prazo mais adequado",
@@ -66,10 +60,9 @@ export const dealQuestionsRouter = Router();
  *   }
  * ]
  * @notes
- *   - Perguntas são retornadas ordenadas por displayOrder (ordem de exibição) e depois por createdAt
- *   - Filtros são opcionais e podem ser combinados
+ *   - Perguntas são retornadas ordenadas por createdAt (data de criação)
+ *   - Filtros são opcionais
  *   - isActive="true" retorna apenas perguntas ativas, isActive="false" apenas inativas
- *   - category filtra perguntas de uma categoria específica (ex: "qualificacao", "timeline", "technical")
  *   - Validação de query parameters é feita via middleware validateQuery
  *   - Usado para configurar questionários dinâmicos em deals/negócios
  *   - Perguntas inativas (isActive=false) são mantidas no sistema mas não exibidas por padrão
@@ -86,11 +79,9 @@ dealQuestionsRouter.get(
  * @access Private (requer autenticação)
  * @bodyParams {Object} question - Dados da pergunta a ser criada
  * @bodyParams {string} question.question - Texto da pergunta (obrigatório)
- * @bodyParams {string} question.category - Categoria da pergunta (obrigatório)
  * @bodyParams {string} question.type - Tipo da pergunta: text, select, textarea, number, email, etc. (obrigatório)
  * @bodyParams {boolean} [question.isRequired=false] - Se a pergunta é obrigatória
  * @bodyParams {boolean} [question.isActive=true] - Se a pergunta está ativa
- * @bodyParams {number} [question.displayOrder] - Ordem de exibição da pergunta
  * @bodyParams {string[]} [question.options] - Opções para perguntas do tipo select/radio
  * @bodyParams {string} [question.placeholder] - Texto de placeholder para o campo
  * @bodyParams {string} [question.helpText] - Texto de ajuda/instrução para a pergunta
@@ -98,11 +89,9 @@ dealQuestionsRouter.get(
  * @example Request Body:
  * {
  *   "question": "Qual é o orçamento disponível para este projeto?",
- *   "category": "qualificacao",
  *   "type": "text",
  *   "isRequired": true,
  *   "isActive": true,
- *   "displayOrder": 1,
  *   "placeholder": "Ex: R$ 50.000,00",
  *   "helpText": "Informe o valor aproximado do orçamento"
  * }
@@ -110,11 +99,9 @@ dealQuestionsRouter.get(
  * {
  *   "id": "question-abc123",
  *   "question": "Qual é o orçamento disponível para este projeto?",
- *   "category": "qualificacao",
  *   "type": "text",
  *   "isRequired": true,
  *   "isActive": true,
- *   "displayOrder": 1,
  *   "options": null,
  *   "placeholder": "Ex: R$ 50.000,00",
  *   "helpText": "Informe o valor aproximado do orçamento",
@@ -128,7 +115,6 @@ dealQuestionsRouter.get(
  *   - Requer autenticação de usuário (middleware requireAuth)
  *   - Tipos suportados: text, select, textarea, number, email, phone, url, date
  *   - Para perguntas do tipo select/radio, o campo options deve conter as opções
- *   - displayOrder determina a ordem de exibição no questionário
  *   - Perguntas inativas (isActive=false) não são exibidas por padrão
  *   - Usado para configurar questionários dinâmicos personalizados
  */
@@ -146,11 +132,9 @@ dealQuestionsRouter.post(
  * @pathParams {string} id - UUID da pergunta a ser atualizada (obrigatório)
  * @bodyParams {Object} question - Dados parciais da pergunta para atualização
  * @bodyParams {string} [question.question] - Texto da pergunta
- * @bodyParams {string} [question.category] - Categoria da pergunta
  * @bodyParams {string} [question.type] - Tipo da pergunta: text, select, textarea, etc.
  * @bodyParams {boolean} [question.isRequired] - Se a pergunta é obrigatória
  * @bodyParams {boolean} [question.isActive] - Se a pergunta está ativa
- * @bodyParams {number} [question.displayOrder] - Ordem de exibição da pergunta
  * @bodyParams {string[]} [question.options] - Opções para perguntas do tipo select/radio
  * @bodyParams {string} [question.placeholder] - Texto de placeholder para o campo
  * @bodyParams {string} [question.helpText] - Texto de ajuda/instrução para a pergunta
@@ -165,11 +149,9 @@ dealQuestionsRouter.post(
  * {
  *   "id": "question-abc123",
  *   "question": "Qual é o orçamento disponível? (atualizado)",
- *   "category": "qualificacao",
  *   "type": "text",
  *   "isRequired": true,
  *   "isActive": false,
- *   "displayOrder": 1,
  *   "options": null,
  *   "placeholder": "Ex: R$ 50.000,00",
  *   "helpText": "Por favor, forneça uma estimativa do orçamento total",

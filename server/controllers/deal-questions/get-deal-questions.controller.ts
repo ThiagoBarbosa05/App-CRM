@@ -8,12 +8,11 @@ import { dealQuestionsService } from "../../services/deal-questions.service";
  *
  * **Funcionalidades:**
  * - Busca todas as perguntas de deals configuradas no sistema
- * - Aplica filtros opcionais por categoria e status ativo
- * - Retorna perguntas ordenadas por ordem de exibição e data de criação
+ * - Aplica filtros opcionais por status ativo
+ * - Retorna perguntas ordenadas por data de criação
  * - Suporte a query parameters para filtragem
  *
  * **Query Parameters:**
- * - category: Filtra perguntas por categoria específica
  * - isActive: Filtra perguntas ativas/inativas ("true" ou "false")
  *
  * **Validações:**
@@ -23,8 +22,7 @@ import { dealQuestionsService } from "../../services/deal-questions.service";
  *
  * **Comportamentos Especiais:**
  * - Sem filtros: retorna todas as perguntas
- * - Ordenação: por displayOrder (ordem de exibição) e createdAt
- * - Filtros combinados: category AND isActive quando ambos fornecidos
+ * - Ordenação: por createdAt (data de criação)
  *
  * **Códigos de Resposta:**
  * - 200: Lista de perguntas retornada com sucesso

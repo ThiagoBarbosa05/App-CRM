@@ -158,10 +158,8 @@ export const dealQuestions = pgTable(
       enum: ["boolean", "number", "text", "select", "multiselect"],
     }).notNull(), // Tipo de resposta esperada
     options: text("options").array().default([]), // Opções para select/multiselect
-    category: text("category").notNull().default("Geral"), // Categoria da pergunta
     isRequired: boolean("is_required").notNull().default(false), // Se a pergunta é obrigatória
     isActive: boolean("is_active").notNull().default(true), // Se a pergunta está ativa
-    displayOrder: integer("display_order").notNull().default(0), // Ordem de exibição
     helpText: text("help_text"), // Texto de ajuda/descrição
     placeholder: text("placeholder"), // Texto placeholder para inputs
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -176,11 +174,6 @@ export const dealQuestions = pgTable(
       OR 
       (${table.questionType} NOT IN ('select', 'multiselect'))
     `
-    ),
-    // Index para melhorar performance de queries por categoria e ordem
-    index("deal_questions_category_order_idx").on(
-      table.category,
-      table.displayOrder
     ),
     // Index para queries por status ativo
     index("deal_questions_active_idx").on(table.isActive),
@@ -887,8 +880,6 @@ const baseDealQuestionSchema = createInsertSchema(dealQuestions)
   .extend({
     question: z.string().min(5, "Pergunta deve ter pelo menos 5 caracteres"),
     options: z.array(z.string()).default([]),
-    displayOrder: z.number().min(0).default(0),
-    category: z.string().min(1, "Categoria é obrigatória"),
   });
 
 export const insertDealQuestionSchema = baseDealQuestionSchema.refine(

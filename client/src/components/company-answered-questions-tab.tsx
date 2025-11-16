@@ -15,6 +15,7 @@ import {
   ListChecks,
   Eye,
   FileText,
+  GitBranch,
 } from "lucide-react";
 import { Company } from "@shared/schema";
 import { format } from "date-fns";
@@ -247,7 +248,7 @@ export default function CompanyAnsweredQuestionsTab({
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base lg:text-lg font-semibold text-gray-900 mb-1 truncate flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                        <GitBranch className="h-5 w-5 text-blue-600 flex-shrink-0" />
                         {dealInfo.dealTitle ||
                           `Deal ${dealInfo.dealId.slice(0, 8)}...`}
                       </CardTitle>
@@ -277,89 +278,55 @@ export default function CompanyAnsweredQuestionsTab({
 
                 {isExpanded && hasQuestions && (
                   <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      {/* Agrupar perguntas por categoria */}
-                      {Object.entries(
-                        dealInfo.answeredQuestions.reduce(
-                          (
-                            acc: Record<string, DealAnsweredQuestion[]>,
-                            question: DealAnsweredQuestion
-                          ) => {
-                            const category = question.category || "Geral";
-                            if (!acc[category]) acc[category] = [];
-                            acc[category].push(question);
-                            return acc;
-                          },
-                          {}
-                        )
-                      ).map(([category, questions]) => (
-                        <div key={category} className="space-y-3">
-                          <h4 className="font-medium text-gray-900 text-sm border-b border-gray-200 pb-1">
-                            {category}
-                          </h4>
-                          <div className="grid gap-3">
-                            {(questions as DealAnsweredQuestion[]).map(
-                              (question) => {
-                                const TypeIcon = getQuestionTypeIcon(
-                                  question.questionType
-                                );
+                    <div className="space-y-3">
+                      {dealInfo.answeredQuestions.map((question) => {
+                        const TypeIcon = getQuestionTypeIcon(
+                          question.questionType
+                        );
 
-                                return (
-                                  <div
-                                    key={question.id}
-                                    className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-                                  >
-                                    <div className="flex items-start gap-3">
-                                      <div
-                                        className={`p-2 rounded-full ${
-                                          getQuestionTypeColor(
-                                            question.questionType
-                                          ).split(" ")[0]
-                                        } ${
-                                          getQuestionTypeColor(
-                                            question.questionType
-                                          ).split(" ")[1]
-                                        }`}
-                                      >
-                                        <TypeIcon className="h-4 w-4" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                          <p className="font-medium text-gray-900 text-sm">
-                                            {question.question}
-                                          </p>
-                                          {/* <Badge
-                                            variant="outline"
-                                            className={`text-xs flex-shrink-0 ${getQuestionTypeColor(
-                                              question.questionType
-                                            )}`}
-                                          >
-                                            {question.questionType}
-                                          </Badge> */}
-                                        </div>
+                        return (
+                          <div
+                            key={question.id}
+                            className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`p-2 rounded-full flex-shrink-0 ${
+                                  getQuestionTypeColor(
+                                    question.questionType
+                                  ).split(" ")[0]
+                                } ${
+                                  getQuestionTypeColor(
+                                    question.questionType
+                                  ).split(" ")[1]
+                                }`}
+                              >
+                                <TypeIcon className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="mb-2">
+                                  <p className="font-semibold text-gray-900 text-sm mb-1">
+                                    {question.question}
+                                  </p>
+                                </div>
 
-                                        <div className="mb-2">
-                                          <p className="text-gray-700 font-medium">
-                                            {formatAnswer(
-                                              question.answer,
-                                              question.questionType
-                                            )}
-                                          </p>
-                                        </div>
+                                <div className="bg-white rounded-md p-3 border border-gray-200 mb-2">
+                                  <p className="text-gray-700 font-medium text-sm">
+                                    {formatAnswer(
+                                      question.answer,
+                                      question.questionType
+                                    )}
+                                  </p>
+                                </div>
 
-                                        <p className="text-xs text-gray-500">
-                                          Respondido em{" "}
-                                          {formatDate(question.updatedAt)}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            )}
+                                <p className="text-xs text-gray-500">
+                                  Respondido em {formatDate(question.updatedAt)}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 )}

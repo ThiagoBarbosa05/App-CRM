@@ -14,11 +14,9 @@ import { dealQuestionsService } from "../../services/deal-questions.service";
  *
  * **Validações:**
  * - question (texto da pergunta) é obrigatório
- * - category (categoria da pergunta) é obrigatório
  * - type (tipo da pergunta: text, select, textarea, etc.) é obrigatório
  * - isRequired (se a pergunta é obrigatória) é boolean
  * - isActive (se a pergunta está ativa) é boolean, padrão true
- * - displayOrder (ordem de exibição) é number
  * - options (opções para select/radio) é array opcional
  *
  * **Comportamentos Especiais:**

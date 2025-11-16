@@ -70,12 +70,7 @@ const questionSchema = z
       "select",
       "multiselect",
     ]),
-    category: z.string().min(1, "Categoria é obrigatória"),
     isRequired: z.boolean().default(false),
-    displayOrder: z
-      .number()
-      .min(0, "Ordem deve ser maior ou igual a 0")
-      .default(0),
     helpText: z.string().optional(),
     placeholder: z.string().optional(),
     options: z.string().optional(),
@@ -104,10 +99,8 @@ interface DealQuestion {
   question: string;
   questionType: "boolean" | "number" | "text" | "select" | "multiselect";
   options: string[];
-  category: string;
   isRequired: boolean;
   isActive: boolean;
-  displayOrder: number;
   helpText?: string;
   placeholder?: string;
   createdAt: string;
@@ -117,7 +110,6 @@ interface DealQuestion {
 interface QuestionStats {
   totalQuestions: number;
   activeQuestions: number;
-  categoriesCount: number;
   usageStats: Array<{
     questionId: string;
     question: string;
@@ -132,7 +124,7 @@ const QUERY_KEYS = {
   questions: {
     all: ["deal-questions"] as const,
     lists: () => [...QUERY_KEYS.questions.all, "list"] as const,
-    list: (filters?: { category?: string; isActive?: boolean }) =>
+    list: (filters?: { isActive?: boolean }) =>
       [...QUERY_KEYS.questions.lists(), { filters }] as const,
     details: () => [...QUERY_KEYS.questions.all, "detail"] as const,
     detail: (id: string) => [...QUERY_KEYS.questions.details(), id] as const,
@@ -173,9 +165,6 @@ const createQuestion = async (
           .map((opt) => opt.trim())
           .filter((opt) => opt.length > 0)
       : [],
-    // Garantir valores padrão
-    category: question.category.trim(),
-    displayOrder: question.displayOrder || 0,
   };
 
   const response = await fetch("/api/deal-questions", {
@@ -212,9 +201,6 @@ const updateQuestion = async ({
           .map((opt) => opt.trim())
           .filter((opt) => opt.length > 0)
       : [],
-    // Garantir valores são limpos
-    category: question.category.trim(),
-    displayOrder: question.displayOrder || 0,
   };
 
   const response = await fetch(`/api/deal-questions/${id}`, {
@@ -289,15 +275,12 @@ export function DealQuestionsManagement() {
     null
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [showInactive, setShowInactive] = useState(false);
 
   // Debounced filters for better performance
   const [debouncedFilters, setDebouncedFilters] = useState<{
-    category?: string;
     isActive?: boolean;
   }>({
-    category: filterCategory === "all" ? undefined : filterCategory,
     isActive: !showInactive ? true : undefined,
   });
 
@@ -305,13 +288,12 @@ export function DealQuestionsManagement() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedFilters({
-        category: filterCategory === "all" ? undefined : filterCategory,
         isActive: !showInactive ? true : undefined,
       });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [filterCategory, showInactive]);
+  }, [showInactive]);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -355,7 +337,6 @@ export function DealQuestionsManagement() {
       // Optimistic update
       const previousQuestions = queryClient.getQueryData(
         QUERY_KEYS.questions.list({
-          category: filterCategory,
           isActive: !showInactive ? true : undefined,
         })
       );
@@ -363,7 +344,6 @@ export function DealQuestionsManagement() {
       if (previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           (old: DealQuestion[]) => [
@@ -396,7 +376,6 @@ export function DealQuestionsManagement() {
       if (context?.previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           context.previousQuestions
@@ -419,7 +398,6 @@ export function DealQuestionsManagement() {
 
       const previousQuestions = queryClient.getQueryData(
         QUERY_KEYS.questions.list({
-          category: filterCategory,
           isActive: !showInactive ? true : undefined,
         })
       );
@@ -428,7 +406,6 @@ export function DealQuestionsManagement() {
       if (previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           (old: DealQuestion[]) =>
@@ -457,7 +434,6 @@ export function DealQuestionsManagement() {
       if (context?.previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           context.previousQuestions
@@ -480,7 +456,6 @@ export function DealQuestionsManagement() {
 
       const previousQuestions = queryClient.getQueryData(
         QUERY_KEYS.questions.list({
-          category: filterCategory,
           isActive: !showInactive ? true : undefined,
         })
       );
@@ -489,7 +464,6 @@ export function DealQuestionsManagement() {
       if (previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           (old: DealQuestion[]) => old.filter((q) => q.id !== questionId)
@@ -510,7 +484,6 @@ export function DealQuestionsManagement() {
       if (context?.previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           context.previousQuestions
@@ -533,7 +506,6 @@ export function DealQuestionsManagement() {
 
       const previousQuestions = queryClient.getQueryData(
         QUERY_KEYS.questions.list({
-          category: filterCategory,
           isActive: !showInactive ? true : undefined,
         })
       );
@@ -542,7 +514,6 @@ export function DealQuestionsManagement() {
       if (previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           (old: DealQuestion[]) =>
@@ -565,7 +536,6 @@ export function DealQuestionsManagement() {
       if (context?.previousQuestions) {
         queryClient.setQueryData(
           QUERY_KEYS.questions.list({
-            category: filterCategory,
             isActive: !showInactive ? true : undefined,
           }),
           context.previousQuestions
@@ -600,21 +570,12 @@ export function DealQuestionsManagement() {
   });
 
   // Dados processados
-  const categories = React.useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(questions.map((q) => q.category))
-    );
-    return uniqueCategories.sort();
-  }, [questions]);
-
   const filteredQuestions = React.useMemo(() => {
     return questions.filter((question) => {
-      const categoryMatch =
-        filterCategory === "all" || question.category === filterCategory;
       const statusMatch = showInactive || question.isActive;
-      return categoryMatch && statusMatch;
+      return statusMatch;
     });
-  }, [questions, filterCategory, showInactive]);
+  }, [questions, showInactive]);
 
   // Handlers
   const handleCreateQuestion = () => {
@@ -707,12 +668,12 @@ export function DealQuestionsManagement() {
                 <HelpCircle className="h-5 w-5 text-blue-600" />
               </div>
               <h1 className="text-xl font-semibold text-gray-900">
-                Gerenciamento de Perguntas dos Deals
+                Questionário dos Deals
               </h1>
             </div>
             <p className="text-sm text-gray-600 max-w-2xl">
-              Configure as perguntas que aparecem em todos os deals para coletar
-              informações específicas dos clientes
+              Configure as perguntas que aparecem nos deals para coletar
+              informações dos clientes
             </p>
           </div>
           <div className="flex flex-col xs:flex-row gap-3">
@@ -733,7 +694,7 @@ export function DealQuestionsManagement() {
               className="bg-purple-600 hover:bg-purple-700 text-white h-9"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Nova Pergunta
+              Adicionar Pergunta
             </Button>
           </div>
         </div>
@@ -741,7 +702,7 @@ export function DealQuestionsManagement() {
 
       {/* Estatísticas minimalistas */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-5 hover:bg-gray-50/50 transition-colors">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -751,7 +712,7 @@ export function DealQuestionsManagement() {
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {stats.totalQuestions}
                 </p>
-                <p className="text-xs text-gray-600">Configuradas no sistema</p>
+                <p className="text-xs text-gray-600">No questionário</p>
               </div>
               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 <HelpCircle className="h-5 w-5 text-blue-600" />
@@ -780,24 +741,7 @@ export function DealQuestionsManagement() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                  Categorias
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mb-1">
-                  {stats.categoriesCount}
-                </p>
-                <p className="text-xs text-gray-600">Grupos organizados</p>
-              </div>
-              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg p-5 hover:bg-gray-50/50 transition-colors">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                  Taxa de Uso
+                  Taxa de Resposta
                 </p>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {stats.usageStats.length > 0
@@ -810,7 +754,7 @@ export function DealQuestionsManagement() {
                     : 0}
                   %
                 </p>
-                <p className="text-xs text-gray-600">Média de respostas</p>
+                <p className="text-xs text-gray-600">Média geral</p>
               </div>
               <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 <BarChart3 className="h-5 w-5 text-orange-600" />
@@ -822,55 +766,26 @@ export function DealQuestionsManagement() {
 
       <Tabs defaultValue="questions" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="questions">Perguntas</TabsTrigger>
-          <TabsTrigger value="statistics">Estatísticas</TabsTrigger>
+          <TabsTrigger value="questions">Questionário</TabsTrigger>
+          <TabsTrigger value="statistics">Estatísticas de Uso</TabsTrigger>
         </TabsList>
 
         <TabsContent value="questions">
           {/* Filtros minimalistas */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Categoria
-                  </label>
-                  <Select
-                    value={filterCategory}
-                    onValueChange={setFilterCategory}
-                  >
-                    <SelectTrigger className="w-full sm:w-[200px] h-9 border-gray-300 focus:border-gray-500 focus:ring-gray-500">
-                      <SelectValue placeholder="Filtrar por categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as categorias</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Visibilidade
-                  </label>
-                  <div className="flex items-center gap-3 h-9">
-                    <Switch
-                      id="show-inactive"
-                      checked={showInactive}
-                      onCheckedChange={setShowInactive}
-                    />
-                    <Label
-                      htmlFor="show-inactive"
-                      className="text-sm text-gray-700 cursor-pointer"
-                    >
-                      Mostrar inativas
-                    </Label>
-                  </div>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="show-inactive"
+                  checked={showInactive}
+                  onCheckedChange={setShowInactive}
+                />
+                <Label
+                  htmlFor="show-inactive"
+                  className="text-sm text-gray-700 cursor-pointer"
+                >
+                  Mostrar perguntas inativas
+                </Label>
               </div>
 
               <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded border">
@@ -902,7 +817,7 @@ export function DealQuestionsManagement() {
                 </h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   {questions.length === 0
-                    ? "Comece criando sua primeira pergunta ou popule com as perguntas padrão."
+                    ? "Comece criando sua primeira pergunta do questionário."
                     : "Nenhuma pergunta corresponde aos filtros selecionados."}
                 </p>
                 {questions.length === 0 && (
@@ -921,16 +836,10 @@ export function DealQuestionsManagement() {
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
                           <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Ordem
-                          </th>
-                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Pergunta
                           </th>
                           <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Tipo
-                          </th>
-                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Categoria
                           </th>
                           <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
                             Obrigatória
@@ -944,174 +853,65 @@ export function DealQuestionsManagement() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {filteredQuestions
-                          .sort((a, b) => a.displayOrder - b.displayOrder)
-                          .map((question, index) => (
-                            <tr
-                              key={question.id}
-                              className={`hover:bg-gray-50/50 transition-colors ${
-                                index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
-                              }`}
-                            >
-                              <td className="py-4 px-4">
-                                <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                                  {question.displayOrder}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4">
-                                <div className="max-w-md">
-                                  <p className="font-medium text-gray-900 mb-1">
-                                    {question.question}
-                                  </p>
-                                  {question.helpText && (
-                                    <p className="text-xs text-gray-600 mb-2">
-                                      {question.helpText}
-                                    </p>
-                                  )}
-                                  {(question.questionType === "select" ||
-                                    question.questionType === "multiselect") &&
-                                    question.options.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {question.options
-                                          .slice(0, 3)
-                                          .map((option, index) => (
-                                            <span
-                                              key={index}
-                                              className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700"
-                                            >
-                                              {option}
-                                            </span>
-                                          ))}
-                                        {question.options.length > 3 && (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
-                                            +{question.options.length - 3} mais
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                </div>
-                              </td>
-                              <td className="py-4 px-4">
-                                <span
-                                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${getQuestionTypeColor(
-                                    question.questionType
-                                  )}`}
-                                >
-                                  {getQuestionTypeLabel(question.questionType)}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                  {question.category}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                {question.isRequired ? (
-                                  <div className="inline-flex items-center justify-center w-6 h-6 bg-green-50 rounded">
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">
-                                    —
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleToggleStatus(question)}
-                                  disabled={toggleStatusMutation.isPending}
-                                  className="w-8 h-8 p-0 hover:bg-gray-100"
-                                >
-                                  {toggleStatusMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
-                                  ) : question.isActive ? (
-                                    <Eye className="h-4 w-4 text-green-600" />
-                                  ) : (
-                                    <EyeOff className="h-4 w-4 text-gray-400" />
-                                  )}
-                                </Button>
-                              </td>
-                              <td className="py-4 px-4 text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditQuestion(question)}
-                                    className="w-8 h-8 p-0 hover:bg-gray-100"
-                                  >
-                                    <Edit2 className="h-4 w-4 text-gray-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleDeleteQuestion(question)
-                                    }
-                                    disabled={deleteMutation.isPending}
-                                    className="w-8 h-8 p-0 hover:bg-red-50"
-                                  >
-                                    {deleteMutation.isPending ? (
-                                      <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
-                                    ) : (
-                                      <Trash2 className="h-4 w-4 text-red-600" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Cards Mobile */}
-                <div className="lg:hidden divide-y divide-gray-200">
-                  {filteredQuestions
-                    .sort((a, b) => a.displayOrder - b.displayOrder)
-                    .map((question) => (
-                      <div
-                        key={question.id}
-                        className="p-4 hover:bg-gray-50/50 transition-colors"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                                  {question.displayOrder}
-                                </span>
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getQuestionTypeColor(
-                                    question.questionType
-                                  )}`}
-                                >
-                                  {getQuestionTypeLabel(question.questionType)}
-                                </span>
-                              </div>
-                              <h4 className="font-medium text-gray-900 text-sm mb-1">
-                                {question.question}
-                              </h4>
-                              {question.helpText && (
-                                <p className="text-xs text-gray-600 mb-2">
-                                  {question.helpText}
+                        {filteredQuestions.map((question, index) => (
+                          <tr
+                            key={question.id}
+                            className={`hover:bg-gray-50/50 transition-colors ${
+                              index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                            }`}
+                          >
+                            <td className="py-4 px-4">
+                              <div className="max-w-md">
+                                <p className="font-medium text-gray-900 mb-1">
+                                  {question.question}
                                 </p>
-                              )}
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200">
-                                  {question.category}
-                                </span>
-                                {question.isRequired && (
-                                  <span className="inline-flex items-center gap-1 text-green-600">
-                                    <CheckCircle className="h-3 w-3" />
-                                    Obrigatória
-                                  </span>
+                                {question.helpText && (
+                                  <p className="text-xs text-gray-600 mb-2">
+                                    {question.helpText}
+                                  </p>
                                 )}
+                                {(question.questionType === "select" ||
+                                  question.questionType === "multiselect") &&
+                                  question.options.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {question.options
+                                        .slice(0, 3)
+                                        .map((option, index) => (
+                                          <span
+                                            key={index}
+                                            className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700"
+                                          >
+                                            {option}
+                                          </span>
+                                        ))}
+                                      {question.options.length > 3 && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                                          +{question.options.length - 3} mais
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            </td>
+                            <td className="py-4 px-4">
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${getQuestionTypeColor(
+                                  question.questionType
+                                )}`}
+                              >
+                                {getQuestionTypeLabel(question.questionType)}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              {question.isRequired ? (
+                                <div className="inline-flex items-center justify-center w-6 h-6 bg-green-50 rounded">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">—</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-center">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1120,61 +920,143 @@ export function DealQuestionsManagement() {
                                 className="w-8 h-8 p-0 hover:bg-gray-100"
                               >
                                 {toggleStatusMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
                                 ) : question.isActive ? (
                                   <Eye className="h-4 w-4 text-green-600" />
                                 ) : (
                                   <EyeOff className="h-4 w-4 text-gray-400" />
                                 )}
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditQuestion(question)}
-                                className="w-8 h-8 p-0 hover:bg-gray-100"
-                              >
-                                <Edit2 className="h-4 w-4 text-gray-600" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteQuestion(question)}
-                                disabled={deleteMutation.isPending}
-                                className="w-8 h-8 p-0 hover:bg-red-50"
-                              >
-                                {deleteMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-
-                          {(question.questionType === "select" ||
-                            question.questionType === "multiselect") &&
-                            question.options.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-2 border-t border-gray-100">
-                                {question.options
-                                  .slice(0, 4)
-                                  .map((option, index) => (
-                                    <span
-                                      key={index}
-                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700"
-                                    >
-                                      {option}
-                                    </span>
-                                  ))}
-                                {question.options.length > 4 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
-                                    +{question.options.length - 4} mais
-                                  </span>
-                                )}
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditQuestion(question)}
+                                  className="w-8 h-8 p-0 hover:bg-gray-100"
+                                >
+                                  <Edit2 className="h-4 w-4 text-gray-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteQuestion(question)}
+                                  disabled={deleteMutation.isPending}
+                                  className="w-8 h-8 p-0 hover:bg-red-50"
+                                >
+                                  {deleteMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                  )}
+                                </Button>
                               </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Cards Mobile */}
+                <div className="lg:hidden divide-y divide-gray-200">
+                  {filteredQuestions.map((question) => (
+                    <div
+                      key={question.id}
+                      className="p-4 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getQuestionTypeColor(
+                                  question.questionType
+                                )}`}
+                              >
+                                {getQuestionTypeLabel(question.questionType)}
+                              </span>
+                            </div>
+                            <h4 className="font-medium text-gray-900 text-sm mb-1">
+                              {question.question}
+                            </h4>
+                            {question.helpText && (
+                              <p className="text-xs text-gray-600 mb-2">
+                                {question.helpText}
+                              </p>
                             )}
+                            {question.isRequired && (
+                              <p className="text-xs text-red-600 font-medium">
+                                Obrigatória
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleStatus(question)}
+                              disabled={toggleStatusMutation.isPending}
+                              className="w-8 h-8 p-0 hover:bg-gray-100"
+                            >
+                              {toggleStatusMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : question.isActive ? (
+                                <Eye className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <EyeOff className="h-4 w-4 text-gray-400" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditQuestion(question)}
+                              className="w-8 h-8 p-0 hover:bg-gray-100"
+                            >
+                              <Edit2 className="h-4 w-4 text-gray-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteQuestion(question)}
+                              disabled={deleteMutation.isPending}
+                              className="w-8 h-8 p-0 hover:bg-red-50"
+                            >
+                              {deleteMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
+
+                        {(question.questionType === "select" ||
+                          question.questionType === "multiselect") &&
+                          question.options.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-2 border-t border-gray-100">
+                              {question.options
+                                .slice(0, 4)
+                                .map((option, index) => (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700"
+                                  >
+                                    {option}
+                                  </span>
+                                ))}
+                              {question.options.length > 4 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                                  +{question.options.length - 4} mais
+                                </span>
+                              )}
+                            </div>
+                          )}
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -1185,9 +1067,9 @@ export function DealQuestionsManagement() {
           {stats && stats.usageStats.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Estatísticas de Uso das Perguntas</CardTitle>
+                <CardTitle>Estatísticas do Questionário</CardTitle>
                 <CardDescription>
-                  Taxa de resposta e utilização das perguntas pelos deals
+                  Taxa de resposta das perguntas nos deals
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1241,11 +1123,11 @@ export function DealQuestionsManagement() {
                 <div className="text-center">
                   <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Estatísticas não disponíveis
+                    Sem estatísticas
                   </h3>
                   <p className="text-gray-600">
-                    As estatísticas aparecerão quando houver deals com respostas
-                    às perguntas.
+                    As estatísticas aparecerão quando houver respostas nos
+                    deals.
                   </p>
                 </div>
               </CardContent>
@@ -1270,7 +1152,6 @@ export function DealQuestionsManagement() {
           }
         }}
         isLoading={createMutation.isPending || updateMutation.isPending}
-        categories={categories}
       />
     </div>
   );
@@ -1283,7 +1164,6 @@ interface QuestionFormDialogProps {
   question: DealQuestion | null;
   onSubmit: (data: QuestionFormData) => void;
   isLoading: boolean;
-  categories: string[];
 }
 
 function QuestionFormDialog({
@@ -1292,7 +1172,6 @@ function QuestionFormDialog({
   question,
   onSubmit,
   isLoading,
-  categories,
 }: QuestionFormDialogProps) {
   const {
     control,
@@ -1305,9 +1184,7 @@ function QuestionFormDialog({
     defaultValues: {
       question: "",
       questionType: "text",
-      category: "",
       isRequired: false,
-      displayOrder: 0,
       helpText: "",
       placeholder: "",
       options: "",
@@ -1323,9 +1200,7 @@ function QuestionFormDialog({
       reset({
         question: question.question,
         questionType: question.questionType,
-        category: question.category,
         isRequired: question.isRequired,
-        displayOrder: question.displayOrder,
         helpText: question.helpText || "",
         placeholder: question.placeholder || "",
         options: question.options.join(", "),
@@ -1334,9 +1209,7 @@ function QuestionFormDialog({
       reset({
         question: "",
         questionType: "text",
-        category: "",
         isRequired: false,
-        displayOrder: 0,
         helpText: "",
         placeholder: "",
         options: "",
@@ -1358,8 +1231,8 @@ function QuestionFormDialog({
               </DialogTitle>
               <DialogDescription className="text-sm text-gray-600">
                 {question
-                  ? "Edite as informações da pergunta abaixo"
-                  : "Crie uma nova pergunta que aparecerá em todos os deals"}
+                  ? "Edite as informações da pergunta"
+                  : "Adicione uma nova pergunta ao questionário dos deals"}
               </DialogDescription>
             </div>
           </div>
@@ -1452,78 +1325,6 @@ function QuestionFormDialog({
                 </p>
               )}
             </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="category"
-                className="text-xs font-medium text-gray-500 uppercase tracking-wide"
-              >
-                Categoria *
-              </Label>
-              <Controller
-                name="category"
-                control={control}
-                render={({ field }) => (
-                  <div className="space-y-3">
-                    {categories.length > 0 && (
-                      <>
-                        <div>
-                          <label className="text-xs text-gray-500 mb-2 block">
-                            Selecionar categoria existente:
-                          </label>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <SelectTrigger className="border-gray-300 focus:border-gray-500 focus:ring-gray-500">
-                              <SelectValue placeholder="Escolher categoria existente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                    {category}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="flex items-center">
-                          <div className="flex-1 border-t border-gray-200"></div>
-                          <span className="px-3 text-xs text-gray-500 bg-white font-medium">
-                            OU
-                          </span>
-                          <div className="flex-1 border-t border-gray-200"></div>
-                        </div>
-                      </>
-                    )}
-
-                    <div>
-                      <label className="text-xs text-gray-500 mb-2 block">
-                        {categories.length > 0
-                          ? "Digitar nova categoria:"
-                          : "Nome da categoria:"}
-                      </label>
-                      <Input
-                        placeholder="Digite o nome da categoria"
-                        value={field.value}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
-                      />
-                    </div>
-                  </div>
-                )}
-              />
-              {errors.category && (
-                <p className="text-sm text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.category.message}
-                </p>
-              )}
-            </div>
           </div>
 
           {showOptionsField && (
@@ -1568,69 +1369,32 @@ function QuestionFormDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="displayOrder"
-                className="text-xs font-medium text-gray-500 uppercase tracking-wide"
-              >
-                Ordem de Exibição
-              </Label>
+          <div className="space-y-2">
+            <Label
+              htmlFor="isRequired"
+              className="text-xs font-medium text-gray-500 uppercase tracking-wide"
+            >
+              Configurações
+            </Label>
+            <div className="flex items-center gap-3 h-10 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
               <Controller
-                name="displayOrder"
+                name="isRequired"
                 control={control}
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    id="displayOrder"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    className="border-gray-300 focus:border-gray-500 focus:ring-gray-500"
-                    onChange={(e) =>
-                      field.onChange(parseInt(e.target.value) || 0)
-                    }
+                  <Switch
+                    id="isRequired"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
                   />
                 )}
               />
-              <p className="text-xs text-gray-500">
-                Controla a ordem de aparição da pergunta
-              </p>
-              {errors.displayOrder && (
-                <p className="text-sm text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.displayOrder.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label
                 htmlFor="isRequired"
-                className="text-xs font-medium text-gray-500 uppercase tracking-wide"
+                className="text-sm text-gray-700 cursor-pointer flex items-center gap-2"
               >
-                Configurações
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                Resposta obrigatória
               </Label>
-              <div className="flex items-center gap-3 h-10 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                <Controller
-                  name="isRequired"
-                  control={control}
-                  render={({ field }) => (
-                    <Switch
-                      id="isRequired"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  )}
-                />
-                <Label
-                  htmlFor="isRequired"
-                  className="text-sm text-gray-700 cursor-pointer flex items-center gap-2"
-                >
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Resposta obrigatória
-                </Label>
-              </div>
             </div>
           </div>
 

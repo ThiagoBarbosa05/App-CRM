@@ -81,7 +81,6 @@ export const dealAnswersParamsSchema = z.object({
 
 export const dealQuestionsQuerySchema = z
   .object({
-    category: z.string().optional(),
     isActive: z.enum(["true", "false"]).optional(),
   })
   .partial();

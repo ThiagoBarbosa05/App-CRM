@@ -163,7 +163,7 @@ export default function CompanyDetailsModal({
             >
               <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden xs:inline sm:hidden lg:inline">
-                Perguntas
+                Questionário
               </span>
               <span className="xs:hidden sm:inline lg:hidden">Q&A</span>
             </TabsTrigger>

@@ -25,7 +25,6 @@ interface DealQuestion {
   category: string;
   isRequired: boolean;
   isActive: boolean;
-  displayOrder: number;
   helpText?: string;
   placeholder?: string;
 }
@@ -63,11 +62,7 @@ const fetchActiveQuestions = async (): Promise<DealQuestion[]> => {
   if (!response.ok) {
     throw new Error(`Erro ao buscar perguntas: ${response.status}`);
   }
-  const data = await response.json();
-  // Ordenar por displayOrder
-  return data.sort(
-    (a: DealQuestion, b: DealQuestion) => a.displayOrder - b.displayOrder
-  );
+  return response.json();
 };
 
 const fetchDealAnswers = async (
@@ -310,17 +305,6 @@ export function DealQuestionsForm({
     saveMutation.mutate(answersArray);
   }, [validateAnswers, answers, saveMutation]);
 
-  // Agrupar perguntas por categoria com useMemo
-  const questionsByCategory = useMemo(() => {
-    return questions.reduce((acc, question) => {
-      if (!acc[question.category]) {
-        acc[question.category] = [];
-      }
-      acc[question.category].push(question);
-      return acc;
-    }, {} as Record<string, DealQuestion[]>);
-  }, [questions]);
-
   // Render otimizado do input por tipo
   const renderQuestionInput = useCallback(
     (question: DealQuestion) => {
@@ -475,16 +459,22 @@ export function DealQuestionsForm({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
-          Informações Adicionais do Deal
-        </h3>
+    <div className="space-y-4">
+      {/* Header com progresso */}
+      <div className="flex items-center justify-between pb-4 border-b">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Questionário do Deal
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Preencha as informações adicionais sobre este deal
+          </p>
+        </div>
         {!readOnly && (
           <Button
             onClick={handleSave}
             disabled={saveMutation.isPending}
-            className="min-w-[120px]"
+            className="min-w-[140px] bg-blue-600 hover:bg-blue-700"
           >
             {saveMutation.isPending ? (
               <>
@@ -501,70 +491,126 @@ export function DealQuestionsForm({
         )}
       </div>
 
-      {Object.keys(questionsByCategory).map((category) => (
-        <Card key={category}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Badge variant="outline">{category}</Badge>
-              <span className="text-sm text-gray-500">
-                ({questionsByCategory[category].length} pergunta
-                {questionsByCategory[category].length !== 1 ? "s" : ""})
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {questionsByCategory[category].map((question, index) => {
-              const hasError = errors.has(question.id);
-              const isAnswered =
-                answers.has(question.id) &&
-                (typeof answers.get(question.id)?.answerBoolean === "boolean" ||
-                  answers.get(question.id)?.answerNumber ||
-                  answers.get(question.id)?.answerText);
+      {/* Progress bar */}
+      <div className="bg-gray-100 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">
+            Progresso do questionário
+          </span>
+          <span className="text-sm font-semibold text-blue-600">
+            {
+              Array.from(answers.values()).filter(
+                (a) =>
+                  typeof a.answerBoolean === "boolean" ||
+                  (a.answerNumber && a.answerNumber !== "") ||
+                  (a.answerText && a.answerText.trim() !== "")
+              ).length
+            }
+            /{questions.length} respondidas
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{
+              width: `${
+                questions.length > 0
+                  ? (Array.from(answers.values()).filter(
+                      (a) =>
+                        typeof a.answerBoolean === "boolean" ||
+                        (a.answerNumber && a.answerNumber !== "") ||
+                        (a.answerText && a.answerText.trim() !== "")
+                    ).length /
+                      questions.length) *
+                    100
+                  : 0
+              }%`,
+            }}
+          />
+        </div>
+      </div>
 
-              return (
-                <div key={question.id} className="space-y-2">
-                  {index > 0 && <Separator />}
+      {/* Questions list */}
+      <div className="space-y-4">
+        {questions.map((question, index) => {
+          const hasError = errors.has(question.id);
+          const isAnswered =
+            answers.has(question.id) &&
+            (typeof answers.get(question.id)?.answerBoolean === "boolean" ||
+              answers.get(question.id)?.answerNumber ||
+              answers.get(question.id)?.answerText);
 
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <Label
-                        className={`text-sm font-medium flex items-center gap-2 ${
-                          hasError ? "text-red-600" : ""
-                        }`}
-                      >
-                        {question.question}
-                        {question.isRequired && (
-                          <span className="text-red-500">*</span>
-                        )}
-                        {isAnswered && !hasError && (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        )}
-                      </Label>
+          return (
+            <div
+              key={question.id}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                hasError
+                  ? "border-red-300 bg-red-50"
+                  : isAnswered
+                  ? "border-green-300 bg-green-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="space-y-3">
+                {index > 0 && <Separator className="my-4" />}
 
-                      {question.helpText && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {question.helpText}
-                        </p>
+                {/* Question header */}
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      hasError
+                        ? "bg-red-200 text-red-700"
+                        : isAnswered
+                        ? "bg-green-200 text-green-700"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <Label
+                      className={`text-base font-medium flex items-center gap-2 ${
+                        hasError ? "text-red-700" : "text-gray-900"
+                      }`}
+                    >
+                      {question.question}
+                      {question.isRequired && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-red-50 border-red-200 text-red-700"
+                        >
+                          Obrigatória
+                        </Badge>
                       )}
-
-                      <div className="mt-2">
-                        {renderQuestionInput(question)}
-                      </div>
-
-                      {hasError && (
-                        <div className="flex items-center gap-1 mt-1 text-red-600 text-xs">
-                          <AlertCircle className="h-3 w-3" />
-                          {errors.get(question.id)}
-                        </div>
+                      {isAnswered && !hasError && (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
                       )}
-                    </div>
+                    </Label>
+
+                    {question.helpText && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        {question.helpText}
+                      </p>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      ))}
+
+                {/* Question input */}
+                <div className="ml-11">
+                  {renderQuestionInput(question)}
+
+                  {hasError && (
+                    <div className="flex items-center gap-1 mt-2 text-red-600 text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.get(question.id)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {questions.length === 0 && (
         <Card>
@@ -576,6 +622,30 @@ export function DealQuestionsForm({
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Footer actions */}
+      {!readOnly && questions.length > 0 && (
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            size="lg"
+            className="min-w-[160px] bg-blue-600 hover:bg-blue-700"
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Respostas
+              </>
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );

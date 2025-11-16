@@ -9,7 +9,6 @@ import {
  * Interface para parâmetros de busca de perguntas de deals
  */
 export interface GetDealQuestionsParams {
-  category?: string;
   isActive?: boolean;
 }
 
@@ -56,23 +55,20 @@ export class DealQuestionsService {
    * @returns Promise<DealQuestion[]> - Lista de perguntas de deals
    */
   async getDealQuestions(
-    params: GetDealQuestionsParams,
+    params: GetDealQuestionsParams
   ): Promise<DealQuestion[]> {
-    const { category, isActive } = params;
+    const { isActive } = params;
 
     try {
-      const filters: { category?: string; isActive?: boolean } = {};
-
-      if (category) {
-        filters.category = category;
-      }
+      const filters: { isActive?: boolean } = {};
 
       if (isActive !== undefined) {
         filters.isActive = isActive;
       }
 
-      const questions =
-        await this.dealQuestionsRepository.getDealQuestions(filters);
+      const questions = await this.dealQuestionsRepository.getDealQuestions(
+        filters
+      );
       return questions;
     } catch (error) {
       if (error instanceof Error) {
@@ -88,10 +84,9 @@ export class DealQuestionsService {
    * @returns GetDealQuestionsParams - Parâmetros processados
    */
   processGetDealQuestionsParams(req: any): GetDealQuestionsParams {
-    const { category, isActive } = req.query;
+    const { isActive } = req.query;
 
     return {
-      category: category as string | undefined,
       isActive: isActive ? isActive === "true" : undefined,
     };
   }
@@ -102,13 +97,14 @@ export class DealQuestionsService {
    * @returns Promise<DealQuestion> - Pergunta criada
    */
   async createDealQuestion(
-    params: CreateDealQuestionParams,
+    params: CreateDealQuestionParams
   ): Promise<DealQuestion> {
     const { questionData } = params;
 
     try {
-      const question =
-        await this.dealQuestionsRepository.createDealQuestion(questionData);
+      const question = await this.dealQuestionsRepository.createDealQuestion(
+        questionData
+      );
       return question;
     } catch (error) {
       if (error instanceof Error) {
@@ -140,7 +136,7 @@ export class DealQuestionsService {
    * @returns Promise<DealQuestion> - Pergunta atualizada
    */
   async updateDealQuestion(
-    params: UpdateDealQuestionParams,
+    params: UpdateDealQuestionParams
   ): Promise<DealQuestion> {
     const { questionId, questionData } = params;
 
@@ -154,7 +150,7 @@ export class DealQuestionsService {
       const existingQuestions =
         await this.dealQuestionsRepository.getDealQuestions();
       const existingQuestion = existingQuestions.find(
-        (q) => q.id === questionId,
+        (q) => q.id === questionId
       );
 
       if (!existingQuestion) {
@@ -163,7 +159,7 @@ export class DealQuestionsService {
 
       const question = await this.dealQuestionsRepository.updateDealQuestion(
         questionId,
-        questionData,
+        questionData
       );
 
       if (!question) {
@@ -210,8 +206,9 @@ export class DealQuestionsService {
     }
 
     try {
-      const success =
-        await this.dealQuestionsRepository.deleteDealQuestion(questionId);
+      const success = await this.dealQuestionsRepository.deleteDealQuestion(
+        questionId
+      );
 
       if (!success) {
         throw new Error("Pergunta não encontrada ou falha ao deletar");

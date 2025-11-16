@@ -215,7 +215,7 @@ export default function Configurations() {
                     title="Gerenciar perguntas dos deals"
                   >
                     <HelpCircle className="size-4" />
-                    <span className="text-xs font-medium ">Perguntas</span>
+                    <span className="text-xs font-medium ">Questionário</span>
                   </TabsTrigger>
                 </div>
               </TabsList>

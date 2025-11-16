@@ -71,7 +71,7 @@ export default function DealDetailsModal({
                 className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 rounded-md"
               >
                 <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Perguntas</span>
+                <span className="hidden sm:inline">Questionário</span>
                 <span className="sm:hidden">FAQ</span>
                 <Badge
                   variant="outline"
