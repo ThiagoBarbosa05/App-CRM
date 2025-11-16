@@ -5,6 +5,7 @@ import { funnelsRouter } from "./funnels.routes";
 import { dealsRouter } from "./deals.routes";
 import { dealQuestionsRouter } from "./deal-questions.routes";
 import { dealAnswersRouter } from "./deal-answers.routes";
+import automationTriggersRouter from "./automation-triggers";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -22,6 +23,7 @@ apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/deal-questions", dealQuestionsRouter);
 apiRouter.use("/", dealAnswersRouter);
+apiRouter.use("/automations", automationTriggersRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);

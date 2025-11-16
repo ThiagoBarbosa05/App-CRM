@@ -21,6 +21,7 @@ import {
   Calendar,
   Zap,
   Activity,
+  Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -66,11 +67,11 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-// Hook para testar automação manualmente - Teste completo
+// Hook para executar trigger principal (automações do dia)
 function useTestAutomationAll() {
   return useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/birthday-automation/trigger", {
+      const response = await fetch("/api/automations/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -78,7 +79,7 @@ function useTestAutomationAll() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          errorData.message || "Falha ao testar automação completa"
+          errorData.message || "Falha ao executar automações do dia"
         );
       }
 
@@ -86,19 +87,16 @@ function useTestAutomationAll() {
     },
     onSuccess: (data) => {
       toast({
-        title: "✅ Teste completo executado",
-        description: `Automação completa testada com sucesso. ${
-          data.message || ""
-        }`,
+        title: "✅ Automações executadas",
+        description: `${data.data.executed} de ${data.data.totalAutomations} automações executadas. ${data.data.messagesSent} mensagens enviadas.`,
         duration: 5000,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "❌ Erro no teste completo",
+        title: "❌ Erro ao executar automações",
         description:
-          error.message ||
-          "Não foi possível executar o teste da automação completa.",
+          error.message || "Não foi possível executar as automações.",
         variant: "destructive",
         duration: 6000,
       });
@@ -106,46 +104,52 @@ function useTestAutomationAll() {
   });
 }
 
-// Hook para testar automação manualmente - Teste agendado
+// Hook para executar catch-up (recuperar automações perdidas)
 function useTestAutomationScheduled() {
   return useMutation({
     mutationFn: async () => {
-      const response = await fetch(
-        "/api/birthday-automation/trigger-scheduled",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      const response = await fetch("/api/automations/catchup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Falha ao testar automação agendada"
-        );
+        throw new Error(errorData.message || "Falha ao executar catch-up");
       }
 
       return response.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "⏰ Teste agendado executado",
-        description: `Automação agendada testada com sucesso. ${
-          data.message || ""
-        }`,
+        title: "⏰ Catch-up concluído",
+        description: `${data.data.executed} automações recuperadas. ${data.data.messagesSent} mensagens enviadas.`,
         duration: 5000,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "❌ Erro no teste agendado",
+        title: "❌ Erro no catch-up",
         description:
           error.message ||
-          "Não foi possível executar o teste da automação agendada.",
+          "Não foi possível executar o catch-up das automações.",
         variant: "destructive",
         duration: 6000,
       });
     },
+  });
+}
+
+// Hook para verificar health check do sistema
+function useAutomationHealth() {
+  return useQuery({
+    queryKey: ["automation-health"],
+    queryFn: async () => {
+      const response = await fetch("/api/automations/health");
+      if (!response.ok) throw new Error("Failed to fetch health status");
+      return response.json();
+    },
+    refetchInterval: 60000, // Atualizar a cada 1 minuto
   });
 }
 
@@ -437,6 +441,33 @@ function useDeleteAutomation() {
       toast({
         title: "Erro ao remover automação",
         description: error.message || "Não foi possível remover a automação.",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Hook para executar automação específica manualmente
+function useExecuteAutomation() {
+  return useMutation({
+    mutationFn: async (automationId: string) => {
+      const response = await fetch(`/api/automations/${automationId}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to execute automation");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Automação executada",
+        description: "A automação foi executada manualmente com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao executar automação",
+        description: error.message || "Não foi possível executar a automação.",
         variant: "destructive",
       });
     },
@@ -1064,8 +1095,10 @@ export function AutomationManagement() {
   const createMutation = useCreateAutomation();
   const updateMutation = useUpdateAutomation();
   const deleteMutation = useDeleteAutomation();
+  const executeAutomationMutation = useExecuteAutomation();
   const testAllMutation = useTestAutomationAll();
   const testScheduledMutation = useTestAutomationScheduled();
+  const { data: healthData } = useAutomationHealth();
 
   const isLoading =
     isLoadingAutomations ||
@@ -1136,6 +1169,10 @@ export function AutomationManagement() {
 
   const handleTestScheduledAutomation = () => {
     testScheduledMutation.mutate();
+  };
+
+  const handleExecuteAutomation = (automationId: string) => {
+    executeAutomationMutation.mutate(automationId);
   };
 
   const handleResetFilters = () => {
@@ -1475,19 +1512,21 @@ export function AutomationManagement() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-lg text-blue-900">
-                          Teste Completo
+                          Executar Automações do Dia
                         </h4>
-                        <p className="text-sm text-blue-700">Execução global</p>
+                        <p className="text-sm text-blue-700">
+                          Trigger principal
+                        </p>
                       </div>
                     </div>
 
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Executa{" "}
                       <span className="font-medium text-blue-600">
-                        todas as automações ativas
+                        automações agendadas para hoje
                       </span>{" "}
-                      para verificar o funcionamento geral. Ideal para validar
-                      configurações após mudanças.
+                      que ainda não foram executadas. Respeita horários
+                      configurados e previne duplicatas.
                     </p>
 
                     <div className="pt-2">
@@ -1502,12 +1541,12 @@ export function AutomationManagement() {
                         {testAllMutation.isPending ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
-                            Executando teste...
+                            Executando...
                           </>
                         ) : (
                           <>
                             <Play className="h-4 w-4 mr-3" />
-                            Executar Teste Completo
+                            Executar Agora
                           </>
                         )}
                       </Button>
@@ -1527,20 +1566,20 @@ export function AutomationManagement() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-lg text-green-900">
-                          Teste Agendado
+                          Catch-up (Recuperar Perdidas)
                         </h4>
                         <p className="text-sm text-green-700">
-                          Simulação temporal
+                          Recuperação automática
                         </p>
                       </div>
                     </div>
 
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Executa apenas automações que{" "}
+                      Recupera automações dos{" "}
                       <span className="font-medium text-green-600">
-                        correspondem ao horário atual
+                        últimos 7 dias que falharam
                       </span>
-                      . Simula o comportamento da execução programada.
+                      . Útil após períodos de inatividade do servidor.
                     </p>
 
                     <div className="pt-2">
@@ -1556,12 +1595,12 @@ export function AutomationManagement() {
                         {testScheduledMutation.isPending ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
-                            Executando teste...
+                            Executando catch-up...
                           </>
                         ) : (
                           <>
                             <Clock className="h-4 w-4 mr-3" />
-                            Executar Teste Agendado
+                            Executar Catch-up
                           </>
                         )}
                       </Button>
@@ -1615,30 +1654,38 @@ export function AutomationManagement() {
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
                         <h5 className="font-semibold text-blue-900">
-                          💡 Dica sobre os testes
+                          💡 Sistema de Automação Serverless
                         </h5>
                       </div>
                       <div className="text-sm text-blue-800 leading-relaxed space-y-1">
                         <p>
-                          • Os testes verificam apenas{" "}
-                          <span className="font-medium">
-                            clientes com aniversário hoje
+                          • <span className="font-medium">Executar Agora:</span>{" "}
+                          Dispara automações agendadas para hoje. Respeita
+                          horários e previne duplicatas.
+                        </p>
+                        <p>
+                          • <span className="font-medium">Catch-up:</span>{" "}
+                          Recupera automações dos últimos 7 dias que falharam.
+                          Útil após servidor inativo.
+                        </p>
+                        <p>
+                          • Configure serviços externos (cron-job.org) para
+                          garantir execução diária.{" "}
+                          <span className="font-medium text-blue-600">
+                            Ver AUTOMACAO_SERVERLESS.md
                           </span>
                         </p>
-                        <p>
-                          • Resultados aparecem na seção{" "}
-                          <span className="font-medium">
-                            "Resultados das Automações"
-                          </span>{" "}
-                          abaixo
-                        </p>
-                        <p>
-                          • Use o{" "}
-                          <span className="font-medium text-blue-600">
-                            Teste Agendado
-                          </span>{" "}
-                          para simular execução em horário específico
-                        </p>
+                        {healthData?.data?.missedExecutions > 0 && (
+                          <p className="text-amber-800 font-medium">
+                            ⚠️ {healthData.data.missedExecutions} automação
+                            {healthData.data.missedExecutions > 1 ? "ões" : ""}{" "}
+                            perdida
+                            {healthData.data.missedExecutions > 1 ? "s" : ""}{" "}
+                            detectada
+                            {healthData.data.missedExecutions > 1 ? "s" : ""}.
+                            Execute o catch-up!
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

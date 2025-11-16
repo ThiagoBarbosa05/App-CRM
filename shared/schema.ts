@@ -1692,6 +1692,34 @@ export const messageJobsLogs = pgTable("message_jobs_logs", {
   externalId: varchar("external_id"), // id retornado pelo canal externo
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Tabela para rastrear execuções de automações (serverless-safe)
+export const automationExecutionLogs = pgTable("automation_execution_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  automationId: varchar("automation_id")
+    .references(() => messageAutomationSettings.id, { onDelete: "cascade" })
+    .notNull(),
+  executionDate: text("execution_date").notNull(), // YYYY-MM-DD
+  scheduledTime: varchar("scheduled_time").notNull(), // HH:mm
+  actualExecutionTime: timestamp("actual_execution_time")
+    .notNull()
+    .defaultNow(),
+  status: text("status", { enum: ["success", "partial", "failed"] })
+    .notNull()
+    .default("success"),
+  messagesProcessed: integer("messages_processed").notNull().default(0),
+  messagesSent: integer("messages_sent").notNull().default(0),
+  messagesFailed: integer("messages_failed").notNull().default(0),
+  error: text("error"),
+  triggeredBy: text("triggered_by", {
+    enum: ["cron", "manual", "catchup", "external"],
+  })
+    .notNull()
+    .default("cron"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 // Tabela de eventos
 export const events = pgTable("events", {
   id: varchar("id")

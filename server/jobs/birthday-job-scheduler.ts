@@ -4,6 +4,11 @@ import {
   sendBirthdayMessagesForAutomation,
 } from "./send-birthday-mensage";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
+import {
+  recordExecution,
+  wasExecutedToday,
+} from "./automation-execution-tracker";
+import { executeTodaysAutomations } from "./automation-catchup";
 
 // Mapa para armazenar os jobs ativos
 const activeJobs = new Map<string, any>();
@@ -50,20 +55,61 @@ async function setupBirthdayJobs(): Promise<void> {
       const job = cron.schedule(
         cronExpression,
         async () => {
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(
+            today.getMonth() + 1
+          ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
           console.log(
             `[Scheduler] Executando automação específica ${automation.id} - ${automation.daysBefore} dias antes do aniversário às ${automation.sendTime}`
           );
+
+          // Verificar se já foi executada hoje (evitar duplicatas)
+          const alreadyExecuted = await wasExecutedToday(
+            automation.id,
+            todayStr
+          );
+          if (alreadyExecuted) {
+            console.log(
+              `[Scheduler] Automação ${automation.id} já foi executada hoje - pulando`
+            );
+            return;
+          }
+
+          let messagesSent = 0;
+          let messagesFailed = 0;
+          let status: "success" | "partial" | "failed" = "success";
+          let error: string | undefined;
+
           try {
             // CORREÇÃO: Processar apenas esta automação específica
             await sendBirthdayMessagesForAutomation(automation.id);
+            messagesSent = 1; // TODO: Obter métricas reais
+            status = "success";
             console.log(
               `[Scheduler] Automação ${automation.id} concluída com sucesso.`
             );
-          } catch (error) {
+          } catch (err) {
             console.error(
               `[Scheduler] Erro na automação ${automation.id}:`,
-              error
+              err
             );
+            messagesFailed = 1;
+            status = "failed";
+            error = err instanceof Error ? err.message : String(err);
+          } finally {
+            // Registrar execução
+            await recordExecution({
+              automationId: automation.id,
+              executionDate: todayStr,
+              scheduledTime: automation.sendTime,
+              status,
+              messagesProcessed: messagesSent + messagesFailed,
+              messagesSent,
+              messagesFailed,
+              error,
+              triggeredBy: "cron",
+            });
           }
         },
         {
@@ -106,6 +152,14 @@ setupBirthdayJobs()
   .then(() => {
     console.log(
       "[Scheduler] Birthday job scheduler iniciado com configuração dinâmica."
+    );
+    // Executar catch-up ao iniciar (recuperar execuções perdidas)
+    console.log("[Scheduler] Executando catch-up inicial...");
+    return executeTodaysAutomations();
+  })
+  .then((result) => {
+    console.log(
+      `[Scheduler] Catch-up inicial concluído: ${result.executedAutomations} automações executadas`
     );
   })
   .catch((error) => {
