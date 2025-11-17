@@ -177,11 +177,15 @@ export default function EventParticipantsModal({
   // Filtrar participantes
   const filteredParticipants = useMemo(() => {
     return participants.filter((participant) => {
+      // Se não houver busca, mostrar todos os participantes
       const matchesSearch =
-        participant.clientName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        participant.clientPhone.includes(searchTerm) ||
+        searchTerm.trim() === "" ||
+        (participant.clientName &&
+          participant.clientName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (participant.clientPhone &&
+          participant.clientPhone.includes(searchTerm)) ||
         (participant.clientEmail &&
           participant.clientEmail
             .toLowerCase()
@@ -434,7 +438,11 @@ export default function EventParticipantsModal({
                     <TableRow key={participant.id}>
                       <TableCell>
                         <div className="font-medium">
-                          {participant.clientName}
+                          {participant.clientName || (
+                            <span className="text-gray-400 italic">
+                              Cliente removido
+                            </span>
+                          )}
                         </div>
                         {participant.notes && (
                           <div className="text-sm text-gray-500">
@@ -444,7 +452,7 @@ export default function EventParticipantsModal({
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{participant.clientPhone}</div>
+                          <div>{participant.clientPhone || "N/A"}</div>
                           {participant.clientEmail && (
                             <div className="text-gray-500">
                               {participant.clientEmail}
