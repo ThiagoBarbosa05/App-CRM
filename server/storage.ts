@@ -60,6 +60,7 @@ import {
   tags,
   clientInteractions,
   emailCampaigns,
+  emailCampaignRecipients,
   sectors,
   userGoals,
   weeklyResults,
@@ -102,6 +103,7 @@ import {
   events,
   eventParticipants,
   eventAttachments,
+  messageJobsLogs,
   type InsertEvent,
   type Event,
   type InsertEventParticipant,
@@ -813,26 +815,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: string): Promise<boolean> {
-    // Primeiro, excluir usos de cashback do cliente
+    // Excluir usos de cashback do cliente
     await this.db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, id));
 
-    // Depois, excluir saldo de cashback do cliente
+    // Excluir saldo de cashback do cliente
     await this.db
       .delete(clientCashbackBalance)
       .where(eq(clientCashbackBalance.clientId, id));
 
-    // Depois, excluir as transações de cashback do cliente
+    // Excluir as transações de cashback do cliente
     await this.db
       .delete(cashbackTransactions)
       .where(eq(cashbackTransactions.clientId, id));
 
-    // Depois, excluir os deals associados ao cliente
+    // Excluir os deals associados ao cliente
     await this.db.delete(deals).where(eq(deals.clientId, id));
 
-    // Depois excluir as interações do cliente
+    // Excluir as interações do cliente
     await this.db
       .delete(clientInteractions)
       .where(eq(clientInteractions.clientId, id));
+
+    // Excluir lembretes de aniversário do cliente
+    await this.db
+      .delete(birthdayReminders)
+      .where(eq(birthdayReminders.clientId, id));
+
+    // Excluir destinatários de campanhas de email do cliente
+    await this.db
+      .delete(emailCampaignRecipients)
+      .where(eq(emailCampaignRecipients.clientId, id));
+
+    // Excluir dívidas do cliente
+    await this.db.delete(clientDebts).where(eq(clientDebts.clientId, id));
+
+    // Excluir vendas do cliente
+    await this.db.delete(sales).where(eq(sales.clientId, id));
+
+    // Excluir participações em eventos do cliente
+    await this.db
+      .delete(eventParticipants)
+      .where(eq(eventParticipants.clientId, id));
+
+    // Excluir logs de jobs de mensagem do cliente
+    await this.db
+      .delete(messageJobsLogs)
+      .where(eq(messageJobsLogs.clientId, id));
 
     // Por fim, excluir o cliente
     const result = await this.db.delete(clients).where(eq(clients.id, id));
@@ -840,28 +868,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClients(ids: string[]): Promise<number> {
-    // Primeiro, excluir usos de cashback dos clientes
+    // Excluir usos de cashback dos clientes
     await this.db
       .delete(cashbackUsage)
       .where(inArray(cashbackUsage.clientId, ids));
 
-    // Depois, excluir saldos de cashback dos clientes
+    // Excluir saldos de cashback dos clientes
     await this.db
       .delete(clientCashbackBalance)
       .where(inArray(clientCashbackBalance.clientId, ids));
 
-    // Depois, excluir as transações de cashback dos clientes
+    // Excluir as transações de cashback dos clientes
     await this.db
       .delete(cashbackTransactions)
       .where(inArray(cashbackTransactions.clientId, ids));
 
-    // Depois, excluir os deals associados aos clientes
+    // Excluir os deals associados aos clientes
     await this.db.delete(deals).where(inArray(deals.clientId, ids));
 
-    // Depois excluir as interações dos clientes
+    // Excluir as interações dos clientes
     await this.db
       .delete(clientInteractions)
       .where(inArray(clientInteractions.clientId, ids));
+
+    // Excluir lembretes de aniversário dos clientes
+    await this.db
+      .delete(birthdayReminders)
+      .where(inArray(birthdayReminders.clientId, ids));
+
+    // Excluir destinatários de campanhas de email dos clientes
+    await this.db
+      .delete(emailCampaignRecipients)
+      .where(inArray(emailCampaignRecipients.clientId, ids));
+
+    // Excluir dívidas dos clientes
+    await this.db.delete(clientDebts).where(inArray(clientDebts.clientId, ids));
+
+    // Excluir vendas dos clientes
+    await this.db.delete(sales).where(inArray(sales.clientId, ids));
+
+    // Excluir participações em eventos dos clientes
+    await this.db
+      .delete(eventParticipants)
+      .where(inArray(eventParticipants.clientId, ids));
+
+    // Excluir logs de jobs de mensagem dos clientes
+    await this.db
+      .delete(messageJobsLogs)
+      .where(inArray(messageJobsLogs.clientId, ids));
 
     // Por fim, excluir os clientes
     const result = await this.db
