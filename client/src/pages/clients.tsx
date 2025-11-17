@@ -99,12 +99,13 @@ export default function Clients() {
     enabled: !!user,
   });
 
-  const { clientsArray, totalPages, hasNextPage } = useMemo(() => {
+  const { clientsArray, totalPages, hasNextPage, totalItems } = useMemo(() => {
     const data = clientsResponse?.data || [];
     return {
       clientsArray: data,
       totalPages: clientsResponse?.totalPages || null,
       hasNextPage: clientsResponse?.hasNextPage ?? data.length === itemsPerPage,
+      totalItems: clientsResponse?.totalItems || 0,
     };
   }, [clientsResponse]);
 
@@ -179,7 +180,14 @@ export default function Clients() {
             <div className="flex items-center gap-4">
               <Users className="size-6 shrink-0 text-blue-600" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
+                  {totalItems > 0 && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {totalItems} {totalItems === 1 ? 'cliente' : 'clientes'}
+                    </span>
+                  )}
+                </div>
                 <p className="text-gray-600 mt-1">
                   Gerencie seus clientes e informações de contato
                 </p>

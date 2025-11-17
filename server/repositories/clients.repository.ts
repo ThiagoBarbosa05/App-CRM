@@ -85,6 +85,71 @@ export class ClientsRepository {
     return result;
   }
 
+  async getClientsCount(
+    userId?: string,
+    userRole?: string,
+    filters: ClientFilters = {}
+  ): Promise<number> {
+    const conditions: any[] = [];
+
+    // Se for vendedor, só mostra clientes onde ele é responsável
+    if (userRole === "vendedor" && userId) {
+      conditions.push(eq(clients.responsavelId, userId));
+    }
+
+    // Filtros específicos
+    if (filters.name) {
+      conditions.push(ilike(clients.name, `%${filters.name}%`));
+    }
+    if (filters.phone) {
+      const normalizedPhone = filters.phone.replace(/\D/g, ""); // só dígitos
+      conditions.push(
+        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
+          "%" + normalizedPhone + "%"
+        }`
+      );
+    }
+    if (filters.cpf) {
+      conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
+    }
+    if (filters.responsavelId) {
+      conditions.push(eq(clients.responsavelId, filters.responsavelId));
+    }
+    if (filters.categoria) {
+      conditions.push(eq(clients.categoria, filters.categoria));
+    }
+    if (filters.origem) {
+      conditions.push(eq(clients.origem, filters.origem));
+    }
+    if (filters.markers) {
+      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+    }
+
+    // Filtro de busca geral (case-insensitive)
+    if (filters.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          ilike(clients.name, searchTerm),
+          ilike(clients.email, searchTerm),
+          ilike(clients.phone, searchTerm),
+          ilike(clients.cpf, searchTerm)
+        )
+      );
+    }
+
+    let countQuery = this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients);
+
+    if (conditions.length > 0) {
+      countQuery = countQuery.where(and(...conditions)) as typeof countQuery;
+    }
+
+    const result = await countQuery;
+    return result[0]?.count || 0;
+  }
+
   async getClientByPhone(phone: string): Promise<Client | undefined> {
     const [client] = await this.db
       .select()
