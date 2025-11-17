@@ -22,6 +22,7 @@ import {
   UsersIcon,
   ClockIcon,
   ImageIcon,
+  DownloadIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -86,6 +87,39 @@ export default function EventsDashboard() {
   const getStatusBadge = (status: string) => {
     const statusConfig = EVENT_STATUS.find((s) => s.value === status);
     return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
+  };
+
+  const handleDownloadImage = async (imageUrl: string, fileName: string) => {
+    try {
+      const fullUrl = `${baseS3Url}${imageUrl}`;
+      const response = await fetch(fullUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar imagem: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Sucesso",
+        description: "Imagem baixada com sucesso!",
+      });
+    } catch (error) {
+      console.error("Erro ao baixar imagem:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível baixar a imagem",
+        variant: "destructive",
+      });
+    }
   };
 
   const getDaysUntilEvent = (eventDate: string) => {
@@ -1069,10 +1103,23 @@ export default function EventsDashboard() {
 
                                       {/* Overlay sutil com informações */}
                                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="absolute bottom-0 left-0 right-0 p-3">
-                                          <div className="text-white text-xs font-medium truncate">
+                                        <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between">
+                                          <div className="text-white text-xs font-medium truncate flex-1">
                                             {attachment.fileName}
                                           </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDownloadImage(attachment.fileUrl, attachment.fileName);
+                                            }}
+                                            data-testid={`button-download-image-${index}`}
+                                            className="h-8 w-8 p-0 bg-white/90 hover:bg-white text-purple-600 hover:text-purple-700 rounded-full ml-2 flex-shrink-0"
+                                            title="Baixar imagem"
+                                          >
+                                            <DownloadIcon className="h-4 w-4" />
+                                          </Button>
                                         </div>
                                       </div>
 
