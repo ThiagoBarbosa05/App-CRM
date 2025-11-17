@@ -1,46 +1,17 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import Sidebar from "@/components/sidebar";
 import CashbackReports from "@/components/CashbackReports";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Gift,
   DollarSign,
-  Users,
   History,
   Calculator,
-  TrendingUp,
   Wallet,
-  Clock,
-  AlertTriangle,
-  Filter,
-  Search,
-  Trash2,
-  Plus,
-  Receipt,
   Percent,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
@@ -52,21 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import CashbackUsageModal from "@/components/cashback-usage-modal";
 import { SalesManagementTab } from "@/components/sales-manegement-tab";
@@ -200,7 +156,7 @@ export default function Cashback() {
     isError: isStatsError,
     error: statsError,
   } = useQuery<CashbackStatistics>({
-    queryKey: ["/api/cashback-statistics"],
+    queryKey: ["/api/cashback-settings/statistics"],
     staleTime: 5 * 60 * 1000, // Cache por 5 minutos para melhor performance
     refetchOnWindowFocus: false, // Evita refetch desnecessário
     retry: 3, // Tentar novamente até 3 vezes em caso de erro

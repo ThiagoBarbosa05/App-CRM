@@ -51,7 +51,9 @@ export default function ClientImportModal({
   const [step, setStep] = useState<
     "upload" | "preview" | "field-mapping" | "importing" | "result"
   >("upload");
-  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
+    {}
+  );
   const [progress, setProgress] = useState(0);
 
   const processFileMutation = useMutation({
@@ -76,28 +78,34 @@ export default function ClientImportModal({
     },
     onSuccess: (data: any) => {
       setImportData(data);
-      
+
       // Detectar campos disponíveis automaticamente e marcar os principais como selecionados
       if (data.length > 0) {
         const availableFields = Object.keys(data[0]);
         const initialFieldSelection: Record<string, boolean> = {};
-        
-        availableFields.forEach(field => {
+
+        availableFields.forEach((field) => {
           const fieldLower = field.toLowerCase();
           // Marcar campos essenciais como selecionados por padrão
-          initialFieldSelection[field] = 
-            fieldLower.includes('nome') || fieldLower.includes('name') ||
-            fieldLower.includes('telefone') || fieldLower.includes('phone') ||
-            fieldLower.includes('celular') || fieldLower.includes('mobile') ||
-            fieldLower.includes('fixo') || fieldLower.includes('fixed') ||
-            fieldLower.includes('email') ||
-            fieldLower.includes('categoria') || fieldLower.includes('category') ||
-            fieldLower.includes('origem') || fieldLower.includes('origin');
+          initialFieldSelection[field] =
+            fieldLower.includes("nome") ||
+            fieldLower.includes("name") ||
+            fieldLower.includes("telefone") ||
+            fieldLower.includes("phone") ||
+            fieldLower.includes("celular") ||
+            fieldLower.includes("mobile") ||
+            fieldLower.includes("fixo") ||
+            fieldLower.includes("fixed") ||
+            fieldLower.includes("email") ||
+            fieldLower.includes("categoria") ||
+            fieldLower.includes("category") ||
+            fieldLower.includes("origem") ||
+            fieldLower.includes("origin");
         });
-        
+
         setSelectedFields(initialFieldSelection);
       }
-      
+
       setStep("preview");
     },
     onError: () => {
@@ -122,8 +130,8 @@ export default function ClientImportModal({
       const [usersResponse, categoriesResponse, originsResponse] =
         await Promise.all([
           fetch("/api/users"),
-          fetch("/api/categories"),
-          fetch("/api/origins"),
+          fetch("/api/tags/categories"),
+          fetch("/api/tags/origins"),
         ]);
 
       const users = usersResponse.ok ? await usersResponse.json() : [];
@@ -142,7 +150,7 @@ export default function ClientImportModal({
         const cleanName = user.name.toLowerCase().trim();
         userMap.set(cleanName, user.id);
         console.log(
-          `Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`,
+          `Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`
         );
       });
       console.log("🗺️ Mapa final de usuários:", Array.from(userMap.entries()));
@@ -173,7 +181,7 @@ export default function ClientImportModal({
           console.log(
             `Linha ${i + 1}: Responsavel email original:`,
             responsavelEmail,
-            typeof responsavelEmail,
+            typeof responsavelEmail
           );
 
           if (
@@ -182,13 +190,27 @@ export default function ClientImportModal({
             responsavelEmail.trim()
           ) {
             try {
-              const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(responsavelEmail.trim())}`);
+              const userResponse = await fetch(
+                `/api/users/by-email/${encodeURIComponent(
+                  responsavelEmail.trim()
+                )}`
+              );
               if (userResponse.ok) {
                 const user = await userResponse.json();
                 responsavelId = user.id;
-                console.log(`Linha ${i + 1}: Responsável encontrado: ${responsavelEmail} -> ${user.name} (${user.id})`);
+                console.log(
+                  `Linha ${
+                    i + 1
+                  }: Responsável encontrado: ${responsavelEmail} -> ${
+                    user.name
+                  } (${user.id})`
+                );
               } else {
-                console.warn(`Linha ${i + 1}: Responsável não encontrado para email: ${responsavelEmail}`);
+                console.warn(
+                  `Linha ${
+                    i + 1
+                  }: Responsável não encontrado para email: ${responsavelEmail}`
+                );
                 // Não falhar a importação por conta do responsável não encontrado, apenas logar
                 // results.errors.push({
                 //   row: i + 2,
@@ -198,7 +220,10 @@ export default function ClientImportModal({
                 // continue;
               }
             } catch (error) {
-              console.error(`Linha ${i + 1}: Erro ao buscar responsável:`, error);
+              console.error(
+                `Linha ${i + 1}: Erro ao buscar responsável:`,
+                error
+              );
               // Não falhar a importação por conta do erro, apenas logar
             }
           } else {
@@ -213,16 +238,21 @@ export default function ClientImportModal({
           if (categoriaName && typeof categoriaName === "string") {
             const cleanCategoriaName = categoriaName.toLowerCase().trim();
             const foundCategory = categories.find(
-              (cat: any) =>
-                cat.name.toLowerCase().trim() === cleanCategoriaName,
+              (cat: any) => cat.name.toLowerCase().trim() === cleanCategoriaName
             );
             categoria = foundCategory ? foundCategory.name : "OUTROS";
             console.log(
-              `Linha ${i + 1}: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${foundCategory ? foundCategory.name : "NÃO ENCONTRADO, usando OUTROS"}`,
+              `Linha ${
+                i + 1
+              }: Categoria '${categoriaName}' -> '${cleanCategoriaName}' -> ${
+                foundCategory
+                  ? foundCategory.name
+                  : "NÃO ENCONTRADO, usando OUTROS"
+              }`
             );
             console.log(
               `Available categories:`,
-              categories.map((c: any) => c.name),
+              categories.map((c: any) => c.name)
             );
           }
 
@@ -234,15 +264,19 @@ export default function ClientImportModal({
           if (origemName && typeof origemName === "string") {
             const cleanOrigemName = origemName.toLowerCase().trim();
             const foundOrigin = origins.find(
-              (orig: any) => orig.name.toLowerCase().trim() === cleanOrigemName,
+              (orig: any) => orig.name.toLowerCase().trim() === cleanOrigemName
             );
             origem = foundOrigin ? foundOrigin.name : "OUTROS";
             console.log(
-              `Linha ${i + 1}: Origem '${origemName}' -> '${cleanOrigemName}' -> ${foundOrigin ? foundOrigin.name : "NÃO ENCONTRADO, usando OUTROS"}`,
+              `Linha ${
+                i + 1
+              }: Origem '${origemName}' -> '${cleanOrigemName}' -> ${
+                foundOrigin ? foundOrigin.name : "NÃO ENCONTRADO, usando OUTROS"
+              }`
             );
             console.log(
               `Available origins:`,
-              origins.map((o: any) => o.name),
+              origins.map((o: any) => o.name)
             );
           }
 
@@ -296,8 +330,18 @@ export default function ClientImportModal({
           // Mapear campos do Excel para formato esperado
           const clientData = {
             name: client.Nome || client.name || "",
-            phone: (client.Celular || client.phone || client.Telefone || "").toString(),
-            fixedPhone: (client["Telefone Fixo"] || client.fixedPhone || client.Fixo || "").toString(),
+            phone: (
+              client.Celular ||
+              client.phone ||
+              client.Telefone ||
+              ""
+            ).toString(),
+            fixedPhone: (
+              client["Telefone Fixo"] ||
+              client.fixedPhone ||
+              client.Fixo ||
+              ""
+            ).toString(),
             cpf: (client.CPF || client.cpf || "").toString(),
             email: client.Email || client.email || null,
             birthday: formattedBirthday,
@@ -321,7 +365,7 @@ export default function ClientImportModal({
           console.log(`Linha ${i + 1}: clientData com responsavelId:`, {
             responsavelEmail: responsavelEmail,
             responsavelId: responsavelId,
-            clientData: clientData
+            clientData: clientData,
           });
 
           // Validações básicas
@@ -349,8 +393,10 @@ export default function ClientImportModal({
           if (phone) {
             try {
               // Buscar cliente existente por telefone
-              const existingClientResponse = await fetch(`/api/clients/by-phone/${encodeURIComponent(phone)}`);
-              
+              const existingClientResponse = await fetch(
+                `/api/clients/by-phone/${encodeURIComponent(phone)}`
+              );
+
               if (existingClientResponse.ok) {
                 // Cliente existe, atualizar dados
                 const existingClient = await existingClientResponse.json();
@@ -359,7 +405,9 @@ export default function ClientImportModal({
                   birthday: clientData.birthday,
                 });
                 results.success++;
-                console.log(`Linha ${i + 1}: Cliente atualizado por telefone ${phone}`);
+                console.log(
+                  `Linha ${i + 1}: Cliente atualizado por telefone ${phone}`
+                );
               } else {
                 // Cliente não existe, criar novo
                 await apiRequest("POST", "/api/clients", {
@@ -367,7 +415,9 @@ export default function ClientImportModal({
                   birthday: clientData.birthday,
                 });
                 results.success++;
-                console.log(`Linha ${i + 1}: Novo cliente criado com telefone ${phone}`);
+                console.log(
+                  `Linha ${i + 1}: Novo cliente criado com telefone ${phone}`
+                );
               }
             } catch (updateError: any) {
               // Se houver erro na atualização, tentar criar novo
@@ -376,7 +426,9 @@ export default function ClientImportModal({
                 birthday: clientData.birthday,
               });
               results.success++;
-              console.log(`Linha ${i + 1}: Cliente criado após erro na atualização`);
+              console.log(
+                `Linha ${i + 1}: Cliente criado após erro na atualização`
+              );
             }
           } else {
             // Se não tem telefone, criar normalmente
@@ -392,9 +444,13 @@ export default function ClientImportModal({
 
           if (error.message) {
             if (error.message.includes("CPF já cadastrado")) {
-              errorMessage = `CPF ${client.CPF || client.cpf || "não informado"} já existe no sistema`;
+              errorMessage = `CPF ${
+                client.CPF || client.cpf || "não informado"
+              } já existe no sistema`;
             } else if (error.message.includes("Telefone já cadastrado")) {
-              errorMessage = `Telefone ${client.Telefone || client.phone || "não informado"} já existe no sistema`;
+              errorMessage = `Telefone ${
+                client.Telefone || client.phone || "não informado"
+              } já existe no sistema`;
             } else if (error.message.includes("400:")) {
               errorMessage = error.message.replace("400: ", "");
             } else {
@@ -417,14 +473,20 @@ export default function ClientImportModal({
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       // Invalidate marker stats cache to update goal calculations
-      queryClient.invalidateQueries({ 
-        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" &&
+          (q.queryKey[0] as string).startsWith("/api/marker-stats"),
       });
 
       if (result.success > 0) {
         toast({
           title: "Importação concluída",
-          description: `${result.success} clientes importados com sucesso${result.errors.length > 0 ? ` (${result.errors.length} com erro)` : ""}`,
+          description: `${result.success} clientes importados com sucesso${
+            result.errors.length > 0
+              ? ` (${result.errors.length} com erro)`
+              : ""
+          }`,
         });
       }
     },
@@ -454,18 +516,18 @@ export default function ClientImportModal({
   const handleImport = () => {
     setStep("importing");
     setProgress(0);
-    
+
     // Filtrar dados apenas com campos selecionados
-    const filteredData = importData.map(item => {
+    const filteredData = importData.map((item) => {
       const filteredItem: any = {};
-      Object.keys(selectedFields).forEach(field => {
+      Object.keys(selectedFields).forEach((field) => {
         if (selectedFields[field] && item[field] !== undefined) {
           filteredItem[field] = item[field];
         }
       });
       return filteredItem;
     });
-    
+
     importClientsMutation.mutate(filteredData);
   };
 
@@ -521,8 +583,12 @@ export default function ClientImportModal({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Faça upload de um arquivo Excel (.xlsx) com os dados dos clientes. 
-                <strong>Se um cliente com o mesmo telefone já existir, seus dados serão atualizados automaticamente.</strong>
+                Faça upload de um arquivo Excel (.xlsx) com os dados dos
+                clientes.
+                <strong>
+                  Se um cliente com o mesmo telefone já existir, seus dados
+                  serão atualizados automaticamente.
+                </strong>
                 <Button
                   variant="link"
                   onClick={downloadTemplate}
@@ -581,9 +647,11 @@ export default function ClientImportModal({
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                {importData.length} registros encontrados. Revise os dados antes de importar.
+                {importData.length} registros encontrados. Revise os dados antes
+                de importar.
                 <br />
-                <strong>Nota:</strong> Clientes com telefones já cadastrados terão seus dados atualizados.
+                <strong>Nota:</strong> Clientes com telefones já cadastrados
+                terão seus dados atualizados.
               </AlertDescription>
             </Alert>
 
@@ -631,7 +699,10 @@ export default function ClientImportModal({
               <Button variant="outline" onClick={() => setStep("upload")}>
                 Voltar
               </Button>
-              <Button variant="outline" onClick={() => setStep("field-mapping")}>
+              <Button
+                variant="outline"
+                onClick={() => setStep("field-mapping")}
+              >
                 Selecionar Campos
               </Button>
               <Button onClick={handleImport}>
@@ -646,7 +717,8 @@ export default function ClientImportModal({
             <Alert>
               <Settings className="h-4 w-4" />
               <AlertDescription>
-                Selecione quais campos você deseja importar. Os campos marcados serão incluídos na importação.
+                Selecione quais campos você deseja importar. Os campos marcados
+                serão incluídos na importação.
               </AlertDescription>
             </Alert>
 
@@ -661,10 +733,10 @@ export default function ClientImportModal({
                       <Checkbox
                         id={field}
                         checked={selectedFields[field]}
-                        onCheckedChange={(checked) => 
-                          setSelectedFields(prev => ({
+                        onCheckedChange={(checked) =>
+                          setSelectedFields((prev) => ({
                             ...prev,
-                            [field]: checked as boolean
+                            [field]: checked as boolean,
                           }))
                         }
                       />
@@ -674,7 +746,7 @@ export default function ClientImportModal({
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex gap-2">
                     <Button
@@ -682,7 +754,7 @@ export default function ClientImportModal({
                       size="sm"
                       onClick={() => {
                         const allSelected: Record<string, boolean> = {};
-                        Object.keys(selectedFields).forEach(field => {
+                        Object.keys(selectedFields).forEach((field) => {
                           allSelected[field] = true;
                         });
                         setSelectedFields(allSelected);
@@ -695,7 +767,7 @@ export default function ClientImportModal({
                       size="sm"
                       onClick={() => {
                         const noneSelected: Record<string, boolean> = {};
-                        Object.keys(selectedFields).forEach(field => {
+                        Object.keys(selectedFields).forEach((field) => {
                           noneSelected[field] = false;
                         });
                         setSelectedFields(noneSelected);
@@ -709,16 +781,20 @@ export default function ClientImportModal({
             </Card>
 
             <div className="text-sm text-gray-600">
-              <strong>Campos selecionados:</strong> {Object.values(selectedFields).filter(Boolean).length} de {Object.keys(selectedFields).length}
+              <strong>Campos selecionados:</strong>{" "}
+              {Object.values(selectedFields).filter(Boolean).length} de{" "}
+              {Object.keys(selectedFields).length}
             </div>
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setStep("preview")}>
                 Voltar
               </Button>
-              <Button 
+              <Button
                 onClick={handleImport}
-                disabled={Object.values(selectedFields).filter(Boolean).length === 0}
+                disabled={
+                  Object.values(selectedFields).filter(Boolean).length === 0
+                }
               >
                 Importar com Campos Selecionados
               </Button>

@@ -55,17 +55,17 @@ export default function ClientFilters({
 
   // Buscar categorias para o dropdown
   const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/tags/categories"],
   });
 
   // Buscar origens para o dropdown
   const { data: origins = [] } = useQuery({
-    queryKey: ["/api/origins"],
+    queryKey: ["/api/tags/origins"],
   });
 
   // Buscar marcadores para o dropdown
   const { data: markers = [] } = useQuery({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
   });
 
   const handleFilterChange = (key: keyof ClientFilters, value: string) => {
@@ -108,8 +108,9 @@ export default function ClientFilters({
           {hasActiveFilters && (
             <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
               {
-                Object.values(currentFilters).filter((value) => value !== "" && value !== "all")
-                  .length
+                Object.values(currentFilters).filter(
+                  (value) => value !== "" && value !== "all"
+                ).length
               }
             </span>
           )}
@@ -246,18 +247,18 @@ export default function ClientFilters({
                 <SelectContent>
                   <SelectItem value="all">Todos os marcadores</SelectItem>
                   {(markers as any[])
-                    .filter((marker: any) => marker.type === 'marcador')
+                    .filter((marker: any) => marker.type === "marcador")
                     .map((marker: any) => (
-                    <SelectItem key={marker.id} value={marker.name}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: marker.color }}
-                        ></div>
-                        {marker.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                      <SelectItem key={marker.id} value={marker.name}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: marker.color }}
+                          ></div>
+                          {marker.name}
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

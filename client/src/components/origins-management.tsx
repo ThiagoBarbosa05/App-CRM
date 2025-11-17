@@ -68,7 +68,7 @@ export default function OriginsManagement() {
     isLoading,
     isFetching,
   } = useQuery<Origin[]>({
-    queryKey: ["/api/origins"],
+    queryKey: ["/api/tags/origins"],
   });
 
   // Filtrar origens com base no termo de busca
@@ -93,7 +93,7 @@ export default function OriginsManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/origins"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/origins"] });
       toast({
         title: "Origem criada",
         description: "Origem foi criada com sucesso.",
@@ -120,7 +120,7 @@ export default function OriginsManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/origins"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/origins"] });
       toast({
         title: "Origem atualizada",
         description: "Origem foi atualizada com sucesso.",
@@ -143,7 +143,7 @@ export default function OriginsManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/origins"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/origins"] });
       toast({
         title: "Origem excluída",
         description: "Origem foi excluída com sucesso.",

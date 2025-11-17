@@ -88,13 +88,13 @@ export default function Dashboard() {
 
   // Buscar próximos aniversários
   const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: [`/api/upcoming-birthdays`, user?.id, user?.role],
+    queryKey: [`/api/birthdays/upcoming`, user?.id, user?.role],
     queryFn: async () => {
       // Admin vê todos, outros usuários só veem os seus
       const url =
         user?.role === "admin" || user?.role === "administrador"
-          ? `/api/upcoming-birthdays`
-          : `/api/upcoming-birthdays?responsibleId=${user?.id}`;
+          ? `/api/birthdays/upcoming`
+          : `/api/birthdays/upcoming?responsibleId=${user?.id}`;
 
       const response = await fetch(url, {
         headers: {
@@ -436,7 +436,9 @@ export default function Dashboard() {
                               title="Ligar para cliente"
                             >
                               <Phone className="h-4 w-4" />
-                              <span className="ml-2 hidden sm:inline-block">Ligar</span>
+                              <span className="ml-2 hidden sm:inline-block">
+                                Ligar
+                              </span>
                             </Button>
                             {debt.client.email && (
                               <Button
@@ -452,7 +454,9 @@ export default function Dashboard() {
                                 title="Enviar email"
                               >
                                 <Mail className="h-4 w-4" />
-                                <span className="sm:inline-block hidden">Email</span>
+                                <span className="sm:inline-block hidden">
+                                  Email
+                                </span>
                               </Button>
                             )}
                             <Button

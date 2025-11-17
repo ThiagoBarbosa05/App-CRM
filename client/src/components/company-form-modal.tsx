@@ -6,7 +6,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -79,7 +85,7 @@ export default function CompanyFormModal({
 
   // Buscar marcadores das configurações
   const { data: markers = [] } = useQuery({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
     enabled: isOpen,
   }) as { data: any[] };
 
@@ -170,7 +176,6 @@ export default function CompanyFormModal({
     }
   }, [cepValue]);
 
-
   const createMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
       const response = await fetch("/api/companies", {
@@ -243,13 +248,17 @@ export default function CompanyFormModal({
 
         toast({
           title: "Endereço encontrado",
-          description: "Os dados do endereço foram preenchidos automaticamente.",
+          description:
+            "Os dados do endereço foram preenchidos automaticamente.",
         });
       }
     } catch (error) {
       toast({
         title: "Erro ao consultar CEP",
-        description: error instanceof Error ? error.message : "Não foi possível consultar o CEP.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível consultar o CEP.",
         variant: "destructive",
       });
     } finally {
@@ -293,7 +302,9 @@ export default function CompanyFormModal({
                 placeholder="Nome fantasia da empresa"
               />
               {errors.nomeFantasia && (
-                <p className="text-sm text-destructive">{errors.nomeFantasia.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.nomeFantasia.message}
+                </p>
               )}
             </div>
 
@@ -305,7 +316,9 @@ export default function CompanyFormModal({
                 placeholder="Razão social da empresa"
               />
               {errors.razaoSocial && (
-                <p className="text-sm text-destructive">{errors.razaoSocial.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.razaoSocial.message}
+                </p>
               )}
             </div>
 
@@ -317,7 +330,9 @@ export default function CompanyFormModal({
                 placeholder="00.000.000/0000-00"
               />
               {errors.cnpj && (
-                <p className="text-sm text-destructive">{errors.cnpj.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.cnpj.message}
+                </p>
               )}
             </div>
 
@@ -330,7 +345,9 @@ export default function CompanyFormModal({
                 type="tel"
               />
               {errors.inscricaoEstadual && (
-                <p className="text-sm text-destructive">{errors.inscricaoEstadual.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.inscricaoEstadual.message}
+                </p>
               )}
             </div>
 
@@ -342,7 +359,9 @@ export default function CompanyFormModal({
                 placeholder="Nome da pessoa responsável pelas compras"
               />
               {errors.nomeComprador && (
-                <p className="text-sm text-destructive">{errors.nomeComprador.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.nomeComprador.message}
+                </p>
               )}
             </div>
 
@@ -355,7 +374,9 @@ export default function CompanyFormModal({
                 placeholder="contato@empresa.com"
               />
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -367,7 +388,9 @@ export default function CompanyFormModal({
                 placeholder="(11) 99999-9999"
               />
               {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.phone.message}
+                </p>
               )}
             </div>
 
@@ -379,7 +402,9 @@ export default function CompanyFormModal({
                 placeholder="(11) 9999-9999"
               />
               {errors.fixedPhone && (
-                <p className="text-sm text-destructive">{errors.fixedPhone.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.fixedPhone.message}
+                </p>
               )}
             </div>
 
@@ -391,19 +416,26 @@ export default function CompanyFormModal({
                 placeholder="https://www.empresa.com"
               />
               {errors.website && (
-                <p className="text-sm text-destructive">{errors.website.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.website.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="sectorId">Setor</Label>
-              <Select onValueChange={(value) => setValue("sectorId", value)} value={watch("sectorId")}>
+              <Select
+                onValueChange={(value) => setValue("sectorId", value)}
+                value={watch("sectorId")}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um setor" />
                 </SelectTrigger>
                 <SelectContent>
                   {sectors.length === 0 ? (
-                    <SelectItem value="no-sectors">Nenhum setor disponível</SelectItem>
+                    <SelectItem value="no-sectors">
+                      Nenhum setor disponível
+                    </SelectItem>
                   ) : (
                     sectors.map((sector) => (
                       <SelectItem key={sector.id} value={sector.id}>
@@ -414,27 +446,43 @@ export default function CompanyFormModal({
                 </SelectContent>
               </Select>
               {errors.sectorId && (
-                <p className="text-sm text-destructive">{errors.sectorId.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.sectorId.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="responsavelId">Responsável</Label>
-              <Select onValueChange={(value) => setValue("responsavelId", value === "none" ? "" : value)} value={watch("responsavelId") || "none"}>
+              <Select
+                onValueChange={(value) =>
+                  setValue("responsavelId", value === "none" ? "" : value)
+                }
+                value={watch("responsavelId") || "none"}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um responsável..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum responsável</SelectItem>
-                  {(users as any[]).filter((user: any) => user.isActive === "true").map((user: any) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} - {user.role === "admin" ? "Administrador" : user.role === "gerente" ? "Gerente" : "Vendedor"}
-                    </SelectItem>
-                  ))}
+                  {(users as any[])
+                    .filter((user: any) => user.isActive === "true")
+                    .map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} -{" "}
+                        {user.role === "admin"
+                          ? "Administrador"
+                          : user.role === "gerente"
+                          ? "Gerente"
+                          : "Vendedor"}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               {errors.responsavelId && (
-                <p className="text-sm text-destructive">{errors.responsavelId.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.responsavelId.message}
+                </p>
               )}
             </div>
 
@@ -450,7 +498,10 @@ export default function CompanyFormModal({
                 <Button
                   type="button"
                   onClick={() => handleCepLookup(watch("cep") || "")}
-                  disabled={isLoadingCep || watch("cep")?.replace(/\D/g, "").length !== 8}
+                  disabled={
+                    isLoadingCep ||
+                    watch("cep")?.replace(/\D/g, "").length !== 8
+                  }
                   className="px-3"
                 >
                   {isLoadingCep ? (
@@ -467,25 +518,21 @@ export default function CompanyFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="city">Cidade</Label>
-              <Input
-                id="city"
-                {...register("city")}
-                placeholder="São Paulo"
-              />
+              <Input id="city" {...register("city")} placeholder="São Paulo" />
               {errors.city && (
-                <p className="text-sm text-destructive">{errors.city.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.city.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="state">Estado</Label>
-              <Input
-                id="state"
-                {...register("state")}
-                placeholder="SP"
-              />
+              <Input id="state" {...register("state")} placeholder="SP" />
               {errors.state && (
-                <p className="text-sm text-destructive">{errors.state.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.state.message}
+                </p>
               )}
             </div>
 
@@ -497,7 +544,9 @@ export default function CompanyFormModal({
                 placeholder="Centro"
               />
               {errors.neighborhood && (
-                <p className="text-sm text-destructive">{errors.neighborhood.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.neighborhood.message}
+                </p>
               )}
             </div>
           </div>
@@ -510,7 +559,9 @@ export default function CompanyFormModal({
               placeholder="Rua, número, bairro"
             />
             {errors.address && (
-              <p className="text-sm text-destructive">{errors.address.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.address.message}
+              </p>
             )}
           </div>
 
@@ -529,15 +580,14 @@ export default function CompanyFormModal({
                 <SelectValue placeholder="Selecione marcadores..." />
               </SelectTrigger>
               <SelectContent>
-                {markers
-                  .filter((marker: any) => marker.type === 'marcador')
+                {markers.filter((marker: any) => marker.type === "marcador")
                   .length === 0 ? (
                   <SelectItem value="no-markers" disabled>
                     Nenhum marcador disponível
                   </SelectItem>
                 ) : (
                   markers
-                    .filter((marker: any) => marker.type === 'marcador')
+                    .filter((marker: any) => marker.type === "marcador")
                     .map((marker: any) => (
                       <SelectItem key={marker.id} value={marker.name}>
                         {marker.name}
@@ -600,9 +650,15 @@ export default function CompanyFormModal({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}
+              disabled={
+                isSubmitting ||
+                createMutation.isPending ||
+                updateMutation.isPending
+              }
             >
-              {isSubmitting || createMutation.isPending || updateMutation.isPending
+              {isSubmitting ||
+              createMutation.isPending ||
+              updateMutation.isPending
                 ? "Salvando..."
                 : isEditing
                 ? "Atualizar"

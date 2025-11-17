@@ -100,10 +100,10 @@ import {
   syncContact,
   updateCashback,
 } from "./integrations/umbler";
-import { createCashbackSettingsController } from "./controllers/create-cashback-settings.controller";
-import { deleteCashbackSettingsController } from "./controllers/delete-cashback-settings.controller";
-import { getCashbackSettingsController } from "./controllers/get-cashback-settings.controller";
-import { updateCashbackSettingsController } from "./controllers/update-cashback-settings.controller";
+import { createCashbackSettingsController } from "./controllers/cashback/create-cashback-settings.controller";
+import { deleteCashbackSettingsController } from "./controllers/cashback/delete-cashback-settings.controller";
+import { getCashbackSettingsController } from "./controllers/cashback/get-cashback-settings.controller";
+import { updateCashbackSettingsController } from "./controllers/cashback/update-cashback-settings.controller";
 import {
   getCashbackStatisticsController,
   getExpiringCashbacks,
@@ -1897,8 +1897,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );*/
 
+  // MIGRADO PARA MODULAR: server/routes/deal-answers.routes.ts - GET /api/deals/:dealId/complete
   // Get deal with all information including answers
-  app.get("/api/deals/:dealId/complete", async (req, res) => {
+  /*app.get("/api/deals/:dealId/complete", async (req, res) => {
     try {
       const deal = await storage.getDealWithAnswers(req.params.dealId);
       if (!deal) {
@@ -1909,10 +1910,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao buscar deal completo:", error);
       res.status(500).json({ message: "Erro ao buscar deal completo" });
     }
-  });
+  });*/
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - GET /api/deal-questions/stats
   // Get deal questions statistics
-  app.get("/api/deal-questions/stats", async (req, res) => {
+  /*app.get("/api/deal-questions/stats", async (req, res) => {
     try {
       const stats = await storage.getDealQuestionsStats();
       res.json(stats);
@@ -1922,10 +1924,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .status(500)
         .json({ message: "Erro ao buscar estatísticas das perguntas" });
     }
-  });
+  });*/
 
+  // MIGRADO PARA MODULAR: server/routes/deal-questions.routes.ts - POST /api/deal-questions/seed
   // Seed default questions
-  app.post("/api/deal-questions/seed", async (req, res) => {
+  /*app.post("/api/deal-questions/seed", async (req, res) => {
     try {
       await storage.seedDefaultDealQuestions();
       res.json({ message: "Perguntas padrão criadas com sucesso" });
@@ -1933,10 +1936,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao popular perguntas padrão:", error);
       res.status(500).json({ message: "Erro ao popular perguntas padrão" });
     }
-  });
+  });*/
 
+  // MIGRADO PARA MODULAR: server/routes/users.routes.ts - GET /api/users
   // User routes
-  app.get("/api/users", async (req, res) => {
+  /*app.get("/api/users", async (req, res) => {
     try {
       const users = await storage.getUsers();
       // Remove passwords from response
@@ -1945,9 +1949,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar usuários" });
     }
-  });
+  });*/
 
-  app.post("/api/users", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/users.routes.ts - POST /api/users
+  /*app.post("/api/users", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       const newUser = await storage.createUser(validatedData);
@@ -1960,9 +1965,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ message: "Erro ao criar usuário" });
     }
-  });
+  });*/
 
-  app.put("/api/users/:id", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/users.routes.ts - PUT /api/users/:id
+  /*app.put("/api/users/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertUserSchema.partial().parse(req.body);
@@ -1979,9 +1985,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ message: "Erro ao atualizar usuário" });
     }
-  });
+  });*/
 
-  app.delete("/api/users/:id", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/users.routes.ts - DELETE /api/users/:id
+  /*app.delete("/api/users/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteUser(id);
@@ -1992,9 +1999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir usuário" });
     }
-  });
+  });*/
 
-  app.patch("/api/users/:id/toggle-status", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/users.routes.ts - PATCH /api/users/:id/toggle-status
+  /*app.patch("/api/users/:id/toggle-status", async (req, res) => {
     try {
       const { id } = req.params;
       const { isActive } = req.body;
@@ -2007,181 +2015,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar status do usuário" });
     }
-  });
+  });*/
 
   // Birthday routes
-  app.get("/api/upcoming-birthdays", async (req, res) => {
-    try {
-      const days = parseInt(req.query.days as string) || 7;
-      const userId = req.headers["x-user-id"] as string;
-      const userRole = req.headers["x-user-role"] as string;
-      const responsibleId = req.query.responsibleId as string;
+  // MIGRADO: GET /api/upcoming-birthdays -> GET /api/birthdays/upcoming (birthdays.routes.ts)
+  // app.get("/api/upcoming-birthdays", async (req, res) => {
+  //   try {
+  //     const days = parseInt(req.query.days as string) || 7;
+  //     const userId = req.headers["x-user-id"] as string;
+  //     const userRole = req.headers["x-user-role"] as string;
+  //     const responsibleId = req.query.responsibleId as string;
 
-      // Se um responsibleId específico for passado, usar esse
-      // Se não, e o usuário não for admin, filtrar pelos clientes do usuário atual
-      let filterByResponsible = responsibleId;
-      if (
-        !filterByResponsible &&
-        userRole !== "admin" &&
-        userRole !== "administrador"
-      ) {
-        filterByResponsible = userId;
-      }
+  //     // Se um responsibleId específico for passado, usar esse
+  //     // Se não, e o usuário não for admin, filtrar pelos clientes do usuário atual
+  //     let filterByResponsible = responsibleId;
+  //     if (
+  //       !filterByResponsible &&
+  //       userRole !== "admin" &&
+  //       userRole !== "administrador"
+  //     ) {
+  //       filterByResponsible = userId;
+  //     }
 
-      const upcomingBirthdays = await storage.getUpcomingBirthdays(
-        days,
-        filterByResponsible
-      );
-      res.json(upcomingBirthdays);
-    } catch (error) {
-      console.error("Erro ao buscar aniversários próximos:", error);
-      res.status(500).json({ message: "Erro ao buscar aniversários próximos" });
-    }
-  });
+  //     const upcomingBirthdays = await storage.getUpcomingBirthdays(
+  //       days,
+  //       filterByResponsible
+  //     );
+  //     res.json(upcomingBirthdays);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar aniversários próximos:", error);
+  //     res.status(500).json({ message: "Erro ao buscar aniversários próximos" });
+  //   }
+  // });
 
   // Tags routes (categories, origins, markers)
-  app.get("/api/categories", async (req, res) => {
-    try {
-      const categories = await storage.getTagsByType("categoria");
-      res.json(categories);
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-      res.status(500).json({ message: "Erro ao buscar categorias" });
-    }
-  });
+  // MIGRADO: GET /api/categories -> GET /api/tags/categories (tags.routes.ts)
+  // app.get("/api/categories", async (req, res) => {
+  //   try {
+  //     const categories = await storage.getTagsByType("categoria");
+  //     res.json(categories);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar categorias:", error);
+  //     res.status(500).json({ message: "Erro ao buscar categorias" });
+  //   }
+  // });
 
-  app.get("/api/origins", async (req, res) => {
-    try {
-      const origins = await storage.getTagsByType("origem");
-      res.json(origins);
-    } catch (error) {
-      console.error("Erro ao buscar origens:", error);
-      res.status(500).json({ message: "Erro ao buscar origens" });
-    }
-  });
+  // MIGRADO: GET /api/origins -> GET /api/tags/origins (tags.routes.ts)
+  // app.get("/api/origins", async (req, res) => {
+  //   try {
+  //     const origins = await storage.getTagsByType("origem");
+  //     res.json(origins);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar origens:", error);
+  //     res.status(500).json({ message: "Erro ao buscar origens" });
+  //   }
+  // });
 
-  app.get("/api/markers", async (req, res) => {
-    try {
-      const markers = await storage.getTagsByType("marcador");
-      res.json(markers);
-    } catch (error) {
-      console.error("Erro ao buscar marcadores:", error);
-      res.status(500).json({ message: "Erro ao buscar marcadores" });
-    }
-  });
+  // MIGRADO: GET /api/markers -> GET /api/tags/markers (tags.routes.ts)
+  // app.get("/api/markers", async (req, res) => {
+  //   try {
+  //     const markers = await storage.getTagsByType("marcador");
+  //     res.json(markers);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar marcadores:", error);
+  //     res.status(500).json({ message: "Erro ao buscar marcadores" });
+  //   }
+  // });
 
   // Client Interactions routes
-  app.post("/api/interactions", async (req, res) => {
-    try {
-      const userId = req.headers["x-user-id"] as string;
-      if (!userId) {
-        return res.status(401).json({ message: "Usuário não autenticado." });
-      }
+  // MIGRADO: POST /api/interactions -> POST /api/interactions (interactions.routes.ts)
+  // app.post("/api/interactions", async (req, res) => {
+  //   try {
+  //     const userId = req.headers["x-user-id"] as string;
+  //     if (!userId) {
+  //       return res.status(401).json({ message: "Usuário não autenticado." });
+  //     }
 
-      const data = { ...req.body, userId };
+  //     const data = { ...req.body, userId };
 
-      if (data.date && typeof data.date === "string") {
-        data.date = new Date(data.date);
-      }
+  //     if (data.date && typeof data.date === "string") {
+  //       data.date = new Date(data.date);
+  //     }
 
-      const validatedData = insertClientInteractionSchema.parse(data);
+  //     const validatedData = insertClientInteractionSchema.parse(data);
 
-      const [newInteraction] = await db
-        .insert(clientInteractions)
-        .values(validatedData)
-        .returning();
+  //     const [newInteraction] = await db
+  //       .insert(clientInteractions)
+  //       .values(validatedData)
+  //       .returning();
 
-      res.status(201).json(newInteraction);
-      res.send();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        console.error(
-          "Erro de validação ao criar interação:",
-          validationError.toString()
-        );
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro no servidor ao criar interação:", error);
-      res.status(500).json({ message: "Erro interno ao criar a interação." });
-    }
-  });
+  //     res.status(201).json(newInteraction);
+  //     res.send();
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       const validationError = fromZodError(error);
+  //       console.error(
+  //         "Erro de validação ao criar interação:",
+  //         validationError.toString()
+  //       );
+  //       return res.status(400).json({ message: validationError.toString() });
+  //     }
+  //     console.error("Erro no servidor ao criar interação:", error);
+  //     res.status(500).json({ message: "Erro interno ao criar a interação." });
+  //   }
+  // });
 
-  // Cashback routes
-  app.get("/api/cashback-settings", async (req, res) => {
-    try {
-      const settings = await storage.getCashbackSettings();
-      res.json(settings);
-    } catch (error) {
-      console.error("Erro ao buscar configurações de cashback:", error);
-      res.status(500).json({ message: "Erro ao buscar configurações" });
-    }
-  });
+  // ========================================================================
+  // CASHBACK SETTINGS ROUTES - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  //
+  // Rotas disponíveis em /api/cashback-settings:
+  // - GET    /api/cashback-settings          -> Busca todas as configurações
+  // - POST   /api/cashback-settings          -> Cria nova configuração
+  // - PUT    /api/cashback-settings/:id      -> Atualiza configuração
+  // - DELETE /api/cashback-settings/:id      -> Exclui configuração
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-settings.repository.ts
+  // - Service:    server/services/cashback-settings.service.ts
+  // - Controllers: server/controllers/get-cashback-settings.controller.ts
+  //                server/controllers/create-cashback-settings.controller.ts
+  //                server/controllers/update-cashback-settings.controller.ts
+  //                server/controllers/delete-cashback-settings.controller.ts
+  // - Router:      server/routes/cashback-settings.routes.ts
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
 
-  app.post("/api/cashback-settings", async (req, res) => {
-    try {
-      const validatedData = insertCashbackSettingSchema.parse(req.body);
-      const setting = await storage.createCashbackSetting(validatedData);
-      res.status(201).json(setting);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro ao criar configuração:", error);
-      res.status(500).json({ message: "Erro ao criar configuração" });
-    }
-  });
+  // COMENTADO - Agora usa router modular
+  // app.get("/api/cashback-settings", async (req, res) => {
+  //   try {
+  //     const settings = await storage.getCashbackSettings();
+  //     res.json(settings);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar configurações de cashback:", error);
+  //     res.status(500).json({ message: "Erro ao buscar configurações" });
+  //   }
+  // });
 
-  app.put("/api/cashback-settings/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const validatedData = insertCashbackSettingSchema
-        .partial()
-        .parse(req.body);
-      const setting = await storage.updateCashbackSetting(id, validatedData);
-      if (!setting) {
-        return res.status(404).json({ message: "Configuração não encontrada" });
-      }
-      res.json(setting);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro ao atualizar configuração:", error);
-      res.status(500).json({ message: "Erro ao atualizar configuração" });
-    }
-  });
+  // app.post("/api/cashback-settings", async (req, res) => {
+  //   try {
+  //     const validatedData = insertCashbackSettingSchema.parse(req.body);
+  //     const setting = await storage.createCashbackSetting(validatedData);
+  //     res.status(201).json(setting);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       const validationError = fromZodError(error);
+  //       return res.status(400).json({ message: validationError.toString() });
+  //     }
+  //     console.error("Erro ao criar configuração:", error);
+  //     res.status(500).json({ message: "Erro ao criar configuração" });
+  //   }
+  // });
 
-  app.delete("/api/cashback-settings/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteCashbackSetting(id);
-      if (!success) {
-        return res.status(404).json({ message: "Configuração não encontrada" });
-      }
-      res.json({ message: "Configuração excluída com sucesso" });
-    } catch (error) {
-      console.error("Erro ao excluir configuração:", error);
-      res.status(500).json({ message: "Erro ao excluir configuração" });
-    }
-  });
+  // app.put("/api/cashback-settings/:id", async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const validatedData = insertCashbackSettingSchema
+  //       .partial()
+  //       .parse(req.body);
+  //     const setting = await storage.updateCashbackSetting(id, validatedData);
+  //     if (!setting) {
+  //       return res.status(404).json({ message: "Configuração não encontrada" });
+  //     }
+  //     res.json(setting);
+  //   } catch (error) {
+  //     if (error instanceof z.ZodError) {
+  //       const validationError = fromZodError(error);
+  //       return res.status(400).json({ message: validationError.toString() });
+  //     }
+  //     console.error("Erro ao atualizar configuração:", error);
+  //     res.status(500).json({ message: "Erro ao atualizar configuração" });
+  //   }
+  // });
 
-  // Cashback statistics route
-  app.get("/api/cashback-statistics", getCashbackStatisticsController);
+  // app.delete("/api/cashback-settings/:id", async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const success = await storage.deleteCashbackSetting(id);
+  //     if (!success) {
+  //       return res.status(404).json({ message: "Configuração não encontrada" });
+  //     }
+  //     res.json({ message: "Configuração excluída com sucesso" });
+  //   } catch (error) {
+  //     console.error("Erro ao excluir configuração:", error);
+  //     res.status(500).json({ message: "Erro ao excluir configuração" });
+  //   }
+  // });
 
-  // Expiring cashbacks route
-  app.get("/api/cashback-expiring", getExpiringCashbacks);
+  // ========================================================================
+  // CASHBACK STATISTICS ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/statistics
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts
+  // - Service:    server/services/cashback-statistics.service.ts
+  // - Controller: server/controllers/cashback/get-cashback-statistics.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /statistics)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
 
-  // Cashback balances with filters route
-  app.get("/api/cashback-balances-list", getCashbackBalancesController);
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/statistics
+  // app.get("/api/cashback-statistics", getCashbackStatisticsController);
 
-  // Cashback transactions with filters route
-  app.get("/api/cashback-transactions-list", getCashbackTransactionsController);
+  // ========================================================================
+  // CASHBACK EXPIRING ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/expiring
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts
+  // - Service:    server/services/cashback-statistics.service.ts
+  // - Controller: server/controllers/cashback/get-expiring-cashbacks.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /expiring)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
 
-  // Cashback usage with filters route
-  app.get("/api/cashback-usage-list", getCashbackUsageController);
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/expiring
+  // app.get("/api/cashback-expiring", getExpiringCashbacks);
+
+  // ========================================================================
+  // CASHBACK BALANCES ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/balances
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts
+  // - Service:    server/services/cashback-statistics.service.ts
+  // - Controller: server/controllers/cashback/get-cashback-balances.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /balances)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
+
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/balances
+  // app.get("/api/cashback-balances-list", getCashbackBalancesController);
+
+  // ========================================================================
+  // CASHBACK TRANSACTIONS ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/transactions
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts
+  // - Service:    server/services/cashback-statistics.service.ts
+  // - Controller: server/controllers/cashback/get-cashback-transactions.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /transactions)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
+
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/transactions
+  // app.get("/api/cashback-transactions-list", getCashbackTransactionsController);
+
+  // ========================================================================
+  // CASHBACK USAGE ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/usage
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts
+  // - Service:    server/services/cashback-statistics.service.ts
+  // - Controller: server/controllers/cashback/get-cashback-usage.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /usage)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
+
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/usage
+  // app.get("/api/cashback-usage-list", getCashbackUsageController);
 
   // Cashback reports dashboard route
   app.get("/api/cashback-reports", getCashbackReports);
@@ -4651,6 +4756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+<<<<<<< HEAD
   // Proxy endpoint para download de imagens de eventos
   app.get("/api/events/download-image", async (req, res) => {
     try {
@@ -4707,6 +4813,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController);
   app.get("/api/v2/cashback-settings", getCashbackSettingsController);
   app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
+=======
+  // ========================================================================
+  // CASHBACK SETTINGS V2 ROUTES - REMOVIDO (Agora em sistema modular)
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Todas as rotas v2 foram consolidadas no router modular /api/cashback-settings
+  // ========================================================================
+
+  // REMOVIDO - Agora usa router modular via apiRouter
+  // app.post("/api/v2/cashback-settings", createCashbackSettingsController);
+  // app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController);
+  // app.get("/api/v2/cashback-settings", getCashbackSettingsController);
+  // app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
+>>>>>>> 2db674ba5de1dd049922ac5deb4f73fcf3ea2eb9
 
   app.post(
     "/api/message-automation-settings",

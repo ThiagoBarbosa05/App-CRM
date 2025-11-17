@@ -236,6 +236,47 @@ export class DealQuestionsService {
       userRole,
     };
   }
+
+  /**
+   * Busca estatísticas sobre perguntas de deals
+   * @returns Promise com estatísticas de perguntas e uso
+   */
+  async getDealQuestionsStats(): Promise<{
+    totalQuestions: number;
+    activeQuestions: number;
+    categoriesCount: number;
+    usageStats: Array<{
+      questionId: string;
+      question: string;
+      answeredCount: number;
+      totalDeals: number;
+      completionRate: number;
+    }>;
+  }> {
+    try {
+      return await this.dealQuestionsRepository.getDealQuestionsStats();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Erro ao buscar estatísticas das perguntas");
+    }
+  }
+
+  /**
+   * Popula o banco com perguntas padrão de deals
+   * @returns Promise<void>
+   */
+  async seedDefaultDealQuestions(): Promise<void> {
+    try {
+      await this.dealQuestionsRepository.seedDefaultDealQuestions();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Erro ao popular perguntas padrão");
+    }
+  }
 }
 
 // Instância singleton do service

@@ -64,7 +64,7 @@ export default function MarkersManagement() {
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
   });
 
   // Filtrar marcadores com base no termo de busca
@@ -77,9 +77,9 @@ export default function MarkersManagement() {
       return await apiRequest("POST", "/api/markers", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/markers"] });
       setShowCreateModal(false);
-      setFormData({ name: "", color: "#10B981" });
+      setFormData({ name: "", color: "#8B5CF6" });
       toast({
         title: "Sucesso",
         description: "Marcador criado com sucesso",
@@ -107,7 +107,7 @@ export default function MarkersManagement() {
       return await apiRequest("PUT", `/api/markers/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/markers"] });
       // Invalidate marker stats cache since marker name changes can affect goal calculations
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -137,7 +137,7 @@ export default function MarkersManagement() {
       return await apiRequest("DELETE", `/api/markers/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/markers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/markers"] });
       // Invalidate marker stats cache since deleting a marker affects goal calculations
       queryClient.invalidateQueries({
         predicate: (q) =>

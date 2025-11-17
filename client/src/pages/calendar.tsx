@@ -59,13 +59,13 @@ export default function CalendarPage() {
   const { user } = useAuth();
 
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
-    queryKey: ["/api/upcoming-birthdays", "all", user?.id, user?.role],
+    queryKey: ["/api/birthdays/upcoming", "all", user?.id, user?.role],
     queryFn: async () => {
       // Admin vê todos os clientes, outros só os seus
       const url =
         user?.role === "admin" || user?.role === "administrador"
-          ? `/api/upcoming-birthdays?days=365`
-          : `/api/upcoming-birthdays?days=365`;
+          ? `/api/birthdays/upcoming?days=365`
+          : `/api/birthdays/upcoming?days=365`;
 
       const response = await fetch(url, {
         headers: {
@@ -80,9 +80,9 @@ export default function CalendarPage() {
   });
 
   const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: ["/api/upcoming-birthdays", 30, user?.id, user?.role],
+    queryKey: ["/api/birthdays/upcoming", 30, user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch("/api/upcoming-birthdays?days=30", {
+      const response = await fetch("/api/birthdays/upcoming?days=30", {
         headers: {
           "x-user-id": user?.id || "",
           "x-user-role": user?.role || "",

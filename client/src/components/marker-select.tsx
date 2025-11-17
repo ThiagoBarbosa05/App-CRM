@@ -19,32 +19,40 @@ interface MarkerSelectProps {
   placeholder?: string;
 }
 
-export default function MarkerSelect({ value, onChange, placeholder = "Selecionar marcadores..." }: MarkerSelectProps) {
+export default function MarkerSelect({
+  value,
+  onChange,
+  placeholder = "Selecionar marcadores...",
+}: MarkerSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: availableMarkers = [], isLoading, isError } = useQuery({
-    queryKey: ["/api/markers"],
+  const {
+    data: availableMarkers = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["/api/tags/markers"],
     queryFn: async () => {
-      const response = await fetch("/api/markers");
+      const response = await fetch("/api/tags/markers");
       if (!response.ok) throw new Error("Erro ao buscar marcadores");
       const markers = await response.json();
-      
+
       return markers
-        .filter((marker: any) => marker && marker.type === 'marcador')
+        .filter((marker: any) => marker && marker.type === "marcador")
         .map((marker: any) => marker.name)
-        .filter((name: string) => name && typeof name === 'string');
+        .filter((name: string) => name && typeof name === "string");
     },
   });
 
   const handleMarkerToggle = (marker: string) => {
-    if (!marker || typeof marker !== 'string') return;
-    
+    if (!marker || typeof marker !== "string") return;
+
     const currentValue = Array.isArray(value) ? value : [];
     const isSelected = currentValue.includes(marker);
-    
+
     if (isSelected) {
-      onChange(currentValue.filter(m => m !== marker));
+      onChange(currentValue.filter((m) => m !== marker));
     } else {
       onChange([...currentValue, marker]);
     }
@@ -53,13 +61,13 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
 
   const handleRemoveMarker = (markerToRemove: string) => {
     const currentValue = Array.isArray(value) ? value : [];
-    onChange(currentValue.filter(marker => marker !== markerToRemove));
+    onChange(currentValue.filter((marker) => marker !== markerToRemove));
   };
 
   // Filtro seguro
   const filteredMarkers = availableMarkers.filter((marker: string) => {
     try {
-      if (!marker || typeof marker !== 'string') return false;
+      if (!marker || typeof marker !== "string") return false;
       if (searchTerm === "") return true;
       return marker.toLowerCase().includes(searchTerm.toLowerCase());
     } catch (error) {
@@ -71,11 +79,7 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
   if (isError) {
     return (
       <div className="space-y-2">
-        <Button
-          variant="outline"
-          className="w-full justify-between"
-          disabled
-        >
+        <Button variant="outline" className="w-full justify-between" disabled>
           Erro ao carregar marcadores
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -92,8 +96,11 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
             className="w-full justify-between"
             disabled={isLoading}
           >
-            {isLoading ? "Carregando..." : 
-             value && Array.isArray(value) && value.length > 0 ? `${value.length} marcador(es) selecionado(s)` : placeholder}
+            {isLoading
+              ? "Carregando..."
+              : value && Array.isArray(value) && value.length > 0
+              ? `${value.length} marcador(es) selecionado(s)`
+              : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
@@ -109,17 +116,21 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
           <div className="max-h-48 overflow-y-auto">
             {/* Debug info */}
 
-            
             {filteredMarkers.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-2">
-                  {isLoading ? "Carregando marcadores..." : 
-                   searchTerm ? "Nenhum marcador encontrado." : 
-                   availableMarkers.length === 0 ? "Nenhum marcador disponível." : "Nenhum resultado para a busca."}
+                  {isLoading
+                    ? "Carregando marcadores..."
+                    : searchTerm
+                    ? "Nenhum marcador encontrado."
+                    : availableMarkers.length === 0
+                    ? "Nenhum marcador disponível."
+                    : "Nenhum resultado para a busca."}
                 </p>
                 {!isLoading && availableMarkers.length === 0 && (
                   <p className="text-xs text-gray-400">
-                    Crie marcadores na página de Configurações para utilizá-los aqui.
+                    Crie marcadores na página de Configurações para utilizá-los
+                    aqui.
                   </p>
                 )}
               </div>
@@ -134,13 +145,19 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                     <Check
                       className={cn(
                         "h-4 w-4",
-                        value && Array.isArray(value) && value.includes(marker) ? "opacity-100" : "opacity-0"
+                        value && Array.isArray(value) && value.includes(marker)
+                          ? "opacity-100"
+                          : "opacity-0"
                       )}
                     />
                     <span className="flex-1">{marker}</span>
-                    {value && Array.isArray(value) && value.includes(marker) && (
-                      <span className="text-xs text-green-600">Selecionado</span>
-                    )}
+                    {value &&
+                      Array.isArray(value) &&
+                      value.includes(marker) && (
+                        <span className="text-xs text-green-600">
+                          Selecionado
+                        </span>
+                      )}
                   </DropdownMenuItem>
                 ))}
                 {filteredMarkers.length > 0 && (
@@ -148,7 +165,8 @@ export default function MarkerSelect({ value, onChange, placeholder = "Seleciona
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1">
                       <p className="text-xs text-gray-400 text-center">
-                        Para adicionar novos marcadores, acesse a página Configurações
+                        Para adicionar novos marcadores, acesse a página
+                        Configurações
                       </p>
                     </div>
                   </>

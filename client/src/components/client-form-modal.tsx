@@ -84,12 +84,12 @@ export default function ClientFormModal({
 
   // Buscar categorias das configurações
   const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/tags/categories"],
   }) as { data: any[] };
 
   // Buscar origens das configurações
   const { data: origins = [] } = useQuery({
-    queryKey: ["/api/origins"],
+    queryKey: ["/api/tags/origins"],
   }) as { data: any[] };
 
   // Buscar usuários para administradores e gerentes
@@ -100,7 +100,7 @@ export default function ClientFormModal({
 
   // Buscar marcadores das configurações
   const { data: markers = [] } = useQuery({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
   }) as { data: any[] };
 
   // Função para converter data brasileira para ISO
@@ -168,8 +168,10 @@ export default function ClientFormModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       // Invalidate marker stats cache to update goal calculations
-      queryClient.invalidateQueries({ 
-        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" &&
+          (q.queryKey[0] as string).startsWith("/api/marker-stats"),
       });
       toast({
         title: "Cliente criado",
@@ -189,15 +191,19 @@ export default function ClientFormModal({
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const url = `/api/clients/${client!.id}?userId=${user?.id}&userRole=${user?.role}`;
+      const url = `/api/clients/${client!.id}?userId=${user?.id}&userRole=${
+        user?.role
+      }`;
       const response = await apiRequest("PUT", url, data);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       // Invalidate marker stats cache to update goal calculations
-      queryClient.invalidateQueries({ 
-        predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/marker-stats") 
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          typeof q.queryKey[0] === "string" &&
+          (q.queryKey[0] as string).startsWith("/api/marker-stats"),
       });
       toast({
         title: "Cliente atualizado",
@@ -226,7 +232,7 @@ export default function ClientFormModal({
     const currentMarkers = form.getValues("markers") || [];
     form.setValue(
       "markers",
-      currentMarkers.filter((marker) => marker !== markerToRemove),
+      currentMarkers.filter((marker) => marker !== markerToRemove)
     );
   };
 
@@ -243,7 +249,7 @@ export default function ClientFormModal({
 
     try {
       const response = await fetch(
-        `https://viacep.com.br/ws/${cleanCep}/json/`,
+        `https://viacep.com.br/ws/${cleanCep}/json/`
       );
       const data = await response.json();
 
@@ -294,7 +300,9 @@ export default function ClientFormModal({
         city: data.city?.trim() || "",
         state: data.state?.trim() || "",
         responsavelId:
-          user?.role === "admin" || user?.role === "gerente" ? data.responsavelId : user?.id || null, // Admin e gerente podem escolher, outros usam usuário atual
+          user?.role === "admin" || user?.role === "gerente"
+            ? data.responsavelId
+            : user?.id || null, // Admin e gerente podem escolher, outros usam usuário atual
       };
 
       if (client) {
@@ -453,10 +461,10 @@ export default function ClientFormModal({
                                   {user.role === "admin"
                                     ? "Administrador"
                                     : user.role === "gerente"
-                                      ? "Gerente"
-                                      : user.role === "vendedor"
-                                        ? "Vendedor"
-                                        : "Usuário"}
+                                    ? "Gerente"
+                                    : user.role === "vendedor"
+                                    ? "Vendedor"
+                                    : "Usuário"}
                                 </SelectItem>
                               ))
                             )}
@@ -584,16 +592,18 @@ export default function ClientFormModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {markers
-                            .filter((marker: any) => marker.type === 'marcador')
-                            .length === 0 ? (
+                          {markers.filter(
+                            (marker: any) => marker.type === "marcador"
+                          ).length === 0 ? (
                             <div className="p-2 text-sm text-gray-500 text-center">
                               Nenhum marcador encontrado. Crie marcadores na
                               página Configurações.
                             </div>
                           ) : (
                             markers
-                              .filter((marker: any) => marker.type === 'marcador')
+                              .filter(
+                                (marker: any) => marker.type === "marcador"
+                              )
                               .map((marker: any) => (
                                 <SelectItem key={marker.id} value={marker.name}>
                                   {marker.name}
@@ -771,8 +781,8 @@ export default function ClientFormModal({
                 {isSubmitting
                   ? "Salvando..."
                   : client
-                    ? "Atualizar Cliente"
-                    : "Salvar Cliente"}
+                  ? "Atualizar Cliente"
+                  : "Salvar Cliente"}
               </Button>
             </div>
           </form>

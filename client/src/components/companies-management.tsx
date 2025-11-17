@@ -141,12 +141,12 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   });
 
   const { data: markers = [] } = useQuery({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
     queryFn: async () => {
-      const response = await fetch("/api/markers");
+      const response = await fetch("/api/tags/markers");
       if (!response.ok) throw new Error("Failed to fetch markers");
       const allMarkers = await response.json();
-      return allMarkers.filter((marker: any) => marker.type === 'marcador');
+      return allMarkers.filter((marker: any) => marker.type === "marcador");
     },
   });
 

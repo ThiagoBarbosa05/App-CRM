@@ -237,7 +237,9 @@ export function CashbackTransactionsList({
       params.append("page", filters.page.toString());
       params.append("limit", filters.limit.toString());
 
-      const response = await fetch(`/api/cashback-transactions-list?${params}`);
+      const response = await fetch(
+        `/api/cashback-settings/transactions?${params}`
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
