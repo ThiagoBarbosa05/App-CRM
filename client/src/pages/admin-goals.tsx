@@ -388,7 +388,7 @@ export default function AdminGoals() {
   const { data: availableMarkers = [] } = useQuery<
     { id: string; name: string; color: string }[]
   >({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
   });
 
   // Buscar metas de interações

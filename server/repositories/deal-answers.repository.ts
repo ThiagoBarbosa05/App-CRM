@@ -111,6 +111,44 @@ export class DealAnswersRepository {
       throw error;
     }
   }
+
+  /**
+   * Busca um deal com todas as suas respostas
+   * @param dealId - ID único do deal
+   * @returns Promise<any | null> - Deal completo com respostas ou null se não encontrado
+   */
+  async getDealWithAnswers(dealId: string): Promise<any | null> {
+    try {
+      // Buscar o deal
+      const dealResult = await this.db
+        .select()
+        .from(deals)
+        .where(eq(deals.id, dealId))
+        .limit(1);
+
+      if (dealResult.length === 0) {
+        return null;
+      }
+
+      const deal = dealResult[0];
+
+      // Buscar as respostas do deal
+      const answers = await this.db
+        .select()
+        .from(dealAnswers)
+        .where(eq(dealAnswers.dealId, dealId))
+        .orderBy(dealAnswers.createdAt);
+
+      // Retornar deal com respostas
+      return {
+        ...deal,
+        answers,
+      };
+    } catch (error) {
+      console.error("Error fetching deal with answers:", error);
+      throw error;
+    }
+  }
 }
 
 // Instância singleton do repository

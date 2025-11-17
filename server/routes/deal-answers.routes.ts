@@ -3,6 +3,7 @@ import { z } from "zod";
 import { validateParams, validateBody } from "../middleware/validation";
 import { getDealAnswersController } from "../controllers/deal-answers/get-deal-answers.controller";
 import { saveDealAnswersController } from "../controllers/deal-answers/save-deal-answers.controller";
+import { getDealWithAnswersController } from "server/controllers/deal-answers/get-deal-with-answers.controller";
 
 /**
  * Router para gerenciamento de respostas de deals
@@ -13,6 +14,7 @@ import { saveDealAnswersController } from "../controllers/deal-answers/save-deal
  * Rotas disponíveis:
  * - GET /deals/:dealId/answers - Busca respostas de um deal específico
  * - POST /deals/:dealId/answers - Salva/atualiza respostas de um deal
+ * - GET /deals/:dealId/complete - Busca deal completo com todas as respostas
  *
  * Middleware aplicado:
  * - validateParams: Validação de parâmetros da URL
@@ -229,8 +231,70 @@ dealAnswersRouter.post(
   saveDealAnswersController
 );
 
+/**
+ * GET /api/deals/:dealId/complete
+ *
+ * Busca um deal completo com todas as suas respostas
+ *
+ * Esta rota permite recuperar um deal com todas as informações,
+ * incluindo todas as respostas associadas às perguntas configuradas.
+ * É útil para visualização completa de um deal em uma única requisição.
+ *
+ * Middleware aplicado:
+ * - validateParams: Valida parâmetros da URL (ID do deal)
+ *
+ * @param {string} dealId - ID único do deal (UUID formato)
+ *
+ * Respostas:
+ * - 200: Deal completo retornado com sucesso
+ * - 400: Parâmetros inválidos
+ * - 404: Deal não encontrado
+ * - 500: Erro interno do servidor
+ *
+ * @example
+ * GET /api/deals/123e4567-e89b-12d3-a456-426614174000/complete
+ *
+ * Response (200):
+ * {
+ *   "id": "123e4567-e89b-12d3-a456-426614174000",
+ *   "title": "Negócio - Cliente X",
+ *   "value": "5000.00",
+ *   "funnelId": "funnel-uuid",
+ *   "stageId": "stage-uuid",
+ *   "clientId": "client-uuid",
+ *   "assignedTo": "user-uuid",
+ *   "createdAt": "2023-01-01T10:00:00Z",
+ *   "answers": [
+ *     {
+ *       "id": "answer-uuid-1",
+ *       "dealId": "123e4567-e89b-12d3-a456-426614174000",
+ *       "questionId": "question-uuid-1",
+ *       "answerText": "Resposta 1",
+ *       "createdAt": "2023-01-01T10:00:00Z"
+ *     }
+ *   ]
+ * }
+ *
+ * Response (404):
+ * {
+ *   "error": "Deal não encontrado"
+ * }
+ *
+ * Funcionalidades:
+ * - Busca deal com todos os campos
+ * - Inclui todas as respostas em um único objeto
+ * - Respostas ordenadas por data de criação
+ * - Validação de UUID para parâmetros
+ * - Reduz número de requisições HTTP necessárias
+ */
+dealAnswersRouter.get(
+  "/deals/:dealId/complete",
+  validateParams(dealAnswersParamsSchema),
+  getDealWithAnswersController
+);
+
 // TODO: Migrar outras rotas de deal-answers para este arquivo:
 // - ✅ POST /deals/:dealId/answers (MIGRADO - salvar/atualizar respostas)
-// - GET /deals/:dealId/complete (deal completo com respostas)
+// - ✅ GET /deals/:dealId/complete (MIGRADO - deal completo com respostas)
 
 export default dealAnswersRouter;

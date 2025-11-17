@@ -168,6 +168,31 @@ export class DealAnswersService {
       userRole,
     };
   }
+
+  /**
+   * Busca um deal completo com todas as suas respostas
+   * @param params - Parâmetros de busca do deal completo
+   * @returns Promise<any | null> - Deal completo com respostas ou null
+   */
+  async getDealWithAnswers(params: GetDealAnswersParams): Promise<any | null> {
+    const { dealId } = params;
+
+    // Validações básicas
+    if (!dealId || dealId.trim() === "") {
+      throw new Error("ID do deal é obrigatório");
+    }
+
+    try {
+      // Buscar deal com respostas
+      const deal = await this.dealAnswersRepository.getDealWithAnswers(dealId);
+      return deal;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Erro ao buscar deal completo");
+    }
+  }
 }
 
 // Instância singleton do service

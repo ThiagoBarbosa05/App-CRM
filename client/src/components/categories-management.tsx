@@ -76,7 +76,7 @@ export default function CategoriesManagement() {
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/tags/categories"],
   });
 
   // Filtrar categorias com base no termo de busca
@@ -89,7 +89,7 @@ export default function CategoriesManagement() {
       return await apiRequest("POST", "/api/categories", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/categories"] });
       setShowCreateModal(false);
       setFormData({ name: "", color: "#8B5CF6" });
       toast({
@@ -119,7 +119,7 @@ export default function CategoriesManagement() {
       return await apiRequest("PUT", `/api/categories/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/categories"] });
       setEditingCategory(null);
       setFormData({ name: "", color: "#8B5CF6" });
       toast({
@@ -145,7 +145,7 @@ export default function CategoriesManagement() {
       return await apiRequest("DELETE", `/api/categories/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tags/categories"] });
       setCategoryToDelete(null);
       toast({
         title: "Sucesso",

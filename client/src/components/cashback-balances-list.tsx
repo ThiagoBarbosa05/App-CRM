@@ -199,7 +199,7 @@ export function CashbackBalancesList({
 
       console.log("Fetching cashback balances with params:", params.toString());
       const response = await fetch(
-        `/api/cashback-balances-list?${params.toString()}`
+        `/api/cashback-settings/balances?${params.toString()}`
       );
       if (!response.ok) {
         throw new Error(

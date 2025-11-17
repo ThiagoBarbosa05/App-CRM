@@ -222,7 +222,7 @@ export function CashbackUsageList({
       params.append("page", filters.page.toString());
       params.append("limit", filters.limit.toString());
 
-      const response = await fetch(`/api/cashback-usage-list?${params}`);
+      const response = await fetch(`/api/cashback-settings/usage?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

@@ -15,6 +15,8 @@ import { getDealQuestionsController } from "../controllers/deal-questions/get-de
 import { createDealQuestionController } from "../controllers/deal-questions/post-deal-question.controller";
 import { updateDealQuestionController } from "../controllers/deal-questions/put-deal-question.controller";
 import { deleteDealQuestionController } from "../controllers/deal-questions/delete-deal-question.controller";
+import { getDealQuestionsStatsController } from "server/controllers/deal-questions/get-deal-questions-stats.controller";
+import { seedDealQuestionsController } from "server/controllers/deal-questions/post-seed-deal-questions.controller";
 
 /**
  * Router específico para endpoints relacionados a perguntas de deals
@@ -216,12 +218,79 @@ dealQuestionsRouter.delete(
   deleteDealQuestionController
 );
 
+/**
+ * GET /api/deal-questions/stats
+ *
+ * Retorna estatísticas sobre as perguntas de deals
+ *
+ * Esta rota fornece uma visão geral sobre o uso e a eficácia das perguntas de deals,
+ * incluindo contadores gerais e estatísticas de uso individual por pergunta.
+ *
+ * Respostas:
+ * - 200: Estatísticas retornadas com sucesso
+ * - 500: Erro interno do servidor
+ *
+ * @example
+ * GET /api/deal-questions/stats
+ *
+ * Response (200):
+ * {
+ *   "totalQuestions": 10,
+ *   "activeQuestions": 8,
+ *   "categoriesCount": 3,
+ *   "usageStats": [
+ *     {
+ *       "questionId": "123e4567-e89b-12d3-a456-426614174000",
+ *       "question": "Qual é o orçamento?",
+ *       "answeredCount": 45,
+ *       "totalDeals": 100,
+ *       "completionRate": 45
+ *     }
+ *   ]
+ * }
+ */
+dealQuestionsRouter.get("/stats", getDealQuestionsStatsController);
+
+/**
+ * POST /api/deal-questions/seed
+ *
+ * Popula o banco de dados com perguntas padrão de deals
+ *
+ * Esta rota insere um conjunto predefinido de perguntas no sistema, útil para
+ * inicializar o banco de dados ou resetar as perguntas para os valores padrão.
+ * A operação é idempotente - se já existirem perguntas, nada é feito.
+ *
+ * Respostas:
+ * - 200: Perguntas padrão criadas com sucesso (ou já existiam)
+ * - 500: Erro interno do servidor
+ *
+ * @example
+ * POST /api/deal-questions/seed
+ *
+ * Response (200):
+ * {
+ *   "message": "Perguntas padrão criadas com sucesso"
+ * }
+ *
+ * @notes
+ * - A rota verifica se já existem perguntas antes de inserir
+ * - Se já houver perguntas, retorna sucesso sem inserir nada
+ * - Útil para ambiente de desenvolvimento e testes
+ * - As perguntas padrão incluem categorias como:
+ *   - Conhecimento do Produto
+ *   - Perfil de Consumo
+ *   - Competitividade
+ *   - Potencial de Negócio
+ *   - Relacionamento
+ */
+dealQuestionsRouter.post("/seed", seedDealQuestionsController);
+
 // TODO: Migrar outras rotas de deal-questions para este arquivo:
 // - ✅ GET /deal-questions (MIGRADO - busca de perguntas)
 // - ✅ POST /deal-questions (MIGRADO - criação de pergunta)
 // - ✅ PUT /deal-questions/:id (MIGRADO - atualização de pergunta)
 // - ✅ DELETE /deal-questions/:id (MIGRADO - exclusão de pergunta)
-// - GET /deal-questions/stats (estatísticas de perguntas)
-// - POST /deal-questions/seed (popular perguntas padrão)
+// - ✅ GET /deal-questions/stats (MIGRADO - estatísticas de perguntas)
+// - ✅ POST /deal-questions/seed (MIGRADO - popular perguntas padrão)
 
 export default dealQuestionsRouter;

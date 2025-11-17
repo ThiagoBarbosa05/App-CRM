@@ -81,7 +81,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        },
+        }
       );
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
@@ -102,7 +102,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        },
+        }
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -111,11 +111,11 @@ export default function Reports() {
   });
 
   const { data: categories = [] } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/tags/categories"],
   });
 
   const { data: origins = [] } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["/api/origins"],
+    queryKey: ["/api/tags/origins"],
   });
 
   const { data: users = [] } = useQuery<
@@ -127,7 +127,7 @@ export default function Reports() {
   const { data: markers = [] } = useQuery<
     { id: string; name: string; color: string }[]
   >({
-    queryKey: ["/api/markers"],
+    queryKey: ["/api/tags/markers"],
   });
 
   const { data: sectors = [] } = useQuery<{ id: string; name: string }[]>({
@@ -159,7 +159,7 @@ export default function Reports() {
         const thisYearBirthday = new Date(
           currentYear,
           birthday.getMonth(),
-          birthday.getDate(),
+          birthday.getDate()
         );
 
         // Se já passou este ano, considerar o próximo ano
@@ -172,7 +172,7 @@ export default function Reports() {
           ...client,
           nextBirthday,
           daysUntil: Math.ceil(
-            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
           ),
         };
       })
@@ -180,7 +180,7 @@ export default function Reports() {
         isWithinInterval(client.nextBirthday, {
           start: today,
           end: next30Days,
-        }),
+        })
       )
       .sort((a, b) => a.daysUntil - b.daysUntil);
   };
@@ -195,82 +195,70 @@ export default function Reports() {
   const totalCompanies = companiesArray.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
-  const clientsByCategory = clientsArray.reduce(
-    (acc, client) => {
-      const category = client.categoria;
-      // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
-      if (!category) {
-        acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
-      } else if (validCategoryNames.has(category)) {
-        acc[category] = (acc[category] || 0) + 1;
-      }
-      // Ignora categorias que foram excluídas das configurações
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  const clientsByCategory = clientsArray.reduce((acc, client) => {
+    const category = client.categoria;
+    // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
+    if (!category) {
+      acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
+    } else if (validCategoryNames.has(category)) {
+      acc[category] = (acc[category] || 0) + 1;
+    }
+    // Ignora categorias que foram excluídas das configurações
+    return acc;
+  }, {} as Record<string, number>);
 
   // Estatísticas por origem (apenas origens válidas)
-  const clientsByOrigin = clientsArray.reduce(
-    (acc, client) => {
-      const origin = client.origem;
-      // Só contar se a origem ainda existe nas configurações ou se não tem origem
-      if (!origin) {
-        acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
-      } else if (validOriginNames.has(origin)) {
-        acc[origin] = (acc[origin] || 0) + 1;
-      }
-      // Ignora origens que foram excluídas das configurações
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  const clientsByOrigin = clientsArray.reduce((acc, client) => {
+    const origin = client.origem;
+    // Só contar se a origem ainda existe nas configurações ou se não tem origem
+    if (!origin) {
+      acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
+    } else if (validOriginNames.has(origin)) {
+      acc[origin] = (acc[origin] || 0) + 1;
+    }
+    // Ignora origens que foram excluídas das configurações
+    return acc;
+  }, {} as Record<string, number>);
 
   // Estatísticas por usuário responsável
-  const clientsByUser = clientsArray.reduce(
-    (acc, client) => {
-      const responsibleId = client.responsavelId;
-      if (!responsibleId) {
-        acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
-      } else if (validUserIds.has(responsibleId)) {
-        const user = users.find((u) => u.id === responsibleId);
-        const userName = user ? user.name : "Usuário não encontrado";
-        acc[userName] = (acc[userName] || 0) + 1;
-      }
-      // Ignora usuários que foram removidos do sistema
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  const clientsByUser = clientsArray.reduce((acc, client) => {
+    const responsibleId = client.responsavelId;
+    if (!responsibleId) {
+      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
+    } else if (validUserIds.has(responsibleId)) {
+      const user = users.find((u) => u.id === responsibleId);
+      const userName = user ? user.name : "Usuário não encontrado";
+      acc[userName] = (acc[userName] || 0) + 1;
+    }
+    // Ignora usuários que foram removidos do sistema
+    return acc;
+  }, {} as Record<string, number>);
 
   // Estatísticas por marcadores
-  const clientsByMarkers = clientsArray.reduce(
-    (acc, client) => {
-      const clientMarkers = client.markers || [];
-      const validClientMarkers = clientMarkers.filter((markerName) =>
-        validMarkerNames.has(markerName),
-      );
+  const clientsByMarkers = clientsArray.reduce((acc, client) => {
+    const clientMarkers = client.markers || [];
+    const validClientMarkers = clientMarkers.filter((markerName) =>
+      validMarkerNames.has(markerName)
+    );
 
-      if (validClientMarkers.length === 0) {
-        acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
-      } else {
-        validClientMarkers.forEach((markerName) => {
-          acc[markerName] = (acc[markerName] || 0) + 1;
-        });
-      }
-      // Ignora marcadores que foram excluídos das configurações
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+    if (validClientMarkers.length === 0) {
+      acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
+    } else {
+      validClientMarkers.forEach((markerName) => {
+        acc[markerName] = (acc[markerName] || 0) + 1;
+      });
+    }
+    // Ignora marcadores que foram excluídos das configurações
+    return acc;
+  }, {} as Record<string, number>);
 
   // Mantemos apenas as estatísticas de clientes, empresas foram movidas para useCompanyReports
 
   // Use useQuery hook to fetch upcoming birthdays, filtering by user if not admin
   const { data: upcomingBirthdaysFiltered = [] } = useQuery<Client[]>({
-    queryKey: ["/api/upcoming-birthdays", 30, user?.id, user?.role],
+    queryKey: ["/api/birthdays/upcoming", 30, user?.id, user?.role],
     queryFn: async () => {
-      const response = await fetch("/api/upcoming-birthdays?days=30", {
+      const response = await fetch("/api/birthdays/upcoming?days=30", {
         headers: {
           "x-user-id": user?.id || "",
           "x-user-role": user?.role || "",
@@ -477,19 +465,19 @@ export default function Reports() {
                               const thisYearBirthday = new Date(
                                 currentYear,
                                 birthday.getMonth(),
-                                birthday.getDate(),
+                                birthday.getDate()
                               );
                               const nextBirthday =
                                 thisYearBirthday < today
                                   ? new Date(
                                       currentYear + 1,
                                       birthday.getMonth(),
-                                      birthday.getDate(),
+                                      birthday.getDate()
                                     )
                                   : thisYearBirthday;
                               const daysUntil = Math.ceil(
                                 (nextBirthday.getTime() - today.getTime()) /
-                                  (1000 * 60 * 60 * 24),
+                                  (1000 * 60 * 60 * 24)
                               );
 
                               if (daysUntil === 0) return "Hoje";

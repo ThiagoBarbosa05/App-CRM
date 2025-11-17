@@ -92,7 +92,7 @@ export const ExpiringCashbacks: React.FC<ExpiringCashbacksProps> = ({
     refetch,
   } = useQuery<ExpiringCashbacksResponse>({
     queryKey: [
-      "/api/cashback-expiring",
+      "/api/cashback-settings/expiring",
       searchTerm,
       sortBy,
       sortOrder,
@@ -107,7 +107,7 @@ export const ExpiringCashbacks: React.FC<ExpiringCashbacksProps> = ({
         offset: (currentPage * itemsPerPage).toString(),
       });
 
-      const response = await fetch(`/api/cashback-expiring?${params}`);
+      const response = await fetch(`/api/cashback-settings/expiring?${params}`);
       if (!response.ok) {
         throw new Error("Erro ao buscar cashbacks vencendo");
       }

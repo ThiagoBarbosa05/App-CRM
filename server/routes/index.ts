@@ -5,6 +5,11 @@ import { funnelsRouter } from "./funnels.routes";
 import { dealsRouter } from "./deals.routes";
 import { dealQuestionsRouter } from "./deal-questions.routes";
 import { dealAnswersRouter } from "./deal-answers.routes";
+import { usersRouter } from "./users.routes";
+import { birthdaysRouter } from "./birthdays.routes";
+import { tagsRouter } from "./tags.routes";
+import { interactionsRouter } from "./interactions.routes";
+import { cashbackSettingsRouter } from "./cashback-settings.routes";
 import automationTriggersRouter from "./automation-triggers";
 
 /**
@@ -23,6 +28,11 @@ apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/deal-questions", dealQuestionsRouter);
 apiRouter.use("/", dealAnswersRouter);
+apiRouter.use("/users", usersRouter);
+apiRouter.use("/birthdays", birthdaysRouter);
+apiRouter.use("/tags", tagsRouter);
+apiRouter.use("/interactions", interactionsRouter);
+apiRouter.use("/cashback-settings", cashbackSettingsRouter);
 apiRouter.use("/automations", automationTriggersRouter);
 
 // TODO: Adicionar outros routers conforme migração:
@@ -32,7 +42,7 @@ apiRouter.use("/automations", automationTriggersRouter);
 // ✅ apiRouter.use("/deals", dealsRouter); - MIGRADO
 // ✅ apiRouter.use("/deal-questions", dealQuestionsRouter); - MIGRADO
 // ✅ apiRouter.use("/", dealAnswersRouter); - MIGRADO (deal-answers)
-// apiRouter.use("/users", usersRouter);
+// ✅ apiRouter.use("/users", usersRouter); - MIGRADO
 // apiRouter.use("/cashback", cashbackRouter);
 // apiRouter.use("/reports", reportsRouter);
 // apiRouter.use("/events", eventsRouter);

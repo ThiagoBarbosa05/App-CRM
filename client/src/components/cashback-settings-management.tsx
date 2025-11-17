@@ -118,9 +118,9 @@ export default function CashbackSettingsManagement() {
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["/api/v2/cashback-settings"],
+    queryKey: ["/api/cashback-settings"],
     queryFn: async () => {
-      const response = await fetch("/api/v2/cashback-settings");
+      const response = await fetch("/api/cashback-settings");
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
@@ -132,7 +132,7 @@ export default function CashbackSettingsManagement() {
     onSuccess: (action: string) => {
       toast({ title: `Configuração ${action} com sucesso` });
       queryClient.invalidateQueries({
-        queryKey: ["/api/v2/cashback-settings"],
+        queryKey: ["/api/cashback-settings"],
       });
       closeDialog();
     },
@@ -147,7 +147,7 @@ export default function CashbackSettingsManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/v2/cashback-settings", {
+      const response = await fetch("/api/cashback-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, createdBy: user?.id }),
@@ -161,7 +161,7 @@ export default function CashbackSettingsManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await fetch(`/api/v2/cashback-settings/${id}`, {
+      const response = await fetch(`/api/cashback-settings/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -175,7 +175,7 @@ export default function CashbackSettingsManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/v2/cashback-settings/${id}`, {
+      const response = await fetch(`/api/cashback-settings/${id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error(await response.text());
@@ -184,7 +184,7 @@ export default function CashbackSettingsManagement() {
     onSuccess: () => {
       toast({ title: "Configuração deletada com sucesso" });
       queryClient.invalidateQueries({
-        queryKey: ["/api/v2/cashback-settings"],
+        queryKey: ["/api/cashback-settings"],
       });
     },
     onError: (error: any) => {
