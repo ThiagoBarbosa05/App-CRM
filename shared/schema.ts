@@ -1762,8 +1762,7 @@ export const eventParticipants = pgTable("event_participants", {
     .references(() => events.id, { onDelete: "cascade" })
     .notNull(),
   clientId: varchar("client_id")
-    .references(() => clients.id, { onDelete: "cascade" })
-    .notNull(),
+    .references(() => clients.id, { onDelete: "set null" }),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
   status: text("status", {
     enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],

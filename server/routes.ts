@@ -4549,12 +4549,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/events/:eventId/participants/:participantId",
     async (req, res) => {
       try {
-        const { participantId } = req.params;
+        const { eventId, participantId } = req.params;
+        
+        // Buscar o participante para validar se pertence ao evento
+        const participant = await storage.getEventParticipantById(participantId);
+        if (!participant) {
+          return res.status(404).json({ message: "Participante não encontrado" });
+        }
+        
+        // Verificar se o participante pertence ao evento especificado
+        if (participant.eventId !== eventId) {
+          return res.status(400).json({ 
+            message: "Participante não pertence a este evento" 
+          });
+        }
+        
+        // Buscar o evento para validar se já passou
+        const event = await storage.getEvent(eventId);
+        if (!event) {
+          return res.status(404).json({ message: "Evento não encontrado" });
+        }
+        
+        // Verificar se o evento já passou
+        const eventDate = new Date(event.eventDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        eventDate.setHours(0, 0, 0, 0);
+        
+        if (eventDate >= today) {
+          return res.status(403).json({ 
+            message: "Só é possível remover participantes de eventos que já passaram" 
+          });
+        }
+        
         const success = await storage.removeEventParticipant(participantId);
         if (!success) {
           return res
             .status(404)
-            .json({ message: "Participante não encontrado" });
+            .json({ message: "Erro ao remover participante" });
         }
         res.json({ message: "Participante removido com sucesso" });
       } catch (error) {

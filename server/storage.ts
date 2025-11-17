@@ -852,10 +852,6 @@ export class DatabaseStorage implements IStorage {
     // Excluir vendas do cliente
     await this.db.delete(sales).where(eq(sales.clientId, id));
 
-    // Excluir participações em eventos do cliente
-    await this.db
-      .delete(eventParticipants)
-      .where(eq(eventParticipants.clientId, id));
 
     // Excluir logs de jobs de mensagem do cliente
     await this.db
@@ -907,10 +903,6 @@ export class DatabaseStorage implements IStorage {
     // Excluir vendas dos clientes
     await this.db.delete(sales).where(inArray(sales.clientId, ids));
 
-    // Excluir participações em eventos dos clientes
-    await this.db
-      .delete(eventParticipants)
-      .where(inArray(eventParticipants.clientId, ids));
 
     // Excluir logs de jobs de mensagem dos clientes
     await this.db
@@ -4937,6 +4929,20 @@ export class DatabaseStorage implements IStorage {
       return updatedParticipant;
     } catch (error) {
       console.error("Error updating event participant:", error);
+      throw error;
+    }
+  }
+
+  async getEventParticipantById(participantId: string): Promise<EventParticipant | null> {
+    try {
+      const [participant] = await this.db
+        .select()
+        .from(eventParticipants)
+        .where(eq(eventParticipants.id, participantId))
+        .limit(1);
+      return participant || null;
+    } catch (error) {
+      console.error("Error fetching event participant:", error);
       throw error;
     }
   }
