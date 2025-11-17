@@ -4651,6 +4651,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Proxy endpoint para download de imagens de eventos
+  app.get("/api/events/download-image", async (req, res) => {
+    try {
+      const { fileUrl, fileName } = req.query;
+
+      if (!fileUrl || !fileName) {
+        return res.status(400).json({ message: "fileUrl e fileName são obrigatórios" });
+      }
+
+      const baseS3Url = "https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/";
+      
+      // Verificar se fileUrl já é uma URL absoluta
+      let fullUrl: string;
+      if (typeof fileUrl === 'string' && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+        // URL absoluta - validar que é do domínio permitido (R2)
+        if (!fileUrl.startsWith(baseS3Url)) {
+          return res.status(403).json({ 
+            message: "URL não permitida. Apenas URLs do armazenamento oficial são aceitas." 
+          });
+        }
+        fullUrl = fileUrl;
+      } else {
+        // URL relativa, adicionar baseS3Url
+        fullUrl = `${baseS3Url}${fileUrl}`;
+      }
+
+      // Fazer fetch da imagem
+      const response = await fetch(fullUrl);
+
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          message: `Erro ao buscar imagem: ${response.statusText}` 
+        });
+      }
+
+      // Obter o buffer da imagem
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Definir headers para forçar download
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
+
+      // Enviar a imagem
+      res.send(buffer);
+    } catch (error) {
+      console.error("Erro ao fazer download da imagem:", error);
+      res.status(500).json({ message: "Erro ao fazer download da imagem" });
+    }
+  });
+
   app.post("/api/v2/cashback-settings", createCashbackSettingsController);
   app.delete("/api/v2/cashback-settings/:id", deleteCashbackSettingsController);
   app.get("/api/v2/cashback-settings", getCashbackSettingsController);

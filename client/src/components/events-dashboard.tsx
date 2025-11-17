@@ -91,20 +91,31 @@ export default function EventsDashboard() {
 
   const handleDownloadImage = async (imageUrl: string, fileName: string) => {
     try {
-      const fullUrl = `${baseS3Url}${imageUrl}`;
-      const response = await fetch(fullUrl);
+      // Usar endpoint proxy do backend
+      const downloadUrl = `/api/events/download-image?fileUrl=${encodeURIComponent(imageUrl)}&fileName=${encodeURIComponent(fileName)}`;
       
+      const response = await fetch(downloadUrl, {
+        headers: {
+          "x-user-id": user?.id || "",
+        },
+      });
+
       if (!response.ok) {
-        throw new Error(`Erro ao baixar imagem: ${response.status} ${response.statusText}`);
+        throw new Error(`Erro ao baixar imagem: ${response.status}`);
       }
-      
+
+      // Criar blob da resposta
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
+      
+      // Criar link temporário para download
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
+      
+      // Limpar
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
