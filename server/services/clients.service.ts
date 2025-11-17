@@ -397,17 +397,6 @@ export class ClientsService {
       const { clientIds, userId, userRole } = params;
 
 
-      console.log("[DeleteBulk] Debug - userId:", userId, "userRole:", userRole, "tipo:", typeof userRole);
-
-      // Validação de permissão: apenas admin pode excluir em lote
-      if (userRole !== "admin" && userRole !== "administrador") {
-        console.log("[DeleteBulk] ERRO - Acesso negado para role:", userRole);
-        throw new Error(
-          "Acesso negado: apenas administradores podem realizar exclusões em lote"
-        );
-      }
-
-
       if (!clientIds || clientIds.length === 0) {
         throw new Error("Lista de IDs de clientes é obrigatória");
       }
