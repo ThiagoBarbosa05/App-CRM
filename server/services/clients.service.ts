@@ -397,7 +397,7 @@ export class ClientsService {
       const { clientIds, userId, userRole } = params;
 
       // Validação de permissão: apenas admin pode excluir em lote
-      if (userRole !== "admin") {
+      if (userRole !== "admin" && userRole !== "administrador") {
         throw new Error(
           "Acesso negado: apenas administradores podem realizar exclusões em lote"
         );
