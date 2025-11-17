@@ -83,7 +83,7 @@ export default function ClientsTableWithSelection({
           "x-user-email": user?.email || "",
           "x-user-role": user?.role || "",
         },
-        body: JSON.stringify({ ids: clientIds }),
+        body: JSON.stringify({ clientIds }),
       });
 
       if (!response.ok) {
