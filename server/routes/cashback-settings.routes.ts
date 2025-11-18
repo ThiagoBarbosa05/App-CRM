@@ -9,6 +9,7 @@ import {
 import { getCashbackUsageController } from "../controllers/cashback/get-cashback-usage.controller";
 import { getCashbackReports } from "../controllers/cashback/get-cashback-reports.controller";
 import { getCashbackPerformance } from "../controllers/cashback/get-cashback-performance.controller";
+import { getCashbackTransactionsSimple } from "../controllers/cashback/get-cashback-transactions-simple.controller";
 import { getCashbackSettingsController } from "server/controllers/cashback/get-cashback-settings.controller";
 import { createCashbackSettingsController } from "server/controllers/cashback/create-cashback-settings.controller";
 import { updateCashbackSettingsController } from "server/controllers/cashback/update-cashback-settings.controller";
@@ -419,6 +420,54 @@ cashbackSettingsRouter.get("/usage", getCashbackUsageController);
  * GET /api/cashback-settings/performance?periodType=daily&startDate=2024-01-01&endDate=2024-01-31
  */
 cashbackSettingsRouter.get("/performance", getCashbackPerformance);
+
+/**
+ * @route GET /api/cashback-settings/transactions-simple
+ *
+ * @description
+ * Busca transações de cashback com filtro por usuário e role
+ *
+ * @queryparam {string} [userId] - ID do usuário para filtrar (via query ou header x-user-id)
+ * @queryparam {string} [userRole] - Role do usuário (via query ou header x-user-role)
+ *
+ * @returns {Array} Lista de transações com dados do cliente e responsável:
+ * ```json
+ * [
+ *   {
+ *     "id": "trans-123",
+ *     "clientId": "client-456",
+ *     "dealId": "deal-789",
+ *     "purchaseAmount": "1000.00",
+ *     "cashbackAmount": "100.00",
+ *     "cashbackRate": "10.00",
+ *     "status": "approved",
+ *     "expiresAt": "2024-02-15T00:00:00.000Z",
+ *     "processedBy": "user-111",
+ *     "settingId": "setting-222",
+ *     "notes": "Cashback gerado automaticamente",
+ *     "createdAt": "2024-01-15T10:30:00.000Z",
+ *     "updatedAt": "2024-01-15T10:30:00.000Z",
+ *     "clientName": "João Silva",
+ *     "clientEmail": "joao@example.com",
+ *     "responsibleId": "user-333",
+ *     "responsibleName": "Maria Santos"
+ *   }
+ * ]
+ * ```
+ *
+ * @implementation
+ * 1. **Filtro por Vendedor**: Se userRole for "vendedor", retorna apenas transações de clientes sob sua responsabilidade
+ * 2. **Join com Dados**: Faz join com clients e users para trazer nome do cliente e responsável
+ * 3. **Ordenação**: Ordenado por data de criação (createdAt)
+ *
+ * @example
+ * GET /api/cashback-settings/transactions-simple
+ * GET /api/cashback-settings/transactions-simple?userId=user-123&userRole=vendedor
+ */
+cashbackSettingsRouter.get(
+  "/transactions-simple",
+  getCashbackTransactionsSimple
+);
 
 /**
  * @route GET /api/cashback-settings/reports

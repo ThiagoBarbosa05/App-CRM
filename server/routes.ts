@@ -2322,6 +2322,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // COMENTADO - Agora usa router modular em /api/cashback-settings/performance
   // app.get("/api/cashback-performance", getCashbackPerformance);
 
+  // ========================================================================
+  // CASHBACK TRANSACTIONS SIMPLE ROUTE - MIGRADO PARA SISTEMA MODULAR
+  // ========================================================================
+  // ✅ MIGRADO para server/routes/cashback-settings.routes.ts
+  // Rota disponível em /api/cashback-settings/transactions-simple
+  //
+  // Arquitetura modular:
+  // - Repository: server/repositories/cashback-statistics.repository.ts (getCashbackTransactions)
+  // - Service:    server/services/cashback-statistics.service.ts (getCashbackTransactions)
+  // - Controller: server/controllers/cashback/get-cashback-transactions-simple.controller.ts
+  // - Router:     server/routes/cashback-settings.routes.ts (GET /transactions-simple)
+  // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
+  // ========================================================================
+
+  // COMENTADO - Agora usa router modular em /api/cashback-settings/transactions-simple
+  /*
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
       const userId =
@@ -2340,6 +2356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar transações" });
     }
   });
+  */
 
   app.post("/api/cashback-transactions", async (req, res) => {
     try {
