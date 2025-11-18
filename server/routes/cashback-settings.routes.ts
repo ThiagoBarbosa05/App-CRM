@@ -8,6 +8,7 @@ import {
 } from "../controllers/cashback/index";
 import { getCashbackUsageController } from "../controllers/cashback/get-cashback-usage.controller";
 import { getCashbackReports } from "../controllers/cashback/get-cashback-reports.controller";
+import { getCashbackPerformance } from "../controllers/cashback/get-cashback-performance.controller";
 import { getCashbackSettingsController } from "server/controllers/cashback/get-cashback-settings.controller";
 import { createCashbackSettingsController } from "server/controllers/cashback/create-cashback-settings.controller";
 import { updateCashbackSettingsController } from "server/controllers/cashback/update-cashback-settings.controller";
@@ -298,6 +299,126 @@ cashbackSettingsRouter.get("/transactions", getCashbackTransactionsController);
  * - Suporta filtro "all" para userId e authorizedById para incluir todos os usuários
  */
 cashbackSettingsRouter.get("/usage", getCashbackUsageController);
+
+/**
+ * @route GET /api/cashback-settings/performance
+ *
+ * @description
+ * Busca métricas detalhadas de performance do sistema de cashback com análises
+ * de conversão, tendências por período, engajamento de clientes e efetividade
+ * de configurações.
+ *
+ * @queryparam {string} [startDate] - Data inicial para análise (ISO string, padrão: 30 dias atrás)
+ * @queryparam {string} [endDate] - Data final para análise (ISO string, padrão: hoje)
+ * @queryparam {string} [sellerId] - ID do vendedor para filtrar métricas
+ * @queryparam {string} [periodType=monthly] - Tipo de período para agrupamento (daily, weekly, monthly)
+ * @queryparam {boolean} [compareWithPrevious=false] - Se deve comparar com período anterior equivalente
+ *
+ * @returns {Object} Resposta com métricas de performance:
+ * ```json
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "metrics": {
+ *       "totalTransactions": 1250,
+ *       "totalUsages": 380,
+ *       "totalDistributed": 45000.00,
+ *       "totalUsed": 12500.00,
+ *       "totalPurchaseValue": 450000.00,
+ *       "avgCashbackPercentage": 10.0,
+ *       "avgTransactionValue": 360.00,
+ *       "avgUsageValue": 32.89,
+ *       "uniqueClients": 450,
+ *       "uniqueUsageClients": 150,
+ *       "conversionRate": 30.4,
+ *       "usageRate": 27.78,
+ *       "clientRetention": 33.33
+ *     },
+ *     "previousPeriodMetrics": {
+ *       "totalTransactions": 1100,
+ *       "totalDistributed": 38000.00,
+ *       "totalUsed": 10000.00,
+ *       "totalPurchaseValue": 380000.00,
+ *       "avgTransactionValue": 345.45,
+ *       "uniqueClients": 420
+ *     },
+ *     "periodTrends": [
+ *       {
+ *         "period": "2024-01",
+ *         "totalTransactions": 420,
+ *         "totalDistributed": 15000.00,
+ *         "totalPurchaseValue": 150000.00,
+ *         "avgTransactionValue": 357.14,
+ *         "uniqueClients": 150
+ *       }
+ *     ],
+ *     "usagePeriodTrends": [
+ *       {
+ *         "period": "2024-01",
+ *         "totalUsages": 125,
+ *         "totalUsed": 4200.00,
+ *         "avgUsageValue": 33.60,
+ *         "uniqueUsageClients": 48
+ *       }
+ *     ],
+ *     "clientEngagement": [
+ *       {
+ *         "clientId": "client-123",
+ *         "clientName": "João Silva",
+ *         "totalTransactions": 45,
+ *         "totalEarned": 2500.00,
+ *         "totalUsed": 800.00,
+ *         "currentBalance": 1700.00,
+ *         "usageRate": 32.0,
+ *         "avgTransactionValue": 555.56,
+ *         "lastTransactionDate": "2024-01-15T10:30:00Z",
+ *         "lastUsageDate": "2024-01-10T14:20:00Z",
+ *         "responsibleUser": {
+ *           "id": "user-456",
+ *           "name": "Maria Santos"
+ *         }
+ *       }
+ *     ],
+ *     "settingsEffectiveness": [
+ *       {
+ *         "settingId": "setting-789",
+ *         "settingName": "Cashback Premium",
+ *         "percentageRate": "15.00",
+ *         "minimumPurchase": "100.00",
+ *         "maximumCashback": "500.00",
+ *         "totalTransactions": 850,
+ *         "totalDistributed": 32000.00,
+ *         "totalPurchaseValue": 320000.00,
+ *         "avgTransactionValue": 376.47,
+ *         "uniqueClients": 280
+ *       }
+ *     ]
+ *   },
+ *   "filters": {
+ *     "startDate": "2024-01-01T00:00:00.000Z",
+ *     "endDate": "2024-01-31T23:59:59.999Z",
+ *     "sellerId": "user-123",
+ *     "periodType": "monthly",
+ *     "compareWithPrevious": true
+ *   }
+ * }
+ * ```
+ *
+ * @implementation
+ * 1. **Métricas de Conversão**: Agrega totais de transações, distribuições, usos e calcula KPIs (taxa de conversão, taxa de uso, retenção)
+ * 2. **Tendências por Período**: Agrupa transações e usos por período (diário, semanal ou mensal) com totais e médias
+ * 3. **Engajamento de Clientes**: Top 20 clientes mais ativos com métricas de ganhos, usos e taxas de utilização
+ * 4. **Efetividade de Configurações**: Analisa performance de cada configuração de cashback por transações e valores
+ * 5. **Comparação com Período Anterior**: Opcionalmente compara métricas com período equivalente anterior
+ * 6. **Agrupamento Flexível**: Suporta agrupamento diário (YYYY-MM-DD), semanal (YYYY-Www) ou mensal (YYYY-MM)
+ * 7. **Filtros por Vendedor**: Permite análise específica por vendedor responsável pelos clientes
+ *
+ * @example
+ * GET /api/cashback-settings/performance?periodType=monthly&compareWithPrevious=true
+ * GET /api/cashback-settings/performance?startDate=2024-01-01&endDate=2024-12-31&sellerId=user-123
+ * GET /api/cashback-settings/performance?periodType=daily&startDate=2024-01-01&endDate=2024-01-31
+ */
+cashbackSettingsRouter.get("/performance", getCashbackPerformance);
 
 /**
  * @route GET /api/cashback-settings/reports

@@ -617,6 +617,87 @@ class CashbackStatisticsService {
       },
     };
   }
+
+  /**
+   * Busca métricas de performance de cashback com análises detalhadas
+   *
+   * @param filters - Filtros para análise de performance
+   * @returns Métricas de performance formatadas com KPIs calculados
+   */
+  async getCashbackPerformance(filters: {
+    startDate: Date;
+    endDate: Date;
+    sellerId?: string;
+    periodType: "daily" | "weekly" | "monthly";
+    compareWithPrevious: boolean;
+  }) {
+    const {
+      conversionMetrics,
+      periodTrends,
+      usagePeriodTrends,
+      clientEngagement,
+      settingsEffectiveness,
+      previousPeriodMetrics,
+    } = await cashbackStatisticsRepository.getCashbackPerformance(filters);
+
+    // Calcular KPIs
+    const conversionRate =
+      conversionMetrics.totalTransactions > 0
+        ? (conversionMetrics.totalUsages /
+            conversionMetrics.totalTransactions) *
+          100
+        : 0;
+
+    const usageRate =
+      conversionMetrics.totalDistributed > 0
+        ? (conversionMetrics.totalUsed / conversionMetrics.totalDistributed) *
+          100
+        : 0;
+
+    const clientRetention =
+      conversionMetrics.uniqueClients > 0
+        ? (conversionMetrics.uniqueUsageClients /
+            conversionMetrics.uniqueClients) *
+          100
+        : 0;
+
+    // Formatar engajamento de clientes com objeto de usuário responsável
+    const formattedClientEngagement = clientEngagement.map((client) => ({
+      clientId: client.clientId,
+      clientName: client.clientName,
+      totalTransactions: client.totalTransactions,
+      totalEarned: client.totalEarned,
+      totalUsed: client.totalUsed,
+      currentBalance: client.currentBalance || "0.00",
+      usageRate: client.usageRate,
+      avgTransactionValue: client.avgTransactionValue,
+      lastTransactionDate: client.lastTransactionDate,
+      lastUsageDate: client.lastUsageDate,
+      responsibleUser: client.responsibleUserId
+        ? {
+            id: client.responsibleUserId,
+            name: client.responsibleUserName || "",
+          }
+        : null,
+    }));
+
+    return {
+      success: true,
+      data: {
+        metrics: {
+          ...conversionMetrics,
+          conversionRate,
+          usageRate,
+          clientRetention,
+        },
+        previousPeriodMetrics,
+        periodTrends,
+        usagePeriodTrends,
+        clientEngagement: formattedClientEngagement,
+        settingsEffectiveness,
+      },
+    };
+  }
 }
 
 export const cashbackStatisticsService = new CashbackStatisticsService();

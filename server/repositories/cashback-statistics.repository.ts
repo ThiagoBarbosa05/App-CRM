@@ -1156,6 +1156,273 @@ class CashbackStatisticsRepository {
       sellersPerformance,
     };
   }
+
+  /**
+   * Busca métricas de performance de cashback com análises detalhadas
+   *
+   * @param filters - Filtros para análise de performance:
+   *  - startDate: data inicial para análise
+   *  - endDate: data final para análise
+   *  - sellerId: filtra por vendedor responsável
+   *  - periodType: tipo de agrupamento (daily, weekly, monthly)
+   *  - compareWithPrevious: se deve comparar com período anterior
+   * @returns Objeto com métricas de conversão, tendências por período, engajamento de clientes, efetividade de configurações e comparação com período anterior
+   */
+  async getCashbackPerformance(filters: {
+    startDate: Date;
+    endDate: Date;
+    sellerId?: string;
+    periodType: "daily" | "weekly" | "monthly";
+    compareWithPrevious: boolean;
+  }): Promise<{
+    conversionMetrics: any;
+    periodTrends: any[];
+    usagePeriodTrends: any[];
+    clientEngagement: any[];
+    settingsEffectiveness: any[];
+    previousPeriodMetrics: any | null;
+  }> {
+    const { startDate, endDate, sellerId, periodType, compareWithPrevious } =
+      filters;
+
+    // Construir condições de data
+    const dateConditions = [
+      gte(cashbackTransactions.createdAt, startDate),
+      lte(cashbackTransactions.createdAt, endDate),
+    ];
+
+    // Construir condições de vendedor
+    const sellerConditions = [];
+    if (sellerId) {
+      sellerConditions.push(eq(clients.responsavelId, sellerId));
+    }
+
+    // Buscar métricas de conversão
+    const [conversionMetrics] = await db
+      .select({
+        totalTransactions: count(cashbackTransactions.id),
+        totalUsages: count(cashbackUsage.id),
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        totalPurchaseValue: sql<number>`COALESCE(SUM(${cashbackTransactions.purchaseAmount}), 0)`,
+        avgCashbackPercentage: sql<number>`COALESCE(AVG(${cashbackTransactions.cashbackAmount} * 100.0 / NULLIF(${cashbackTransactions.purchaseAmount}, 0)), 0)`,
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        avgUsageValue: sql<number>`COALESCE(AVG(${cashbackUsage.usedAmount}), 0)`,
+        uniqueClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
+        uniqueUsageClients: sql<number>`COUNT(DISTINCT ${cashbackUsage.clientId})`,
+      })
+      .from(cashbackTransactions)
+      .leftJoin(
+        cashbackUsage,
+        eq(cashbackTransactions.clientId, cashbackUsage.clientId)
+      )
+      .leftJoin(
+        clientCashbackBalance,
+        eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
+      )
+      .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .where(and(...dateConditions, ...sellerConditions));
+
+    // Determinar formato de agrupamento por período
+    let groupByPeriod: any;
+    let dateFormat: string;
+
+    switch (periodType) {
+      case "daily":
+        groupByPeriod = sql`DATE(${cashbackTransactions.createdAt})`;
+        dateFormat = "YYYY-MM-DD";
+        break;
+      case "weekly":
+        groupByPeriod = sql`DATE_TRUNC('week', ${cashbackTransactions.createdAt})`;
+        dateFormat = 'YYYY-"W"WW';
+        break;
+      case "monthly":
+      default:
+        groupByPeriod = sql`DATE_TRUNC('month', ${cashbackTransactions.createdAt})`;
+        dateFormat = "YYYY-MM";
+        break;
+    }
+
+    // Buscar tendências por período
+    const periodTrends = await db
+      .select({
+        period: sql<string>`TO_CHAR(${groupByPeriod}, '${dateFormat}')`,
+        totalTransactions: count(cashbackTransactions.id),
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalPurchaseValue: sql<number>`COALESCE(SUM(${cashbackTransactions.purchaseAmount}), 0)`,
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        uniqueClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
+      })
+      .from(cashbackTransactions)
+      .leftJoin(
+        clientCashbackBalance,
+        eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
+      )
+      .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .where(and(...dateConditions, ...sellerConditions))
+      .groupBy(groupByPeriod)
+      .orderBy(asc(groupByPeriod));
+
+    // Buscar tendências de uso por período
+    const usagePeriodTrends = await db
+      .select({
+        period: sql<string>`TO_CHAR(DATE_TRUNC('${periodType}', ${cashbackUsage.createdAt}), '${dateFormat}')`,
+        totalUsages: count(cashbackUsage.id),
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        avgUsageValue: sql<number>`COALESCE(AVG(${cashbackUsage.usedAmount}), 0)`,
+        uniqueUsageClients: sql<number>`COUNT(DISTINCT ${cashbackUsage.clientId})`,
+      })
+      .from(cashbackUsage)
+      .leftJoin(
+        clientCashbackBalance,
+        eq(cashbackUsage.clientId, clientCashbackBalance.clientId)
+      )
+      .leftJoin(clients, eq(cashbackUsage.clientId, clients.id))
+      .where(
+        and(
+          gte(cashbackUsage.createdAt, startDate),
+          lte(cashbackUsage.createdAt, endDate),
+          ...sellerConditions
+        )
+      )
+      .groupBy(sql`DATE_TRUNC('${periodType}', ${cashbackUsage.createdAt})`)
+      .orderBy(
+        asc(sql`DATE_TRUNC('${periodType}', ${cashbackUsage.createdAt})`)
+      );
+
+    // Buscar métricas de engajamento de clientes
+    const clientEngagement = await db
+      .select({
+        clientId: clients.id,
+        clientName: clients.name,
+        totalTransactions: count(cashbackTransactions.id),
+        totalEarned: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        currentBalance: clientCashbackBalance.currentBalance,
+        usageRate: sql<number>`
+          CASE 
+            WHEN COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) > 0 
+            THEN (COALESCE(SUM(${cashbackUsage.usedAmount}), 0) * 100.0 / COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0))
+            ELSE 0 
+          END
+        `,
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        lastTransactionDate: sql<string>`MAX(${cashbackTransactions.createdAt})`,
+        lastUsageDate: sql<string>`MAX(${cashbackUsage.createdAt})`,
+        responsibleUserId: users.id,
+        responsibleUserName: users.name,
+      })
+      .from(clients)
+      .leftJoin(
+        cashbackTransactions,
+        eq(clients.id, cashbackTransactions.clientId)
+      )
+      .leftJoin(cashbackUsage, eq(clients.id, cashbackUsage.clientId))
+      .leftJoin(
+        clientCashbackBalance,
+        eq(clients.id, clientCashbackBalance.clientId)
+      )
+      .leftJoin(users, eq(clients.responsavelId, users.id))
+      .where(and(...dateConditions, ...sellerConditions))
+      .groupBy(
+        clients.id,
+        clients.name,
+        clientCashbackBalance.currentBalance,
+        users.id,
+        users.name
+      )
+      .having(sql`COUNT(${cashbackTransactions.id}) > 0`)
+      .orderBy(
+        desc(
+          sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`
+        )
+      )
+      .limit(20);
+
+    // Buscar efetividade das configurações de cashback
+    const settingsEffectiveness = await db
+      .select({
+        settingId: cashbackTransactions.settingId,
+        settingName: cashbackSettings.name,
+        percentageRate: cashbackSettings.percentageRate,
+        minimumPurchase: cashbackSettings.minimumPurchase,
+        maximumCashback: cashbackSettings.maximumCashback,
+        totalTransactions: count(cashbackTransactions.id),
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalPurchaseValue: sql<number>`COALESCE(SUM(${cashbackTransactions.purchaseAmount}), 0)`,
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        uniqueClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
+      })
+      .from(cashbackTransactions)
+      .leftJoin(
+        cashbackSettings,
+        eq(cashbackTransactions.settingId, cashbackSettings.id)
+      )
+      .leftJoin(
+        clientCashbackBalance,
+        eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
+      )
+      .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .where(
+        and(
+          ...dateConditions,
+          ...sellerConditions,
+          ne(cashbackTransactions.settingId, sql`null`)
+        )
+      )
+      .groupBy(
+        cashbackTransactions.settingId,
+        cashbackSettings.name,
+        cashbackSettings.percentageRate,
+        cashbackSettings.minimumPurchase,
+        cashbackSettings.maximumCashback
+      )
+      .orderBy(desc(count(cashbackTransactions.id)));
+
+    // Buscar métricas do período anterior se solicitado
+    let previousPeriodMetrics = null;
+
+    if (compareWithPrevious) {
+      const periodDiff = endDate.getTime() - startDate.getTime();
+      const previousEndDate = new Date(startDate.getTime() - 1);
+      const previousStartDate = new Date(startDate.getTime() - periodDiff);
+
+      const previousDateConditions = [
+        gte(cashbackTransactions.createdAt, previousStartDate),
+        lte(cashbackTransactions.createdAt, previousEndDate),
+      ];
+
+      [previousPeriodMetrics] = await db
+        .select({
+          totalTransactions: count(cashbackTransactions.id),
+          totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+          totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+          totalPurchaseValue: sql<number>`COALESCE(SUM(${cashbackTransactions.purchaseAmount}), 0)`,
+          avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+          uniqueClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
+        })
+        .from(cashbackTransactions)
+        .leftJoin(
+          cashbackUsage,
+          eq(cashbackTransactions.clientId, cashbackUsage.clientId)
+        )
+        .leftJoin(
+          clientCashbackBalance,
+          eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
+        )
+        .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+        .where(and(...previousDateConditions, ...sellerConditions));
+    }
+
+    return {
+      conversionMetrics,
+      periodTrends,
+      usagePeriodTrends,
+      clientEngagement,
+      settingsEffectiveness,
+      previousPeriodMetrics,
+    };
+  }
 }
 
 export const cashbackStatisticsRepository = new CashbackStatisticsRepository();
