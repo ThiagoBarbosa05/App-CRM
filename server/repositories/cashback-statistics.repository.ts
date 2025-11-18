@@ -16,6 +16,7 @@ import {
   gte,
   like,
   lte,
+  ne,
   or,
   sql,
 } from "drizzle-orm";
@@ -995,46 +996,67 @@ class CashbackStatisticsRepository {
     }
 
     // Buscar estatísticas do dashboard
-    const [dashboardStats] = await db
+    // Separar queries para evitar duplicação de dados com JOINs
+
+    // Total distribuído e número de transações
+    const transactionStats = await db
       .select({
-        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
-        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
-        totalPendingBalance: sql<number>`COALESCE(SUM(${clientCashbackBalance.currentBalance}), 0)`,
-        totalTransactions: count(cashbackTransactions.id),
-        totalUsageCount: count(cashbackUsage.id),
-        totalClientsWithBalance: sql<number>`COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END)`,
+        totalDistributed: sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`,
+        totalTransactions: sql<number>`CAST(COUNT(${cashbackTransactions.id}) AS INTEGER)`,
       })
       .from(cashbackTransactions)
-      .fullJoin(
-        cashbackUsage,
-        eq(cashbackTransactions.clientId, cashbackUsage.clientId)
-      )
-      .fullJoin(
-        clientCashbackBalance,
-        eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
-      )
       .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
       .where(and(...dateConditions, ...sellerConditions));
 
+    // Total usado e número de resgates
+    const usageStats = await db
+      .select({
+        totalUsed: sql<number>`CAST(COALESCE(SUM(${cashbackUsage.usedAmount}), 0) AS NUMERIC)`,
+        totalUsageCount: sql<number>`CAST(COUNT(${cashbackUsage.id}) AS INTEGER)`,
+      })
+      .from(cashbackUsage)
+      .leftJoin(clients, eq(cashbackUsage.clientId, clients.id))
+      .where(and(...dateConditions, ...sellerConditions));
+
+    // Saldo pendente e clientes com saldo
+    const balanceStats = await db
+      .select({
+        totalPendingBalance: sql<number>`CAST(COALESCE(SUM(${clientCashbackBalance.currentBalance}), 0) AS NUMERIC)`,
+        totalClientsWithBalance: sql<number>`CAST(COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END) AS INTEGER)`,
+      })
+      .from(clientCashbackBalance)
+      .leftJoin(clients, eq(clientCashbackBalance.clientId, clients.id))
+      .where(and(...sellerConditions));
+
+    // Consolidar estatísticas
+    const dashboardStats = {
+      totalDistributed: Number(transactionStats[0]?.totalDistributed || 0),
+      totalUsed: Number(usageStats[0]?.totalUsed || 0),
+      totalPendingBalance: Number(balanceStats[0]?.totalPendingBalance || 0),
+      totalTransactions: Number(transactionStats[0]?.totalTransactions || 0),
+      totalUsageCount: Number(usageStats[0]?.totalUsageCount || 0),
+      totalClientsWithBalance: Number(
+        balanceStats[0]?.totalClientsWithBalance || 0
+      ),
+    };
+
     // Buscar top 5 clientes por total ganho
+    // Filtra apenas clientes que possuem transações de cashback
     const topClients = await db
       .select({
         id: clients.id,
         name: clients.name,
         email: clients.email,
         phone: clients.phone,
-        totalEarned: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
-        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
-        currentBalance: clientCashbackBalance.currentBalance,
+        totalEarned: sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`,
+        totalUsed: sql<number>`CAST(COALESCE(SUM(${cashbackUsage.usedAmount}), 0) AS NUMERIC)`,
+        currentBalance: sql<string>`CAST(COALESCE(${clientCashbackBalance.currentBalance}, 0) AS TEXT)`,
         responsibleUserId: users.id,
         responsibleUserName: users.name,
         responsibleUserEmail: users.email,
       })
-      .from(clients)
-      .leftJoin(
-        cashbackTransactions,
-        eq(clients.id, cashbackTransactions.clientId)
-      )
+      .from(cashbackTransactions)
+      .innerJoin(clients, eq(cashbackTransactions.clientId, clients.id))
       .leftJoin(cashbackUsage, eq(clients.id, cashbackUsage.clientId))
       .leftJoin(
         clientCashbackBalance,
@@ -1054,7 +1076,7 @@ class CashbackStatisticsRepository {
       )
       .orderBy(
         desc(
-          sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`
+          sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`
         )
       )
       .limit(5);
@@ -1082,9 +1104,9 @@ class CashbackStatisticsRepository {
     const monthlyTrends = await db
       .select({
         month: sql<string>`TO_CHAR(${cashbackTransactions.createdAt}, 'YYYY-MM')`,
-        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
-        totalTransactions: count(cashbackTransactions.id),
-        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        totalDistributed: sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`,
+        totalTransactions: sql<number>`CAST(COUNT(${cashbackTransactions.id}) AS INTEGER)`,
+        avgTransactionValue: sql<number>`CAST(COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0) AS NUMERIC)`,
       })
       .from(cashbackTransactions)
       .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
@@ -1101,9 +1123,9 @@ class CashbackStatisticsRepository {
     const monthlyUsageTrends = await db
       .select({
         month: sql<string>`TO_CHAR(${cashbackUsage.createdAt}, 'YYYY-MM')`,
-        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
-        totalUsageCount: count(cashbackUsage.id),
-        avgUsageValue: sql<number>`COALESCE(AVG(${cashbackUsage.usedAmount}), 0)`,
+        totalUsed: sql<number>`CAST(COALESCE(SUM(${cashbackUsage.usedAmount}), 0) AS NUMERIC)`,
+        totalUsageCount: sql<number>`CAST(COUNT(${cashbackUsage.id}) AS INTEGER)`,
+        avgUsageValue: sql<number>`CAST(COALESCE(AVG(${cashbackUsage.usedAmount}), 0) AS NUMERIC)`,
       })
       .from(cashbackUsage)
       .leftJoin(clients, eq(cashbackUsage.clientId, clients.id))
@@ -1114,35 +1136,32 @@ class CashbackStatisticsRepository {
       .orderBy(asc(sql`TO_CHAR(${cashbackUsage.createdAt}, 'YYYY-MM')`));
 
     // Buscar performance dos vendedores
+    // Começa de transações para garantir que apenas vendedores com atividade apareçam
     const sellersPerformance = await db
       .select({
         id: users.id,
         name: users.name,
         email: users.email,
-        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
-        totalTransactions: count(cashbackTransactions.id),
-        totalClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
-        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
-        totalClientsWithBalance: sql<number>`COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END)`,
+        totalDistributed: sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`,
+        totalTransactions: sql<number>`CAST(COUNT(${cashbackTransactions.id}) AS INTEGER)`,
+        totalClients: sql<number>`CAST(COUNT(DISTINCT ${clients.id}) AS INTEGER)`,
+        avgTransactionValue: sql<number>`CAST(COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0) AS NUMERIC)`,
+        totalClientsWithBalance: sql<number>`CAST(COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END) AS INTEGER)`,
       })
-      .from(users)
-      .leftJoin(clients, eq(users.id, clients.responsavelId))
+      .from(cashbackTransactions)
+      .innerJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .innerJoin(users, eq(clients.responsavelId, users.id))
       .leftJoin(
         clientCashbackBalance,
         eq(clients.id, clientCashbackBalance.clientId)
-      )
-      .leftJoin(
-        cashbackTransactions,
-        eq(clientCashbackBalance.clientId, cashbackTransactions.clientId)
       )
       .where(
         and(...dateConditions, sellerId ? eq(users.id, sellerId) : sql`1=1`)
       )
       .groupBy(users.id, users.name, users.email)
-      .having(sql`COUNT(${cashbackTransactions.id}) > 0`)
       .orderBy(
         desc(
-          sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`
+          sql<number>`CAST(COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0) AS NUMERIC)`
         )
       )
       .limit(10);

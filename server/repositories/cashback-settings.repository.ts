@@ -1,10 +1,15 @@
 import { db } from "../db";
 import {
   cashbackSettings,
+  cashbackTransactions,
+  clientCashbackBalance,
+  cashbackUsage,
   type CashbackSetting,
   type InsertCashbackSetting,
+  type CashbackTransaction,
+  type InsertCashbackTransaction,
 } from "../../shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, gt, isNull, or } from "drizzle-orm";
 
 /**
  * Repository responsável por operações de banco de dados relacionadas a configurações de cashback
@@ -114,6 +119,152 @@ class CashbackSettingsRepository {
       .returning();
 
     return result.length > 0;
+  }
+
+  /**
+   * Cria uma nova transação de cashback
+   *
+   * @param data - Dados da transação a ser criada
+   * @returns Transação criada
+   *
+   * @example
+   * const transaction = await repository.createCashbackTransaction({
+   *   clientId: "client-id",
+   *   purchaseAmount: "1000",
+   *   cashbackAmount: "100",
+   *   cashbackRate: "10",
+   *   status: "approved"
+   * });
+   *
+   * @notes
+   * - Se expiresAt não for fornecido, calcula baseado na configuração da regra (ou 28 dias padrão)
+   * - Busca configuração de cashback se settingId estiver presente
+   * - Retorna a transação criada com todos os campos
+   */
+  async createCashbackTransaction(
+    data: InsertCashbackTransaction
+  ): Promise<CashbackTransaction> {
+    // Se não foi fornecida data de validade, calcular baseado na configuração da regra
+    if (!data.expiresAt) {
+      let expirationDays = 28; // Padrão de 28 dias
+
+      // Se há uma regra de cashback definida, usar os dias de validade dela
+      if (data.settingId) {
+        const [setting] = await db
+          .select()
+          .from(cashbackSettings)
+          .where(eq(cashbackSettings.id, data.settingId));
+
+        if (setting && setting.expirationDays) {
+          expirationDays = setting.expirationDays;
+        }
+      }
+
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + expirationDays);
+      data.expiresAt = expirationDate;
+    }
+
+    const [transaction] = await db
+      .insert(cashbackTransactions)
+      .values(data)
+      .returning();
+
+    return transaction;
+  }
+
+  /**
+   * Atualiza o saldo de cashback de um cliente
+   *
+   * @param clientId - UUID do cliente
+   * @returns void
+   *
+   * @example
+   * await repository.updateClientCashbackBalance("client-id");
+   *
+   * @notes
+   * - Calcula total ganho (todos os cashbacks aprovados)
+   * - Calcula total ganho válido (apenas cashbacks não expirados)
+   * - Calcula total usado (soma de todas as utilizações)
+   * - Saldo atual = cashback válido - total usado
+   * - Cria registro se não existir, atualiza se já existir
+   * - Usa transações com status "approved"
+   * - Considera apenas cashbacks com expiresAt > agora para saldo válido
+   */
+  async updateClientCashbackBalance(clientId: string): Promise<void> {
+    const now = new Date();
+
+    // Calcular total ganho (todos os cashbacks aprovados, independente de validade)
+    const allEarnedTransactions = await db
+      .select()
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.clientId, clientId),
+          eq(cashbackTransactions.status, "approved")
+        )
+      );
+
+    const totalEarned = allEarnedTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.cashbackAmount),
+      0
+    );
+
+    // Calcular total ganho válido (apenas cashbacks não expirados)
+    const validEarnedTransactions = await db
+      .select()
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.clientId, clientId),
+          eq(cashbackTransactions.status, "approved"),
+          gt(cashbackTransactions.expiresAt, now) // Apenas não expirados
+        )
+      );
+
+    const totalValidEarned = validEarnedTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.cashbackAmount),
+      0
+    );
+
+    // Calcular total usado
+    const usageTransactions = await db
+      .select()
+      .from(cashbackUsage)
+      .where(eq(cashbackUsage.clientId, clientId));
+
+    const totalUsed = usageTransactions.reduce(
+      (sum, usage) => sum + Number(usage.usedAmount),
+      0
+    );
+
+    // Saldo atual = cashback válido - total usado
+    const currentBalance = totalValidEarned - totalUsed;
+
+    // Verificar se já existe um registro de saldo
+    const [existingBalance] = await db
+      .select()
+      .from(clientCashbackBalance)
+      .where(eq(clientCashbackBalance.clientId, clientId));
+
+    if (existingBalance) {
+      await db
+        .update(clientCashbackBalance)
+        .set({
+          totalEarned: totalEarned.toString(),
+          totalUsed: totalUsed.toString(),
+          currentBalance: currentBalance.toString(),
+          lastUpdated: new Date(),
+        })
+        .where(eq(clientCashbackBalance.clientId, clientId));
+    } else {
+      await db.insert(clientCashbackBalance).values({
+        clientId,
+        totalEarned: totalEarned.toString(),
+        totalUsed: totalUsed.toString(),
+        currentBalance: currentBalance.toString(),
+      });
+    }
   }
 }
 

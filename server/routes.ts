@@ -2358,7 +2358,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
-  app.post("/api/cashback-transactions", async (req, res) => {
+  /*
+  ============================================================================
+  MIGRATION: POST /api/cashback-transactions
+  ============================================================================
+  Migrated to modular Controller-Service-Repository architecture
+  
+  Architecture Components:
+  - Repository: cashbackSettingsRepository.createCashbackTransaction() + updateClientCashbackBalance()
+  - Service: cashbackSettingsService.createCashbackTransaction()
+  - Controller: server/controllers/cashback/create-cashback-transaction.controller.ts
+  - Router: server/routes/cashback-settings.routes.ts
+  - Integration: POST /api/cashback-settings/transactions
+  
+  New route path: /api/cashback-settings/transactions
+  Same logic maintained:
+  - Validates request body using Zod schema (insertCashbackTransactionSchema)
+  - Calculates expiresAt based on settingId configuration or 28 days default
+  - Creates cashback transaction in database
+  - Updates client cashback balance automatically
+  - Returns created transaction with HTTP 201
+  ============================================================================
+  */
+  /* app.post("/api/cashback-transactions", async (req, res) => {
     try {
       const data = req.body;
 
@@ -2383,6 +2405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar transação" });
     }
   });
+  */
 
   app.post("/api/calculate-cashback", async (req, res) => {
     try {

@@ -2,6 +2,8 @@ import { cashbackSettingsRepository } from "../repositories/cashback-settings.re
 import type {
   CashbackSetting,
   InsertCashbackSetting,
+  CashbackTransaction,
+  InsertCashbackTransaction,
 } from "../../shared/schema";
 
 /**
@@ -75,6 +77,39 @@ class CashbackSettingsService {
    */
   async deleteCashbackSetting(id: string): Promise<boolean> {
     return await cashbackSettingsRepository.deleteCashbackSetting(id);
+  }
+
+  /**
+   * Cria uma nova transação de cashback
+   *
+   * @param data - Dados da transação a ser criada
+   * @returns Transação criada
+   *
+   * @example
+   * const transaction = await service.createCashbackTransaction({
+   *   clientId: "client-id",
+   *   purchaseAmount: "1000",
+   *   cashbackAmount: "100",
+   *   cashbackRate: "10",
+   *   status: "approved"
+   * });
+   *
+   * @notes
+   * - Calcula automaticamente a data de expiração se não fornecida
+   * - Atualiza o saldo do cliente após criar a transação
+   * - Retorna a transação criada completa
+   */
+  async createCashbackTransaction(
+    data: InsertCashbackTransaction
+  ): Promise<CashbackTransaction> {
+    // Criar a transação (repository já calcula expiresAt se necessário)
+    const transaction =
+      await cashbackSettingsRepository.createCashbackTransaction(data);
+
+    // Atualizar saldo do cliente
+    await cashbackSettingsRepository.updateClientCashbackBalance(data.clientId);
+
+    return transaction;
   }
 }
 

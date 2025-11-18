@@ -10,6 +10,7 @@ import { getCashbackUsageController } from "../controllers/cashback/get-cashback
 import { getCashbackReports } from "../controllers/cashback/get-cashback-reports.controller";
 import { getCashbackPerformance } from "../controllers/cashback/get-cashback-performance.controller";
 import { getCashbackTransactionsSimple } from "../controllers/cashback/get-cashback-transactions-simple.controller";
+import { createCashbackTransaction } from "../controllers/cashback/create-cashback-transaction.controller";
 import { getCashbackSettingsController } from "server/controllers/cashback/get-cashback-settings.controller";
 import { createCashbackSettingsController } from "server/controllers/cashback/create-cashback-settings.controller";
 import { updateCashbackSettingsController } from "server/controllers/cashback/update-cashback-settings.controller";
@@ -468,6 +469,72 @@ cashbackSettingsRouter.get(
   "/transactions-simple",
   getCashbackTransactionsSimple
 );
+
+/**
+ * @route POST /api/cashback-settings/transactions
+ *
+ * @description
+ * Cria uma nova transação de cashback
+ *
+ * @requestBody {Object} Transaction data:
+ * - clientId: string (required) - UUID do cliente
+ * - dealId?: string - UUID do negócio relacionado
+ * - purchaseAmount: string (required) - Valor da compra
+ * - cashbackAmount: string (required) - Valor do cashback
+ * - cashbackRate: string (required) - Taxa de cashback aplicada
+ * - status: "pending" | "approved" | "expired" (required) - Status da transação
+ * - settingId?: string - UUID da configuração de cashback utilizada
+ * - processedBy?: string - UUID do usuário que processou
+ * - notes?: string - Observações sobre a transação
+ * - expiresAt?: Date - Data de expiração (calculada automaticamente se não fornecida)
+ *
+ * @returns {201} Transação criada:
+ * ```json
+ * {
+ *   "id": "transaction-uuid",
+ *   "clientId": "client-123",
+ *   "dealId": "deal-456",
+ *   "purchaseAmount": "1000.00",
+ *   "cashbackAmount": "100.00",
+ *   "cashbackRate": "10",
+ *   "status": "approved",
+ *   "expiresAt": "2025-12-15T00:00:00.000Z",
+ *   "processedBy": "user-123",
+ *   "settingId": "setting-789",
+ *   "notes": "Cashback da compra X",
+ *   "createdAt": "2025-11-17T10:30:00.000Z",
+ *   "updatedAt": "2025-11-17T10:30:00.000Z"
+ * }
+ * ```
+ *
+ * @returns {400} Erro de validação
+ * @returns {500} Erro interno do servidor
+ *
+ * @implementation
+ * 1. **Validação de Dados**: Usa Zod schema para validar todos os campos obrigatórios
+ * 2. **Cálculo de Expiração**: Se expiresAt não fornecido:
+ *    - Se settingId presente, busca configuração e usa expirationDays
+ *    - Caso contrário, usa 28 dias como padrão
+ * 3. **Atualização de Saldo**: Após criar transação, atualiza automaticamente saldo do cliente:
+ *    - Calcula total ganho (todas transações aprovadas)
+ *    - Calcula total ganho válido (apenas não expirados)
+ *    - Calcula total usado (soma de cashbackUsage)
+ *    - Saldo atual = ganho válido - total usado
+ *    - Cria ou atualiza registro em clientCashbackBalance
+ * 4. **Retorno**: Retorna transação criada com HTTP 201
+ *
+ * @example
+ * POST /api/cashback-settings/transactions
+ * Body: {
+ *   "clientId": "client-123",
+ *   "purchaseAmount": "1000.00",
+ *   "cashbackAmount": "100.00",
+ *   "cashbackRate": "10",
+ *   "status": "approved",
+ *   "settingId": "setting-789"
+ * }
+ */
+cashbackSettingsRouter.post("/transactions", createCashbackTransaction);
 
 /**
  * @route GET /api/cashback-settings/reports

@@ -575,14 +575,25 @@ class CashbackStatisticsService {
       sellersPerformance,
     } = await cashbackStatisticsRepository.getCashbackReports(filters);
 
+    // Formatar dashboardStats garantindo tipos numéricos corretos
+    const formattedDashboardStats = {
+      totalDistributed: Number(dashboardStats.totalDistributed) || 0,
+      totalUsed: Number(dashboardStats.totalUsed) || 0,
+      totalPendingBalance: Number(dashboardStats.totalPendingBalance) || 0,
+      totalTransactions: Number(dashboardStats.totalTransactions) || 0,
+      totalUsageCount: Number(dashboardStats.totalUsageCount) || 0,
+      totalClientsWithBalance:
+        Number(dashboardStats.totalClientsWithBalance) || 0,
+    };
+
     // Formatar top clientes com objeto de usuário responsável
     const formattedTopClients = topClients.map((client) => ({
       id: client.id,
       name: client.name,
       email: client.email || "",
       phone: client.phone || "",
-      totalEarned: client.totalEarned,
-      totalUsed: client.totalUsed,
+      totalEarned: Number(client.totalEarned) || 0,
+      totalUsed: Number(client.totalUsed) || 0,
       currentBalance: client.currentBalance || "0.00",
       responsibleUser: client.responsibleUserId
         ? {
@@ -590,7 +601,11 @@ class CashbackStatisticsService {
             name: client.responsibleUserName || "",
             email: client.responsibleUserEmail || "",
           }
-        : null,
+        : {
+            id: "",
+            name: "Sem responsável",
+            email: "",
+          },
     }));
 
     // Formatar configurações ativas com datas em ISO
@@ -605,15 +620,42 @@ class CashbackStatisticsService {
       updatedAt: setting.updatedAt?.toISOString() || null,
     }));
 
+    // Formatar tendências mensais garantindo tipos numéricos
+    const formattedMonthlyTrends = monthlyTrends.map((trend) => ({
+      month: trend.month,
+      totalDistributed: Number(trend.totalDistributed) || 0,
+      totalTransactions: Number(trend.totalTransactions) || 0,
+      avgTransactionValue: Number(trend.avgTransactionValue) || 0,
+    }));
+
+    const formattedMonthlyUsageTrends = monthlyUsageTrends.map((trend) => ({
+      month: trend.month,
+      totalUsed: Number(trend.totalUsed) || 0,
+      totalUsageCount: Number(trend.totalUsageCount) || 0,
+      avgUsageValue: Number(trend.avgUsageValue) || 0,
+    }));
+
+    // Formatar performance de vendedores garantindo tipos numéricos
+    const formattedSellersPerformance = sellersPerformance.map((seller) => ({
+      id: seller.id,
+      name: seller.name,
+      email: seller.email,
+      totalDistributed: Number(seller.totalDistributed) || 0,
+      totalTransactions: Number(seller.totalTransactions) || 0,
+      totalClients: Number(seller.totalClients) || 0,
+      avgTransactionValue: Number(seller.avgTransactionValue) || 0,
+      totalClientsWithBalance: Number(seller.totalClientsWithBalance) || 0,
+    }));
+
     return {
       success: true,
       data: {
-        dashboardStats,
+        dashboardStats: formattedDashboardStats,
         topClients: formattedTopClients,
         activeSettings: formattedActiveSettings,
-        monthlyTrends,
-        monthlyUsageTrends,
-        sellersPerformance,
+        monthlyTrends: formattedMonthlyTrends,
+        monthlyUsageTrends: formattedMonthlyUsageTrends,
+        sellersPerformance: formattedSellersPerformance,
       },
     };
   }
