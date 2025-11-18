@@ -214,7 +214,7 @@ export default function CashbackReports() {
         }
       });
 
-      const response = await fetch(`/api/cashback-reports?${params}`);
+      const response = await fetch(`/api/cashback-settings/reports?${params}`);
       if (!response.ok) {
         throw new Error("Falha ao buscar dados dos reports");
       }

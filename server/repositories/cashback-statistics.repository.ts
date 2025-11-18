@@ -7,7 +7,18 @@ import {
   users,
   cashbackUsage,
 } from "../../shared/schema";
-import { and, asc, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  like,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 /**
  * Interface para transação de cashback com dados do cliente
@@ -918,6 +929,232 @@ class CashbackStatisticsRepository {
     const authorizerStats = await authorizerStatsQuery;
 
     return { data, total, statistics, authorizerStats };
+  }
+
+  /**
+   * Busca relatórios completos de cashback com estatísticas de dashboard,
+   * top clientes, configurações ativas, tendências mensais e performance de vendedores
+   *
+   * @param filters - Filtros para o relatório:
+   *  - search: busca por nome, email ou telefone do cliente
+   *  - startDate: data inicial para filtros de transações
+   *  - endDate: data final para filtros de transações
+   *  - sellerId: filtra por vendedor responsável
+   *  - clientId: filtra por cliente específico
+   * @returns Objeto com dashboardStats, topClients, activeSettings, monthlyTrends, monthlyUsageTrends, sellersPerformance
+   */
+  async getCashbackReports(filters: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    sellerId?: string;
+    clientId?: string;
+  }): Promise<{
+    dashboardStats: any;
+    topClients: any[];
+    activeSettings: any[];
+    monthlyTrends: any[];
+    monthlyUsageTrends: any[];
+    sellersPerformance: any[];
+  }> {
+    const { search, startDate, endDate, sellerId, clientId } = filters;
+
+    // Construir condições de data
+    const dateConditions = [];
+    if (startDate) {
+      dateConditions.push(
+        gte(cashbackTransactions.createdAt, new Date(startDate))
+      );
+    }
+    if (endDate) {
+      dateConditions.push(
+        lte(cashbackTransactions.createdAt, new Date(endDate))
+      );
+    }
+
+    // Construir condições de busca
+    const searchConditions = [];
+    if (search) {
+      searchConditions.push(
+        or(
+          like(clients.name, `%${search}%`),
+          like(clients.email, `%${search}%`),
+          like(clients.phone, `%${search}%`)
+        )
+      );
+    }
+
+    // Construir condições de vendedor
+    const sellerConditions = [];
+    if (sellerId) {
+      sellerConditions.push(eq(clients.responsavelId, sellerId));
+    }
+
+    if (clientId) {
+      sellerConditions.push(eq(clientCashbackBalance.clientId, clientId));
+    }
+
+    // Buscar estatísticas do dashboard
+    const [dashboardStats] = await db
+      .select({
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        totalPendingBalance: sql<number>`COALESCE(SUM(${clientCashbackBalance.currentBalance}), 0)`,
+        totalTransactions: count(cashbackTransactions.id),
+        totalUsageCount: count(cashbackUsage.id),
+        totalClientsWithBalance: sql<number>`COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END)`,
+      })
+      .from(cashbackTransactions)
+      .fullJoin(
+        cashbackUsage,
+        eq(cashbackTransactions.clientId, cashbackUsage.clientId)
+      )
+      .fullJoin(
+        clientCashbackBalance,
+        eq(cashbackTransactions.clientId, clientCashbackBalance.clientId)
+      )
+      .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .where(and(...dateConditions, ...sellerConditions));
+
+    // Buscar top 5 clientes por total ganho
+    const topClients = await db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        email: clients.email,
+        phone: clients.phone,
+        totalEarned: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        currentBalance: clientCashbackBalance.currentBalance,
+        responsibleUserId: users.id,
+        responsibleUserName: users.name,
+        responsibleUserEmail: users.email,
+      })
+      .from(clients)
+      .leftJoin(
+        cashbackTransactions,
+        eq(clients.id, cashbackTransactions.clientId)
+      )
+      .leftJoin(cashbackUsage, eq(clients.id, cashbackUsage.clientId))
+      .leftJoin(
+        clientCashbackBalance,
+        eq(clients.id, clientCashbackBalance.clientId)
+      )
+      .leftJoin(users, eq(clients.responsavelId, users.id))
+      .where(and(...searchConditions, ...dateConditions, ...sellerConditions))
+      .groupBy(
+        clients.id,
+        clients.name,
+        clients.email,
+        clients.phone,
+        clientCashbackBalance.currentBalance,
+        users.id,
+        users.name,
+        users.email
+      )
+      .orderBy(
+        desc(
+          sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`
+        )
+      )
+      .limit(5);
+
+    // Buscar configurações ativas
+    const activeSettings = await db
+      .select({
+        id: cashbackSettings.id,
+        name: cashbackSettings.name,
+        percentageRate: cashbackSettings.percentageRate,
+        minimumPurchase: cashbackSettings.minimumPurchase,
+        maximumCashback: cashbackSettings.maximumCashback,
+        isActive: cashbackSettings.isActive,
+        createdAt: cashbackSettings.createdAt,
+        updatedAt: cashbackSettings.updatedAt,
+      })
+      .from(cashbackSettings)
+      .where(eq(cashbackSettings.isActive, "true"))
+      .orderBy(desc(cashbackSettings.createdAt));
+
+    // Buscar tendências mensais dos últimos 6 meses
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyTrends = await db
+      .select({
+        month: sql<string>`TO_CHAR(${cashbackTransactions.createdAt}, 'YYYY-MM')`,
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalTransactions: count(cashbackTransactions.id),
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+      })
+      .from(cashbackTransactions)
+      .leftJoin(clients, eq(cashbackTransactions.clientId, clients.id))
+      .where(
+        and(
+          gte(cashbackTransactions.createdAt, sixMonthsAgo),
+          ...sellerConditions
+        )
+      )
+      .groupBy(sql`TO_CHAR(${cashbackTransactions.createdAt}, 'YYYY-MM')`)
+      .orderBy(asc(sql`TO_CHAR(${cashbackTransactions.createdAt}, 'YYYY-MM')`));
+
+    // Buscar tendências de uso mensais dos últimos 6 meses
+    const monthlyUsageTrends = await db
+      .select({
+        month: sql<string>`TO_CHAR(${cashbackUsage.createdAt}, 'YYYY-MM')`,
+        totalUsed: sql<number>`COALESCE(SUM(${cashbackUsage.usedAmount}), 0)`,
+        totalUsageCount: count(cashbackUsage.id),
+        avgUsageValue: sql<number>`COALESCE(AVG(${cashbackUsage.usedAmount}), 0)`,
+      })
+      .from(cashbackUsage)
+      .leftJoin(clients, eq(cashbackUsage.clientId, clients.id))
+      .where(
+        and(gte(cashbackUsage.createdAt, sixMonthsAgo), ...sellerConditions)
+      )
+      .groupBy(sql`TO_CHAR(${cashbackUsage.createdAt}, 'YYYY-MM')`)
+      .orderBy(asc(sql`TO_CHAR(${cashbackUsage.createdAt}, 'YYYY-MM')`));
+
+    // Buscar performance dos vendedores
+    const sellersPerformance = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        totalDistributed: sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`,
+        totalTransactions: count(cashbackTransactions.id),
+        totalClients: sql<number>`COUNT(DISTINCT ${cashbackTransactions.clientId})`,
+        avgTransactionValue: sql<number>`COALESCE(AVG(${cashbackTransactions.purchaseAmount}), 0)`,
+        totalClientsWithBalance: sql<number>`COUNT(DISTINCT CASE WHEN ${clientCashbackBalance.currentBalance} > 0 THEN ${clientCashbackBalance.clientId} END)`,
+      })
+      .from(users)
+      .leftJoin(clients, eq(users.id, clients.responsavelId))
+      .leftJoin(
+        clientCashbackBalance,
+        eq(clients.id, clientCashbackBalance.clientId)
+      )
+      .leftJoin(
+        cashbackTransactions,
+        eq(clientCashbackBalance.clientId, cashbackTransactions.clientId)
+      )
+      .where(
+        and(...dateConditions, sellerId ? eq(users.id, sellerId) : sql`1=1`)
+      )
+      .groupBy(users.id, users.name, users.email)
+      .having(sql`COUNT(${cashbackTransactions.id}) > 0`)
+      .orderBy(
+        desc(
+          sql<number>`COALESCE(SUM(${cashbackTransactions.cashbackAmount}), 0)`
+        )
+      )
+      .limit(10);
+
+    return {
+      dashboardStats,
+      topClients,
+      activeSettings,
+      monthlyTrends,
+      monthlyUsageTrends,
+      sellersPerformance,
+    };
   }
 }
 

@@ -7,6 +7,7 @@ import {
   getCashbackTransactionsController,
 } from "../controllers/cashback/index";
 import { getCashbackUsageController } from "../controllers/cashback/get-cashback-usage.controller";
+import { getCashbackReports } from "../controllers/cashback/get-cashback-reports.controller";
 import { getCashbackSettingsController } from "server/controllers/cashback/get-cashback-settings.controller";
 import { createCashbackSettingsController } from "server/controllers/cashback/create-cashback-settings.controller";
 import { updateCashbackSettingsController } from "server/controllers/cashback/update-cashback-settings.controller";
@@ -297,6 +298,118 @@ cashbackSettingsRouter.get("/transactions", getCashbackTransactionsController);
  * - Suporta filtro "all" para userId e authorizedById para incluir todos os usuários
  */
 cashbackSettingsRouter.get("/usage", getCashbackUsageController);
+
+/**
+ * @route GET /api/cashback-settings/reports
+ * @description Busca relatórios completos de cashback com estatísticas, top clientes, tendências e performance
+ * @access Private
+ *
+ * @queryparam {string} [search] - Busca por nome, email ou telefone do cliente
+ * @queryparam {string} [startDate] - Data inicial para filtrar transações (formato ISO)
+ * @queryparam {string} [endDate] - Data final para filtrar transações (formato ISO)
+ * @queryparam {string} [sellerId] - Filtra por vendedor responsável
+ * @queryparam {string} [clientId] - Filtra por cliente específico
+ * @queryparam {boolean} [hasActiveSettings] - Parâmetro não utilizado (mantido por compatibilidade)
+ * @queryparam {number} [page=1] - Número da página (mantido por compatibilidade)
+ * @queryparam {number} [limit=10] - Itens por página (mantido por compatibilidade)
+ * @queryparam {string} [sortBy=totalEarned] - Campo de ordenação (mantido por compatibilidade)
+ * @queryparam {string} [sortOrder=desc] - Direção da ordenação (mantido por compatibilidade)
+ *
+ * @example Request
+ * GET /api/cashback-settings/reports?startDate=2024-01-01&endDate=2024-12-31&sellerId=user-123
+ *
+ * @example Success Response (200)
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "dashboardStats": {
+ *       "totalDistributed": 15000,
+ *       "totalUsed": 8000,
+ *       "totalPendingBalance": 7000,
+ *       "totalTransactions": 150,
+ *       "totalUsageCount": 80,
+ *       "totalClientsWithBalance": 45
+ *     },
+ *     "topClients": [
+ *       {
+ *         "id": "client-1",
+ *         "name": "João Silva",
+ *         "email": "joao@email.com",
+ *         "phone": "11987654321",
+ *         "totalEarned": 1500,
+ *         "totalUsed": 800,
+ *         "currentBalance": "700.00",
+ *         "responsibleUser": {
+ *           "id": "user-1",
+ *           "name": "Vendedor 1",
+ *           "email": "vendedor1@empresa.com"
+ *         }
+ *       }
+ *     ],
+ *     "activeSettings": [
+ *       {
+ *         "id": "setting-1",
+ *         "name": "Cashback Padrão",
+ *         "percentageRate": "10",
+ *         "minimumPurchase": "100.00",
+ *         "maximumCashback": "500.00",
+ *         "isActive": "true",
+ *         "createdAt": "2024-01-01T00:00:00.000Z",
+ *         "updatedAt": "2024-01-15T00:00:00.000Z"
+ *       }
+ *     ],
+ *     "monthlyTrends": [
+ *       {
+ *         "month": "2024-01",
+ *         "totalDistributed": 2500,
+ *         "totalTransactions": 25,
+ *         "avgTransactionValue": 1000
+ *       }
+ *     ],
+ *     "monthlyUsageTrends": [
+ *       {
+ *         "month": "2024-01",
+ *         "totalUsed": 1200,
+ *         "totalUsageCount": 15,
+ *         "avgUsageValue": 80
+ *       }
+ *     ],
+ *     "sellersPerformance": [
+ *       {
+ *         "id": "user-1",
+ *         "name": "Vendedor 1",
+ *         "email": "vendedor1@empresa.com",
+ *         "totalDistributed": 5000,
+ *         "totalTransactions": 50,
+ *         "totalClients": 20,
+ *         "avgTransactionValue": 1000,
+ *         "totalClientsWithBalance": 15
+ *       }
+ *     ]
+ *   },
+ *   "filters": {
+ *     "search": null,
+ *     "startDate": "2024-01-01",
+ *     "endDate": "2024-12-31",
+ *     "sellerId": "user-123",
+ *     "clientId": null,
+ *     "hasActiveSettings": null,
+ *     "page": 1,
+ *     "limit": 10,
+ *     "sortBy": "totalEarned",
+ *     "sortOrder": "desc"
+ *   }
+ * }
+ *
+ * @implementation_notes
+ * - Dashboard stats incluem totais agregados de cashback distribuído, usado e saldo pendente
+ * - Top clientes limitado a 5 com maior total ganho
+ * - Tendências mensais cobrem os últimos 6 meses
+ * - Performance de vendedores limitada a top 10 por total distribuído
+ * - Filtros de data aplicam-se apenas a transações, não a configurações
+ * - Busca textual pesquisa em nome, email e telefone do cliente
+ */
+cashbackSettingsRouter.get("/reports", getCashbackReports);
 
 // ============================================================================
 // CRUD ROUTES

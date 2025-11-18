@@ -551,6 +551,72 @@ class CashbackStatisticsService {
       },
     };
   }
+
+  /**
+   * Busca relatórios completos de cashback com estatísticas, top clientes,
+   * configurações ativas, tendências mensais e performance de vendedores
+   *
+   * @param filters - Filtros para o relatório
+   * @returns Relatórios formatados com todas as estatísticas
+   */
+  async getCashbackReports(filters: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    sellerId?: string;
+    clientId?: string;
+  }) {
+    const {
+      dashboardStats,
+      topClients,
+      activeSettings,
+      monthlyTrends,
+      monthlyUsageTrends,
+      sellersPerformance,
+    } = await cashbackStatisticsRepository.getCashbackReports(filters);
+
+    // Formatar top clientes com objeto de usuário responsável
+    const formattedTopClients = topClients.map((client) => ({
+      id: client.id,
+      name: client.name,
+      email: client.email || "",
+      phone: client.phone || "",
+      totalEarned: client.totalEarned,
+      totalUsed: client.totalUsed,
+      currentBalance: client.currentBalance || "0.00",
+      responsibleUser: client.responsibleUserId
+        ? {
+            id: client.responsibleUserId,
+            name: client.responsibleUserName || "",
+            email: client.responsibleUserEmail || "",
+          }
+        : null,
+    }));
+
+    // Formatar configurações ativas com datas em ISO
+    const formattedActiveSettings = activeSettings.map((setting) => ({
+      id: setting.id,
+      name: setting.name,
+      percentageRate: setting.percentageRate,
+      minimumPurchase: setting.minimumPurchase,
+      maximumCashback: setting.maximumCashback,
+      isActive: setting.isActive,
+      createdAt: setting.createdAt?.toISOString() || null,
+      updatedAt: setting.updatedAt?.toISOString() || null,
+    }));
+
+    return {
+      success: true,
+      data: {
+        dashboardStats,
+        topClients: formattedTopClients,
+        activeSettings: formattedActiveSettings,
+        monthlyTrends,
+        monthlyUsageTrends,
+        sellersPerformance,
+      },
+    };
+  }
 }
 
 export const cashbackStatisticsService = new CashbackStatisticsService();
