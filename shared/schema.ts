@@ -1761,8 +1761,9 @@ export const eventParticipants = pgTable("event_participants", {
   eventId: varchar("event_id")
     .references(() => events.id, { onDelete: "cascade" })
     .notNull(),
-  clientId: varchar("client_id")
-    .references(() => clients.id, { onDelete: "set null" }),
+  clientId: varchar("client_id").references(() => clients.id, {
+    onDelete: "set null",
+  }),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
   status: text("status", {
     enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],
@@ -1897,3 +1898,240 @@ export interface EventWithDetails extends Event {
   participantCount?: number;
   attachments?: EventAttachment[];
 }
+
+// Tabela de pedidos do Bling Control
+export const blingOrders = pgTable(
+  "bling_orders",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+
+    blingOrderId: integer("bling_order_id").notNull().unique(),
+
+    orderNumber: integer("order_number").notNull(),
+
+    storeOrderNumber: text("store_order_number"),
+
+    saleDate: text("sale_date").notNull(),
+
+    departureDate: text("departure_date"),
+
+    expectedDeliveryDate: text("expected_delivery_date"),
+
+    totalValue: numeric("total_value", { precision: 15, scale: 2 }).notNull(),
+
+    sellerId: integer("seller_id"),
+    sellerName: text("seller_name"),
+
+    contactId: integer("contact_id").notNull(),
+    contactName: text("contact_name"),
+    contactType: text("contact_type"),
+    contactDocument: text("contact_document"),
+
+    storeId: integer("store_id").notNull(),
+
+    situationId: integer("situation_id"),
+    situationValue: text("situation_value"),
+
+    observations: text("observations"),
+    internalObservations: text("internal_observations"),
+
+    accountId: text("account_id").notNull(),
+    userId: text("user_id").notNull(),
+    accountName: text("account_name"),
+    companyId: text("company_id").notNull(),
+    eventId: text("event_id").notNull(),
+
+    rawOrderData: text("raw_order_data").notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [
+    index("bling_orders_bling_id_idx").on(table.blingOrderId),
+    index("bling_orders_account_idx").on(table.accountId),
+    index("bling_orders_user_idx").on(table.userId),
+    index("bling_orders_contact_idx").on(table.contactId),
+    index("bling_orders_sale_date_idx").on(table.saleDate),
+    index("bling_orders_deleted_idx").on(table.deletedAt),
+  ]
+);
+
+// Tabela de itens dos pedidos do Bling
+export const blingOrderItems = pgTable(
+  "bling_order_items",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    orderId: varchar("order_id")
+      .references(() => blingOrders.id, { onDelete: "cascade" })
+      .notNull(),
+
+    productId: integer("product_id"),
+
+    productCode: text("product_code"),
+
+    description: text("description"),
+
+    quantity: numeric("quantity", { precision: 15, scale: 3 }).notNull(),
+
+    value: numeric("value", { precision: 15, scale: 2 }).notNull(),
+
+    discount: numeric("discount", { precision: 15, scale: 2 }).default("0"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bling_order_items_order_idx").on(table.orderId),
+    index("bling_order_items_product_idx").on(table.productId),
+  ]
+);
+
+// Tabela de parcelas dos pedidos do Bling
+export const blingOrderInstallments = pgTable(
+  "bling_order_installments",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    orderId: varchar("order_id")
+      .references(() => blingOrders.id, { onDelete: "cascade" })
+      .notNull(),
+
+    installmentId: integer("installment_id").notNull(),
+
+    dueDate: text("due_date").notNull(),
+
+    value: numeric("value", { precision: 15, scale: 2 }).notNull(),
+
+    observations: text("observations"),
+
+    paymentMethodId: integer("payment_method_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bling_order_installments_order_idx").on(table.orderId),
+    index("bling_order_installments_due_date_idx").on(table.dueDate),
+  ]
+);
+
+// Tabela de logs de processamento de mensagens do Pub/Sub
+export const pubsubProcessingLogs = pgTable(
+  "pubsub_processing_logs",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+
+    messageId: text("message_id").notNull().unique(),
+
+    eventType: text("event_type", {
+      enum: ["created", "updated", "deleted"],
+    }).notNull(),
+
+    blingOrderId: integer("bling_order_id"),
+
+    status: text("status", {
+      enum: ["processing", "success", "failed", "retrying"],
+    })
+      .notNull()
+      .default("processing"),
+
+    attempts: integer("attempts").notNull().default(1),
+
+    errorMessage: text("error_message"),
+    errorStack: text("error_stack"),
+
+    rawMessage: text("raw_message").notNull(),
+
+    accountId: text("account_id"),
+    userId: text("user_id"),
+
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("pubsub_logs_message_id_idx").on(table.messageId),
+    index("pubsub_logs_status_idx").on(table.status),
+    index("pubsub_logs_event_type_idx").on(table.eventType),
+    index("pubsub_logs_bling_order_idx").on(table.blingOrderId),
+  ]
+);
+
+// Schemas de inserção
+export const insertBlingOrderSchema = createInsertSchema(blingOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBlingOrderItemSchema = createInsertSchema(
+  blingOrderItems
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBlingOrderInstallmentSchema = createInsertSchema(
+  blingOrderInstallments
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPubsubProcessingLogSchema = createInsertSchema(
+  pubsubProcessingLogs
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Tipos
+export type BlingOrder = typeof blingOrders.$inferSelect;
+export type InsertBlingOrder = z.infer<typeof insertBlingOrderSchema>;
+export type BlingOrderItem = typeof blingOrderItems.$inferSelect;
+export type InsertBlingOrderItem = z.infer<typeof insertBlingOrderItemSchema>;
+export type BlingOrderInstallment = typeof blingOrderInstallments.$inferSelect;
+export type InsertBlingOrderInstallment = z.infer<
+  typeof insertBlingOrderInstallmentSchema
+>;
+export type PubsubProcessingLog = typeof pubsubProcessingLogs.$inferSelect;
+export type InsertPubsubProcessingLog = z.infer<
+  typeof insertPubsubProcessingLogSchema
+>;
+
+// Interface com relacionamentos
+export interface BlingOrderWithDetails extends BlingOrder {
+  items: BlingOrderItem[];
+  installments: BlingOrderInstallment[];
+}
+
+// Relações
+export const blingOrdersRelations = relations(blingOrders, ({ many }) => ({
+  items: many(blingOrderItems),
+  installments: many(blingOrderInstallments),
+}));
+
+export const blingOrderItemsRelations = relations(
+  blingOrderItems,
+  ({ one }) => ({
+    order: one(blingOrders, {
+      fields: [blingOrderItems.orderId],
+      references: [blingOrders.id],
+    }),
+  })
+);
+
+export const blingOrderInstallmentsRelations = relations(
+  blingOrderInstallments,
+  ({ one }) => ({
+    order: one(blingOrders, {
+      fields: [blingOrderInstallments.orderId],
+      references: [blingOrders.id],
+    }),
+  })
+);

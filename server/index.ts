@@ -3,6 +3,10 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
+import {
+  initializePubSubSubscriber,
+  shutdownPubSubSubscriber,
+} from "./jobs/pubsub-subscriber";
 
 const app = express();
 app.use(express.json());
@@ -72,6 +76,27 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Inicializa o consumidor do Pub/Sub após o servidor estar rodando
+      initializePubSubSubscriber().catch((error) => {
+        console.error(
+          "[Server] Erro ao inicializar Pub/Sub subscriber:",
+          error
+        );
+      });
     }
   );
+
+  // Graceful shutdown handlers
+  process.on("SIGTERM", async () => {
+    log("SIGTERM recebido, encerrando gracefully...");
+    await shutdownPubSubSubscriber();
+    process.exit(0);
+  });
+
+  process.on("SIGINT", async () => {
+    log("SIGINT recebido, encerrando gracefully...");
+    await shutdownPubSubSubscriber();
+    process.exit(0);
+  });
 })();
