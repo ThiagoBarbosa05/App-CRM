@@ -70,9 +70,9 @@ app.use((req, res, next) => {
   server.listen(
     {
       port,
-      // host: "0.0.0.0",
-      host: "127.0.0.1",
-      // reusePort: true,
+      host: "0.0.0.0",
+      // host: "127.0.0.1",
+      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);
@@ -81,10 +81,10 @@ app.use((req, res, next) => {
       initializePubSubSubscriber().catch((error) => {
         console.error(
           "[Server] Erro ao inicializar Pub/Sub subscriber:",
-          error
+          error,
         );
       });
-    }
+    },
   );
 
   // Graceful shutdown handlers
