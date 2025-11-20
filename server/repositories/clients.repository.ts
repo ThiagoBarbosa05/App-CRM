@@ -8,6 +8,8 @@ import {
   clientCashbackBalance,
   cashbackTransactions,
   deals,
+  userServiceChannel,
+  serviceChannels,
 } from "@shared/schema";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -155,6 +157,14 @@ export class ClientsRepository {
       .select()
       .from(clients)
       .where(eq(clients.phone, phone));
+    return client || undefined;
+  }
+
+  async getClientById(id: string): Promise<Client | undefined> {
+    const [client] = await this.db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, id));
     return client || undefined;
   }
 
@@ -365,6 +375,31 @@ export class ClientsRepository {
     } catch (error) {
       console.error("Erro ao excluir clientes em lote:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Busca o ID do canal de serviço associado ao usuário
+   */
+  async getUserServiceChannelId(userId: string): Promise<string | null> {
+    try {
+      const [result] = await this.db
+        .select({
+          channelId: serviceChannels.id,
+        })
+        .from(users)
+        .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+        .leftJoin(
+          serviceChannels,
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        )
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      return result?.channelId || null;
+    } catch (error) {
+      console.error("Erro ao buscar canal de serviço do usuário:", error);
+      return null;
     }
   }
 }

@@ -15,6 +15,8 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,6 +28,7 @@ import { formatDate } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
 import ClientDetailsModal from "./client-details-modal";
 import SaleFormModal from "./sale-form-modal";
+import ConfirmClientModal from "./confirm-client-modal";
 import { type Client } from "@shared/schema";
 import {
   AlertDialog,
@@ -60,6 +63,7 @@ export default function ClientsTableWithSelection({
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
+  const [confirmingClient, setConfirmingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [sortField, setSortField] = useState<"name" | "categoria" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -261,6 +265,18 @@ export default function ClientsTableWithSelection({
                     )}
                   </button>
                 </th>
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[120px]">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-gray-500" />
+                    Status
+                  </div>
+                </th>
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-gray-500" />
+                    Contato
+                  </div>
+                </th>
                 <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-gray-500" />
@@ -365,6 +381,36 @@ export default function ClientsTableWithSelection({
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    {client.status === "pending" ? (
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 border-yellow-300 text-yellow-800 font-medium px-3 py-1"
+                        >
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Pendente
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmingClient(client)}
+                          className="h-7 px-2 text-xs hover:bg-yellow-100 text-yellow-700 hover:text-yellow-800 transition-colors"
+                          title="Confirmar cadastro"
+                        >
+                          Confirmar
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="bg-green-50 border-green-300 text-green-800 font-medium px-3 py-1"
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Confirmado
+                      </Badge>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="space-y-2">
@@ -486,7 +532,7 @@ export default function ClientsTableWithSelection({
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-16 text-center">
+                  <td colSpan={9} className="p-16 text-center">
                     <div className="flex flex-col items-center space-y-4">
                       <div className="p-4 bg-gray-100 rounded-full">
                         <User className="h-8 w-8 text-gray-400" />
@@ -594,6 +640,15 @@ export default function ClientsTableWithSelection({
         open={!!saleClient}
         onOpenChange={(open) => !open && setSaleClient(null)}
       />
+
+      {confirmingClient && (
+        <ConfirmClientModal
+          open={!!confirmingClient}
+          onOpenChange={(open) => !open && setConfirmingClient(null)}
+          clientId={confirmingClient.id}
+          clientName={confirmingClient.name}
+        />
+      )}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>

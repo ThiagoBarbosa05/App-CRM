@@ -48,6 +48,15 @@ import {
 import { formatDate } from "@/lib/utils";
 import { LinkChannelModal } from "./link-channel-modal";
 
+// Estende o tipo User para incluir serviceChannel
+type UserWithChannel = UserType & {
+  serviceChannel?: {
+    id: string;
+    name: string;
+    phoneNumber?: string | null;
+  } | null;
+};
+
 const getInitials = (name: string) => {
   return name
     .split(" ")
@@ -58,14 +67,15 @@ const getInitials = (name: string) => {
 };
 
 export default function UsersManagement() {
-  const [editingUser, setEditingUser] = useState<UserType | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithChannel | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [userToLinkChannel, setUserToLinkChannel] = useState<UserType | null>(
+  const [userToDelete, setUserToDelete] = useState<UserWithChannel | null>(
     null
   );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [userToLinkChannel, setUserToLinkChannel] =
+    useState<UserWithChannel | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -81,14 +91,14 @@ export default function UsersManagement() {
     data: users = [],
     isLoading,
     isFetching,
-  } = useQuery<UserType[]>({
+  } = useQuery<UserWithChannel[]>({
     queryKey: ["/api/users"],
   });
 
   const filteredUsers = useMemo(() => {
     if (!debouncedSearchTerm) return users;
     return (users || []).filter(
-      (user: UserType) =>
+      (user: UserWithChannel) =>
         user.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     );
@@ -169,7 +179,7 @@ export default function UsersManagement() {
     }
   };
 
-  const handleToggleStatus = (user: UserType) => {
+  const handleToggleStatus = (user: UserWithChannel) => {
     const newStatus = user.isActive === "true" ? false : true;
     toggleUserStatusMutation.mutate({ userId: user.id, isActive: newStatus });
   };
@@ -277,7 +287,7 @@ export default function UsersManagement() {
             </div>
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
-              {filteredUsers.map((user: UserType) => (
+              {filteredUsers.map((user: UserWithChannel) => (
                 <div
                   key={user.id}
                   className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
@@ -323,6 +333,20 @@ export default function UsersManagement() {
                             {user.email}
                           </span>
                         </div>
+
+                        {user.serviceChannel && (
+                          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-1">
+                            <FaWhatsapp className="h-4 w-4 flex-shrink-0" />
+                            <span
+                              className="truncate font-medium"
+                              title={`${user.serviceChannel.name} - ${user.serviceChannel.phoneNumber}`}
+                            >
+                              {user.serviceChannel.name}
+                              {user.serviceChannel.phoneNumber &&
+                                ` - ${user.serviceChannel.phoneNumber}`}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
                           <UserCheck className="h-3 w-3" />

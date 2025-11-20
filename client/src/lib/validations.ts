@@ -5,7 +5,10 @@ export const clientValidationSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   phone: z.string().min(10, "Celular deve ter pelo menos 10 dígitos"),
   fixedPhone: z.string().optional().or(z.literal("")),
-  cpf: z.string().optional().refine((val) => !val || validateCpf(val), "CPF inválido"),
+  cpf: z
+    .string()
+    .optional()
+    .refine((val) => !val || validateCpf(val), "CPF inválido"),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   birthday: z.string().optional().or(z.literal("")),
   cep: z.string().optional().or(z.literal("")),
@@ -21,8 +24,8 @@ export const clientValidationSchema = z.object({
 });
 
 export const dealValidationSchema = z.object({
-  dealType: z.enum(["client", "company"], { 
-    required_error: "Tipo de negócio é obrigatório" 
+  dealType: z.enum(["client", "company"], {
+    required_error: "Tipo de negócio é obrigatório",
   }),
   clientId: z.string().optional(),
   companyId: z.string().optional(),

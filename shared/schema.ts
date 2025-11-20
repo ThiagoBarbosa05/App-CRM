@@ -82,6 +82,12 @@ export const clients = pgTable("clients", {
   responsavelId: varchar("responsavel_id").references(() => users.id),
   categoria: text("categoria").notNull(),
   origem: text("origem").notNull(),
+  confirmationCode: text("confirmation_code"),
+  status: text("status", { enum: ["pending", "confirmed"] })
+    .notNull()
+    .default("pending"),
+  confirmationCodeSentAt: timestamp("confirmation_code_sent_at"),
+  umblerContactId: text("umbler_contact_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

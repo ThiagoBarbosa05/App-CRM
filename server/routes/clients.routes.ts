@@ -7,6 +7,7 @@ import { postClientController } from "../controllers/clients/post-client.control
 import { putClientController } from "../controllers/clients/put-client.controller";
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
 import { deleteClientsBulkController } from "../controllers/clients/delete-clients-bulk.controller";
+import { confirmClientController } from "../controllers/clients/confirm-client.controller";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -114,6 +115,19 @@ clientsRouter.post("/", postClientController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.put("/:id", putClientController);
+
+/**
+ * @route POST /api/clients/:id/confirm
+ * @description Confirma o cadastro de um cliente validando o código de confirmação
+ * @access Private
+ * @urlParams {string} id - ID do cliente a ser confirmado (obrigatório)
+ * @bodyParams {string} confirmationCode - Código de confirmação de 6 dígitos (obrigatório)
+ * @returns {object} 200 - Cliente confirmado com sucesso
+ * @returns {object} 400 - Erro de validação ou código inválido
+ * @returns {object} 404 - Cliente não encontrado
+ * @returns {object} 500 - Erro interno do servidor
+ */
+clientsRouter.post("/:id/confirm", confirmClientController);
 
 /**
  * @route DELETE /api/clients/:id

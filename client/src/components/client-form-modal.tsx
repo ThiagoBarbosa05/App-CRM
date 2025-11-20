@@ -165,7 +165,7 @@ export default function ClientFormModal({
       const response = await apiRequest("POST", url, data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       // Invalidate marker stats cache to update goal calculations
       queryClient.invalidateQueries({
@@ -173,10 +173,22 @@ export default function ClientFormModal({
           typeof q.queryKey[0] === "string" &&
           (q.queryKey[0] as string).startsWith("/api/marker-stats"),
       });
-      toast({
-        title: "Cliente criado",
-        description: "Cliente foi adicionado com sucesso.",
-      });
+
+      // Verificar se requer confirmação
+      if (data.requiresConfirmation) {
+        toast({
+          title: "Cliente criado com sucesso!",
+          description:
+            "Um código de confirmação foi enviado para o Umbler. Acesse as notas do contato no Umbler para confirmar o cadastro.",
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "Cliente criado",
+          description: "Cliente foi adicionado com sucesso.",
+        });
+      }
+
       onOpenChange(false);
       form.reset();
     },

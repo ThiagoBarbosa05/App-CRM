@@ -311,6 +311,80 @@ export interface CreateFileResponse {
   visibility: string;
 }
 
+// Contact Note Interfaces
+export interface CreateContactNoteRequest {
+  content: string;
+  organizationId: string;
+  elements?: string;
+  mentions?: string;
+}
+
+export interface NoteMention {
+  id: string;
+  source: string;
+}
+
+export interface ContactNote {
+  _t: string;
+  id: string;
+  createdAtUTC: string;
+  content: string;
+  pinned: boolean;
+  createdBy: string;
+  elements: string;
+  mentions: NoteMention[];
+}
+
+export interface ContactTag {
+  _t: string;
+  id: string;
+  name: string;
+  emoji?: string;
+  color?: string;
+  description?: string;
+  order?: number;
+  createdAtUTC?: string;
+  groupIds?: string[];
+}
+
+export interface ContactAddress {
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface ContactCustomField {
+  _t: string;
+  id: string;
+  customFieldDefinitionId: string;
+  value?: string | boolean | number;
+}
+
+export interface CreateContactNoteResponse {
+  _t: string;
+  id: string;
+  createdAtUTC: string;
+  name: string;
+  phoneNumber: string;
+  email: string;
+  profilePictureUrl: string;
+  isBlocked: boolean;
+  groupIdentifier: string;
+  contactType: string;
+  organizationMembers: string[];
+  channelIds: string[];
+  tags: ContactTag[];
+  lastActiveUTC: string;
+  gender: string;
+  landline: string;
+  address: ContactAddress;
+  notes: ContactNote[];
+  customFields: ContactCustomField[];
+}
+
 const apiEndpoint = process.env.UMBLER_ENDPOINT || "";
 const organizationId = process.env.UMBLER_ORGANIZATION_ID || "";
 const apiKey = process.env.UMBLER_API_KEY || "";
@@ -922,6 +996,62 @@ export async function getApprovedTemplates(): Promise<Template[] | null> {
     return approvedTemplates;
   } catch (error) {
     console.error("Error fetching approved templates:", error);
+    return null;
+  }
+}
+
+/**
+ * Cria uma observação para um contato no Umbler
+ * @param contactId - ID do contato que receberá a observação
+ * @param data - Dados da observação a ser criada
+ * @returns Promise com a resposta da criação ou null em caso de erro
+ */
+export async function createContactNote(
+  contactId: string,
+  data: CreateContactNoteRequest
+): Promise<CreateContactNoteResponse | null> {
+  try {
+    if (!contactId || !contactId.trim()) {
+      throw new Error("Contact ID is required");
+    }
+
+    if (!data.content || !data.content.trim()) {
+      throw new Error("Note content is required");
+    }
+
+    if (!data.organizationId || !data.organizationId.trim()) {
+      throw new Error("Organization ID is required");
+    }
+
+    const requestBody: CreateContactNoteRequest = {
+      content: data.content,
+      organizationId: data.organizationId,
+      ...(data.elements && { elements: data.elements }),
+      ...(data.mentions && { mentions: data.mentions }),
+    };
+
+    const response = await fetch(`${apiEndpoint}/contacts/${contactId}/notes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to create contact note: " + JSON.stringify(error)
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("Contact note created successfully", responseData);
+
+    return responseData as CreateContactNoteResponse;
+  } catch (error) {
+    console.error("Error creating contact note:", error);
     return null;
   }
 }

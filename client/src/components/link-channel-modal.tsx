@@ -27,7 +27,13 @@ import { useAuth } from "@/hooks/useAuth";
 interface LinkChannelModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: User & { serviceChannel?: { id: string; name: string } };
+  user: User & {
+    serviceChannel?: {
+      id: string;
+      name: string;
+      phoneNumber?: string | null;
+    } | null;
+  };
 }
 
 type UmblerChannel = {
@@ -58,7 +64,7 @@ export function LinkChannelModal({
     },
   });
 
-  const {user: userAuthenticated, updateUserAuthenticated} = useAuth();
+  const { user: userAuthenticated, updateUserAuthenticated } = useAuth();
 
   useEffect(() => {
     userServiceChannelForm.reset({
@@ -99,14 +105,14 @@ export function LinkChannelModal({
     onSuccess: (data: { channelId: string }) => {
       toast({
         title: "Canal vinculado com sucesso",
-        description: "O canal foi vinculado com sucesso.",  
+        description: "O canal foi vinculado com sucesso.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       updateUserAuthenticated({
         ...user,
         serviceChannelId: data.channelId,
-      })
+      });
       onOpenChange(false);
     },
     onError: (error: Error) => {
