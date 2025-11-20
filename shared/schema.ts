@@ -1913,7 +1913,7 @@ export const blingOrders = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
 
-    blingOrderId: integer("bling_order_id").notNull().unique(),
+    blingOrderId: text("bling_order_id").notNull().unique(),
 
     orderNumber: integer("order_number").notNull(),
 
@@ -2037,7 +2037,7 @@ export const pubsubProcessingLogs = pgTable(
       enum: ["created", "updated", "deleted"],
     }).notNull(),
 
-    blingOrderId: integer("bling_order_id"),
+    blingOrderId: text("bling_order_id"),
 
     status: text("status", {
       enum: ["processing", "success", "failed", "retrying"],

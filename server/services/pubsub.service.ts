@@ -306,7 +306,7 @@ export class PubSubService {
       const logData: InsertPubsubProcessingLog = {
         messageId,
         eventType: message.eventType,
-        blingOrderId: message.order.id,
+        blingOrderId: message.order.id.toString(),
         status: "processing",
         attempts: 1,
         rawMessage: JSON.stringify(message),

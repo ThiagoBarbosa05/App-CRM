@@ -59,7 +59,7 @@ export class BlingOrdersService {
       const existingOrder = await db
         .select()
         .from(blingOrders)
-        .where(eq(blingOrders.blingOrderId, order.id))
+        .where(eq(blingOrders.blingOrderId, order.id.toString()))
         .limit(1);
 
       if (existingOrder.length > 0) {
@@ -70,7 +70,7 @@ export class BlingOrdersService {
 
       // Prepara os dados do pedido principal
       const orderData: InsertBlingOrder = {
-        blingOrderId: order.id,
+        blingOrderId: order.id.toString(),
         orderNumber: order.numero,
         storeOrderNumber: order.numeroLoja || null,
         saleDate: order.data,
@@ -171,7 +171,7 @@ export class BlingOrdersService {
         .from(blingOrders)
         .where(
           and(
-            eq(blingOrders.blingOrderId, order.id),
+            eq(blingOrders.blingOrderId, order.id.toString()),
             isNull(blingOrders.deletedAt)
           )
         )
@@ -293,7 +293,7 @@ export class BlingOrdersService {
         .from(blingOrders)
         .where(
           and(
-            eq(blingOrders.blingOrderId, order.id),
+            eq(blingOrders.blingOrderId, order.id.toString()),
             isNull(blingOrders.deletedAt)
           )
         )
@@ -335,7 +335,7 @@ export class BlingOrdersService {
         .from(blingOrders)
         .where(
           and(
-            eq(blingOrders.blingOrderId, blingOrderId),
+            eq(blingOrders.blingOrderId, blingOrderId.toString()),
             isNull(blingOrders.deletedAt)
           )
         )
@@ -430,7 +430,7 @@ export class BlingOrdersService {
       const [order] = await db
         .select({ id: blingOrders.id })
         .from(blingOrders)
-        .where(eq(blingOrders.blingOrderId, blingOrderId))
+        .where(eq(blingOrders.blingOrderId, blingOrderId.toString()))
         .limit(1);
 
       return !!order;

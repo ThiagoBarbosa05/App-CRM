@@ -78,12 +78,12 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
 
       // Inicializa o consumidor do Pub/Sub após o servidor estar rodando
-      // initializePubSubSubscriber().catch((error) => {
-      //   console.error(
-      //     "[Server] Erro ao inicializar Pub/Sub subscriber:",
-      //     error
-      //   );
-      // });
+      initializePubSubSubscriber().catch((error) => {
+        console.error(
+          "[Server] Erro ao inicializar Pub/Sub subscriber:",
+          error
+        );
+      });
     }
   );
 
