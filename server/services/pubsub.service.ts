@@ -140,12 +140,14 @@ export class PubSubService {
       console.log(`[PubSub] Processando mensagem: ${messageId}`);
 
       // Verifica se a mensagem já foi processada (idempotência)
+      // IMPORTANTE: Fazer isso ANTES de qualquer outra operação
       const alreadyProcessed = await this.isMessageProcessed(messageId);
       if (alreadyProcessed) {
         console.log(
           `[PubSub] Mensagem ${messageId} já foi processada. Pulando.`
         );
         message.ack();
+        this.activeMessages--;
         return;
       }
 
@@ -166,6 +168,7 @@ export class PubSubService {
           parseError
         );
         message.ack(); // ACK para evitar reprocessamento infinito
+        this.activeMessages--;
         return;
       }
 
@@ -180,10 +183,11 @@ export class PubSubService {
           "Mensagem inválida do Bling Control"
         );
         message.ack(); // ACK para evitar reprocessamento infinito
+        this.activeMessages--;
         return;
       }
 
-      // Registra início do processamento
+      // Registra início do processamento (após todas as validações)
       await this.createProcessingLog(messageId, messageData);
 
       // Processa a mensagem baseado no tipo de evento
@@ -306,7 +310,7 @@ export class PubSubService {
       const logData: InsertPubsubProcessingLog = {
         messageId,
         eventType: message.eventType,
-        blingOrderId: message.order.id.toString(),
+        blingOrderId: String(message.order.id),
         status: "processing",
         attempts: 1,
         rawMessage: JSON.stringify(message),
@@ -314,7 +318,10 @@ export class PubSubService {
         userId: message.metadata.userId,
       };
 
-      await db.insert(pubsubProcessingLogs).values(logData);
+      await db
+        .insert(pubsubProcessingLogs)
+        .values(logData)
+        .onConflictDoNothing();
     } catch (error) {
       console.error("[PubSub] Erro ao criar log de processamento:", error);
       // Não propaga erro para não bloquear processamento
@@ -369,7 +376,10 @@ export class PubSubService {
         rawMessage,
       };
 
-      await db.insert(pubsubProcessingLogs).values(logData);
+      await db
+        .insert(pubsubProcessingLogs)
+        .values(logData)
+        .onConflictDoNothing();
     } catch (error) {
       console.error("[PubSub] Erro ao registrar erro de processamento:", error);
       // Não propaga erro

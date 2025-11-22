@@ -77,12 +77,12 @@ export class BlingOrdersService {
         departureDate: order.dataSaida || null,
         expectedDeliveryDate: order.dataPrevista || null,
         totalValue: order.total.toString(),
-        sellerId: order.vendedor.id,
+        sellerId: order.vendedor.id ? String(order.vendedor.id) : null,
         sellerName: order.vendedor.nome,
-        contactId: order.contato.id,
+        contactId: String(order.contato.id),
         contactName: order.contato.nome,
-        storeId: order.loja.id,
-        situationId: order.situacao?.id || null,
+        storeId: String(order.loja.id),
+        situationId: order.situacao?.id ? String(order.situacao.id) : null,
         situationValue: order.situacao?.valor || null,
         observations: order.observacoes || null,
         internalObservations: order.observacoesInternas || null,
@@ -105,7 +105,7 @@ export class BlingOrdersService {
         // Cria os itens do pedido
         const itemsData: InsertBlingOrderItem[] = order.itens.map((item) => ({
           orderId: createdOrder.id,
-          productId: item.id || null,
+          productId: item.id ? String(item.id) : null,
           productCode: item.codigo || null,
           description: item.descricao || null,
           quantity: item.quantidade.toString(),
@@ -124,11 +124,13 @@ export class BlingOrdersService {
           const installmentsData: InsertBlingOrderInstallment[] =
             order.parcelas.map((parcela) => ({
               orderId: createdOrder.id,
-              installmentId: parcela.id,
+              installmentId: String(parcela.id),
               dueDate: parcela.dataVencimento,
               value: parcela.valor.toString(),
               observations: parcela.observacoes || null,
-              paymentMethodId: parcela.formaPagamento?.id || null,
+              paymentMethodId: parcela.formaPagamento?.id
+                ? String(parcela.formaPagamento.id)
+                : null,
             }));
 
           createdInstallments = await tx
@@ -193,14 +195,14 @@ export class BlingOrdersService {
         departureDate: order.dataSaida || null,
         expectedDeliveryDate: order.dataPrevista || null,
         totalValue: order.total.toString(),
-        sellerId: order.vendedor.id,
+        sellerId: order.vendedor.id ? String(order.vendedor.id) : null,
         sellerName: order.vendedor.nome,
-        contactId: order.contato.id,
+        contactId: String(order.contato.id),
         contactName: order.contato.nome,
         contactType: order.contato.tipo || null,
         contactDocument: order.contato.documento || null,
-        storeId: order.loja.id,
-        situationId: order.situacao?.id || null,
+        storeId: String(order.loja.id),
+        situationId: order.situacao?.id ? String(order.situacao.id) : null,
         situationValue: order.situacao?.valor || null,
         observations: order.observacoes || null,
         internalObservations: order.observacoesInternas || null,
@@ -224,7 +226,7 @@ export class BlingOrdersService {
         // Recria os itens
         const itemsData: InsertBlingOrderItem[] = order.itens.map((item) => ({
           orderId: currentOrder.id,
-          productId: item.id || null,
+          productId: item.id ? String(item.id) : null,
           productCode: item.codigo || null,
           description: item.descricao || null,
           quantity: item.quantidade.toString(),
@@ -248,11 +250,13 @@ export class BlingOrdersService {
           const installmentsData: InsertBlingOrderInstallment[] =
             order.parcelas.map((parcela) => ({
               orderId: currentOrder.id,
-              installmentId: parcela.id,
+              installmentId: String(parcela.id),
               dueDate: parcela.dataVencimento,
               value: parcela.valor.toString(),
               observations: parcela.observacoes || null,
-              paymentMethodId: parcela.formaPagamento?.id || null,
+              paymentMethodId: parcela.formaPagamento?.id
+                ? String(parcela.formaPagamento.id)
+                : null,
             }));
 
           createdInstallments = await tx
