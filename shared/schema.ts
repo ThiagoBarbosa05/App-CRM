@@ -179,11 +179,11 @@ export const dealQuestions = pgTable(
       (${table.questionType} IN ('select', 'multiselect') AND array_length(${table.options}, 1) > 0) 
       OR 
       (${table.questionType} NOT IN ('select', 'multiselect'))
-    `
+    `,
     ),
     // Index para queries por status ativo
     index("deal_questions_active_idx").on(table.isActive),
-  ]
+  ],
 );
 
 // Tabela de respostas das perguntas dos deals
@@ -210,7 +210,7 @@ export const dealAnswers = pgTable(
     // Constraint para garantir uma resposta única por pergunta por deal
     unique("deal_answers_unique_deal_question").on(
       table.dealId,
-      table.questionId
+      table.questionId,
     ),
     // Constraint para garantir que apenas um campo de resposta esteja preenchido
     check(
@@ -219,11 +219,11 @@ export const dealAnswers = pgTable(
       (${table.answerBoolean} IS NOT NULL)::int + 
       (${table.answerNumber} IS NOT NULL)::int + 
       (${table.answerText} IS NOT NULL)::int = 1
-    `
+    `,
     ),
     // Index para melhorar performance de queries por deal
     index("deal_answers_deal_id_idx").on(table.dealId),
-  ]
+  ],
 );
 
 export const trainings = pgTable("trainings", {
@@ -292,7 +292,7 @@ export const userServiceChannel = pgTable("user_service_channel", {
     .default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
   serviceChannelId: text("service_channel_id").references(
-    () => serviceChannels.id
+    () => serviceChannels.id,
   ),
 });
 
@@ -313,7 +313,7 @@ export const salesFunnelsRelations = relations(
     }),
     stages: many(funnelStages),
     deals: many(deals),
-  })
+  }),
 );
 
 export const funnelStagesRelations = relations(
@@ -324,7 +324,7 @@ export const funnelStagesRelations = relations(
       references: [salesFunnels.id],
     }),
     deals: many(deals),
-  })
+  }),
 );
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -368,7 +368,7 @@ export const companyProductsRelations = relations(
       fields: [companyProducts.addedBy],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const dealsRelations = relations(deals, ({ one, many }) => ({
@@ -406,7 +406,7 @@ export const dealQuestionsRelations = relations(
   dealQuestions,
   ({ one, many }) => ({
     answers: many(dealAnswers),
-  })
+  }),
 );
 
 // Relações para as respostas dos deals
@@ -533,7 +533,7 @@ export const clientInteractionsRelations = relations(
       fields: [clientInteractions.companyId],
       references: [companies.id],
     }),
-  })
+  }),
 );
 
 // Email Marketing Campaign tables
@@ -610,7 +610,7 @@ export const userGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas
@@ -662,7 +662,7 @@ export const telemarketingGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por resultado/mês/ano
     uniqueUserResultMonthYear: sql`UNIQUE (${table.userId}, ${table.targetResult}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de telemarketing
@@ -679,7 +679,7 @@ export const telemarketingWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de chamadas alcançadas com o resultado
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
+  },
 );
 
 // Tabela de metas de cadastros de clientes
@@ -701,7 +701,7 @@ export const clientRegistrationGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por mês/ano
     uniqueUserMonthYear: sql`UNIQUE (${table.userId}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de cadastros
@@ -718,7 +718,7 @@ export const clientRegistrationWeeklyResults = pgTable(
     quantityAchieved: integer("quantity_achieved").notNull().default(0), // Quantidade de clientes cadastrados
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
+  },
 );
 
 // Tabela de metas de marcadores de clientes
@@ -741,7 +741,7 @@ export const markerGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por marcador/mês/ano
     uniqueUserMarkerMonthYear: sql`UNIQUE (${table.userId}, ${table.markerName}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de marcadores
@@ -778,7 +778,7 @@ export const interactionGoals = pgTable(
   (table) => ({
     // Constraint composta: um usuário só pode ter uma meta por tipo de interação/mês/ano
     uniqueUserInteractionMonthYear: sql`UNIQUE (${table.userId}, ${table.interactionType}, ${table.month}, ${table.year})`,
-  })
+  }),
 );
 
 // Tabela de resultados semanais das metas de interações
@@ -807,7 +807,7 @@ export const birthdayRemindersRelations = relations(
       fields: [birthdayReminders.createdBy],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // Schemas de inserção
@@ -861,7 +861,7 @@ export const insertDealSchema = createInsertSchema(deals)
     {
       message: "Cliente ou empresa é obrigatório",
       path: ["clientId"],
-    }
+    },
   );
 
 // Schema para atualizações - sem validação restritiva
@@ -899,7 +899,7 @@ export const insertDealQuestionSchema = baseDealQuestionSchema.refine(
   {
     message: "Perguntas do tipo seleção devem ter pelo menos uma opção",
     path: ["options"],
-  }
+  },
 );
 
 export const updateDealQuestionSchema = baseDealQuestionSchema
@@ -945,7 +945,7 @@ export const insertDealAnswerSchema = baseDealAnswerSchema.refine(
     const hasText = data.answerText !== undefined && data.answerText !== "";
 
     const filledFields = [hasBoolean, hasNumber, hasText].filter(
-      Boolean
+      Boolean,
     ).length;
 
     return filledFields === 1;
@@ -953,11 +953,11 @@ export const insertDealAnswerSchema = baseDealAnswerSchema.refine(
   {
     message: "Apenas um campo de resposta deve estar preenchido",
     path: ["root"],
-  }
+  },
 );
 
 export const insertBirthdayReminderSchema = createInsertSchema(
-  birthdayReminders
+  birthdayReminders,
 ).omit({
   id: true,
   createdAt: true,
@@ -965,7 +965,7 @@ export const insertBirthdayReminderSchema = createInsertSchema(
 });
 
 export const insertBirthdayReminderSettingsSchema = createInsertSchema(
-  birthdayReminderSettings
+  birthdayReminderSettings,
 ).omit({
   id: true,
   createdAt: true,
@@ -993,7 +993,7 @@ export const insertMarkerSchema = insertTagSchema.omit({ type: true });
 export const insertOriginSchema = insertTagSchema.omit({ type: true });
 
 export const baseInsertClientInteractionSchema = createInsertSchema(
-  clientInteractions
+  clientInteractions,
 )
   .omit({
     id: true,
@@ -1039,10 +1039,10 @@ export const insertClientInteractionSchema =
       message:
         "A interação deve estar associada a um cliente ou a uma empresa.",
       path: ["clientId"],
-    }
+    },
   );
 export const insertEmailCampaignSchema = createInsertSchema(
-  emailCampaigns
+  emailCampaigns,
 ).omit({
   id: true,
   createdAt: true,
@@ -1050,7 +1050,7 @@ export const insertEmailCampaignSchema = createInsertSchema(
 });
 
 export const insertEmailCampaignRecipientSchema = createInsertSchema(
-  emailCampaignRecipients
+  emailCampaignRecipients,
 ).omit({
   id: true,
   createdAt: true,
@@ -1069,7 +1069,7 @@ export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
 });
 
 export const insertTelemarketingGoalSchema = createInsertSchema(
-  telemarketingGoals
+  telemarketingGoals,
 ).omit({
   id: true,
   createdAt: true,
@@ -1077,7 +1077,7 @@ export const insertTelemarketingGoalSchema = createInsertSchema(
 });
 
 export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
-  telemarketingWeeklyResults
+  telemarketingWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -1085,7 +1085,7 @@ export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertClientRegistrationGoalSchema = createInsertSchema(
-  clientRegistrationGoals
+  clientRegistrationGoals,
 ).omit({
   id: true,
   createdAt: true,
@@ -1093,14 +1093,14 @@ export const insertClientRegistrationGoalSchema = createInsertSchema(
 });
 
 export const insertTrainingAttachment = createInsertSchema(
-  trainingAttachments
+  trainingAttachments,
 ).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
-  clientRegistrationWeeklyResults
+  clientRegistrationWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -1114,7 +1114,7 @@ export const insertMarkerGoalSchema = createInsertSchema(markerGoals).omit({
 });
 
 export const insertMarkerWeeklyResultSchema = createInsertSchema(
-  markerWeeklyResults
+  markerWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -1122,7 +1122,7 @@ export const insertMarkerWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertInteractionGoalSchema = createInsertSchema(
-  interactionGoals
+  interactionGoals,
 ).omit({
   id: true,
   createdAt: true,
@@ -1130,7 +1130,7 @@ export const insertInteractionGoalSchema = createInsertSchema(
 });
 
 export const insertInteractionWeeklyResultSchema = createInsertSchema(
-  interactionWeeklyResults
+  interactionWeeklyResults,
 ).omit({
   id: true,
   createdAt: true,
@@ -1138,7 +1138,7 @@ export const insertInteractionWeeklyResultSchema = createInsertSchema(
 });
 
 export const insertCompanyProductSchema = createInsertSchema(
-  companyProducts
+  companyProducts,
 ).omit({
   id: true,
   addedAt: true,
@@ -1455,7 +1455,7 @@ export const insertCashbackTransactionSchema = z.object({
     .optional(),
 });
 export const insertClientCashbackBalanceSchema = createInsertSchema(
-  clientCashbackBalance
+  clientCashbackBalance,
 ).omit({
   id: true,
 });
@@ -1463,7 +1463,7 @@ export const insertCashbackUsageSchema = createInsertSchema(cashbackUsage).omit(
   {
     id: true,
     createdAt: true,
-  }
+  },
 );
 
 export type LearningImage = typeof learningImages.$inferSelect;
@@ -1666,7 +1666,7 @@ export const messageAutomationSettings = pgTable(
     externalFileUrl: text("external_file_url"), // url do arquivo de mídia (opcional)
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  }
+  },
 );
 
 export const messageJobsLogs = pgTable("message_jobs_logs", {
@@ -1825,7 +1825,7 @@ export const eventAttachmentsRelations = relations(
       fields: [eventAttachments.eventId],
       references: [events.id],
     }),
-  })
+  }),
 );
 
 export const eventParticipantsRelations = relations(
@@ -1843,7 +1843,7 @@ export const eventParticipantsRelations = relations(
       fields: [eventParticipants.registeredBy],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const eventGuestsRelations = relations(eventGuests, ({ one }) => ({
@@ -1865,14 +1865,14 @@ export const insertEventSchema = createInsertSchema(events).omit({
 });
 
 export const insertEventAttachmentSchema = createInsertSchema(
-  eventAttachments
+  eventAttachments,
 ).omit({
   id: true,
   uploadedAt: true,
 });
 
 export const insertEventParticipantSchema = createInsertSchema(
-  eventParticipants
+  eventParticipants,
 )
   .omit({
     id: true,
@@ -1915,7 +1915,7 @@ export const blingOrders = pgTable(
 
     blingOrderId: text("bling_order_id").notNull().unique(),
 
-    orderNumber: integer("order_number").notNull(),
+    orderNumber: text("order_number").notNull(),
 
     storeOrderNumber: text("store_order_number"),
 
@@ -1962,7 +1962,7 @@ export const blingOrders = pgTable(
     index("bling_orders_contact_idx").on(table.contactId),
     index("bling_orders_sale_date_idx").on(table.saleDate),
     index("bling_orders_deleted_idx").on(table.deletedAt),
-  ]
+  ],
 );
 
 // Tabela de itens dos pedidos do Bling
@@ -1992,7 +1992,7 @@ export const blingOrderItems = pgTable(
   (table) => [
     index("bling_order_items_order_idx").on(table.orderId),
     index("bling_order_items_product_idx").on(table.productId),
-  ]
+  ],
 );
 
 // Tabela de parcelas dos pedidos do Bling
@@ -2020,7 +2020,7 @@ export const blingOrderInstallments = pgTable(
   (table) => [
     index("bling_order_installments_order_idx").on(table.orderId),
     index("bling_order_installments_due_date_idx").on(table.dueDate),
-  ]
+  ],
 );
 
 // Tabela de logs de processamento de mensagens do Pub/Sub
@@ -2064,7 +2064,7 @@ export const pubsubProcessingLogs = pgTable(
     index("pubsub_logs_status_idx").on(table.status),
     index("pubsub_logs_event_type_idx").on(table.eventType),
     index("pubsub_logs_bling_order_idx").on(table.blingOrderId),
-  ]
+  ],
 );
 
 // Schemas de inserção
@@ -2075,21 +2075,21 @@ export const insertBlingOrderSchema = createInsertSchema(blingOrders).omit({
 });
 
 export const insertBlingOrderItemSchema = createInsertSchema(
-  blingOrderItems
+  blingOrderItems,
 ).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertBlingOrderInstallmentSchema = createInsertSchema(
-  blingOrderInstallments
+  blingOrderInstallments,
 ).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertPubsubProcessingLogSchema = createInsertSchema(
-  pubsubProcessingLogs
+  pubsubProcessingLogs,
 ).omit({
   id: true,
   createdAt: true,
@@ -2129,7 +2129,7 @@ export const blingOrderItemsRelations = relations(
       fields: [blingOrderItems.orderId],
       references: [blingOrders.id],
     }),
-  })
+  }),
 );
 
 export const blingOrderInstallmentsRelations = relations(
@@ -2139,5 +2139,5 @@ export const blingOrderInstallmentsRelations = relations(
       fields: [blingOrderInstallments.orderId],
       references: [blingOrders.id],
     }),
-  })
+  }),
 );

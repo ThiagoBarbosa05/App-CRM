@@ -314,6 +314,8 @@ export interface PubSubMessageAttributes {
 export function isBlingControlMessage(
   data: any
 ): data is BlingControlPubSubMessage {
+  console.log("Validating BlingControlPubSubMessage:", data);
+
   return (
     data &&
     typeof data === "object" &&
