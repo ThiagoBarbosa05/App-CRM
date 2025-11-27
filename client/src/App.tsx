@@ -23,6 +23,7 @@ import { MainLayout } from "./layouts/main-layout";
 import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
+import UmblerContactsPage from "./pages/umbler-contacts";
 import { lazy } from "react";
 
 
@@ -57,6 +58,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Clients />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/contacts"
+        component={() => (
+          <MainLayout>
+            <UmblerContactsPage />
           </MainLayout>
         )}
       />

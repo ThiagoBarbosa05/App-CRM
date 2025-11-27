@@ -1,0 +1,650 @@
+import { UmblerContactDetails } from "@/components/umbler-contact-details";
+import { UmblerContactDialog } from "@/components/umbler-contact-dialog";
+import UmblerTagSelect from "@/components/umbler-tag-select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Edit,
+  MoreHorizontal,
+  Search,
+  Trash,
+  Users,
+  Filter,
+  X,
+  Phone,
+  User,
+  Tag,
+} from "lucide-react";
+import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+export default function UmblerContactsPage() {
+  const [search, setSearch] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: contacts, isLoading } = useQuery({
+    queryKey: ["umbler-contacts", search, selectedTags],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (search) params.append("query", search);
+      if (selectedTags.length > 0) {
+        selectedTags.forEach((tagId) => params.append("tags", tagId));
+      }
+      const res = await fetch(`/api/umbler/contacts?${params.toString()}`);
+      if (!res.ok) throw new Error("Falha ao buscar contatos");
+      const data = await res.json();
+      return data.items || [];
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/umbler/contacts/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Falha ao deletar contato");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["umbler-contacts"] });
+      toast({
+        title: "✓ Sucesso",
+        description: "Contato deletado com sucesso",
+        duration: 3000,
+      });
+      setDeleteDialogOpen(false);
+      setContactToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "✗ Erro",
+        description: "Erro ao deletar contato",
+        variant: "destructive",
+        duration: 3000,
+      });
+    },
+  });
+
+  const handleEdit = (contact: any) => {
+    setSelectedContact(contact);
+    setEditOpen(true);
+  };
+
+  const handleViewDetails = (contact: any) => {
+    setSelectedContact(contact);
+    setDetailsOpen(true);
+  };
+
+  const handleDeleteClick = (contactId: string) => {
+    setContactToDelete(contactId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (contactToDelete) {
+      deleteMutation.mutate(contactToDelete);
+    }
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setSelectedTags([]);
+  };
+
+  const hasActiveFilters = search || selectedTags.length > 0;
+  const totalContacts = contacts?.length || 0;
+
+  return (
+    <div className="bg-gray-50">
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Header minimalista */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+                <h1 className="text-xl font-semibold text-gray-900">
+                  Contatos Umbler
+                </h1>
+              </div>
+              <p className="text-sm text-gray-600 max-w-2xl">
+                Gerencie e organize seus contatos do Umbler uTalk
+              </p>
+            </div>
+            <UmblerContactDialog />
+          </div>
+        </div>
+
+        {/* Stats Card minimalista */}
+        <div className="bg-white border border-gray-200 rounded-lg p-5 hover:bg-gray-50/50 transition-colors">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                Total de Contatos
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mb-1">
+                {isLoading ? "..." : totalContacts}
+              </p>
+              <p className="text-xs text-gray-600">
+                {totalContacts === 1
+                  ? "contato cadastrado"
+                  : "contatos cadastrados"}
+              </p>
+            </div>
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Users className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros minimalistas */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Filtros
+                  </h3>
+                </div>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="h-8 text-xs text-gray-600 hover:bg-gray-100"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Limpar
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nome ou telefone..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 h-9 border-gray-300 focus:border-gray-500 focus:ring-gray-500"
+                  />
+                </div>
+                <UmblerTagSelect
+                  value={selectedTags}
+                  onChange={setSelectedTags}
+                  placeholder="Filtrar por tags..."
+                />
+              </div>
+
+              {hasActiveFilters && (
+                <div className="flex flex-wrap gap-2">
+                  {search && (
+                    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                      <Search className="h-3 w-3" />
+                      {search}
+                      <button
+                        onClick={() => setSearch("")}
+                        className="ml-1 hover:bg-gray-200 rounded-full p-0.5 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {selectedTags.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                      <Tag className="h-3 w-3" />
+                      {selectedTags.length} tag
+                      {selectedTags.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Contacts Table */}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* Tabela Desktop */}
+          <div className="hidden lg:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide w-[35%]">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Nome
+                      </div>
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide w-[25%]">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Telefone
+                      </div>
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide w-[30%]">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4" />
+                        Tags
+                      </div>
+                    </th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide w-[10%]">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr
+                        key={i}
+                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50/30"}
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-24" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <Skeleton className="h-6 w-28 rounded" />
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex gap-1.5">
+                            <Skeleton className="h-5 w-16 rounded-full" />
+                            <Skeleton className="h-5 w-20 rounded-full" />
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex justify-end">
+                            <Skeleton className="h-8 w-8 rounded" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : contacts?.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="h-48">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <Users className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Nenhum contato encontrado
+                          </h3>
+                          <p className="text-gray-600 mb-6 max-w-md">
+                            {hasActiveFilters
+                              ? "Tente ajustar os filtros para encontrar contatos"
+                              : "Adicione seu primeiro contato para começar"}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    contacts?.map((contact: any, index: number) => (
+                      <tr
+                        key={contact.id}
+                        className={`cursor-pointer hover:bg-gray-50/50 transition-colors group ${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                        }`}
+                        onClick={() => handleViewDetails(contact)}
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            {contact.profilePictureUrl ? (
+                              <div className="relative">
+                                <img
+                                  src={contact.profilePictureUrl}
+                                  alt={contact.name || "Avatar"}
+                                  className="h-10 w-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all"
+                                />
+                                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
+                              </div>
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-100 transition-all">
+                                <User className="h-5 w-5 text-blue-600" />
+                              </div>
+                            )}
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate max-w-[250px] font-medium text-gray-900">
+                                {contact.name || (
+                                  <span className="text-gray-400 italic font-normal">
+                                    Sem nome
+                                  </span>
+                                )}
+                              </span>
+                              {contact.email && (
+                                <span className="text-xs text-gray-500 truncate max-w-[250px]">
+                                  {contact.email}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-3.5 w-3.5 text-gray-400" />
+                            <code className="text-xs bg-gray-100 px-2.5 py-1.5 rounded border border-gray-200 font-mono text-gray-700 group-hover:bg-gray-200 transition-colors">
+                              {contact.phoneNumber}
+                            </code>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          {contact.tags && contact.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {contact.tags.slice(0, 3).map((tag: any) => (
+                                <span
+                                  key={tag.id}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                                >
+                                  {tag.emoji && (
+                                    <span className="mr-1">{tag.emoji}</span>
+                                  )}
+                                  {tag.name}
+                                </span>
+                              ))}
+                              {contact.tags.length > 3 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                                  +{contact.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">
+                              Sem tags
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          onClick={(e) => e.stopPropagation()}
+                          className="py-4 px-4"
+                        >
+                          <div className="flex justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                                >
+                                  <span className="sr-only">Abrir menu</span>
+                                  <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                                  Ações
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleViewDetails(contact)}
+                                  className="cursor-pointer"
+                                >
+                                  <Users className="mr-2 h-4 w-4" />
+                                  Ver Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleEdit(contact)}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive cursor-pointer"
+                                  onClick={() => handleDeleteClick(contact.id)}
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Deletar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cards Mobile */}
+          <div className="lg:hidden divide-y divide-gray-200">
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-28" />
+                    <div className="flex gap-1.5">
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : contacts?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center p-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Users className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Nenhum contato encontrado
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-md">
+                  {hasActiveFilters
+                    ? "Tente ajustar os filtros para encontrar contatos"
+                    : "Adicione seu primeiro contato para começar"}
+                </p>
+              </div>
+            ) : (
+              contacts?.map((contact: any) => (
+                <div
+                  key={contact.id}
+                  className="p-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                  onClick={() => handleViewDetails(contact)}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        {contact.profilePictureUrl ? (
+                          <div className="relative flex-shrink-0">
+                            <img
+                              src={contact.profilePictureUrl}
+                              alt={contact.name || "Avatar"}
+                              className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-200"
+                            />
+                            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
+                          </div>
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0">
+                            <User className="h-6 w-6 text-blue-600" />
+                          </div>
+                        )}
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <h4 className="font-medium text-gray-900 truncate text-sm">
+                            {contact.name || (
+                              <span className="text-gray-400 italic font-normal">
+                                Sem nome
+                              </span>
+                            )}
+                          </h4>
+                          {contact.email && (
+                            <p className="text-xs text-gray-500 truncate">
+                              {contact.email}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Phone className="h-3 w-3 text-gray-400" />
+                            <code className="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200 font-mono text-gray-700">
+                              {contact.phoneNumber}
+                            </code>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-shrink-0"
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0 hover:bg-gray-100"
+                            >
+                              <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                              Ações
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleViewDetails(contact)}
+                              className="cursor-pointer"
+                            >
+                              <Users className="mr-2 h-4 w-4" />
+                              Ver Detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(contact)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive cursor-pointer"
+                              onClick={() => handleDeleteClick(contact.id)}
+                            >
+                              <Trash className="mr-2 h-4 w-4" />
+                              Deletar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    {contact.tags && contact.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
+                        {contact.tags.slice(0, 4).map((tag: any) => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                          >
+                            {tag.emoji && (
+                              <span className="mr-1">{tag.emoji}</span>
+                            )}
+                            {tag.name}
+                          </span>
+                        ))}
+                        {contact.tags.length > 4 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-gray-200 bg-gray-50 text-gray-700">
+                            +{contact.tags.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Dialogs */}
+        <UmblerContactDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          contact={selectedContact}
+        />
+
+        <UmblerContactDetails
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          contact={selectedContact}
+        />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja deletar este contato? Esta ação não pode
+                ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? "Deletando..." : "Deletar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
+  );
+}

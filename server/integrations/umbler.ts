@@ -347,6 +347,19 @@ export interface ContactTag {
   groupIds?: string[];
 }
 
+export interface TagsPage {
+  totalItems: number;
+  skipped: number;
+  took: number;
+  maxTake: number;
+  searchEngine: string;
+}
+
+export interface GetTagsResponse {
+  page: TagsPage;
+  items: ContactTag[];
+}
+
 export interface ContactAddress {
   addressLine1: string;
   addressLine2: string;
@@ -466,6 +479,60 @@ export async function getContactByPhone(phone: string) {
     return data;
   } catch (error) {
     console.error("Error fetching contact by phone:", error);
+    return null;
+  }
+}
+
+/**
+ * Busca contatos na organização com filtro de query
+ * @param query - String de busca para filtrar contatos (opcional)
+ * @param tagIds - Array de IDs de tags para filtrar (opcional)
+ * @returns Promise com a lista de contatos ou null em caso de erro
+ */
+export async function getContacts(
+  query?: string,
+  tagIds?: string[]
+): Promise<any | null> {
+  try {
+    const params = new URLSearchParams();
+    params.append("organizationId", organizationId);
+    params.append("Skip", "0");
+    params.append("Take", "50");
+    params.append("Behavior", "GetSliceOnly");
+
+    if (query) {
+      params.append("query", query);
+    }
+
+    if (tagIds && tagIds.length > 0) {
+      params.append("Tags.Rule", "ContainsAny");
+      tagIds.forEach((tagId) => {
+        params.append("Tags.Values", tagId);
+      });
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/contacts?${params.toString()}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to fetch contacts: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+
+    console.log("Contacts fetched successfully", responseData);
+
+    return responseData;
+  } catch (error) {
+    console.error("Error fetching contacts:", error);
     return null;
   }
 }
@@ -1052,6 +1119,198 @@ export async function createContactNote(
     return responseData as CreateContactNoteResponse;
   } catch (error) {
     console.error("Error creating contact note:", error);
+    return null;
+  }
+}
+
+/**
+ * Atualiza as informações de um contato no Umbler
+ * @param contactId - ID do contato a ser atualizado
+ * @param data - Dados a serem atualizados no contato
+ * @returns Promise com a resposta da atualização ou null em caso de erro
+ */
+export async function updateContact(
+  contactId: string,
+  data: Partial<{
+    name: string;
+    email: string;
+    phoneNumber: string;
+    gender: string;
+    landline: string;
+    address: ContactAddress;
+  }>
+): Promise<CreateContactNoteResponse | null> {
+  try {
+    if (!contactId || !contactId.trim()) {
+      throw new Error("Contact ID is required");
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/contacts/${contactId}?organizationId=${organizationId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(data),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to update contact: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Contact updated successfully", responseData);
+
+    return responseData as CreateContactNoteResponse;
+  } catch (error) {
+    console.error("Error updating contact:", error);
+    return null;
+  }
+}
+
+/**
+ * Deleta um contato no Umbler
+ * @param contactId - ID do contato a ser deletado
+ * @returns Promise com boolean indicando sucesso ou falha
+ */
+export async function deleteContact(contactId: string): Promise<boolean> {
+  try {
+    if (!contactId || !contactId.trim()) {
+      throw new Error("Contact ID is required");
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/contacts/${contactId}?organizationId=${organizationId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error("Failed to delete contact: " + error);
+    }
+
+    console.log("Contact deleted successfully", contactId);
+    return true;
+  } catch (error) {
+    console.error("Error deleting contact:", error);
+    return false;
+  }
+}
+
+/**
+ * Busca as tags de um contato no Umbler
+ * @param contactId - ID do contato
+ * @returns Promise com array de tags ou null em caso de erro
+ */
+export async function getContactTags(
+  contactId: string
+): Promise<ContactTag[] | null> {
+  try {
+    if (!contactId || !contactId.trim()) {
+      throw new Error("Contact ID is required");
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/contacts/${contactId}/tags?organizationId=${organizationId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to fetch contact tags: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Contact tags fetched successfully");
+
+    return responseData as ContactTag[];
+  } catch (error) {
+    console.error("Error fetching contact tags:", error);
+    return null;
+  }
+}
+
+/**
+ * Busca as conversas/chats de um contato no Umbler
+ * @param contactId - ID do contato
+ * @returns Promise com as conversas ou null em caso de erro
+ */
+export async function getContactConversations(
+  contactId: string
+): Promise<any | null> {
+  try {
+    if (!contactId || !contactId.trim()) {
+      throw new Error("Contact ID is required");
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/chats/?organizationId=${organizationId}&ContactIds=${contactId}&Skip=0&Take=50&Behavior=GetSliceOnly`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to fetch contact conversations: " + JSON.stringify(error)
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("Contact conversations fetched successfully");
+
+    return responseData;
+  } catch (error) {
+    console.error("Error fetching contact conversations:", error);
+    return null;
+  }
+}
+
+/**
+ * Lista todas as tags cadastradas na organização do Umbler
+ * @returns Promise com a resposta contendo as tags ou null em caso de erro
+ */
+export async function getTags(): Promise<GetTagsResponse | null> {
+  try {
+    const response = await fetch(
+      `${apiEndpoint}/tags?organizationId=${organizationId}&Take=100`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to fetch tags: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Tags fetched successfully");
+
+    return responseData as GetTagsResponse;
+  } catch (error) {
+    console.error("Error fetching tags:", error);
     return null;
   }
 }

@@ -95,10 +95,16 @@ import {
   getChat,
   getChatById,
   getContactByPhone,
+  getContacts,
   sendMessage,
   startBirthdayBot,
   syncContact,
   updateCashback,
+  updateContact,
+  deleteContact,
+  getContactTags,
+  getContactConversations,
+  getTags,
 } from "./integrations/umbler";
 import { createCashbackSettingsController } from "./controllers/cashback/create-cashback-settings.controller";
 import { deleteCashbackSettingsController } from "./controllers/cashback/delete-cashback-settings.controller";
@@ -366,6 +372,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao sincronizar contato:", error);
       res.status(500).json({ message: "Erro ao sincronizar contato" });
+    }
+  });
+
+  app.get("/api/umbler/contacts", async (req, res) => {
+    try {
+      const { query, tags } = req.query;
+      const tagIds = tags ? (Array.isArray(tags) ? tags : [tags]) : undefined;
+      const contacts = await getContacts(query as string, tagIds as string[]);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Erro ao buscar contatos:", error);
+      res.status(500).json({ message: "Erro ao buscar contatos" });
+    }
+  });
+
+  app.put("/api/umbler/contacts/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      const result = await updateContact(id, data);
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao atualizar contato:", error);
+      res.status(500).json({ message: "Erro ao atualizar contato" });
+    }
+  });
+
+  app.delete("/api/umbler/contacts/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await deleteContact(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao deletar contato:", error);
+      res.status(500).json({ message: "Erro ao deletar contato" });
+    }
+  });
+
+  app.get("/api/umbler/contacts/:id/tags", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const tags = await getContactTags(id);
+      res.json(tags);
+    } catch (error) {
+      console.error("Erro ao buscar tags do contato:", error);
+      res.status(500).json({ message: "Erro ao buscar tags do contato" });
+    }
+  });
+
+  app.get("/api/umbler/tags", async (req, res) => {
+    try {
+      const tags = await getTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Erro ao buscar tags:", error);
+      res.status(500).json({ message: "Erro ao buscar tags" });
+    }
+  });
+
+  app.get("/api/umbler/contacts/:id/conversations", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const conversations = await getContactConversations(id);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Erro ao buscar conversas do contato:", error);
+      res.status(500).json({ message: "Erro ao buscar conversas do contato" });
     }
   });
 
