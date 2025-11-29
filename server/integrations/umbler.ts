@@ -360,6 +360,98 @@ export interface GetTagsResponse {
   items: ContactTag[];
 }
 
+// Bot Flowchart Manual Starts Interfaces
+export interface BotVariable {
+  _t: string;
+  name: string;
+  example: string;
+  minValue?: number;
+  maxValue?: number;
+  minTime?: string;
+  maxTime?: string;
+  minDate?: string;
+  maxDate?: string;
+}
+
+export interface BotManualStart {
+  botId: string;
+  stepId: string;
+  triggerName: string;
+  hidden: boolean;
+  botTitle: string;
+  variables: BotVariable[];
+}
+
+export interface BotsPage {
+  totalItems: number;
+  skipped: number;
+  took: number;
+  maxTake: number;
+  searchEngine: string;
+}
+
+export interface GetBotsResponse {
+  page: BotsPage;
+  items: BotManualStart[];
+}
+
+// Bulk Send Session Interfaces
+export interface CreateBulkSendSessionRequest {
+  organizationId: string;
+  channelId: string;
+  title: string;
+  expectedMessages: number;
+  botId: string;
+  triggerName: string;
+  templateId?: string;
+}
+
+export interface CreateBulkSendSessionResponse {
+  id: string;
+  organizationId: string;
+  channelId: string;
+  title: string;
+  expectedMessages: number;
+  botId: string;
+  triggerName: string;
+  templateId?: string;
+  createdAtUTC: string;
+}
+
+// Scheduled Message Interfaces
+export interface ScheduleMessageRequest {
+  BotId: string;
+  BotTriggerName: string;
+  BulkSession: string;
+  CancelUpon: string[];
+  ChannelId?: string | null;
+  ContactId?: string | null;
+  ContactName: string;
+  DateSendAtUTC: string;
+  FromPhone: string;
+  InitialData: Record<string, any>;
+  IsPrivate: boolean;
+  Message?: string | null;
+  OrganizationId: string;
+  Params?: any | null;
+  PostbackTexts?: any | null;
+  Prefix?: string | null;
+  TemplateId?: string | null;
+  TemplateLabel?: string | null;
+  ToPhone: string;
+}
+
+export interface ScheduleMessageResponse {
+  id: string;
+  createdAtUTC: string;
+  dateSendAtUTC: string;
+  toPhone: string;
+  fromPhone: string;
+  contactName: string;
+  bulkSession: string;
+  organizationId: string;
+}
+
 export interface ContactAddress {
   addressLine1: string;
   addressLine2: string;
@@ -487,11 +579,13 @@ export async function getContactByPhone(phone: string) {
  * Busca contatos na organização com filtro de query
  * @param query - String de busca para filtrar contatos (opcional)
  * @param tagIds - Array de IDs de tags para filtrar (opcional)
+ * @param exclusiveTag - Se true, filtra contatos que têm APENAS as tags especificadas (opcional)
  * @returns Promise com a lista de contatos ou null em caso de erro
  */
 export async function getContacts(
   query?: string,
-  tagIds?: string[]
+  tagIds?: string[],
+  exclusiveTag?: boolean
 ): Promise<any | null> {
   try {
     const params = new URLSearchParams();
@@ -505,7 +599,9 @@ export async function getContacts(
     }
 
     if (tagIds && tagIds.length > 0) {
-      params.append("Tags.Rule", "ContainsAny");
+      // Se exclusiveTag for true, usa ContainsAll para filtrar contatos que têm exatamente essas tags
+      // Caso contrário, usa ContainsAny para filtrar contatos que têm pelo menos uma das tags
+      params.append("Tags.Rule", exclusiveTag ? "ContainsAll" : "ContainsAny");
       tagIds.forEach((tagId) => {
         params.append("Tags.Values", tagId);
       });
@@ -526,7 +622,23 @@ export async function getContacts(
       throw new Error("Failed to fetch contacts: " + JSON.stringify(error));
     }
 
-    const responseData = await response.json();
+    let responseData = await response.json();
+
+    // Se exclusiveTag for true e houver tags selecionadas, filtrar contatos que têm APENAS essas tags
+    if (exclusiveTag && tagIds && tagIds.length > 0 && responseData.items) {
+      responseData.items = responseData.items.filter((contact: any) => {
+        if (!contact.tags || contact.tags.length === 0) return false;
+
+        // Verifica se o contato tem exatamente as mesmas tags (não mais, não menos)
+        const contactTagIds = contact.tags.map((tag: any) => tag.id);
+
+        // Se o número de tags for diferente, não é exclusivo
+        if (contactTagIds.length !== tagIds.length) return false;
+
+        // Verifica se todas as tags do contato estão na lista de tags selecionadas
+        return contactTagIds.every((tagId: string) => tagIds.includes(tagId));
+      });
+    }
 
     console.log("Contacts fetched successfully", responseData);
 
@@ -1114,7 +1226,7 @@ export async function createContactNote(
     }
 
     const responseData = await response.json();
-    console.log("Contact note created successfully", responseData);
+    console.log("Contact note created successfully");
 
     return responseData as CreateContactNoteResponse;
   } catch (error) {
@@ -1163,7 +1275,7 @@ export async function updateContact(
     }
 
     const responseData = await response.json();
-    console.log("Contact updated successfully", responseData);
+    console.log("Contact updated successfully");
 
     return responseData as CreateContactNoteResponse;
   } catch (error) {
@@ -1311,6 +1423,132 @@ export async function getTags(): Promise<GetTagsResponse | null> {
     return responseData as GetTagsResponse;
   } catch (error) {
     console.error("Error fetching tags:", error);
+    return null;
+  }
+}
+
+/**
+ * Cria uma sessão de envio em lote (bulk send session) para campanhas
+ * @param data - Dados da sessão de envio em lote
+ * @returns Promise com a resposta da criação ou null em caso de erro
+ */
+export async function createBulkSendSession(
+  data: CreateBulkSendSessionRequest
+): Promise<CreateBulkSendSessionResponse | null> {
+  try {
+    const response = await fetch(`${apiEndpoint}/bulk-send-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to create bulk send session: " + JSON.stringify(error)
+      );
+    }
+
+    const responseData = await response.json();
+    console.log("Bulk send session created successfully", responseData);
+
+    return responseData as CreateBulkSendSessionResponse;
+  } catch (error) {
+    console.error("Error creating bulk send session:", error);
+    return null;
+  }
+}
+
+/**
+ * Agenda uma mensagem individual para um contato
+ * @param data - Dados da mensagem agendada
+ * @returns Promise com a resposta do agendamento ou null em caso de erro
+ */
+export async function scheduleMessage(
+  data: ScheduleMessageRequest
+): Promise<ScheduleMessageResponse | null> {
+  try {
+    const response = await fetch(`${apiEndpoint}/scheduled-messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to schedule message: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Message scheduled successfully", {
+      id: responseData.id,
+      toPhone: responseData.toPhone,
+      dateSendAtUTC: responseData.dateSendAtUTC,
+    });
+
+    return responseData as ScheduleMessageResponse;
+  } catch (error) {
+    console.error("Error scheduling message:", error);
+    return null;
+  }
+}
+
+/**
+ * Busca bots flowchart com manual-starts disponíveis na organização
+ * @param query - String de busca para filtrar bots pelo título (opcional)
+ * @param skip - Número de itens a pular para paginação (default: 0)
+ * @param take - Número de itens a retornar (default: 34)
+ * @param hidden - Se true, retorna bots ocultos; se false, apenas visíveis (default: false)
+ * @returns Promise com a resposta contendo os bots ou null em caso de erro
+ */
+export async function getBots(
+  query?: string,
+  skip: number = 0,
+  take: number = 34,
+  hidden: boolean = false
+): Promise<GetBotsResponse | null> {
+  try {
+    const params = new URLSearchParams();
+    params.append("organizationId", organizationId);
+    params.append("Skip", skip.toString());
+    params.append("Take", take.toString());
+    params.append("Behavior", "CountAllAndGetSlice");
+    params.append("hidden", hidden.toString());
+
+    if (query) {
+      params.append("query", query);
+    }
+
+    const response = await fetch(
+      `${apiEndpoint}/bots/flowchart/manual-starts/?${params.toString()}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error("Failed to fetch bots: " + JSON.stringify(error));
+    }
+
+    const responseData = await response.json();
+    console.log("Bots fetched successfully", {
+      total: responseData.page?.totalItems,
+      returned: responseData.items?.length,
+    });
+
+    return responseData as GetBotsResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
     return null;
   }
 }

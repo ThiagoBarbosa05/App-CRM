@@ -24,8 +24,10 @@ import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import UmblerContactsPage from "./pages/umbler-contacts";
+import CreateCampaignPage from "./pages/create-campaign";
+import CampaignsDashboardPage from "./pages/campaigns-dashboard";
+import CampaignDetailsPage from "./pages/campaign-details";
 import { lazy } from "react";
-
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -69,11 +71,38 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route path="/acompanhamento" component={() => (
+      <Route
+        path="/umbler/campaigns/create"
+        component={() => (
+          <MainLayout>
+            <CreateCampaignPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/campaigns/:id"
+        component={() => (
+          <MainLayout>
+            <CampaignDetailsPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/campaigns"
+        component={() => (
+          <MainLayout>
+            <CampaignsDashboardPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/acompanhamento"
+        component={() => (
           <MainLayout>
             <Acompanhamento />
           </MainLayout>
-        )} />
+        )}
+      />
       <Route
         path="/empresas"
         component={() => (
@@ -115,11 +144,14 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route path="/admin-metas" component={() => (
+      <Route
+        path="/admin-metas"
+        component={() => (
           <MainLayout>
             <AdminGoals />
           </MainLayout>
-        )} />
+        )}
+      />
       <Route
         path="/assistente-ia"
         component={() => (

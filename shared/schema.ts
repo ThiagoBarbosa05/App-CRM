@@ -2141,3 +2141,90 @@ export const blingOrderInstallmentsRelations = relations(
     }),
   })
 );
+
+// Tabela de campanhas Umbler
+export const umblerCampaigns = pgTable("umbler_campaigns", {
+  id: varchar("id").primaryKey(),
+  title: text("title").notNull(),
+  status: text("status", {
+    enum: ["created", "in_progress", "completed", "failed", "cancelled"],
+  })
+    .notNull()
+    .default("created"),
+  totalContacts: integer("total_contacts").notNull(),
+  scheduledMessages: integer("scheduled_messages").notNull(),
+  sentMessages: integer("sent_messages").notNull().default(0),
+  failedMessages: integer("failed_messages").notNull().default(0),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  completedAt: timestamp("completed_at"),
+  botId: text("bot_id").notNull(),
+  botTriggerName: text("bot_trigger_name").notNull(),
+  channelId: text("channel_id").notNull(),
+  fromPhone: text("from_phone").notNull(),
+  intervalSeconds: integer("interval_seconds").notNull().default(5),
+  exclusiveTagFilter: boolean("exclusive_tag_filter").notNull().default(true),
+  tagIds: text("tag_ids").array().notNull(),
+  organizationId: text("organization_id").notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de mensagens de campanhas
+export const umblerCampaignMessages = pgTable("umbler_campaign_messages", {
+  id: varchar("id").primaryKey(),
+  campaignId: varchar("campaign_id")
+    .references(() => umblerCampaigns.id)
+    .notNull(),
+  contactId: text("contact_id"),
+  contactName: text("contact_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  status: text("status", {
+    enum: ["scheduled", "sent", "failed", "cancelled"],
+  })
+    .notNull()
+    .default("scheduled"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  messageId: text("message_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schemas de inserção
+export const insertUmblerCampaignSchema = createInsertSchema(umblerCampaigns);
+export const insertUmblerCampaignMessageSchema = createInsertSchema(
+  umblerCampaignMessages
+);
+
+// Tipos
+export type UmblerCampaign = typeof umblerCampaigns.$inferSelect;
+export type InsertUmblerCampaign = z.infer<typeof insertUmblerCampaignSchema>;
+export type UmblerCampaignMessage = typeof umblerCampaignMessages.$inferSelect;
+export type InsertUmblerCampaignMessage = z.infer<
+  typeof insertUmblerCampaignMessageSchema
+>;
+
+// Relações
+export const umblerCampaignsRelations = relations(
+  umblerCampaigns,
+  ({ many, one }) => ({
+    messages: many(umblerCampaignMessages),
+    createdByUser: one(users, {
+      fields: [umblerCampaigns.createdBy],
+      references: [users.id],
+    }),
+  })
+);
+
+export const umblerCampaignMessagesRelations = relations(
+  umblerCampaignMessages,
+  ({ one }) => ({
+    campaign: one(umblerCampaigns, {
+      fields: [umblerCampaignMessages.campaignId],
+      references: [umblerCampaigns.id],
+    }),
+  })
+);

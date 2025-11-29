@@ -105,6 +105,7 @@ import {
   getContactTags,
   getContactConversations,
   getTags,
+  getBots,
 } from "./integrations/umbler";
 import { createCashbackSettingsController } from "./controllers/cashback/create-cashback-settings.controller";
 import { deleteCashbackSettingsController } from "./controllers/cashback/delete-cashback-settings.controller";
@@ -377,9 +378,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/contacts", async (req, res) => {
     try {
-      const { query, tags } = req.query;
+      const { query, tags, exclusiveTag } = req.query;
       const tagIds = tags ? (Array.isArray(tags) ? tags : [tags]) : undefined;
-      const contacts = await getContacts(query as string, tagIds as string[]);
+      const exclusive = exclusiveTag === "true";
+      const contacts = await getContacts(
+        query as string,
+        tagIds as string[],
+        exclusive
+      );
       res.json(contacts);
     } catch (error) {
       console.error("Erro ao buscar contatos:", error);
@@ -428,6 +434,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar tags:", error);
       res.status(500).json({ message: "Erro ao buscar tags" });
+    }
+  });
+
+  app.get("/api/umbler/bots", async (req, res) => {
+    try {
+      const { query, skip, take, hidden } = req.query;
+
+      const skipNumber = skip ? parseInt(skip as string, 10) : 0;
+      const takeNumber = take ? parseInt(take as string, 10) : 34;
+      const hiddenBoolean = hidden === "true";
+
+      const bots = await getBots(
+        query as string | undefined,
+        skipNumber,
+        takeNumber
+        // hiddenBoolean
+      );
+
+      if (!bots) {
+        return res.status(500).json({ error: "Failed to fetch bots" });
+      }
+
+      res.json(bots);
+    } catch (error) {
+      console.error("Erro ao buscar bots:", error);
+      res.status(500).json({
+        message: "Erro ao buscar bots",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.post("/api/umbler/campaigns", async (req, res) => {
+    try {
+      const { createCampaignController } = await import(
+        "./controllers/campaigns/create-campaign.controller"
+      );
+      await createCampaignController(req, res);
+    } catch (error) {
+      console.error("Erro ao criar campanha:", error);
+      res.status(500).json({
+        message: "Erro ao criar campanha",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.get("/api/umbler/campaigns", async (req, res) => {
+    try {
+      const { listCampaignsController } = await import(
+        "./controllers/campaigns/list-campaigns.controller"
+      );
+      await listCampaignsController(req, res);
+    } catch (error) {
+      console.error("Erro ao listar campanhas:", error);
+      res.status(500).json({
+        message: "Erro ao listar campanhas",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.get("/api/umbler/campaigns/:id", async (req, res) => {
+    try {
+      const { getCampaignDetailsController } = await import(
+        "./controllers/campaigns/get-campaign-details.controller"
+      );
+      await getCampaignDetailsController(req, res);
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da campanha:", error);
+      res.status(500).json({
+        message: "Erro ao buscar detalhes da campanha",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.get("/api/umbler/campaigns/:id/stats", async (req, res) => {
+    try {
+      const { getCampaignStatsController } = await import(
+        "./controllers/campaigns/get-campaign-stats.controller"
+      );
+      await getCampaignStatsController(req, res);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas da campanha:", error);
+      res.status(500).json({
+        message: "Erro ao buscar estatísticas da campanha",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
