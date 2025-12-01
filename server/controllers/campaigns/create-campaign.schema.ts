@@ -12,6 +12,10 @@ export const createCampaignSchema = z.object({
     .array(z.string())
     .min(1, "Selecione pelo menos uma tag")
     .max(10, "Máximo de 10 tags por campanha"),
+  contactIds: z
+    .array(z.string())
+    .optional()
+    .describe("IDs específicos dos contatos selecionados"),
   exclusiveTagFilter: z.boolean().default(true),
   botId: z.string().min(1, "Selecione um bot"),
   botTriggerName: z.string().min(1, "Selecione um gatilho"),

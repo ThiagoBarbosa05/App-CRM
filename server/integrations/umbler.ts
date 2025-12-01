@@ -490,6 +490,19 @@ export interface CreateContactNoteResponse {
   customFields: ContactCustomField[];
 }
 
+export interface ManualStartBotResponse {
+  result: ManualStartBot[];
+}
+
+export interface ManualStartBot {
+  botId: string;
+  stepId: string;
+  triggerName: string;
+  hidden: boolean;
+  botTitle: string;
+  variables: any[];
+}
+
 const apiEndpoint = process.env.UMBLER_ENDPOINT || "";
 const organizationId = process.env.UMBLER_ORGANIZATION_ID || "";
 const apiKey = process.env.UMBLER_API_KEY || "";
@@ -639,8 +652,6 @@ export async function getContacts(
         return contactTagIds.every((tagId: string) => tagIds.includes(tagId));
       });
     }
-
-    console.log("Contacts fetched successfully", responseData);
 
     return responseData;
   } catch (error) {
@@ -896,6 +907,33 @@ export async function getBot(query: string) {
     }
 
     return (await response.json()) as BirthdayBotsResponse;
+  } catch (error) {
+    console.error("Error fetching bots:", error);
+    return null;
+  }
+}
+
+export async function getManualStartsBot(query: string) {
+  try {
+    const response = await fetch(
+      `https://app-utalk.umbler.com/api/v1/bots/flowchart/manual-starts/?organizationId=aGx7Jh43-au36EGi&Skip=0&Take=50&Behavior=GetSliceOnly${
+        query ? `&query=${query}` : ""
+      }`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch bots");
+    }
+
+    const data = await response.json();
+
+    return { result: data.items } as ManualStartBotResponse;
   } catch (error) {
     console.error("Error fetching bots:", error);
     return null;

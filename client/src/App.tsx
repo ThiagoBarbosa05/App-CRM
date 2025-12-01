@@ -24,7 +24,7 @@ import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import UmblerContactsPage from "./pages/umbler-contacts";
-import CreateCampaignPage from "./pages/create-campaign";
+import CreateCampaignPage from "./pages/create-campaign-improved";
 import CampaignsDashboardPage from "./pages/campaigns-dashboard";
 import CampaignDetailsPage from "./pages/campaign-details";
 import { lazy } from "react";

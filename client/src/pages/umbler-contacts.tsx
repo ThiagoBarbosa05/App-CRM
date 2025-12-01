@@ -3,22 +3,7 @@ import { UmblerContactDialog } from "@/components/umbler-contact-dialog";
 import UmblerTagSelect from "@/components/umbler-tag-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -592,7 +577,6 @@ export default function UmblerContactsPage() {
                               variant="ghost"
                               className="h-8 w-8 p-0 hover:bg-gray-100"
                             >
-                              <span className="sr-only">Abrir menu</span>
                               <MoreHorizontal className="h-4 w-4 text-gray-600" />
                             </Button>
                           </DropdownMenuTrigger>

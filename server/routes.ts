@@ -91,7 +91,6 @@ import {
   getBot,
   getBotCashback,
   getCashbackField,
-  getChannels,
   getChat,
   getChatById,
   getContactByPhone,
@@ -106,6 +105,8 @@ import {
   getContactConversations,
   getTags,
   getBots,
+  getChannels,
+  getManualStartsBot,
 } from "./integrations/umbler";
 import { createCashbackSettingsController } from "./controllers/cashback/create-cashback-settings.controller";
 import { deleteCashbackSettingsController } from "./controllers/cashback/delete-cashback-settings.controller";
@@ -166,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Umbler Integrations
   app.get("/api/umbler/channels", async (req, res) => {
     try {
-      const channels = await db.select().from(serviceChannels);
+      const channels = await getChannels();
 
       res.json(channels);
     } catch (error) {
@@ -214,6 +215,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar bot:", error);
       res.status(500).json({ message: "Erro ao buscar bot" });
+    }
+  });
+
+  app.get("/api/umbler/manual-starts/bot", async (req, res) => {
+    try {
+      const { query, hidden } = req.query as {
+        query?: string;
+        hidden?: string;
+      };
+
+      console.log("Buscando bots com parâmetros:", { query, hidden });
+
+      // Filtrar apenas bots não ocultos se hidden=false
+      const result = await getManualStartsBot(query || "");
+
+      if (!result) {
+        console.error("getManualStartsBot retornou null");
+        return res.status(500).json({
+          message: "Erro ao buscar bots",
+          error: "API retornou null",
+        });
+      }
+
+      console.log("Bots recebidos:", result);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao buscar bot:", error);
+      res.status(500).json({
+        message: "Erro ao buscar bot",
+        error: error instanceof Error ? error.message : "Erro desconhecido",
+      });
     }
   });
 
@@ -429,7 +462,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/tags", async (req, res) => {
     try {
-      const tags = await getTags();
+      const { query } = req.query as { query?: string };
+
+      let tags = await getTags();
+
+      // Filtrar tags por query se fornecida
+      if (query && tags && tags.items) {
+        const searchLower = query.toLowerCase();
+        tags.items = tags.items.filter((tag: any) =>
+          tag.name.toLowerCase().includes(searchLower)
+        );
+      }
+
       res.json(tags);
     } catch (error) {
       console.error("Erro ao buscar tags:", error);

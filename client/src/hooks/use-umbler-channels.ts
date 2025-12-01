@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 interface Channel {
   id: string;
   name: string;
-  type: string;
+  channelType: string;
   phoneNumber?: string;
-  isActive: boolean;
+  state: "Live" | "Disabled";
 }
 
 interface ChannelsResponse {
@@ -13,7 +13,7 @@ interface ChannelsResponse {
 }
 
 export function useUmblerChannels() {
-  return useQuery<ChannelsResponse>({
+  return useQuery<Channel[]>({
     queryKey: ["umbler-channels"],
     queryFn: async () => {
       const response = await fetch("/api/umbler/channels");

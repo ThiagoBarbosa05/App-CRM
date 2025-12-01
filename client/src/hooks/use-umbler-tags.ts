@@ -10,18 +10,30 @@ interface TagsResponse {
   items: Tag[];
 }
 
-export function useUmblerTags() {
+interface UseTagsParams {
+  query?: string;
+}
+
+export function useUmblerTags(params?: UseTagsParams) {
   return useQuery<TagsResponse>({
-    queryKey: ["umbler-tags"],
+    queryKey: ["umbler-tags", params],
     queryFn: async () => {
-      const response = await fetch("/api/umbler/tags");
+      const searchParams = new URLSearchParams();
+      if (params?.query) {
+        searchParams.append("query", params.query);
+      }
+
+      const url = `/api/umbler/tags${
+        searchParams.toString() ? `?${searchParams.toString()}` : ""
+      }`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error("Falha ao buscar tags");
       }
 
       const data = await response.json();
-      return { items: data || [] };
+      return data || [];
     },
   });
 }

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ManualStartBotResponse } from "server/integrations/umbler";
 
 interface BotVariable {
   name: string;
@@ -14,9 +15,11 @@ interface BotManualStart {
 }
 
 interface Bot {
-  id: string;
-  name: string;
+  botId: string;
+  botTitle: string;
   description: string | null;
+  stepId: string;
+  triggerName: string;
   hidden: boolean;
   manualStarts: BotManualStart[];
 }
@@ -36,7 +39,7 @@ interface UseBotsParams {
 }
 
 export function useUmblerBots(params?: UseBotsParams) {
-  return useQuery<BotsResponse>({
+  return useQuery<ManualStartBotResponse>({
     queryKey: ["umbler-bots", params],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
@@ -49,15 +52,25 @@ export function useUmblerBots(params?: UseBotsParams) {
       if (params?.hidden !== undefined)
         searchParams.append("hidden", String(params.hidden));
 
+      console.log(
+        "Fazendo requisição para bots com params:",
+        searchParams.toString()
+      );
+
       const response = await fetch(
-        `/api/umbler/bots?${searchParams.toString()}`
+        `/api/umbler/manual-starts/bot?${searchParams.toString()}`
       );
 
       if (!response.ok) {
-        throw new Error("Falha ao buscar bots");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Erro na resposta da API:", errorData);
+        throw new Error(errorData.message || "Falha ao buscar bots");
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log("Dados recebidos da API:", data);
+
+      return data;
     },
   });
 }

@@ -4,6 +4,7 @@ import { useToast } from "./use-toast";
 interface CreateCampaignRequest {
   title: string;
   tagIds: string[];
+  contactIds?: string[]; // IDs específicos dos contatos selecionados
   exclusiveTagFilter: boolean;
   botId: string;
   botTriggerName: string;

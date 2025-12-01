@@ -13,6 +13,7 @@ import { ZodError } from "zod";
 interface CreateCampaignRequest {
   title: string;
   tagIds: string[];
+  contactIds?: string[]; // IDs específicos dos contatos selecionados
   exclusiveTagFilter: boolean;
   botId: string;
   botTriggerName: string;
@@ -91,6 +92,7 @@ export async function createCampaignController(req: Request, res: Response) {
     const {
       title,
       tagIds,
+      contactIds,
       exclusiveTagFilter,
       botId,
       botTriggerName,
@@ -123,9 +125,22 @@ export async function createCampaignController(req: Request, res: Response) {
       });
     }
 
-    const contacts = contactsResponse.items;
+    let contacts = contactsResponse.items;
 
-    if (contacts.length === 0) {
+    // Filtrar apenas os contatos selecionados pelo usuário, se contactIds foi fornecido
+    if (contactIds && contactIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      contacts = contacts.filter((contact: any) =>
+        contactIds.includes(contact.id || "")
+      );
+
+      if (contacts.length === 0) {
+        return res.status(400).json({
+          error: "Nenhum dos contatos selecionados foi encontrado",
+          selectedContactIds: contactIds,
+        });
+      }
+    } else if (contacts.length === 0) {
       return res.status(400).json({
         error: "Nenhum contato encontrado com as tags selecionadas",
         tagIds,

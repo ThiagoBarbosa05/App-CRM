@@ -70,6 +70,14 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 const ORGANIZATION_ID = "aGx7Jh43-au36EGi";
 
+const STEP_CONFIG = [
+  { num: 1, label: "Info", icon: MessageSquare },
+  { num: 2, label: "Contatos", icon: Users },
+  { num: 3, label: "Canal", icon: MessageSquare },
+  { num: 4, label: "Bot", icon: Bot },
+  { num: 5, label: "Agenda", icon: Clock },
+];
+
 export default function CreateCampaignPage() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState<Step>(1);
@@ -130,6 +138,7 @@ export default function CreateCampaignPage() {
   // Check if any critical data is still loading (only initial load, not search)
   const isInitialLoading = isLoadingChannels;
 
+  // Memoized data
   const tags = useMemo(() => tagsData?.items || [], [tagsData]);
   const contacts = useMemo(() => contactsData?.items || [], [contactsData]);
   const bots = useMemo(() => botsData?.result || [], [botsData]);
@@ -139,6 +148,7 @@ export default function CreateCampaignPage() {
     () => bots.find((b) => b.botId === selectedBot),
     [bots, selectedBot]
   );
+
   const selectedChannelData = useMemo(
     () => channels.find((c) => c.id === selectedChannel),
     [channels, selectedChannel]
@@ -149,8 +159,20 @@ export default function CreateCampaignPage() {
     [channels]
   );
 
+  // Auto-selecionar todos os contatos quando a lista mudar
+  useEffect(() => {
+    if (contacts.length > 0) {
+      const contactIds = contacts.map((c: any) => c.id);
+      setSelectedContacts(contactIds);
+    } else {
+      setSelectedContacts([]);
+    }
+  }, [contacts]);
+
+  // Validation
   const canProceedStep1 = title.trim().length > 0;
-  const canProceedStep2 = selectedTags.length > 0 && contacts.length > 0;
+  const canProceedStep2 =
+    selectedTags.length > 0 && selectedContacts.length > 0;
   const canProceedStep3 = selectedChannel.length > 0;
   const canProceedStep4 = selectedBot.length > 0;
   const canProceedStep5 = selectedDate && selectedTime;
@@ -278,7 +300,7 @@ export default function CreateCampaignPage() {
             <p className="text-sm text-muted-foreground">
               Escolha um nome descritivo para identificar sua campanha
             </p>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground shrink-0 ml-2">
               {title.length}/100
             </span>
           </div>
@@ -311,7 +333,7 @@ export default function CreateCampaignPage() {
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <Label className="text-base font-semibold">Tags *</Label>
               {selectedTags.length > 0 && (
                 <Badge variant="secondary" className="font-normal">
@@ -502,7 +524,7 @@ export default function CreateCampaignPage() {
                         </div>
                         {exclusiveTagFilter && (
                           <div className="flex items-center gap-1.5 text-xs text-green-700/70 dark:text-green-400/70">
-                            <Check className="h-3.5 w-3.5" />
+                            <Check className="h-3 w-3" />
                             <span>Filtro exclusivo ativo</span>
                           </div>
                         )}
@@ -601,10 +623,24 @@ export default function CreateCampaignPage() {
                                       <span className="text-xs text-muted-foreground font-mono truncate">
                                         {contact.phoneNumber}
                                       </span>
+
+                                      {contact.tags &&
+                                        contact.tags.length > 0 && (
+                                          <div>
+                                            {contact.tags.map((tag) => (
+                                              <Badge
+                                                variant="outline"
+                                                key={tag.id}
+                                              >
+                                                {tag.name}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        )}
                                     </div>
                                   </div>
                                   {contact.tags && contact.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 justify-end max-w-[40%]">
+                                    <div className="flex flex-wrap gap-1 justify-end max-w-[40%] ml-2">
                                       {contact.tags.map((tagId: string) => {
                                         const tag = Array.isArray(tags)
                                           ? tags.find(
@@ -676,7 +712,7 @@ export default function CreateCampaignPage() {
             </Alert>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label className="text-base font-semibold">Canal *</Label>
                 <Badge variant="secondary" className="font-normal">
                   {activeChannels.length}{" "}
@@ -733,16 +769,6 @@ export default function CreateCampaignPage() {
   };
 
   const renderStep4 = () => {
-    const filteredBots = Array.isArray(bots)
-      ? bots.filter((bot) =>
-          bot.botTitle.toLowerCase().includes(botSearchQuery.toLowerCase())
-        )
-      : [];
-
-    console.log("renderStep4 - isLoadingBots:", isLoadingBots);
-    console.log("renderStep4 - bots:", bots);
-    console.log("renderStep4 - bots.length:", bots.length);
-
     return (
       <Card className="shadow-sm">
         <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
@@ -757,7 +783,22 @@ export default function CreateCampaignPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
-          {isLoadingBots ? (
+          {botsError ? (
+            <Alert variant="destructive" className="border-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Erro ao carregar bots:</strong>{" "}
+                {botsError instanceof Error
+                  ? botsError.message
+                  : "Erro desconhecido"}
+                <br />
+                <span className="text-xs mt-2 block">
+                  Verifique o console do navegador e do servidor para mais
+                  detalhes.
+                </span>
+              </AlertDescription>
+            </Alert>
+          ) : isLoadingBots ? (
             <div className="flex items-center gap-3 p-8 justify-center border rounded-xl bg-muted/30">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">
@@ -770,6 +811,11 @@ export default function CreateCampaignPage() {
               <AlertDescription>
                 Nenhum bot encontrado. Crie um bot antes de configurar
                 campanhas.
+                {botsData && (
+                  <span className="text-xs mt-2 block">
+                    Debug: botsData = {JSON.stringify(botsData)}
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           ) : (
@@ -791,25 +837,32 @@ export default function CreateCampaignPage() {
                         Bot Selecionado
                       </span>
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-2 border-orange-200 dark:border-orange-800 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                          <Bot className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-2 border-orange-200 dark:border-orange-800 rounded-xl">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                            <Bot className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-base">
+                              {selectedBotData.botTitle}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Gatilho: Início
+                            </span>
+                          </div>
                         </div>
-                        <span className="font-medium">
-                          {selectedBotData.botTitle}
-                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBot("");
+                          }}
+                          className="h-8 hover:bg-orange-100 dark:hover:bg-orange-900"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedBot("");
-                        }}
-                        className="h-8"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 )}
@@ -819,55 +872,62 @@ export default function CreateCampaignPage() {
                   <div className="relative">
                     <div className="absolute -top-2 left-3 px-2 bg-background z-10">
                       <span className="text-xs font-medium text-muted-foreground">
-                        Buscar Bot
+                        Selecionar Bot
                       </span>
                     </div>
-                    <Command className="border-2 rounded-xl shadow-sm overflow-hidden">
-                      <div className="relative">
-                        <CommandInput
-                          placeholder="Digite para pesquisar bots..."
-                          value={botSearchQuery}
-                          onValueChange={setBotSearchQuery}
-                          className="h-12 text-base"
-                        />
-                        {isLoadingBots &&
-                          botSearchQuery !== debouncedBotSearchQuery && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            </div>
-                          )}
-                      </div>
-                      <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-                        <div className="flex flex-col items-center gap-2">
-                          <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
-                          <p>Nenhum bot encontrado</p>
+                    <div className="border-2 rounded-xl shadow-sm overflow-hidden">
+                      <div className="p-3 border-b bg-muted/30">
+                        <div className="relative">
+                          <Input
+                            placeholder="Digite para pesquisar bots..."
+                            value={botSearchQuery}
+                            onChange={(e) => setBotSearchQuery(e.target.value)}
+                            className="h-10"
+                          />
+                          {isLoadingBots &&
+                            botSearchQuery !== debouncedBotSearchQuery && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              </div>
+                            )}
                         </div>
-                      </CommandEmpty>
-                      <ScrollArea className="h-64">
-                        {isLoadingBots &&
-                        botSearchQuery === debouncedBotSearchQuery ? (
-                          <div className="flex items-center justify-center gap-2 py-8">
-                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                            <span className="text-sm text-muted-foreground">
-                              Buscando bots...
-                            </span>
+                      </div>
+                      {isLoadingBots &&
+                      botSearchQuery === debouncedBotSearchQuery ? (
+                        <div className="py-8 flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          <span className="text-sm text-muted-foreground">
+                            Buscando bots...
+                          </span>
+                        </div>
+                      ) : bots.length === 0 ? (
+                        <div className="py-8 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">
+                              {botSearchQuery
+                                ? "Nenhum bot encontrado com este nome"
+                                : "Nenhum bot disponível"}
+                            </p>
                           </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {filteredBots.map((bot) => (
-                              <CommandItem
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-64">
+                          <div className="p-2 space-y-1">
+                            {bots.map((bot) => (
+                              <div
                                 key={bot.botId}
-                                onSelect={() => {
+                                onClick={() => {
                                   setSelectedBot(bot.botId);
                                 }}
-                                className="cursor-pointer rounded-lg px-3 py-3 transition-all hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                                className="cursor-pointer rounded-lg px-3 py-3 transition-all hover:bg-orange-50 dark:hover:bg-orange-950/30 border border-transparent hover:border-orange-200 dark:hover:border-orange-800 group"
                               >
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                  <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg group-hover:scale-110 transition-transform">
                                     <Bot className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                                   </div>
-                                  <div className="flex flex-col flex-1">
-                                    <span className="font-medium text-sm">
+                                  <div className="flex flex-col flex-1 min-w-0">
+                                    <span className="font-medium text-sm truncate">
                                       {bot.botTitle}
                                     </span>
                                     <span className="text-xs text-muted-foreground">
@@ -875,12 +935,12 @@ export default function CreateCampaignPage() {
                                     </span>
                                   </div>
                                 </div>
-                              </CommandItem>
+                              </div>
                             ))}
                           </div>
-                        )}
-                      </ScrollArea>
-                    </Command>
+                        </ScrollArea>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1055,31 +1115,33 @@ export default function CreateCampaignPage() {
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1">
+            <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Título</p>
               <p className="font-medium">{result.campaign.title}</p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Total de Contatos</p>
-              <p className="font-medium">{result.campaign.totalContacts}</p>
+              <p className="font-medium text-lg">
+                {result.campaign.totalContacts}
+              </p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <p className="text-sm text-muted-foreground">
                 Mensagens Agendadas
               </p>
-              <p className="font-medium text-green-600">
+              <p className="font-bold text-lg text-green-600 dark:text-green-400">
                 {result.campaign.scheduledMessages}
               </p>
             </div>
             {result.campaign.failedMessages > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-1 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
                 <p className="text-sm text-muted-foreground">Falhas</p>
-                <p className="font-medium text-red-600">
+                <p className="font-bold text-lg text-red-600 dark:text-red-400">
                   {result.campaign.failedMessages}
                 </p>
               </div>
             )}
-            <div className="space-y-1">
+            <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Início</p>
               <p className="font-medium">
                 {format(new Date(result.campaign.startDate), "PPp", {
@@ -1087,7 +1149,7 @@ export default function CreateCampaignPage() {
                 })}
               </p>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Término Estimado</p>
               <p className="font-medium">
                 {format(new Date(result.campaign.endDate), "PPp", {
@@ -1099,12 +1161,13 @@ export default function CreateCampaignPage() {
 
           <Separator />
 
-          <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Button
-              onClick={() => setLocation("/umbler/contacts")}
-              className="w-full"
+              onClick={() => setLocation("/umbler/campaigns")}
+              className="h-12"
             >
-              Voltar para Contatos
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Ver Dashboard
             </Button>
             <Button
               variant="outline"
@@ -1121,8 +1184,9 @@ export default function CreateCampaignPage() {
                 setCancelUpon([]);
                 createCampaignMutation.reset();
               }}
-              className="w-full"
+              className="h-12"
             >
+              <Send className="mr-2 h-4 w-4" />
               Criar Nova Campanha
             </Button>
           </div>
@@ -1291,10 +1355,12 @@ export default function CreateCampaignPage() {
             </div>
           </div>
 
+          <Separator />
+
           <Button
             onClick={handleCreateCampaign}
             disabled={createCampaignMutation.isPending || !isDateTimeValid()}
-            className="w-full"
+            className="w-full h-12 text-base"
           >
             {createCampaignMutation.isPending ? (
               <>
@@ -1350,24 +1416,41 @@ export default function CreateCampaignPage() {
       ) : (
         <>
           {/* Steps Progress */}
-          <div className="flex items-center justify-between overflow-x-auto pb-2">
-            {[1, 2, 3, 4, 5].map((step) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-medium",
-                    currentStep >= step
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/50 text-muted-foreground"
-                  )}
-                >
-                  {step}
-                </div>
-                {step < 5 && (
+          <div className="flex items-center p-4 justify-between overflow-x-auto pb-2 scrollbar-hide">
+            {STEP_CONFIG.map((step, index) => (
+              <div key={step.num} className="flex items-center shrink-0">
+                <div className="flex flex-col items-center gap-1">
                   <div
                     className={cn(
-                      "h-0.5 w-12 mx-2",
-                      currentStep > step
+                      "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all",
+                      currentStep >= step.num
+                        ? "border-primary bg-primary text-primary-foreground shadow-lg scale-110"
+                        : "border-muted-foreground/50 text-muted-foreground",
+                      currentStep === step.num && "ring-4 ring-primary/20"
+                    )}
+                  >
+                    {currentStep > step.num ? (
+                      <Check className="h-5 w-5" />
+                    ) : (
+                      step.num
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-xs font-medium hidden md:block",
+                      currentStep >= step.num
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+                {index < STEP_CONFIG.length - 1 && (
+                  <div
+                    className={cn(
+                      "h-0.5 w-8 md:w-16 mx-2 transition-all",
+                      currentStep > step.num
                         ? "bg-primary"
                         : "bg-muted-foreground/50"
                     )}
@@ -1392,7 +1475,7 @@ export default function CreateCampaignPage() {
 
           {/* Navigation Buttons */}
           {currentStep < 6 && (
-            <div className="flex gap-3 sticky bottom-0 bg-background/95 backdrop-blur-sm p-4 -mx-4 border-t">
+            <div className="flex gap-3  bg-background/95 backdrop-blur-sm p-4 -mx-4 border-t shadow-lg">
               {currentStep > 1 && (
                 <Button
                   variant="outline"
