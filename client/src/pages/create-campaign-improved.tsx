@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import {
   Loader2,
   Calendar as CalendarIcon,
@@ -49,6 +50,7 @@ import {
   Send,
   X,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { format, addMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -97,6 +99,9 @@ export default function CreateCampaignPage() {
   const [selectedTime, setSelectedTime] = useState("14:00");
   const [intervalSeconds, setIntervalSeconds] = useState(5);
   const [cancelUpon, setCancelUpon] = useState<string[]>([]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [fetchAllContacts, setFetchAllContacts] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(50); // Limite de contatos exibidos na lista
 
   // Debounce search queries
   useEffect(() => {
@@ -121,6 +126,7 @@ export default function CreateCampaignPage() {
     useUmblerContacts({
       tagIds: selectedTags,
       exclusiveTag: exclusiveTagFilter,
+      fetchAll: fetchAllContacts,
     });
   const {
     data: botsData,
@@ -144,6 +150,12 @@ export default function CreateCampaignPage() {
   const bots = useMemo(() => botsData?.result || [], [botsData]);
   const channels = useMemo(() => channelsData || [], [channelsData]);
 
+  // Contatos exibidos na lista (limitado para performance)
+  const displayedContacts = useMemo(
+    () => contacts.slice(0, displayLimit),
+    [contacts, displayLimit]
+  );
+
   const selectedBotData = useMemo(
     () => bots.find((b) => b.botId === selectedBot),
     [bots, selectedBot]
@@ -159,15 +171,39 @@ export default function CreateCampaignPage() {
     [channels]
   );
 
-  // Auto-selecionar todos os contatos quando a lista mudar
+  // Auto-selecionar todos os contatos quando a lista mudar (APENAS no modo rápido)
   useEffect(() => {
-    if (contacts.length > 0) {
+    // Só auto-seleciona se não estiver em modo fetchAll (para evitar travamento com muitos contatos)
+    if (contacts.length > 0 && !fetchAllContacts) {
       const contactIds = contacts.map((c: any) => c.id);
       setSelectedContacts(contactIds);
-    } else {
+    } else if (contacts.length === 0) {
       setSelectedContacts([]);
     }
-  }, [contacts]);
+  }, [contacts, fetchAllContacts]);
+
+  // Resetar fetchAllContacts quando as tags mudarem
+  useEffect(() => {
+    setFetchAllContacts(false);
+  }, [selectedTags, exclusiveTagFilter]);
+
+  // Simular progresso durante o carregamento de contatos
+  useEffect(() => {
+    if (isLoadingContacts) {
+      setLoadingProgress(0);
+      const interval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 90) return prev; // Para em 90% até terminar de fato
+          return prev + Math.random() * 15;
+        });
+      }, 300);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingProgress(100);
+      const timeout = setTimeout(() => setLoadingProgress(0), 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoadingContacts]);
 
   // Validation
   const canProceedStep1 = title.trim().length > 0;
@@ -499,11 +535,38 @@ export default function CreateCampaignPage() {
             <>
               <Separator />
               {isLoadingContacts ? (
-                <div className="flex items-center gap-3 p-8 justify-center border rounded-xl bg-muted/30">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    Buscando contatos...
-                  </span>
+                <div className="space-y-4 p-8 border rounded-xl bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-background" />
+                      </div>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <p className="text-base font-semibold text-foreground">
+                        Buscando todos os contatos...
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Carregando em páginas de 220 contatos
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Progresso</span>
+                      <span className="font-mono font-semibold">
+                        {Math.round(loadingProgress)}%
+                      </span>
+                    </div>
+                    <Progress value={loadingProgress} className="h-2" />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                    <span>Aguarde enquanto processamos sua solicitação...</span>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -535,13 +598,30 @@ export default function CreateCampaignPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const allIds = contacts.map((c: any) => c.id);
-                          setSelectedContacts(allIds);
+                          if (!fetchAllContacts) {
+                            // Ativar busca paginada completa
+                            setFetchAllContacts(true);
+                          } else {
+                            // Já tem todos, só selecionar
+                            const allIds = contacts.map((c: any) => c.id);
+                            setSelectedContacts(allIds);
+                          }
                         }}
-                        disabled={selectedContacts.length === contacts.length}
+                        disabled={
+                          isLoadingContacts ||
+                          (fetchAllContacts &&
+                            selectedContacts.length === contacts.length)
+                        }
                         className="h-8"
                       >
-                        Selecionar Todos
+                        {isLoadingContacts && fetchAllContacts ? (
+                          <>
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            Buscando...
+                          </>
+                        ) : (
+                          "Selecionar Todos"
+                        )}
                       </Button>
                       <Button
                         variant="outline"
@@ -554,6 +634,35 @@ export default function CreateCampaignPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Metadados de performance */}
+                  {contactsData?.metadata && (
+                    <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+                      <AlertDescription className="text-xs text-muted-foreground">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <span>
+                            ✓ Carregado em {contactsData.metadata.pages} página
+                            {contactsData.metadata.pages !== 1 ? "s" : ""}
+                          </span>
+                          {contactsData.metadata.fetchedCount !==
+                            contactsData.metadata.filteredCount && (
+                            <span>
+                              • {contactsData.metadata.fetchedCount} contatos
+                              buscados
+                            </span>
+                          )}
+                          {!fetchAllContacts &&
+                            contactsData.totalCount >= 220 && (
+                              <span className="text-orange-600 dark:text-orange-400 font-medium">
+                                • Clique em "Selecionar Todos" para carregar
+                                mais contatos
+                              </span>
+                            )}
+                          <span>• Processado com sucesso</span>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   {/* Lista de contatos encontrados */}
                   {contacts.length > 0 && (
@@ -574,100 +683,134 @@ export default function CreateCampaignPage() {
                         </div>
                         <ScrollArea className="h-80">
                           <div className="p-3 space-y-2">
-                            {contacts.map((contact: any, index: number) => {
-                              const isSelected = selectedContacts.includes(
-                                contact.id
-                              );
-                              return (
-                                <div
-                                  key={contact.id}
-                                  onClick={() => {
-                                    setSelectedContacts((prev) =>
-                                      prev.includes(contact.id)
-                                        ? prev.filter((id) => id !== contact.id)
-                                        : [...prev, contact.id]
-                                    );
-                                  }}
-                                  className={cn(
-                                    "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group",
-                                    isSelected
-                                      ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-                                      : "hover:bg-muted/70 border-transparent hover:border-border"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={() => {
-                                        setSelectedContacts((prev) =>
-                                          prev.includes(contact.id)
-                                            ? prev.filter(
-                                                (id) => id !== contact.id
-                                              )
-                                            : [...prev, contact.id]
-                                        );
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="shrink-0"
-                                    />
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                      <span
-                                        className={cn(
-                                          "font-medium text-sm truncate transition-colors",
-                                          isSelected &&
-                                            "text-green-700 dark:text-green-400"
-                                        )}
-                                      >
-                                        {contact.name}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground font-mono truncate">
-                                        {contact.phoneNumber}
-                                      </span>
+                            {displayedContacts.map(
+                              (contact: any, index: number) => {
+                                const isSelected = selectedContacts.includes(
+                                  contact.id
+                                );
+                                return (
+                                  <div
+                                    key={contact.id}
+                                    onClick={() => {
+                                      setSelectedContacts((prev) =>
+                                        prev.includes(contact.id)
+                                          ? prev.filter(
+                                              (id) => id !== contact.id
+                                            )
+                                          : [...prev, contact.id]
+                                      );
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group",
+                                      isSelected
+                                        ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                                        : "hover:bg-muted/70 border-transparent hover:border-border"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => {
+                                          setSelectedContacts((prev) =>
+                                            prev.includes(contact.id)
+                                              ? prev.filter(
+                                                  (id) => id !== contact.id
+                                                )
+                                              : [...prev, contact.id]
+                                          );
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="shrink-0"
+                                      />
+                                      <div className="flex flex-col min-w-0 flex-1">
+                                        <span
+                                          className={cn(
+                                            "font-medium text-sm truncate transition-colors",
+                                            isSelected &&
+                                              "text-green-700 dark:text-green-400"
+                                          )}
+                                        >
+                                          {contact.name}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground font-mono truncate">
+                                          {contact.phoneNumber}
+                                        </span>
 
-                                      {contact.tags &&
-                                        contact.tags.length > 0 && (
-                                          <div>
-                                            {contact.tags.map((tag) => (
+                                        {contact.tags &&
+                                          contact.tags.length > 0 && (
+                                            <div>
+                                              {contact.tags.map((tag) => (
+                                                <Badge
+                                                  variant="outline"
+                                                  key={tag.id}
+                                                >
+                                                  {tag.name}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          )}
+                                      </div>
+                                    </div>
+                                    {contact.tags &&
+                                      contact.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 justify-end max-w-[40%] ml-2">
+                                          {contact.tags.map((tagId: string) => {
+                                            const tag = Array.isArray(tags)
+                                              ? tags.find(
+                                                  (t: Tag) => t.id === tagId
+                                                )
+                                              : null;
+                                            return tag ? (
                                               <Badge
-                                                variant="outline"
-                                                key={tag.id}
+                                                key={tagId}
+                                                variant={
+                                                  selectedTags.includes(tagId)
+                                                    ? "default"
+                                                    : "outline"
+                                                }
+                                                className="text-xs px-2 py-0.5"
                                               >
                                                 {tag.name}
                                               </Badge>
-                                            ))}
-                                          </div>
-                                        )}
-                                    </div>
+                                            ) : null;
+                                          })}
+                                        </div>
+                                      )}
                                   </div>
-                                  {contact.tags && contact.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 justify-end max-w-[40%] ml-2">
-                                      {contact.tags.map((tagId: string) => {
-                                        const tag = Array.isArray(tags)
-                                          ? tags.find(
-                                              (t: Tag) => t.id === tagId
-                                            )
-                                          : null;
-                                        return tag ? (
-                                          <Badge
-                                            key={tagId}
-                                            variant={
-                                              selectedTags.includes(tagId)
-                                                ? "default"
-                                                : "outline"
-                                            }
-                                            className="text-xs px-2 py-0.5"
-                                          >
-                                            {tag.name}
-                                          </Badge>
-                                        ) : null;
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                );
+                              }
+                            )}
                           </div>
                         </ScrollArea>
+
+                        {/* Virtual rendering controls */}
+                        {contacts.length > displayLimit && (
+                          <div className="p-3 border-t bg-muted/30">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Exibindo {displayLimit} de {contacts.length}{" "}
+                              contatos
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setDisplayLimit((prev) => prev + 50)
+                              }
+                              className="w-full"
+                            >
+                              <ChevronDown className="w-3 h-3 mr-1" />
+                              Carregar mais 50 contatos
+                            </Button>
+                          </div>
+                        )}
+                        {contacts.length > 0 &&
+                          displayLimit >= contacts.length && (
+                            <div className="p-2 border-t">
+                              <p className="text-xs text-center text-muted-foreground">
+                                Exibindo todos os {contacts.length} contatos
+                              </p>
+                            </div>
+                          )}
                       </div>
                     </div>
                   )}
@@ -988,7 +1131,6 @@ export default function CreateCampaignPage() {
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  
                   initialFocus
                 />
               </PopoverContent>

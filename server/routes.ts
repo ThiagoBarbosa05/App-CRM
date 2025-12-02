@@ -411,13 +411,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/contacts", async (req, res) => {
     try {
-      const { query, tags, exclusiveTag } = req.query;
+      const { query, tags, exclusiveTag, fetchAll } = req.query;
       const tagIds = tags ? (Array.isArray(tags) ? tags : [tags]) : undefined;
       const exclusive = exclusiveTag === "true";
+      const shouldFetchAll = fetchAll === "true";
       const contacts = await getContacts(
         query as string,
         tagIds as string[],
-        exclusive
+        exclusive,
+        shouldFetchAll
       );
       res.json(contacts);
     } catch (error) {
@@ -5135,7 +5137,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("Recebido webhook de tag do Umbler:", req.body);
     res.json({ received: true });
   });
-
 
   // Middleware de tratamento de erros deve ser o último
   app.use(errorHandler);

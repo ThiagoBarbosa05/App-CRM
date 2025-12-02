@@ -11,12 +11,18 @@ interface Contact {
 interface ContactsResponse {
   items: Contact[];
   totalCount: number;
+  metadata?: {
+    pages: number;
+    fetchedCount: number;
+    filteredCount: number;
+  };
 }
 
 interface UseContactsParams {
   query?: string;
   tagIds?: string[];
   exclusiveTag?: boolean;
+  fetchAll?: boolean; // Se true, busca todos os contatos com paginação
 }
 
 export function useUmblerContacts(params?: UseContactsParams) {
@@ -26,6 +32,7 @@ export function useUmblerContacts(params?: UseContactsParams) {
       params?.query,
       params?.tagIds,
       params?.exclusiveTag,
+      params?.fetchAll,
     ],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
@@ -36,6 +43,9 @@ export function useUmblerContacts(params?: UseContactsParams) {
         if (params?.exclusiveTag !== undefined) {
           searchParams.append("exclusiveTag", String(params.exclusiveTag));
         }
+      }
+      if (params?.fetchAll !== undefined) {
+        searchParams.append("fetchAll", String(params.fetchAll));
       }
 
       const response = await fetch(
@@ -50,7 +60,9 @@ export function useUmblerContacts(params?: UseContactsParams) {
       return {
         items: data.items || [],
         totalCount: data.totalCount || 0,
+        metadata: data.metadata,
       };
     },
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
   });
 }

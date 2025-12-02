@@ -598,50 +598,116 @@ export async function getContactByPhone(phone: string) {
 export async function getContacts(
   query?: string,
   tagIds?: string[],
-  exclusiveTag?: boolean
+  exclusiveTag?: boolean,
+  fetchAll: boolean = false // Se true, busca todos com paginação; se false, apenas primeira página
 ): Promise<any | null> {
   try {
-    const params = new URLSearchParams();
-    params.append("organizationId", organizationId);
-    params.append("Skip", "0");
-    params.append("Take", "50");
-    params.append("Behavior", "GetSliceOnly");
+    const allContacts: any[] = [];
+    let skip = 0;
+    const take = 220; // Máximo suportado pela API
+    let hasMore = true;
+    let totalCount = 0;
+    let pageNumber = 0;
 
-    if (query) {
-      params.append("query", query);
-    }
+    // Loop para buscar todas as páginas de contatos
+    while (hasMore) {
+      pageNumber++;
+      const params = new URLSearchParams();
+      params.append("organizationId", organizationId);
+      params.append("Skip", String(skip));
+      params.append("Take", String(take));
+      params.append("Behavior", "CountAllAndGetSlice");
+      params.append("State", "All");
+      params.append("OrderBy", "Name");
+      params.append("Order", "Asc");
+      params.append("includeGroups", "true");
 
-    if (tagIds && tagIds.length > 0) {
-      // Se exclusiveTag for true, usa ContainsAll para filtrar contatos que têm exatamente essas tags
-      // Caso contrário, usa ContainsAny para filtrar contatos que têm pelo menos uma das tags
-      params.append("Tags.Rule", exclusiveTag ? "ContainsAll" : "ContainsAny");
-      tagIds.forEach((tagId) => {
-        params.append("Tags.Values", tagId);
-      });
-    }
-
-    params.append("Take", "250")
-
-    const response = await fetch(
-      `${apiEndpoint}/contacts?${params.toString()}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
+      if (query) {
+        params.append("query", query);
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error("Failed to fetch contacts: " + JSON.stringify(error));
+      if (tagIds && tagIds.length > 0) {
+        // Se exclusiveTag for true, usa ContainsAll para filtrar contatos que têm exatamente essas tags
+        // Caso contrário, usa ContainsAny para filtrar contatos que têm pelo menos uma das tags
+        params.append(
+          "Tags.Rule",
+          exclusiveTag ? "ContainsAll" : "ContainsAny"
+        );
+        tagIds.forEach((tagId) => {
+          params.append("Tags.Values", tagId);
+        });
+      }
+
+      const response = await fetch(
+        `${apiEndpoint}/contacts/?${params.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error("Failed to fetch contacts: " + JSON.stringify(error));
+      }
+
+      const responseData = await response.json();
+
+      // Captura o total na primeira página
+      if (pageNumber === 1 && responseData.totalCount) {
+        totalCount = responseData.totalCount;
+        console.log(
+          `[Umbler Contacts] Total de contatos disponíveis: ${totalCount}`
+        );
+      }
+
+      // Adiciona os contatos da página atual ao array total
+      if (responseData.items && responseData.items.length > 0) {
+        allContacts.push(...responseData.items);
+        const progress =
+          totalCount > 0
+            ? Math.round((allContacts.length / totalCount) * 100)
+            : 0;
+        console.log(
+          `[Umbler Contacts] Página ${pageNumber}: ${
+            responseData.items.length
+          } contatos | Total acumulado: ${allContacts.length}${
+            totalCount > 0 ? `/${totalCount} (${progress}%)` : ""
+          }`
+        );
+        skip += take;
+
+        // Verifica se há mais contatos para buscar
+        if (!fetchAll) {
+          // Modo rápido: busca apenas a primeira página
+          hasMore = false;
+        } else {
+          // Modo completo: continua se retornou exatamente o tamanho da página (indica que pode ter mais)
+          hasMore = responseData.items.length === take;
+
+          // Se temos totalCount, também verifica se já pegamos todos
+          if (totalCount > 0 && allContacts.length >= totalCount) {
+            hasMore = false;
+          }
+        }
+      } else {
+        hasMore = false;
+      }
     }
 
-    let responseData = await response.json();
+    // Prepara o resultado final
+    let finalContacts = allContacts;
 
     // Se exclusiveTag for true e houver tags selecionadas, filtrar contatos que têm APENAS essas tags
-    if (exclusiveTag && tagIds && tagIds.length > 0 && responseData.items) {
-      responseData.items = responseData.items.filter((contact: any) => {
+    if (
+      exclusiveTag &&
+      tagIds &&
+      tagIds.length > 0 &&
+      finalContacts.length > 0
+    ) {
+      finalContacts = finalContacts.filter((contact: any) => {
         if (!contact.tags || contact.tags.length === 0) return false;
 
         // Verifica se o contato tem exatamente as mesmas tags (não mais, não menos)
@@ -655,7 +721,26 @@ export async function getContacts(
       });
     }
 
-    return responseData;
+    const filterApplied = exclusiveTag && tagIds && tagIds.length > 0;
+    console.log(
+      `[Umbler Contacts] ✓ Busca finalizada em ${pageNumber} página(s). Total: ${
+        finalContacts.length
+      }${
+        filterApplied
+          ? ` (${allContacts.length} antes do filtro exclusivo)`
+          : ""
+      }`
+    );
+
+    return {
+      items: finalContacts,
+      totalCount: finalContacts.length,
+      metadata: {
+        pages: pageNumber,
+        fetchedCount: allContacts.length,
+        filteredCount: finalContacts.length,
+      },
+    };
   } catch (error) {
     console.error("Error fetching contacts:", error);
     return null;
