@@ -5131,6 +5131,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/client/umbler/tag", async (req, res) => {
+    console.log("Recebido webhook de tag do Umbler:", req.body);
+    res.json({ received: true });
+  });
+
+
   // Middleware de tratamento de erros deve ser o último
   app.use(errorHandler);
 

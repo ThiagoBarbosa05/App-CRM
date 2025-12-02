@@ -988,7 +988,7 @@ export default function CreateCampaignPage() {
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  disabled={(date) => date < new Date()}
+                  
                   initialFocus
                 />
               </PopoverContent>

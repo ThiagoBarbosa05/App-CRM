@@ -620,6 +620,8 @@ export async function getContacts(
       });
     }
 
+    params.append("Take", "250")
+
     const response = await fetch(
       `${apiEndpoint}/contacts?${params.toString()}`,
       {
