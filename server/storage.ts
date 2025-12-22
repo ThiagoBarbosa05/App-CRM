@@ -1695,6 +1695,8 @@ export class DatabaseStorage implements IStorage {
     responsibleId?: string
   ): Promise<any[]> {
     const today = new Date();
+    const currentYear = today.getFullYear();
+    const minBirthYear = currentYear - 18; // Idade mínima de 18 anos
     const upcomingClients: any[] = [];
 
     let query = this.db
@@ -1712,8 +1714,16 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           isNotNull(clients.birthday),
-          // Excluir datas padrão 2000-01-01 e 1990-01-01
-          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`
+          // Excluir datas padrão conhecidas
+          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01', '2024-01-01', '2025-01-01')`,
+          // Garantir idade mínima de 18 anos
+          sql`(
+            (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
+             EXTRACT(YEAR FROM ${clients.birthday}::date) <= ${minBirthYear})
+            OR
+            (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
+             CAST(SPLIT_PART(${clients.birthday}, '/', 3) AS INTEGER) <= ${minBirthYear})
+          )`
         )
       );
 
@@ -1722,7 +1732,14 @@ export class DatabaseStorage implements IStorage {
       query = query.where(
         and(
           isNotNull(clients.birthday),
-          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`,
+          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01', '2024-01-01', '2025-01-01')`,
+          sql`(
+            (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
+             EXTRACT(YEAR FROM ${clients.birthday}::date) <= ${minBirthYear})
+            OR
+            (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
+             CAST(SPLIT_PART(${clients.birthday}, '/', 3) AS INTEGER) <= ${minBirthYear})
+          )`,
           eq(clients.responsavelId, responsibleId)
         )
       );
@@ -1735,7 +1752,7 @@ export class DatabaseStorage implements IStorage {
         responsibleId
           ? "clientes do responsável " + responsibleId
           : "todos os clientes"
-      } com data de aniversário cadastrada: ${allClients.length} encontrados.`
+      } com data de aniversário válida (idade >= 18 anos): ${allClients.length} encontrados.`
     );
 
     for (const client of allClients) {
@@ -1792,22 +1809,32 @@ export class DatabaseStorage implements IStorage {
     try {
       const targetMonth = targetDate.getMonth() + 1; // getMonth() returns 0-11
       const targetDay = targetDate.getDate();
+      const currentYear = new Date().getFullYear();
+      const minBirthYear = currentYear - 18; // Idade mínima de 18 anos
 
       console.log(
-        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (excluindo datas padrão: 2000-01-01 e 1990-01-01)`
+        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (idade mínima: 18 anos, nascidos até ${minBirthYear})`
       );
 
       // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
-      // Excluir clientes com datas padrão 2000-01-01 e 1990-01-01 (clientes sem data de aniversário real)
+      // Excluir: datas padrão conhecidas + clientes com menos de 18 anos + anos suspeitos (muito recentes)
       const birthdayClients = await this.db
         .select()
         .from(clients)
         .where(
           and(
             isNotNull(clients.birthday),
-            // Excluir datas padrão
-            sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`,
-            // Use SQL bruto para comparar mês e dia do aniversário
+            // Excluir datas padrão conhecidas
+            sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01', '2024-01-01', '2025-01-01')`,
+            // Garantir idade mínima de 18 anos (ano de nascimento <= ano atual - 18)
+            sql`(
+              (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
+               EXTRACT(YEAR FROM ${clients.birthday}::date) <= ${minBirthYear})
+              OR
+              (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
+               CAST(SPLIT_PART(${clients.birthday}, '/', 3) AS INTEGER) <= ${minBirthYear})
+            )`,
+            // Comparar mês e dia do aniversário
             sql`(
               (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
                EXTRACT(MONTH FROM ${clients.birthday}::date) = ${targetMonth} AND
@@ -1821,7 +1848,7 @@ export class DatabaseStorage implements IStorage {
         );
 
       console.log(
-        `[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) para ${targetDay}/${targetMonth}`
+        `[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) válido(s) para ${targetDay}/${targetMonth} (idade >= 18 anos)`
       );
 
       return birthdayClients;
