@@ -5,7 +5,7 @@
 import { storage } from "../storage";
 
 async function testDefaultBirthdayFilter() {
-  console.log("=== TESTE: Filtro de Data Padrão 2000-01-01 ===\n");
+  console.log("=== TESTE: Filtro de Datas Padrão (2000-01-01 e 1990-01-01) ===\n");
   
   try {
     // Teste 1: Verificar se 1º de janeiro filtra corretamente
@@ -15,18 +15,20 @@ async function testDefaultBirthdayFilter() {
     
     console.log(`✅ Encontrados ${jan1stClients.length} cliente(s) para 01/01`);
     
-    // Verificar se algum cliente tem data 2000-01-01
-    const hasDefaultDate = jan1stClients.some(client => client.birthday === '2000-01-01');
+    // Verificar se algum cliente tem datas padrão
+    const hasDefaultDate = jan1stClients.some(client => 
+      client.birthday === '2000-01-01' || client.birthday === '1990-01-01'
+    );
     
     if (hasDefaultDate) {
-      console.log("❌ ERRO: Cliente(s) com data padrão 2000-01-01 foi(ram) incluído(s)!");
+      console.log("❌ ERRO: Cliente(s) com data padrão foi(ram) incluído(s)!");
       jan1stClients.forEach(client => {
-        if (client.birthday === '2000-01-01') {
+        if (client.birthday === '2000-01-01' || client.birthday === '1990-01-01') {
           console.log(`   - ${client.name} (${client.birthday})`);
         }
       });
     } else {
-      console.log("✅ SUCESSO: Nenhum cliente com data padrão 2000-01-01 foi incluído");
+      console.log("✅ SUCESSO: Nenhum cliente com datas padrão (2000-01-01 ou 1990-01-01) foi incluído");
     }
     
     // Listar clientes válidos encontrados
@@ -45,18 +47,20 @@ async function testDefaultBirthdayFilter() {
     
     console.log(`✅ Encontrados ${upcomingBirthdays.length} aniversariante(s) nos próximos 7 dias`);
     
-    // Verificar se algum tem data padrão
-    const hasDefaultInUpcoming = upcomingBirthdays.some(client => client.birthday === '2000-01-01');
+    // Verificar se algum tem datas padrão
+    const hasDefaultInUpcoming = upcomingBirthdays.some(client => 
+      client.birthday === '2000-01-01' || client.birthday === '1990-01-01'
+    );
     
     if (hasDefaultInUpcoming) {
-      console.log("❌ ERRO: Cliente(s) com data padrão 2000-01-01 foi(ram) incluído(s)!");
+      console.log("❌ ERRO: Cliente(s) com data padrão foi(ram) incluído(s)!");
       upcomingBirthdays.forEach(client => {
-        if (client.birthday === '2000-01-01') {
+        if (client.birthday === '2000-01-01' || client.birthday === '1990-01-01') {
           console.log(`   - ${client.name} (${client.birthday})`);
         }
       });
     } else {
-      console.log("✅ SUCESSO: Nenhum cliente com data padrão 2000-01-01 foi incluído");
+      console.log("✅ SUCESSO: Nenhum cliente com datas padrão (2000-01-01 ou 1990-01-01) foi incluído");
     }
     
     // Listar próximos aniversariantes (máximo 5)

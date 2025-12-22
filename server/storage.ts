@@ -1712,8 +1712,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           isNotNull(clients.birthday),
-          // Excluir data padrão 2000-01-01
-          sql`${clients.birthday} != '2000-01-01'`
+          // Excluir datas padrão 2000-01-01 e 1990-01-01
+          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`
         )
       );
 
@@ -1722,7 +1722,7 @@ export class DatabaseStorage implements IStorage {
       query = query.where(
         and(
           isNotNull(clients.birthday),
-          sql`${clients.birthday} != '2000-01-01'`,
+          sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`,
           eq(clients.responsavelId, responsibleId)
         )
       );
@@ -1794,19 +1794,19 @@ export class DatabaseStorage implements IStorage {
       const targetDay = targetDate.getDate();
 
       console.log(
-        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (excluindo data padrão 2000-01-01)`
+        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (excluindo datas padrão: 2000-01-01 e 1990-01-01)`
       );
 
       // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
-      // Excluir clientes com data padrão 2000-01-01 (clientes sem data de aniversário real)
+      // Excluir clientes com datas padrão 2000-01-01 e 1990-01-01 (clientes sem data de aniversário real)
       const birthdayClients = await this.db
         .select()
         .from(clients)
         .where(
           and(
             isNotNull(clients.birthday),
-            // Excluir data padrão
-            sql`${clients.birthday} != '2000-01-01'`,
+            // Excluir datas padrão
+            sql`${clients.birthday} NOT IN ('2000-01-01', '1990-01-01')`,
             // Use SQL bruto para comparar mês e dia do aniversário
             sql`(
               (${clients.birthday} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND
