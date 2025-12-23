@@ -233,95 +233,95 @@ export class ClientsService {
       const confirmationCode = generateConfirmationCode();
 
       // Primeiro, criar o contato no Umbler
-      const umblerContact = await syncContact({
-        phoneNumber: formatPhoneToDigits(validatedData.phone),
-        name: validatedData.name,
-        email: validatedData.email || undefined,
-        organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
-      });
+      // const umblerContact = await syncContact({
+      //   phoneNumber: formatPhoneToDigits(validatedData.phone),
+      //   name: validatedData.name,
+      //   email: validatedData.email || undefined,
+      //   organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+      // });
 
-      if (!umblerContact) {
-        throw new Error(
-          "Não foi possível criar o contato no Umbler. Verifique os dados e tente novamente."
-        );
-      }
+      // if (!umblerContact) {
+      //   throw new Error(
+      //     "Não foi possível criar o contato no Umbler. Verifique os dados e tente novamente."
+      //   );
+      // }
 
-      console.log("Contato criado no Umbler:", umblerContact);
+      // console.log("Contato criado no Umbler:", umblerContact);
 
       // Buscar o canal de serviço associado ao usuário
-      let channelId: string | null = null;
-      if (userId) {
-        channelId = await this.clientsRepository.getUserServiceChannelId(
-          userId
-        );
-        console.log(
-          `Canal de serviço encontrado para o usuário ${userId}:`,
-          channelId
-        );
-      }
+      // let channelId: string | null = null;
+      // if (userId) {
+      //   channelId = await this.clientsRepository.getUserServiceChannelId(
+      //     userId
+      //   );
+      //   console.log(
+      //     `Canal de serviço encontrado para o usuário ${userId}:`,
+      //     channelId
+      //   );
+      // }
 
       // Criar chat e enviar mensagem de boas-vindas se o canal estiver disponível
-      if (channelId) {
-        try {
-          const chat = await createChat({
-            contactId: umblerContact.contact.id,
-            channelId: channelId,
-          });
+      // if (channelId) {
+      //   try {
+      //     const chat = await createChat({
+      //       contactId: umblerContact.contact.id,
+      //       channelId: channelId,
+      //     });
 
-          if (chat) {
-            console.log("Chat criado com sucesso:", chat);
+      //     if (chat) {
+      //       console.log("Chat criado com sucesso:", chat);
 
-            // Enviar mensagem de boas-vindas
-            const welcomeMessage = `Olá ${validatedData.name}! 👋\n\nSeja muito bem-vindo(a)! É um prazer tê-lo(a) conosco.\n\nEstamos aqui para ajudá-lo(a) no que precisar. Se tiver alguma dúvida, não hesite em nos contatar!\n\nObrigado por se cadastrar! 🎉`;
+      //       // Enviar mensagem de boas-vindas
+      //       const welcomeMessage = `Olá ${validatedData.name}! 👋\n\nSeja muito bem-vindo(a)! É um prazer tê-lo(a) conosco.\n\nEstamos aqui para ajudá-lo(a) no que precisar. Se tiver alguma dúvida, não hesite em nos contatar!\n\nObrigado por se cadastrar! 🎉`;
 
-            const message = await sendMessage({
-              message: welcomeMessage,
-              chatId: chat.id,
-            });
+      //       const message = await sendMessage({
+      //         message: welcomeMessage,
+      //         chatId: chat.id,
+      //       });
 
-            if (message) {
-              console.log("Mensagem de boas-vindas enviada com sucesso!");
-            } else {
-              console.warn("Não foi possível enviar a mensagem de boas-vindas");
-            }
-          } else {
-            console.warn("Não foi possível criar o chat no Umbler");
-          }
-        } catch (chatError) {
-          console.error("Erro ao criar chat ou enviar mensagem:", chatError);
-          // Não interrompe o fluxo, apenas loga o erro
-        }
-      } else {
-        console.warn(
-          "Usuário não possui canal de serviço associado. Pulando criação de chat e mensagem de boas-vindas."
-        );
-      }
+      //       if (message) {
+      //         console.log("Mensagem de boas-vindas enviada com sucesso!");
+      //       } else {
+      //         console.warn("Não foi possível enviar a mensagem de boas-vindas");
+      //       }
+      //     } else {
+      //       console.warn("Não foi possível criar o chat no Umbler");
+      //     }
+      //   } catch (chatError) {
+      //     console.error("Erro ao criar chat ou enviar mensagem:", chatError);
+      //     // Não interrompe o fluxo, apenas loga o erro
+      //   }
+      // } else {
+      //   console.warn(
+      //     "Usuário não possui canal de serviço associado. Pulando criação de chat e mensagem de boas-vindas."
+      //   );
+      // }
 
       // Enviar código de confirmação via nota no Umbler
-      const noteContent = `🔐 Código de Confirmação de Cadastro\n\nCódigo: ${confirmationCode}\n\nEste código é necessário para confirmar o cadastro do cliente no sistema.`;
+      // const noteContent = `🔐 Código de Confirmação de Cadastro\n\nCódigo: ${confirmationCode}\n\nEste código é necessário para confirmar o cadastro do cliente no sistema.`;
 
-      const contactNote = await createContactNote(umblerContact.contact.id, {
-        content: noteContent,
-        organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
-      });
+      // const contactNote = await createContactNote(umblerContact.contact.id, {
+      //   content: noteContent,
+      //   organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+      // });
 
-      if (!contactNote) {
-        console.warn(
-          "Não foi possível criar a nota com o código de confirmação no Umbler"
-        );
-      }
+      // if (!contactNote) {
+      //   console.warn(
+      //     "Não foi possível criar a nota com o código de confirmação no Umbler"
+      //   );
+      // }
 
-      console.log(
-        "Código de confirmação enviado para o Umbler:",
-        confirmationCode
-      );
+      // console.log(
+      //   "Código de confirmação enviado para o Umbler:",
+      //   confirmationCode
+      // );
 
       // Criar cliente no banco de dados com status pendente e código de confirmação
       const clientDataToInsert = {
         ...validatedData,
         status: "pending" as const,
         confirmationCodeSentAt: new Date(),
-        umblerContactId: umblerContact.contact.id,
+        // umblerContactId: umblerContact.contact.id,
         confirmationCode: confirmationCode,
       };
 
