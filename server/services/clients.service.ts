@@ -1,6 +1,6 @@
 import { ClientsRepository } from "server/repositories/clients.repository";
 import { storage, ClientFilters } from "../storage";
-import { insertClientSchema } from "@shared/schema";
+import { insertClientSchema, updateClientSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateConfirmationCode } from "../lib/utils";
 import {
@@ -374,7 +374,7 @@ export class ClientsService {
       );
 
       // Validar dados usando o schema Zod (partial para permitir atualizações parciais)
-      const validatedData = insertClientSchema.partial().parse(processedData);
+      const validatedData = updateClientSchema.parse(processedData);
 
       // Atualizar cliente através do repositório
       const client = await this.clientsRepository.updateClient(

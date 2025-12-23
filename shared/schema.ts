@@ -828,10 +828,107 @@ export const insertFunnelStageSchema = createInsertSchema(funnelStages).omit({
   createdAt: true,
 });
 
-export const insertClientSchema = createInsertSchema(clients).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertClientSchema = createInsertSchema(clients)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .refine(
+    (data) => {
+      // Se birthday foi informado, validar maioridade
+      if (!data.birthday) return true;
+
+      let birthDate: Date;
+
+      // Formato ISO (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(data.birthday)) {
+        birthDate = new Date(data.birthday);
+      }
+      // Formato brasileiro (DD/MM/YYYY)
+      else if (/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthday)) {
+        const [day, month, year] = data.birthday.split("/");
+        birthDate = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
+      } else {
+        return false; // Formato inválido
+      }
+
+      if (isNaN(birthDate.getTime())) return false;
+
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+
+      // Verifica se já fez 18 anos
+      if (age > 18) return true;
+      if (age === 18) {
+        if (monthDiff > 0) return true;
+        if (monthDiff === 0 && dayDiff >= 0) return true;
+      }
+
+      return false;
+    },
+    {
+      message: "Cliente deve ser maior de idade (18 anos ou mais)",
+      path: ["birthday"],
+    }
+  );
+
+// Schema para atualização de clientes (partial, sem validação de maioridade para não bloquear atualizações)
+export const updateClientSchema = createInsertSchema(clients)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .partial()
+  .refine(
+    (data) => {
+      // Se birthday foi informado na atualização, validar maioridade
+      if (!data.birthday) return true;
+
+      let birthDate: Date;
+
+      // Formato ISO (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(data.birthday)) {
+        birthDate = new Date(data.birthday);
+      }
+      // Formato brasileiro (DD/MM/YYYY)
+      else if (/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthday)) {
+        const [day, month, year] = data.birthday.split("/");
+        birthDate = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
+      } else {
+        return false; // Formato inválido
+      }
+
+      if (isNaN(birthDate.getTime())) return false;
+
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+
+      // Verifica se já fez 18 anos
+      if (age > 18) return true;
+      if (age === 18) {
+        if (monthDiff > 0) return true;
+        if (monthDiff === 0 && dayDiff >= 0) return true;
+      }
+
+      return false;
+    },
+    {
+      message: "Cliente deve ser maior de idade (18 anos ou mais)",
+      path: ["birthday"],
+    }
+  );
 
 export const insertSectorSchema = createInsertSchema(sectors).omit({
   id: true,
@@ -1155,6 +1252,7 @@ export type SalesFunnel = typeof salesFunnels.$inferSelect;
 export type InsertFunnelStage = z.infer<typeof insertFunnelStageSchema>;
 export type FunnelStage = typeof funnelStages.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
+export type UpdateClient = z.infer<typeof updateClientSchema>;
 export type Client = typeof clients.$inferSelect;
 export type InsertSector = z.infer<typeof insertSectorSchema>;
 export type Sector = typeof sectors.$inferSelect;
