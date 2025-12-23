@@ -277,12 +277,6 @@ export default function ClientsTableWithSelection({
                     Contato
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-gray-500" />
-                    Contato
-                  </div>
-                </th>
                 <th className="p-4 text-left font-semibold text-gray-700 min-w-[150px]">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500" />
