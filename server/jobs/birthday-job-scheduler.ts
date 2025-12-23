@@ -9,6 +9,7 @@ import {
   wasExecutedToday,
 } from "./automation-execution-tracker";
 import { executeTodaysAutomations } from "./automation-catchup";
+import { AutomationExecutionService } from "../services/automation-execution.service";
 
 // Mapa para armazenar os jobs ativos
 const activeJobs = new Map<string, any>();
@@ -76,16 +77,23 @@ async function setupBirthdayJobs(): Promise<void> {
             return;
           }
 
-          let messagesSent = 0;
-          let messagesFailed = 0;
-          let status: "success" | "partial" | "failed" = "success";
-          let error: string | undefined;
+          let executionId: string | undefined;
 
           try {
-            // CORREÇÃO: Processar apenas esta automação específica
-            await sendBirthdayMessagesForAutomation(automation.id);
-            messagesSent = 1; // TODO: Obter métricas reais
-            status = "success";
+            // Criar registro de execução
+            executionId = await AutomationExecutionService.createExecution({
+              automationId: automation.id,
+              executionType: "scheduled",
+              targetDate: todayStr,
+              scheduledTime: automation.sendTime,
+            });
+
+            // Iniciar execução
+            await AutomationExecutionService.startExecution(executionId);
+
+            // Processar automação com controle de cancelamento
+            await sendBirthdayMessagesForAutomation(automation.id, executionId);
+
             console.log(
               `[Scheduler] Automação ${automation.id} concluída com sucesso.`
             );
@@ -94,20 +102,25 @@ async function setupBirthdayJobs(): Promise<void> {
               `[Scheduler] Erro na automação ${automation.id}:`,
               err
             );
-            messagesFailed = 1;
-            status = "failed";
-            error = err instanceof Error ? err.message : String(err);
+
+            // Marcar como falha se ainda não foi atualizada
+            if (executionId) {
+              await AutomationExecutionService.failExecution(
+                executionId,
+                err instanceof Error ? err.message : String(err)
+              );
+            }
           } finally {
-            // Registrar execução
+            // Registrar no log legado
             await recordExecution({
               automationId: automation.id,
               executionDate: todayStr,
               scheduledTime: automation.sendTime,
-              status,
-              messagesProcessed: messagesSent + messagesFailed,
-              messagesSent,
-              messagesFailed,
-              error,
+              status: executionId ? "success" : "failed",
+              messagesProcessed: 0, // Será atualizado pelo processamento
+              messagesSent: 0,
+              messagesFailed: 0,
+              error: undefined,
               triggeredBy: "cron",
             });
           }

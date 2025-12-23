@@ -6,6 +6,7 @@ import {
 } from "./automation-execution-tracker";
 import { sendBirthdayMessagesForAutomation } from "./send-birthday-mensage";
 import { messageAutomationSettings } from "../../shared/schema";
+import { AutomationExecutionService } from "../services/automation-execution.service";
 
 /**
  * Sistema de Catch-up para Automações
@@ -276,7 +277,6 @@ export async function executeTodaysAutomations(): Promise<CatchupResult> {
  */
 let lastCatchupCheck = 0;
 const CATCHUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
-let isRunningCatchup = false;
 
 export async function catchupMiddleware(
   req: any,
@@ -286,19 +286,19 @@ export async function catchupMiddleware(
   // Não bloquear a requisição
   next();
 
+  // Verificar se já está rodando via service
+  if (AutomationExecutionService.isCatchupRunning()) {
+    return;
+  }
+
   // Executar catch-up em background se necessário
   const now = Date.now();
-  if (!isRunningCatchup && now - lastCatchupCheck > CATCHUP_INTERVAL_MS) {
+  if (now - lastCatchupCheck > CATCHUP_INTERVAL_MS) {
     lastCatchupCheck = now;
-    isRunningCatchup = true;
 
     // Executar em background
-    executeTodaysAutomations()
-      .catch((error) => {
-        console.error("[Catchup Middleware] Erro no catch-up:", error);
-      })
-      .finally(() => {
-        isRunningCatchup = false;
-      });
+    executeTodaysAutomations().catch((error) => {
+      console.error("[Catchup Middleware] Erro no catch-up:", error);
+    });
   }
 }

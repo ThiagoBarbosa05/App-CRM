@@ -22,6 +22,9 @@ import {
   Zap,
   Activity,
   Info,
+  StopCircle,
+  PlayCircle,
+  XCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -66,6 +69,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  useRunningExecutions,
+  useCatchupStatus,
+  useCancelExecution,
+  useCancelAllExecutions,
+  useStartCatchup,
+  useStopCatchup,
+  useExecuteFullCatchup,
+} from "@/hooks/use-automation-execution";
 
 // Hook para executar trigger principal (automações do dia)
 function useTestAutomationAll() {
@@ -1100,6 +1112,15 @@ export function AutomationManagement() {
   const testScheduledMutation = useTestAutomationScheduled();
   const { data: healthData } = useAutomationHealth();
 
+  // Hooks de gerenciamento de execuções
+  const { data: runningExecutions } = useRunningExecutions();
+  const { data: catchupStatus } = useCatchupStatus();
+  const cancelExecutionMutation = useCancelExecution();
+  const cancelAllMutation = useCancelAllExecutions();
+  const startCatchupMutation = useStartCatchup();
+  const stopCatchupMutation = useStopCatchup();
+  const fullCatchupMutation = useExecuteFullCatchup();
+
   const isLoading =
     isLoadingAutomations ||
     isLoadingChannels ||
@@ -1474,6 +1495,265 @@ export function AutomationManagement() {
           </Card>
         </div>
 
+        {/* Seção de Controle de Execuções - NOVA */}
+        <Card className="border-2 border-orange-200/60 bg-gradient-to-br from-background via-orange-50/30 to-background relative overflow-hidden">
+          {/* Background decorativo */}
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5 pointer-events-none" />
+
+          <CardHeader className="relative">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg">
+                    <Activity className="h-6 w-6 text-white" />
+                  </div>
+                  {(runningExecutions?.count ?? 0) > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-background shadow-sm flex items-center justify-center text-white text-xs font-bold">
+                      {runningExecutions?.count}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl">
+                    Controle de Execuções
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">
+                    Monitore e cancele automações em andamento
+                  </CardDescription>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="relative space-y-6">
+            {/* Status do Catch-up */}
+            {catchupStatus?.isRunning && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500 rounded-lg">
+                      <RefreshCcw className="h-5 w-5 text-white animate-spin" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-amber-900">
+                        Catch-up em Execução
+                      </p>
+                      <p className="text-sm text-amber-700">
+                        Recuperando automações perdidas...
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => stopCatchupMutation.mutate()}
+                    disabled={stopCatchupMutation.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-300 hover:bg-amber-100"
+                  >
+                    <StopCircle className="h-4 w-4 mr-2" />
+                    Parar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Execuções em Andamento */}
+            {(runningExecutions?.count ?? 0) > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-lg flex items-center gap-2">
+                    <PlayCircle className="h-5 w-5 text-green-600" />
+                    Execuções em Andamento ({runningExecutions?.count})
+                  </h4>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={cancelAllMutation.isPending}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancelar Todas
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Cancelar todas as execuções?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação irá cancelar todas as{" "}
+                          {runningExecutions?.count} execuções em andamento.
+                          Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => cancelAllMutation.mutate()}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Sim, cancelar todas
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+
+                <div className="space-y-3">
+                  {runningExecutions?.executions.map((execution) => (
+                    <div
+                      key={execution.id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant={
+                                execution.status === "running"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className="font-semibold"
+                            >
+                              {execution.status === "running" ? (
+                                <>
+                                  <PlayCircle className="h-3 w-3 mr-1" />
+                                  Em Execução
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Na Fila
+                                </>
+                              )}
+                            </Badge>
+                            <Badge variant="outline">
+                              {execution.executionType === "scheduled" &&
+                                "Agendada"}
+                              {execution.executionType === "manual" && "Manual"}
+                              {execution.executionType === "catchup" &&
+                                "Recuperação"}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-500">
+                                Processados:
+                              </span>
+                              <p className="font-semibold">
+                                {execution.processedClients} /{" "}
+                                {execution.totalClients}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Enviados:</span>
+                              <p className="font-semibold text-green-600">
+                                {execution.successfulMessages}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Falhas:</span>
+                              <p className="font-semibold text-red-600">
+                                {execution.failedMessages}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Data Alvo:</span>
+                              <p className="font-semibold">
+                                {new Date(
+                                  execution.targetDate
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-red-300 hover:bg-red-50 text-red-600"
+                            >
+                              <StopCircle className="h-4 w-4 mr-2" />
+                              Cancelar
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Cancelar execução?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação irá interromper esta execução. As
+                                mensagens já enviadas não serão afetadas.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Voltar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  cancelExecutionMutation.mutate(execution.id)
+                                }
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Sim, cancelar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nenhuma execução em andamento */}
+            {(runningExecutions?.count ?? 0) === 0 &&
+              !catchupStatus?.isRunning && (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Nenhuma execução em andamento</p>
+                  <p className="text-sm mt-1">
+                    As automações aparecerão aqui quando estiverem sendo
+                    executadas
+                  </p>
+                </div>
+              )}
+
+            {/* Botões de Controle de Catch-up */}
+            <Separator />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                onClick={() => startCatchupMutation.mutate()}
+                disabled={
+                  startCatchupMutation.isPending || catchupStatus?.isRunning
+                }
+                variant="outline"
+                className="h-12"
+              >
+                <PlayCircle className="h-4 w-4 mr-2" />
+                Iniciar Catch-up (Hoje)
+              </Button>
+              <Button
+                onClick={() => fullCatchupMutation.mutate()}
+                disabled={
+                  fullCatchupMutation.isPending || catchupStatus?.isRunning
+                }
+                variant="outline"
+                className="h-12"
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Catch-up Completo (7 dias)
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Seção de Testes - Design Aprimorado */}
         <Card className="border-2 border-dashed border-primary/30 hover:border-primary/60 transition-all duration-300 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
           {/* Background decorativo */}
@@ -1678,9 +1958,13 @@ export function AutomationManagement() {
                         {healthData?.data?.missedExecutions > 0 && (
                           <p className="text-amber-800 font-medium">
                             ⚠️ {healthData.data.missedExecutions} automação
-                            {healthData.data.missedExecutions > 1 ? "ões" : ""}{" "}
+                            {healthData.data.missedExecutions > 1
+                              ? "ões"
+                              : ""}{" "}
                             perdida
-                            {healthData.data.missedExecutions > 1 ? "s" : ""}{" "}
+                            {healthData.data.missedExecutions > 1
+                              ? "s"
+                              : ""}{" "}
                             detectada
                             {healthData.data.missedExecutions > 1 ? "s" : ""}.
                             Execute o catch-up!

@@ -2326,3 +2326,63 @@ export const umblerCampaignMessagesRelations = relations(
     }),
   })
 );
+
+// Tabela de controle de execuções de automação
+// Gerencia o estado de cada execução para permitir cancelamento e monitoramento
+export const automationExecutions = pgTable("automation_executions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  automationId: varchar("automation_id")
+    .references(() => messageAutomationSettings.id)
+    .notNull(),
+  executionType: text("execution_type", {
+    enum: ["scheduled", "manual", "catchup"],
+  })
+    .notNull()
+    .default("scheduled"),
+  status: text("status", {
+    enum: ["queued", "running", "completed", "cancelled", "failed"],
+  })
+    .notNull()
+    .default("queued"),
+  targetDate: text("target_date").notNull(), // Data alvo do aniversário (YYYY-MM-DD)
+  scheduledTime: text("scheduled_time").notNull(), // Horário agendado (HH:mm)
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelledBy: varchar("cancelled_by").references(() => users.id),
+  totalClients: integer("total_clients").notNull().default(0),
+  processedClients: integer("processed_clients").notNull().default(0),
+  successfulMessages: integer("successful_messages").notNull().default(0),
+  failedMessages: integer("failed_messages").notNull().default(0),
+  errorMessage: text("error_message"),
+  metadata: text("metadata"), // JSON com dados adicionais
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema de inserção
+export const insertAutomationExecutionSchema =
+  createInsertSchema(automationExecutions);
+
+// Tipo
+export type AutomationExecution = typeof automationExecutions.$inferSelect;
+export type InsertAutomationExecution = z.infer<
+  typeof insertAutomationExecutionSchema
+>;
+
+// Relações
+export const automationExecutionsRelations = relations(
+  automationExecutions,
+  ({ one }) => ({
+    automation: one(messageAutomationSettings, {
+      fields: [automationExecutions.automationId],
+      references: [messageAutomationSettings.id],
+    }),
+    cancelledByUser: one(users, {
+      fields: [automationExecutions.cancelledBy],
+      references: [users.id],
+    }),
+  })
+);

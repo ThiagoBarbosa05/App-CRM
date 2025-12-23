@@ -15,6 +15,7 @@ import {
   getBirthdayAutomationConfig,
   type DuplicationStrategy,
 } from "./birthday-automation-config";
+import { AutomationExecutionService } from "../services/automation-execution.service";
 
 interface ProcessedClient {
   id: string;
@@ -132,7 +133,8 @@ export async function sendBirthdayMessages(): Promise<void> {
  * Esta função é chamada pelo scheduler para processar apenas uma automação
  */
 export async function sendBirthdayMessagesForAutomation(
-  automationId: string
+  automationId: string,
+  executionId?: string
 ): Promise<void> {
   console.log(
     `[Birthday Job] Iniciando job para automação específica ${automationId}...`
@@ -156,8 +158,8 @@ export async function sendBirthdayMessagesForAutomation(
       `[Birthday Job] Processando automação ${automation.id} - ${automation.daysBefore} dias antes às ${automation.sendTime}`
     );
 
-    // 2. Processar apenas esta automação
-    await processAutomation(automation);
+    // 2. Processar apenas esta automação com controle de execução
+    await processAutomation(automation, executionId);
 
     console.log(
       `[Birthday Job] Automação ${automationId} concluída com sucesso.`
@@ -169,14 +171,18 @@ export async function sendBirthdayMessagesForAutomation(
 }
 
 /**
- * Processa uma automação específica
+ * Processa uma automação específica com controle de cancelamento
  */
 async function processAutomation(
-  automation: MessageAutomationSettings
+  automation: MessageAutomationSettings,
+  executionId?: string
 ): Promise<void> {
   console.log(
     `[Birthday Job] Processando automação ${automation.id} - Dias antes: ${automation.daysBefore}, Horário: ${automation.sendTime}`
   );
+
+  let successCount = 0;
+  let failureCount = 0;
 
   try {
     // 1. Buscar clientes aniversariantes baseado na configuração
@@ -186,6 +192,12 @@ async function processAutomation(
       console.log(
         `[Birthday Job] Nenhum cliente aniversariante encontrado para ${automation.daysBefore} dias antes.`
       );
+
+      // Atualizar execução se existir
+      if (executionId) {
+        await AutomationExecutionService.completeExecution(executionId, 0, 0);
+      }
+
       return;
     }
 
@@ -193,15 +205,77 @@ async function processAutomation(
       `[Birthday Job] ${birthdayClients.length} cliente(s) aniversariante(s) encontrado(s).`
     );
 
-    // 2. Processar cada cliente
-    for (const client of birthdayClients) {
-      await processClientBirthday(automation, client);
+    // Atualizar total de clientes na execução
+    if (executionId) {
+      await AutomationExecutionService.updateExecution(executionId, {
+        totalClients: birthdayClients.length,
+      });
     }
+
+    // 2. Processar cada cliente com verificação de cancelamento
+    for (let i = 0; i < birthdayClients.length; i++) {
+      // Verificar cancelamento antes de processar cada cliente
+      if (executionId && AutomationExecutionService.isCancelled(executionId)) {
+        console.log(
+          `[Birthday Job] Execução ${executionId} foi cancelada. Interrompendo processamento.`
+        );
+        break;
+      }
+
+      const client = birthdayClients[i];
+
+      try {
+        await processClientBirthday(automation, client);
+        successCount++;
+
+        // Atualizar progresso a cada 5 clientes ou no último
+        if (
+          executionId &&
+          ((i + 1) % 5 === 0 || i === birthdayClients.length - 1)
+        ) {
+          await AutomationExecutionService.updateProgress(
+            executionId,
+            i + 1,
+            successCount,
+            failureCount
+          );
+        }
+      } catch (error) {
+        failureCount++;
+        console.error(
+          `[Birthday Job] Erro ao processar cliente ${client.id}:`,
+          error
+        );
+      }
+    }
+
+    // Marcar execução como concluída
+    if (executionId) {
+      await AutomationExecutionService.completeExecution(
+        executionId,
+        successCount,
+        failureCount
+      );
+    }
+
+    console.log(
+      `[Birthday Job] Processamento concluído - Sucesso: ${successCount}, Falhas: ${failureCount}`
+    );
   } catch (error) {
     console.error(
       `[Birthday Job] Erro ao processar automação ${automation.id}:`,
       error
     );
+
+    // Marcar execução como falha
+    if (executionId) {
+      await AutomationExecutionService.failExecution(
+        executionId,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+
+    throw error;
   }
 }
 

@@ -11,6 +11,7 @@ import { tagsRouter } from "./tags.routes";
 import { interactionsRouter } from "./interactions.routes";
 import { cashbackSettingsRouter } from "./cashback-settings.routes";
 import automationTriggersRouter from "./automation-triggers";
+import automationExecutionRouter from "./automation-execution.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -34,6 +35,7 @@ apiRouter.use("/tags", tagsRouter);
 apiRouter.use("/interactions", interactionsRouter);
 apiRouter.use("/cashback-settings", cashbackSettingsRouter);
 apiRouter.use("/automations", automationTriggersRouter);
+apiRouter.use("/automation", automationExecutionRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);
