@@ -1,0 +1,11 @@
+export { getTagsController } from "./get-tags.controller";
+export { createTagController } from "./create-tag.controller";
+export { createCategoryController } from "./create-category.controller";
+export { updateCategoryController } from "./update-category.controller";
+export { deleteCategoryController } from "./delete-category.controller";
+export { createOriginController } from "./create-origin.controller";
+export { updateOriginController } from "./update-origin.controller";
+export { deleteOriginController } from "./delete-origin.controller";
+export { createMarkerController } from "./create-marker.controller";
+export { updateMarkerController } from "./update-marker.controller";
+export { deleteMarkerController } from "./delete-marker.controller";

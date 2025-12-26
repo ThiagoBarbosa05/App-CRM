@@ -2550,7 +2550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // - Integration: server/routes/index.ts (apiRouter.use("/cashback-settings"))
   // ========================================================================
 
-  // COMENTADO - Agora usa router modular em /api/cashback-settings/transactions-simple
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-transactions
   /*
   app.get("/api/cashback-transactions", async (req, res) => {
     try {
@@ -2621,6 +2621,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - POST /api/calculate-cashback
+  /*
   app.post("/api/calculate-cashback", async (req, res) => {
     try {
       const { purchaseAmount, netAmount } = req.body;
@@ -2674,7 +2676,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao calcular cashback" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-balances
+  /*
   app.get("/api/cashback-balances", async (req, res) => {
     try {
       const userId =
@@ -2690,8 +2695,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar saldos" });
     }
   });
+  */
 
-  app.get("/api/cashback-balances/:clientId", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-balances/:clientId
+  /*
     try {
       const { clientId } = req.params;
       const clientBalance = await storage.getClientCashbackBalance(clientId);
@@ -2709,8 +2716,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar saldo de cashback" });
     }
   });
+  */
 
-  app.delete("/api/cashback-balances/:balanceId", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - DELETE /api/cashback-balances/:balanceId
+  /*
     try {
       // Verificar se o usuário é administrador
       const userEmail = req.headers["x-user-email"] as string;
@@ -2739,8 +2748,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
+  */
 
-  app.get("/api/cashback-usage", async (req, res) => {
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-usage
+  /*
     try {
       const userId =
         (req.query.userId as string) || (req.headers["x-user-id"] as string);
@@ -2755,7 +2766,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar histórico" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - POST /api/cashback-usage
+  /*
   app.post("/api/cashback-usage", async (req, res) => {
     try {
       const usageData = req.body;
@@ -2766,7 +2780,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-usage/:clientId
+  /*
   app.get("/api/cashback-usage/:clientId", async (req, res) => {
     try {
       const { clientId } = req.params;
@@ -2777,6 +2794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
+  */
 
   // Reports routes
   app.get("/api/reports/general", getGeneralReportsController);
@@ -2787,6 +2805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sales-statistics", getSalesStatisticsController);
   app.get("/api/sales-history", getSalesHistoryController);
 
+  // MIGRADO PARA MODULAR: server/routes/sales.routes.ts - GET /api/sales
+  /*
   app.get("/api/sales", async (req, res) => {
     try {
       const sales = await storage.getSales();
@@ -2796,7 +2816,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar vendas" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/cashback.routes.ts - GET /api/cashback-reports/30-days
+  /*
   // Relatórios de cashback dos últimos 30 dias
   app.get("/api/cashback-reports/30-days", async (req, res) => {
     try {
@@ -2859,7 +2882,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Erro ao buscar relatórios de cashback" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/sales.routes.ts - POST /api/sales
+  /*
   app.post("/api/sales", async (req, res) => {
     try {
       const {
@@ -2951,7 +2977,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar venda" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/sales.routes.ts - DELETE /api/sales/:id
+  /*
   app.delete("/api/sales/:id", async (req, res) => {
     try {
       // Verificar se o usuário é administrador
@@ -2977,8 +3006,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir venda" });
     }
   });
+  */
 
   // Sectors routes
+  // MIGRADO PARA MODULAR: server/routes/sectors.routes.ts - GET /api/sectors
+  /*
   app.get("/api/sectors", async (req, res) => {
     try {
       const sectors = await storage.getSectors();
@@ -2987,7 +3019,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar setores" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/sectors.routes.ts - POST /api/sectors
+  /*
   app.post("/api/sectors", async (req, res) => {
     try {
       const validatedData = insertSectorSchema.parse(req.body);
@@ -3001,8 +3036,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar setor" });
     }
   });
+  */
 
   // Tags routes
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - GET /api/tags
+  /*
   app.get("/api/tags", async (req, res) => {
     try {
       const tags = await storage.getTags();
@@ -3011,7 +3049,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar tags" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - POST /api/tags
+  /*
   app.post("/api/tags", async (req, res) => {
     try {
       const validatedData = insertTagSchema.parse(req.body);
@@ -3025,8 +3066,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar tag" });
     }
   });
+  */
 
   // Categories routes
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - POST /api/categories
+  /*
   app.post("/api/categories", async (req, res) => {
     try {
       const categoryData = {
@@ -3046,7 +3090,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar categoria" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - PUT /api/categories/:id
+  /*
   app.put("/api/categories/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3067,7 +3114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar categoria" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - DELETE /api/categories/:id
+  /*
   app.delete("/api/categories/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3077,8 +3127,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir categoria" });
     }
   });
+  */
 
   // Origins routes
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - POST /api/origins
+  /*
   app.post("/api/origins", async (req, res) => {
     try {
       const originData = {
@@ -3098,7 +3151,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar origem" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - PUT /api/origins/:id
+  /*
   app.put("/api/origins/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3119,7 +3175,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar origem" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - DELETE /api/origins/:id
+  /*
   app.delete("/api/origins/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3129,8 +3188,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir origem" });
     }
   });
+  */
 
   // Markers routes
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - POST /api/markers
+  /*
   app.post("/api/markers", async (req, res) => {
     try {
       const markerData = {
@@ -3150,7 +3212,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar marcador" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - PUT /api/markers/:id
+  /*
   app.put("/api/markers/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3171,7 +3236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar marcador" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/tags.routes.ts - DELETE /api/markers/:id
+  /*
   app.delete("/api/markers/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3181,8 +3249,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir marcador" });
     }
   });
+  */
 
   // User Goals routes
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - GET /api/user-goals
+  /*
   app.get("/api/user-goals", async (req, res) => {
     try {
       const goals = await storage.getUserGoals();
@@ -3192,7 +3263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar metas" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - GET /api/user-goals/:userId
+  /*
   app.get("/api/user-goals/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
@@ -3203,7 +3277,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar meta" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - GET /api/user-goals-with-results/:month/:year
+  /*
   app.get("/api/user-goals-with-results/:month/:year", async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -3217,6 +3294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar metas com resultados" });
     }
   });
+  */
 
   app.get("/api/user-registration-stats", async (req, res) => {
     try {

@@ -7,11 +7,17 @@ import { dealQuestionsRouter } from "./deal-questions.routes";
 import { dealAnswersRouter } from "./deal-answers.routes";
 import { usersRouter } from "./users.routes";
 import { birthdaysRouter } from "./birthdays.routes";
-import { tagsRouter } from "./tags.routes";
+import tagsRouter, { categoriesRouter, originsRouter, markersRouter } from "./tags.routes";
 import { interactionsRouter } from "./interactions.routes";
 import { cashbackSettingsRouter } from "./cashback-settings.routes";
+import { cashbackRouter } from "./cashback.routes";
+import { salesRouter } from "./sales.routes";
+import { sectorsRouter } from "./sectors.routes";
 import automationTriggersRouter from "./automation-triggers";
 import automationExecutionRouter from "./automation-execution.routes";
+import userGoalsRouter, {
+  userGoalsWithResultsRouter,
+} from "./user-goals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -32,10 +38,18 @@ apiRouter.use("/", dealAnswersRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/birthdays", birthdaysRouter);
 apiRouter.use("/tags", tagsRouter);
+apiRouter.use("/categories", categoriesRouter);
+apiRouter.use("/origins", originsRouter);
+apiRouter.use("/markers", markersRouter);
 apiRouter.use("/interactions", interactionsRouter);
 apiRouter.use("/cashback-settings", cashbackSettingsRouter);
+apiRouter.use("/", cashbackRouter);
+apiRouter.use("/", salesRouter);
+apiRouter.use("/", sectorsRouter);
 apiRouter.use("/automations", automationTriggersRouter);
 apiRouter.use("/automation", automationExecutionRouter);
+apiRouter.use("/user-goals", userGoalsRouter);
+apiRouter.use("/user-goals-with-results", userGoalsWithResultsRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);
