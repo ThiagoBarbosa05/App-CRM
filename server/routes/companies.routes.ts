@@ -4,6 +4,9 @@ import { postCompanyController } from "../controllers/companies/post-company.con
 import { putCompanyController } from "../controllers/companies/put-company.controller";
 import { deleteCompanyController } from "../controllers/companies/delete-company.controller";
 import { deleteCompaniesBulkController } from "../controllers/companies/delete-companies-bulk.controller";
+import { getCompanyInteractionsController } from "../controllers/companies/get-company-interactions.controller";
+import { getCompanyFunnelsController } from "../controllers/companies/get-company-funnels.controller";
+import { getDealAnsweredQuestionsController } from "../controllers/get-deal-answered-questions.controller";
 
 /**
  * Router específico para endpoints relacionados a empresas
@@ -40,6 +43,39 @@ export const companiesRouter = Router();
  *   - Ordenação por data de criação (mais recent first)
  */
 companiesRouter.get("/", getCompaniesController);
+
+/**
+ * @route GET /api/companies/:companyId/interactions
+ * @description Busca as interações de uma empresa
+ * @access Private
+ * @urlParams {string} companyId - ID da empresa
+ * @returns {array} Lista de interações da empresa
+ */
+companiesRouter.get(
+  "/:companyId/interactions",
+  getCompanyInteractionsController
+);
+
+/**
+ * @route GET /api/companies/:companyId/funnels
+ * @description Busca os funis associados a uma empresa
+ * @access Private
+ * @urlParams {string} companyId - ID da empresa
+ * @returns {array} Lista de funis da empresa
+ */
+companiesRouter.get("/:companyId/funnels", getCompanyFunnelsController);
+
+/**
+ * @route GET /api/companies/:companyId/deals/:dealId/answered-questions
+ * @description Busca perguntas respondidas de um deal específico de uma empresa
+ * @access Private
+ * @urlParams {string} companyId - ID da empresa
+ * @urlParams {string} dealId - ID do deal
+ */
+companiesRouter.get(
+  "/:companyId/deals/:dealId/answered-questions",
+  getDealAnsweredQuestionsController
+);
 
 /**
  * @route POST /api/companies

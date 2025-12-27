@@ -8,6 +8,8 @@ import { putClientController } from "../controllers/clients/put-client.controlle
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
 import { deleteClientsBulkController } from "../controllers/clients/delete-clients-bulk.controller";
 import { confirmClientController } from "../controllers/clients/confirm-client.controller";
+import { getClientInteractionsController } from "../controllers/clients/get-client-interactions.controller";
+import { getClientFunnelsController } from "../controllers/clients/get-client-funnels.controller";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -67,6 +69,24 @@ clientsRouter.get("/without-contact", getClientsWithoutContactController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.get("/export-all", getClientsExportAllController);
+
+/**
+ * @route GET /api/clients/:clientId/interactions
+ * @description Busca as interações de um cliente
+ * @access Private
+ * @urlParams {string} clientId - ID do cliente
+ * @returns {array} Lista de interações do cliente
+ */
+clientsRouter.get("/:clientId/interactions", getClientInteractionsController);
+
+/**
+ * @route GET /api/clients/:clientId/funnels
+ * @description Busca os funis associados a um cliente
+ * @access Private
+ * @urlParams {string} clientId - ID do cliente
+ * @returns {array} Lista de funis do cliente
+ */
+clientsRouter.get("/:clientId/funnels", getClientFunnelsController);
 
 /**
  * @route POST /api/clients

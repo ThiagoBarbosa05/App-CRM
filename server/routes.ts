@@ -139,7 +139,6 @@ import { getMessageJobsLogsController } from "./controllers/get-message-jobs-log
 import { updateMessageJobsLogController } from "./controllers/update-message-jobs-logs.controller";
 import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
 import { getTemplatesController } from "./controllers/get-templates-controller";
-import { getDealAnsweredQuestionsController } from "./controllers/get-deal-answered-questions.controller";
 import { apiRouter } from "./routes/index";
 
 // Configure multer for file uploads
@@ -3296,6 +3295,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - GET /api/user-registration-stats
+  /*
   app.get("/api/user-registration-stats", async (req, res) => {
     try {
       const stats = await storage.getUserRegistrationStats();
@@ -3307,7 +3308,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: "Erro ao buscar estatísticas de cadastro" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/clients.routes.ts - GET /api/clients/:clientId/interactions
+  /*
   // Rotas de interações com clientes
   app.get("/api/clients/:clientId/interactions", async (req, res) => {
     try {
@@ -3319,7 +3323,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar interações" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/clients.routes.ts - GET /api/clients/:clientId/funnels
+  /*
   app.get("/api/clients/:clientId/funnels", async (req, res) => {
     try {
       const { clientId } = req.params;
@@ -3330,8 +3337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar funis do cliente" });
     }
   });
+  */
 
   // Company interactions and funnels routes
+  // MIGRADO PARA MODULAR: server/routes/companies.routes.ts - GET /api/companies/:companyId/interactions
+  /*
   app.get("/api/companies/:companyId/interactions", async (req, res) => {
     try {
       const { companyId } = req.params;
@@ -3342,7 +3352,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar interações da empresa" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/companies.routes.ts - GET /api/companies/:companyId/funnels
+  /*
   app.get("/api/companies/:companyId/funnels", async (req, res) => {
     try {
       const { companyId } = req.params;
@@ -3353,12 +3366,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar funis da empresa" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/companies.routes.ts - GET /api/companies/:companyId/deals/:dealId/answered-questions
+  /*
   // Get answered questions for a specific deal of a company
   app.get(
     "/api/companies/:companyId/deals/:dealId/answered-questions",
     getDealAnsweredQuestionsController
   );
+  */
 
   // app.post("/api/interactions", async (req, res) => {
   //   try {
@@ -3370,6 +3387,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
+  // MIGRADO PARA MODULAR: server/routes/interactions.routes.ts - PUT /api/interactions/:id
+  /*
   app.put("/api/interactions/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3380,7 +3399,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar interação" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/interactions.routes.ts - DELETE /api/interactions/:id
+  /*
   app.delete("/api/interactions/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3391,7 +3413,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir interação" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - POST /api/user-goals
+  /*
   app.post("/api/user-goals", async (req, res) => {
     try {
       const validatedData = insertUserGoalSchema.parse(req.body);
@@ -3424,7 +3449,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao criar meta" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts - PUT /api/user-goals/:id
+  /*
   app.put("/api/user-goals/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3440,7 +3468,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar meta" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/user-goals.routes.ts (DELETE /api/user-goals/:id)
+  /*
   app.delete("/api/user-goals/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3454,8 +3485,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir meta" });
     }
   });
+  */
 
   // Weekly Results routes
+  // MIGRADO PARA MODULAR: server/routes/weekly-results.routes.ts (GET /api/weekly-results)
+  /*
   app.get("/api/weekly-results", async (req, res) => {
     try {
       const results = await storage.getAllWeeklyResults();
@@ -3465,18 +3499,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar resultados semanais" });
     }
   });
+  */
 
-  app.get("/api/weekly-results/:goalId", async (req, res) => {
-    try {
-      const { goalId } = req.params;
-      const results = await storage.getWeeklyResultsByGoalId(goalId);
-      res.json(results);
-    } catch (error) {
-      console.error("Erro ao buscar resultados semanais:", error);
-      res.status(500).json({ message: "Erro ao buscar resultados semanais" });
-    }
-  });
+  // app.get("/api/weekly-results/:goalId", async (req, res) => {
+  //   try {
+  //     const { goalId } = req.params;
+  //     const results = await storage.getWeeklyResultsByGoalId(goalId);
+  //     res.json(results);
+  //   } catch (error) {
+  //     console.error("Erro ao buscar resultados semanais:", error);
+  //     res.status(500).json({ message: "Erro ao buscar resultados semanais" });
+  //   }
+  // });
 
+  // MIGRADO PARA MODULAR: server/routes/weekly-results.routes.ts (POST /api/weekly-results)
+  /*
   app.post("/api/weekly-results", async (req, res) => {
     try {
       const validatedData = insertWeeklyResultSchema.parse(req.body);
@@ -3508,7 +3545,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao salvar resultado semanal" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/weekly-results.routes.ts (PUT /api/weekly-results/:id)
+  /*
   app.put("/api/weekly-results/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3524,7 +3564,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar resultado semanal" });
     }
   });
+  */
 
+  // MIGRADO PARA MODULAR: server/routes/weekly-results.routes.ts (DELETE /api/weekly-results/:id)
+  /*
   app.delete("/api/weekly-results/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -3540,6 +3583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao excluir resultado semanal" });
     }
   });
+  */
 
   // Telemarketing Goals routes
   app.get("/api/telemarketing-goals", async (req, res) => {

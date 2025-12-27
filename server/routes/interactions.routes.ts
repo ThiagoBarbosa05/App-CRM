@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { createInteractionController } from "../controllers/interactions/post-interaction.controller";
+import { putInteractionController } from "../controllers/interactions/put-interaction.controller";
+import { deleteInteractionController } from "../controllers/interactions/delete-interaction.controller";
 
 /**
  * Router específico para endpoints relacionados a interações com clientes
@@ -101,5 +103,21 @@ export const interactionsRouter = Router();
  *   - whatsapp: Conversa via WhatsApp
  */
 interactionsRouter.post("/", createInteractionController);
+
+/**
+ * @route PUT /api/interactions/:id
+ * @description Atualiza uma interação
+ * @access Private
+ * @urlParams {string} id - ID da interação
+ */
+interactionsRouter.put("/:id", putInteractionController);
+
+/**
+ * @route DELETE /api/interactions/:id
+ * @description Exclui uma interação
+ * @access Private
+ * @urlParams {string} id - ID da interação
+ */
+interactionsRouter.delete("/:id", deleteInteractionController);
 
 export default interactionsRouter;

@@ -3,6 +3,10 @@ import {
   getUserGoalsController,
   getUserGoalByIdController,
   getUserGoalsWithResultsController,
+  getUserRegistrationStatsController,
+  postUserGoalsController,
+  putUserGoalsController,
+  deleteUserGoalsController,
 } from "../controllers/user-goals/index";
 
 /**
@@ -37,6 +41,27 @@ const userGoalsRouter = Router();
  * - Usado para visualização geral de metas por administradores
  */
 userGoalsRouter.get("/", getUserGoalsController);
+
+/**
+ * @route POST /api/user-goals
+ * @description Cria uma meta de usuário; se já existir para o mesmo userId/mês/ano, atualiza
+ * @access Private
+ */
+userGoalsRouter.post("/", postUserGoalsController);
+
+/**
+ * @route PUT /api/user-goals/:id
+ * @description Atualiza uma meta de usuário pelo ID da meta
+ * @access Private
+ */
+userGoalsRouter.put("/:id", putUserGoalsController);
+
+/**
+ * @route DELETE /api/user-goals/:id
+ * @description Exclui uma meta de usuário pelo ID da meta
+ * @access Private
+ */
+userGoalsRouter.delete("/:id", deleteUserGoalsController);
 
 /**
  * @route GET /api/user-goals/:userId
@@ -105,3 +130,25 @@ userGoalsWithResultsRouter.get(
 );
 
 export { userGoalsWithResultsRouter };
+
+/**
+ * Router separado para rota user-registration-stats
+ * Necessário porque o caminho não é subroute de /user-goals
+ */
+const userRegistrationStatsRouter = Router();
+
+/**
+ * @route GET /api/user-registration-stats
+ * @description Busca estatísticas de cadastro de usuários
+ * @access Private (requer autenticação)
+ * @returns {Object} Estatísticas de cadastro
+ *
+ * @example Request
+ * GET /api/user-registration-stats
+ *
+ * @notes
+ * - Mantém o mesmo comportamento da rota monolítica
+ */
+userRegistrationStatsRouter.get("/", getUserRegistrationStatsController);
+
+export { userRegistrationStatsRouter };

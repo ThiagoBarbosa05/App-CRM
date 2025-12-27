@@ -7,16 +7,22 @@ import { dealQuestionsRouter } from "./deal-questions.routes";
 import { dealAnswersRouter } from "./deal-answers.routes";
 import { usersRouter } from "./users.routes";
 import { birthdaysRouter } from "./birthdays.routes";
-import tagsRouter, { categoriesRouter, originsRouter, markersRouter } from "./tags.routes";
+import tagsRouter, {
+  categoriesRouter,
+  originsRouter,
+  markersRouter,
+} from "./tags.routes";
 import { interactionsRouter } from "./interactions.routes";
 import { cashbackSettingsRouter } from "./cashback-settings.routes";
 import { cashbackRouter } from "./cashback.routes";
 import { salesRouter } from "./sales.routes";
 import { sectorsRouter } from "./sectors.routes";
+import weeklyResultsRouter from "./weekly-results.routes";
 import automationTriggersRouter from "./automation-triggers";
 import automationExecutionRouter from "./automation-execution.routes";
 import userGoalsRouter, {
   userGoalsWithResultsRouter,
+  userRegistrationStatsRouter,
 } from "./user-goals.routes";
 
 /**
@@ -50,6 +56,8 @@ apiRouter.use("/automations", automationTriggersRouter);
 apiRouter.use("/automation", automationExecutionRouter);
 apiRouter.use("/user-goals", userGoalsRouter);
 apiRouter.use("/user-goals-with-results", userGoalsWithResultsRouter);
+apiRouter.use("/user-registration-stats", userRegistrationStatsRouter);
+apiRouter.use("/weekly-results", weeklyResultsRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);
