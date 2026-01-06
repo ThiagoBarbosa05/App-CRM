@@ -1,8 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-// import "./jobs/birthday-job-scheduler";
-// import "./jobs/update-expired-events-scheduler";
+import "./jobs/birthday-job-scheduler";
+import "./jobs/update-expired-events-scheduler";
 import {
   initializePubSubSubscriber,
   shutdownPubSubSubscriber,
