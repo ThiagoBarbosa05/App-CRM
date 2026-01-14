@@ -34,6 +34,7 @@ import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { TagSelector } from "@/components/ui/tag-selector";
 
 interface ClientFormModalProps {
   open: boolean;
@@ -155,6 +156,7 @@ export default function ClientFormModal({
       responsavelId: client?.responsavelId || user?.id || "",
       categoria: client?.categoria || "",
       origem: client?.origem || "",
+      externalTagIds: [],
     },
     mode: "onChange",
   });
@@ -648,6 +650,29 @@ export default function ClientFormModal({
                         ))}
                       </div>
                     )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="externalTagIds"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Tags do Umbler</FormLabel>
+                    <FormControl>
+                      <TagSelector
+                        selectedTags={field.value || []}
+                        onTagsChange={field.onChange}
+                        placeholder="Selecione tags para associar ao cliente..."
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tags ajudam a organizar e segmentar seus clientes no
+                      Umbler
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

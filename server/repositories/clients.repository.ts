@@ -10,6 +10,8 @@ import {
   deals,
   userServiceChannel,
   serviceChannels,
+  clientTags,
+  externalTags,
 } from "@shared/schema";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -400,6 +402,93 @@ export class ClientsRepository {
     } catch (error) {
       console.error("Erro ao buscar canal de serviço do usuário:", error);
       return null;
+    }
+  }
+
+  /**
+   * Associa tags externas ao cliente
+   * @param clientId - ID do cliente
+   * @param externalTagIds - Array de IDs de tags externas do Umbler
+   */
+  async syncClientTags(
+    clientId: string,
+    externalTagIds: string[]
+  ): Promise<void> {
+    try {
+      // Primeiro, remove todas as tags antigas do cliente
+      await this.db.delete(clientTags).where(eq(clientTags.clientId, clientId));
+
+      // Se não há tags para adicionar, retorna
+      if (!externalTagIds || externalTagIds.length === 0) {
+        return;
+      }
+
+      // Para cada externalTagId, verificar se já existe na tabela externalTags
+      // Se não existir, criar um registro
+      for (const externalTagId of externalTagIds) {
+        // Buscar se já existe
+        const [existingTag] = await this.db
+          .select()
+          .from(externalTags)
+          .where(eq(externalTags.externalId, externalTagId))
+          .limit(1);
+
+        let tagId: string;
+
+        if (existingTag) {
+          tagId = existingTag.id;
+        } else {
+          // Criar novo registro na tabela externalTags
+          const [newTag] = await this.db
+            .insert(externalTags)
+            .values({
+              externalId: externalTagId,
+              externalTagName: null, // Pode ser preenchido posteriormente
+            })
+            .returning();
+
+          tagId = newTag.id;
+        }
+
+        // Criar associação na tabela clientTags
+        await this.db.insert(clientTags).values({
+          clientId: clientId,
+          externalTagId: tagId,
+        });
+      }
+
+      console.log(
+        `Tags sincronizadas para o cliente ${clientId}: ${externalTagIds.join(
+          ", "
+        )}`
+      );
+    } catch (error) {
+      console.error("Erro ao sincronizar tags do cliente:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca as tags externas associadas a um cliente
+   * @param clientId - ID do cliente
+   * @returns Array de IDs de tags externas
+   */
+  async getClientTags(clientId: string): Promise<string[]> {
+    try {
+      const tags = await this.db
+        .select({
+          externalId: externalTags.externalId,
+        })
+        .from(clientTags)
+        .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
+        .where(eq(clientTags.clientId, clientId));
+
+      return tags
+        .map((tag) => tag.externalId)
+        .filter((id): id is string => id !== null);
+    } catch (error) {
+      console.error("Erro ao buscar tags do cliente:", error);
+      return [];
     }
   }
 }

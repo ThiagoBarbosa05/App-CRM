@@ -265,12 +265,12 @@ export default function ClientsTableWithSelection({
                     )}
                   </button>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[120px]">
+                {/* <th className="p-4 text-left font-semibold text-gray-700 min-w-[120px]">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-gray-500" />
                     Status
                   </div>
-                </th>
+                </th> */}
                 <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-gray-500" />
@@ -376,7 +376,7 @@ export default function ClientsTableWithSelection({
                       </div>
                     </div>
                   </td>
-                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                  {/* <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     {client.status === "pending" ? (
                       <div className="flex items-center gap-2">
                         <Badge
@@ -405,7 +405,7 @@ export default function ClientsTableWithSelection({
                         Confirmado
                       </Badge>
                     )}
-                  </td>
+                  </td> */}
                   <td className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">

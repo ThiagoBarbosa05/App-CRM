@@ -470,6 +470,30 @@ export const tags = pgTable("tags", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const externalTags = pgTable("external_tags", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  externalId: varchar("external_id"),
+  externalTagName: text("external_tag_name"),
+});
+
+export const clientTags = pgTable("client_tags", {
+  externalTagId: varchar("external_tag_id"),
+  clientId: varchar("client_id"),
+});
+
+export const clientTagRelations = relations(clientTags, ({ one }) => ({
+  externalTag: one(externalTags, {
+    fields: [clientTags.externalTagId],
+    references: [externalTags.id],
+  }),
+  client: one(clients, {
+    fields: [clientTags.clientId],
+    references: [clients.id],
+  }),
+}));
+
 export const clientInteractions = pgTable("client_interactions", {
   id: varchar("id")
     .primaryKey()
@@ -833,6 +857,9 @@ export const insertClientSchema = createInsertSchema(clients)
     id: true,
     createdAt: true,
   })
+  .extend({
+    externalTagIds: z.array(z.string()).optional(), // IDs das tags externas do Umbler
+  })
   .refine(
     (data) => {
       // Se birthday foi informado, validar maioridade
@@ -883,6 +910,9 @@ export const updateClientSchema = createInsertSchema(clients)
   .omit({
     id: true,
     createdAt: true,
+  })
+  .extend({
+    externalTagIds: z.array(z.string()).optional(), // IDs das tags externas do Umbler
   })
   .partial()
   .refine(

@@ -8,6 +8,8 @@ import {
   createContactNote,
   createChat,
   sendMessage,
+  assignTagToContact,
+  getContactByPhone,
 } from "../integrations/umbler";
 import { formatPhoneToDigits } from "@/lib/format-phone-number";
 
@@ -233,12 +235,12 @@ export class ClientsService {
       const confirmationCode = generateConfirmationCode();
 
       // Primeiro, criar o contato no Umbler
-      // const umblerContact = await syncContact({
-      //   phoneNumber: formatPhoneToDigits(validatedData.phone),
-      //   name: validatedData.name,
-      //   email: validatedData.email || undefined,
-      //   organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
-      // });
+      const umblerContact = await syncContact({
+        phoneNumber: formatPhoneToDigits(validatedData.phone),
+        name: validatedData.name,
+        email: validatedData.email || undefined,
+        organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+      });
 
       // if (!umblerContact) {
       //   throw new Error(
@@ -329,6 +331,45 @@ export class ClientsService {
         clientDataToInsert
       );
 
+      // Sincronizar tags no Umbler e no banco de dados local
+      if (
+        validatedData.externalTagIds &&
+        validatedData.externalTagIds.length > 0 &&
+        umblerContact?.contact?.id
+      ) {
+        try {
+          // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
+          const tagAssignmentPromises = validatedData.externalTagIds.map(
+            (tagId) => assignTagToContact(umblerContact.contact.id, tagId)
+          );
+
+          const tagResults = await Promise.allSettled(tagAssignmentPromises);
+
+          // Verificar se houve falhas
+          const failedTags = tagResults.filter(
+            (result) => result.status === "rejected"
+          );
+          if (failedTags.length > 0) {
+            console.warn(
+              `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
+            );
+          }
+
+          // Sincronizar tags no banco de dados local
+          await this.clientsRepository.syncClientTags(
+            client.id,
+            validatedData.externalTagIds
+          );
+
+          console.log(
+            `Tags sincronizadas com sucesso para o cliente ${client.id}`
+          );
+        } catch (error) {
+          console.error("Erro ao sincronizar tags do cliente:", error);
+          // Não interrompe o fluxo de criação do cliente
+        }
+      }
+
       return {
         ...client,
         requiresConfirmation: true,
@@ -385,6 +426,55 @@ export class ClientsService {
       // Verificar se o cliente foi encontrado
       if (!client) {
         throw new Error("CLIENT_NOT_FOUND");
+      }
+
+      // Sincronizar tags se foram fornecidas
+      if (
+        validatedData.externalTagIds !== undefined &&
+        Array.isArray(validatedData.externalTagIds)
+      ) {
+        try {
+          // Buscar contato no Umbler pelo telefone do cliente
+          const umblerContact = await getContactByPhone(
+            formatPhoneToDigits(client.phone)
+          );
+
+          if (umblerContact?.contact?.id) {
+            // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
+            const tagAssignmentPromises = validatedData.externalTagIds.map(
+              (tagId) => assignTagToContact(umblerContact.contact.id, tagId)
+            );
+
+            const tagResults = await Promise.allSettled(tagAssignmentPromises);
+
+            // Verificar se houve falhas
+            const failedTags = tagResults.filter(
+              (result) => result.status === "rejected"
+            );
+            if (failedTags.length > 0) {
+              console.warn(
+                `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
+              );
+            }
+          } else {
+            console.warn(
+              `Contato não encontrado no Umbler para o telefone ${client.phone}. Tags não foram sincronizadas no Umbler.`
+            );
+          }
+
+          // Sincronizar tags no banco de dados local (independente do Umbler)
+          await this.clientsRepository.syncClientTags(
+            clientId,
+            validatedData.externalTagIds
+          );
+
+          console.log(
+            `Tags sincronizadas com sucesso para o cliente ${clientId}`
+          );
+        } catch (error) {
+          console.error("Erro ao sincronizar tags do cliente:", error);
+          // Não interrompe o fluxo de atualização do cliente
+        }
       }
 
       return client;

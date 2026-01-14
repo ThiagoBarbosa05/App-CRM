@@ -1552,6 +1552,35 @@ export async function getTags(): Promise<GetTagsResponse | null> {
   }
 }
 
+export async function assignTagToContact(
+  contactId: string,
+  tagId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${apiEndpoint}/contacts/${contactId}/tags`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ tagId, organizationId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        "Failed to assign tag to contact: " + JSON.stringify(error)
+      );
+    }
+
+    console.log("Tag assigned to contact successfully");
+    return true;
+  } catch (error) {
+    console.error("Error assigning tag to contact:", error);
+    return false;
+  }
+}
+
 /**
  * Cria uma sessão de envio em lote (bulk send session) para campanhas
  * @param data - Dados da sessão de envio em lote

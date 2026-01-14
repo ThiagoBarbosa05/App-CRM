@@ -65,6 +65,7 @@ export const clientValidationSchema = z.object({
   responsavelId: z.string().optional(),
   categoria: z.string().optional().or(z.literal("")),
   origem: z.string().optional().or(z.literal("")),
+  externalTagIds: z.array(z.string()).optional(), // IDs das tags do Umbler
 });
 
 export const dealValidationSchema = z.object({
