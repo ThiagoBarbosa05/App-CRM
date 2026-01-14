@@ -319,8 +319,11 @@ export class ClientsService {
       // );
 
       // Criar cliente no banco de dados com status pendente e código de confirmação
+      // Remover externalTagIds dos dados a serem inseridos (não existe na tabela)
+      const { externalTagIds, ...clientDataWithoutTags } = validatedData;
+
       const clientDataToInsert = {
-        ...validatedData,
+        ...clientDataWithoutTags,
         status: "pending" as const,
         confirmationCodeSentAt: new Date(),
         // umblerContactId: umblerContact.contact.id,
@@ -331,16 +334,23 @@ export class ClientsService {
         clientDataToInsert
       );
 
+      console.log("Cliente criado:", client.id);
+      console.log("Tags recebidas:", externalTagIds);
+
       // Sincronizar tags no Umbler e no banco de dados local
       if (
-        validatedData.externalTagIds &&
-        validatedData.externalTagIds.length > 0 &&
+        externalTagIds &&
+        externalTagIds.length > 0 &&
         umblerContact?.contact?.id
       ) {
         try {
+          console.log(
+            `Iniciando sincronização de ${externalTagIds.length} tags para o cliente ${client.id}`
+          );
+
           // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
-          const tagAssignmentPromises = validatedData.externalTagIds.map(
-            (tagId) => assignTagToContact(umblerContact.contact.id, tagId)
+          const tagAssignmentPromises = externalTagIds.map((tagId) =>
+            assignTagToContact(umblerContact.contact.id, tagId)
           );
 
           const tagResults = await Promise.allSettled(tagAssignmentPromises);
@@ -351,14 +361,20 @@ export class ClientsService {
           );
           if (failedTags.length > 0) {
             console.warn(
-              `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
+              `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${externalTagIds.length}`
             );
+            // Log dos erros específicos
+            failedTags.forEach((result, index) => {
+              if (result.status === "rejected") {
+                console.error(`Tag ${index} falhou:`, result.reason);
+              }
+            });
           }
 
           // Sincronizar tags no banco de dados local
           await this.clientsRepository.syncClientTags(
             client.id,
-            validatedData.externalTagIds
+            externalTagIds
           );
 
           console.log(
@@ -428,15 +444,30 @@ export class ClientsService {
         throw new Error("CLIENT_NOT_FOUND");
       }
 
+      console.log("Cliente atualizado:", clientId);
+      console.log(
+        "Tags recebidas para atualização:",
+        validatedData.externalTagIds
+      );
+
       // Sincronizar tags se foram fornecidas
       if (
         validatedData.externalTagIds !== undefined &&
         Array.isArray(validatedData.externalTagIds)
       ) {
         try {
+          console.log(
+            `Iniciando sincronização de ${validatedData.externalTagIds.length} tags para o cliente ${clientId}`
+          );
+
           // Buscar contato no Umbler pelo telefone do cliente
           const umblerContact = await getContactByPhone(
             formatPhoneToDigits(client.phone)
+          );
+
+          console.log(
+            "Contato encontrado no Umbler:",
+            umblerContact?.contact?.id
           );
 
           if (umblerContact?.contact?.id) {
@@ -455,6 +486,12 @@ export class ClientsService {
               console.warn(
                 `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
               );
+              // Log dos erros específicos
+              failedTags.forEach((result, index) => {
+                if (result.status === "rejected") {
+                  console.error(`Tag ${index} falhou:`, result.reason);
+                }
+              });
             }
           } else {
             console.warn(
