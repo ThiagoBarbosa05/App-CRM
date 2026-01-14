@@ -465,15 +465,12 @@ export class ClientsService {
             formatPhoneToDigits(client.phone)
           );
 
-          console.log(
-            "Contato encontrado no Umbler:",
-            umblerContact?.contact?.id
-          );
+          console.log("Contato encontrado no Umbler:", umblerContact.id);
 
-          if (umblerContact?.contact?.id) {
+          if (umblerContact?.id) {
             // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
             const tagAssignmentPromises = validatedData.externalTagIds.map(
-              (tagId) => assignTagToContact(umblerContact.contact.id, tagId)
+              (tagId) => assignTagToContact(umblerContact.id, tagId)
             );
 
             const tagResults = await Promise.allSettled(tagAssignmentPromises);
