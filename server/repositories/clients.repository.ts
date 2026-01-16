@@ -17,8 +17,61 @@ import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { ClientFilters } from "server/storage";
 
+// Tipo para tags otimizado
+export interface ClientTag {
+  id: string;
+  externalId: string | null;
+  name: string | null;
+}
+
 export class ClientsRepository {
   private db = db;
+
+  /**
+   * Método otimizado que busca tags para múltiplos clientes em uma única query
+   * Usa INNER JOIN para pegar todas as tags de uma vez, evitando problema N+1
+   * Performance: O(n) vs O(n*m) do método anterior com Promise.all
+   */
+  private async getClientsWithTags(clientsList: Client[]): Promise<any[]> {
+    if (clientsList.length === 0) {
+      return [];
+    }
+
+    const clientIds = clientsList.map((c) => c.id);
+
+    // Buscar todas as tags dos clientes em uma única query
+    const tagsData = await this.db
+      .select({
+        clientId: clientTags.clientId,
+        tagId: externalTags.id,
+        externalId: externalTags.externalId,
+        name: externalTags.externalTagName,
+      })
+      .from(clientTags)
+      .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
+      .where(inArray(clientTags.clientId, clientIds));
+
+    // Agrupar tags por cliente usando Map para lookup O(1)
+    const tagsByClient = new Map<string, ClientTag[]>();
+
+    for (const tagData of tagsData) {
+      const clientId = tagData.clientId!;
+      if (!tagsByClient.has(clientId)) {
+        tagsByClient.set(clientId, []);
+      }
+      tagsByClient.get(clientId)!.push({
+        id: tagData.tagId,
+        externalId: tagData.externalId,
+        name: tagData.name,
+      });
+    }
+
+    // Combinar clientes com suas tags
+    return clientsList.map((client) => ({
+      ...client,
+      tags: tagsByClient.get(client.id) || [],
+    }));
+  }
 
   async getClients(
     userId?: string,
@@ -87,18 +140,8 @@ export class ClientsRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Buscar tags para cada cliente
-    const clientsWithTags = await Promise.all(
-      result.map(async (client) => {
-        const tags = await this.getClientTags(client.id);
-        return {
-          ...client,
-          tags,
-        };
-      })
-    );
-
-    return clientsWithTags;
+    // Buscar tags de forma otimizada (1 query para todos os clientes)
+    return await this.getClientsWithTags(result);
   }
 
   async getClientsCount(
@@ -517,21 +560,21 @@ export class ClientsRepository {
   /**
    * Busca as tags externas associadas a um cliente
    * @param clientId - ID do cliente
-   * @returns Array de IDs de tags externas
+   * @returns Array de tags com id, externalId e name
    */
-  async getClientTags(clientId: string): Promise<string[]> {
+  async getClientTags(clientId: string): Promise<ClientTag[]> {
     try {
       const tags = await this.db
         .select({
+          id: externalTags.id,
           externalId: externalTags.externalId,
+          name: externalTags.externalTagName,
         })
         .from(clientTags)
         .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
         .where(eq(clientTags.clientId, clientId));
 
-      return tags
-        .map((tag) => tag.externalId)
-        .filter((id): id is string => id !== null);
+      return tags;
     } catch (error) {
       console.error("Erro ao buscar tags do cliente:", error);
       return [];

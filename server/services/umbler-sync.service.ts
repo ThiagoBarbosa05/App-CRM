@@ -51,6 +51,16 @@ export class UmblerSyncService {
     this.isSyncing = true;
     const startTime = Date.now();
 
+    console.log("═══════════════════════════════════════════════════════");
+    console.log("[UmblerSync] 🚀 Iniciando nova sincronização");
+    console.log("[UmblerSync] ⏰ Timestamp:", new Date().toISOString());
+    console.log("[UmblerSync] 📦 Batch size:", options.batchSize || 100);
+    console.log(
+      "[UmblerSync] 🎯 Specific clients:",
+      options.specificClientIds ? "Sim" : "Não"
+    );
+    console.log("═══════════════════════════════════════════════════════");
+
     const result: SyncResult = {
       success: true,
       clientsProcessed: 0,
@@ -63,54 +73,148 @@ export class UmblerSyncService {
 
     try {
       // Busca clientes para sincronizar
+      console.log("[UmblerSync] 🔍 Buscando clientes para sincronizar...");
       const clients = options.specificClientIds
         ? await umblerSyncRepository.getClientsByIds(options.specificClientIds)
         : await umblerSyncRepository.getClientsBatchForSync(
             options.batchSize || 100
           );
 
-      console.log(`[UmblerSync] Starting sync for ${clients.length} clients`);
+      console.log(`[UmblerSync] ✅ ${clients.length} clientes encontrados`);
+      if (clients.length === 0) {
+        console.log("[UmblerSync] ⚠️  Nenhum cliente para processar");
+      }
 
       // Processa cada cliente
+      console.log("[UmblerSync] 🔄 Iniciando processamento de clientes...");
       for (const client of clients) {
+        const clientStartTime = Date.now();
         try {
           await this.syncClient(client);
           result.clientsProcessed++;
+          const clientDuration = Date.now() - clientStartTime;
 
           // Log de progresso a cada 10 clientes
           if (result.clientsProcessed % 10 === 0) {
+            const progressPercent = (
+              (result.clientsProcessed / clients.length) *
+              100
+            ).toFixed(1);
+            const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+            const avgTimePerClient = (
+              (Date.now() - startTime) /
+              result.clientsProcessed
+            ).toFixed(0);
+            const estimatedRemaining = (
+              (((Date.now() - startTime) / result.clientsProcessed) *
+                (clients.length - result.clientsProcessed)) /
+              1000
+            ).toFixed(0);
+
             console.log(
-              `[UmblerSync] Progress: ${result.clientsProcessed}/${clients.length}`
+              "───────────────────────────────────────────────────────"
+            );
+            console.log(
+              `[UmblerSync] 📊 Progresso: ${result.clientsProcessed}/${clients.length} (${progressPercent}%)`
+            );
+            console.log(
+              `[UmblerSync] ⏱️  Tempo decorrido: ${elapsedTime}s | Média: ${avgTimePerClient}ms/cliente`
+            );
+            console.log(
+              `[UmblerSync] 🔮 Tempo estimado restante: ${estimatedRemaining}s`
+            );
+            console.log(
+              `[UmblerSync] ✅ Sincronizados: ${result.clientsSynced} | ❌ Erros: ${result.clientsError} | 🔍 Não encontrados: ${result.clientsNotFound}`
+            );
+            console.log(
+              "───────────────────────────────────────────────────────"
             );
           }
         } catch (error) {
           result.clientsError++;
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
           result.errors.push({
             clientId: client.id,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMsg,
           });
           console.error(
-            `[UmblerSync] Error syncing client ${client.id}:`,
-            error
+            `[UmblerSync] ❌ Erro ao sincronizar cliente ${client.id} (${client.name}):`,
+            errorMsg
           );
         }
       }
 
       result.duration = Date.now() - startTime;
 
-      console.log("[UmblerSync] Batch sync completed", {
-        processed: result.clientsProcessed,
-        synced: result.clientsSynced,
-        notFound: result.clientsNotFound,
-        errors: result.clientsError,
-        duration: `${result.duration}ms`,
-      });
+      const successRate =
+        result.clientsProcessed > 0
+          ? ((result.clientsSynced / result.clientsProcessed) * 100).toFixed(1)
+          : "0.0";
+      const errorRate =
+        result.clientsProcessed > 0
+          ? ((result.clientsError / result.clientsProcessed) * 100).toFixed(1)
+          : "0.0";
+
+      console.log("═══════════════════════════════════════════════════════");
+      console.log("[UmblerSync] ✅ Sincronização batch concluída com sucesso!");
+      console.log("═══════════════════════════════════════════════════════");
+      console.log("[UmblerSync] 📈 RESUMO DA EXECUÇÃO:");
+      console.log(
+        `[UmblerSync] 📦 Total processado: ${result.clientsProcessed} clientes`
+      );
+      console.log(
+        `[UmblerSync] ✅ Sincronizados: ${result.clientsSynced} (${successRate}%)`
+      );
+      console.log(`[UmblerSync] 🔍 Não encontrados: ${result.clientsNotFound}`);
+      console.log(
+        `[UmblerSync] ❌ Erros: ${result.clientsError} (${errorRate}%)`
+      );
+      console.log(
+        `[UmblerSync] ⏱️  Duração total: ${(result.duration / 1000).toFixed(
+          2
+        )}s`
+      );
+      console.log(
+        `[UmblerSync] ⚡ Velocidade média: ${(
+          result.duration / result.clientsProcessed
+        ).toFixed(0)}ms/cliente`
+      );
+      console.log(`[UmblerSync] 🕐 Finalizado em: ${new Date().toISOString()}`);
+
+      if (result.errors.length > 0) {
+        console.log("[UmblerSync] 🚨 ERROS ENCONTRADOS:");
+        result.errors.forEach((err, idx) => {
+          console.log(
+            `[UmblerSync]   ${idx + 1}. Cliente ${err.clientId}: ${err.error}`
+          );
+        });
+      }
+      console.log("═══════════════════════════════════════════════════════");
 
       return result;
     } catch (error) {
       result.success = false;
       result.duration = Date.now() - startTime;
-      console.error("[UmblerSync] Batch sync failed:", error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      console.error("═══════════════════════════════════════════════════════");
+      console.error("[UmblerSync] 🔥 FALHA CRÍTICA NA SINCRONIZAÇÃO");
+      console.error("═══════════════════════════════════════════════════════");
+      console.error("[UmblerSync] ❌ Erro:", errorMsg);
+      console.error(
+        "[UmblerSync] 📊 Processados antes da falha:",
+        result.clientsProcessed
+      );
+      console.error(
+        "[UmblerSync] ⏱️  Duração até falha:",
+        (result.duration / 1000).toFixed(2) + "s"
+      );
+      console.error("[UmblerSync] 🕐 Timestamp:", new Date().toISOString());
+      if (error instanceof Error && error.stack) {
+        console.error("[UmblerSync] 📜 Stack trace:", error.stack);
+      }
+      console.error("═══════════════════════════════════════════════════════");
       throw error;
     } finally {
       this.isSyncing = false;
@@ -121,8 +225,14 @@ export class UmblerSyncService {
    * Sincroniza um único cliente
    */
   private async syncClient(client: ClientForSync): Promise<void> {
+    console.log(
+      `[UmblerSync] 👤 Processando cliente: ${client.name} (${client.id})`
+    );
+
     // 1. Normaliza telefone para E.164 usando formatPhoneToDigits
+    console.log(`[UmblerSync]   📞 Telefone original: ${client.phone}`);
     const phoneE164 = formatPhoneToDigits(client.phone);
+    console.log(`[UmblerSync]   📞 Telefone normalizado: ${phoneE164}`);
 
     if (!phoneE164 || !isValidE164Phone(phoneE164)) {
       console.warn(
@@ -148,16 +258,29 @@ export class UmblerSyncService {
 
       if (daysSinceNotFound < 7) {
         console.log(
-          `[UmblerSync] Skipping client ${client.id} - not found in Umbler recently`
+          `[UmblerSync]   ⏭️  Pulando cliente - marcado como "não encontrado" há ${daysSinceNotFound.toFixed(
+            1
+          )} dias`
         );
         return;
+      } else {
+        console.log(
+          `[UmblerSync]   🔄 Cache de "não encontrado" expirou (${daysSinceNotFound.toFixed(
+            1
+          )} dias) - tentando novamente`
+        );
       }
     }
 
     // 4. Rate limiting - aguarda slot disponível
+    const remainingSlots = this.rateLimiter.getRemainingRequests();
+    console.log(
+      `[UmblerSync]   🚦 Rate limit - slots disponíveis: ${remainingSlots}/100`
+    );
     await this.rateLimiter.waitForSlot();
 
     // 5. Consulta Umbler com retry
+    console.log(`[UmblerSync]   🌐 Consultando Umbler API...`);
     let contact;
     try {
       contact = await retryWithBackoff(
@@ -168,30 +291,47 @@ export class UmblerSyncService {
         3,
         1000
       );
+      console.log(
+        `[UmblerSync]   ✅ Contato encontrado no Umbler: ${contact?.id}`
+      );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
       // Se erro 404, marca como não encontrado
       if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        console.log(`[UmblerSync]   🔍 Contato não encontrado no Umbler (404)`);
         await umblerSyncRepository.markAsNotFound(client.id);
         return;
       }
 
       // Outros erros
+      console.error(
+        `[UmblerSync]   ❌ Erro ao consultar Umbler: ${errorMessage}`
+      );
       await umblerSyncRepository.markAsError(client.id, errorMessage);
       throw error;
     }
 
     // 6. Contato não encontrado
     if (!contact) {
+      console.log(`[UmblerSync]   🔍 Contato não retornado pela API`);
       await umblerSyncRepository.markAsNotFound(client.id);
       return;
     }
 
     // 7. Calcula hash das tags
     const tags: UmblerTag[] = contact.tags || [];
+    console.log(`[UmblerSync]   🏷️  Tags recebidas: ${tags.length}`);
+    if (tags.length > 0) {
+      console.log(
+        `[UmblerSync]   📝 Tags: ${tags.map((t) => t.name).join(", ")}`
+      );
+    }
     const tagsHash = calculateTagsHash(tags);
+    console.log(
+      `[UmblerSync]   🔐 Hash calculado: ${tagsHash.substring(0, 16)}...`
+    );
 
     // 8. Verifica se houve mudança
     const hasChanged = umblerSyncRepository.hasTagsChanged(
@@ -201,15 +341,19 @@ export class UmblerSyncService {
 
     if (!hasChanged) {
       console.log(
-        `[UmblerSync] No changes for client ${client.id} - skipping update`
+        `[UmblerSync]   ⏭️  Sem mudanças detectadas - atualizando timestamp apenas`
       );
       await umblerSyncRepository.touchSnapshot(client.id);
       return;
     }
 
+    console.log(
+      `[UmblerSync]   🔄 Mudanças detectadas - sincronizando tags...`
+    );
+
     // 9. Atualiza tags no CRM
     console.log(
-      `[UmblerSync] Syncing tags for client ${client.id} - ${tags.length} tags`
+      `[UmblerSync]   💾 Sincronizando ${tags.length} tags no CRM...`
     );
 
     // Mapear tags para formato { id, name }
@@ -221,9 +365,13 @@ export class UmblerSyncService {
     try {
       // Usa o repository existente para sincronizar tags
       await this.clientsRepository.syncClientTags(client.id, tagsData);
+      console.log(`[UmblerSync]   ✅ Tags sincronizadas com sucesso no CRM`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      console.error(
+        `[UmblerSync]   ❌ Erro ao sincronizar tags no CRM: ${errorMessage}`
+      );
       await umblerSyncRepository.markAsError(
         client.id,
         `Failed to sync tags: ${errorMessage}`
@@ -232,6 +380,7 @@ export class UmblerSyncService {
     }
 
     // 10. Atualiza snapshot
+    console.log(`[UmblerSync]   💾 Atualizando snapshot local...`);
     await umblerSyncRepository.upsertSnapshot({
       crmClientId: client.id,
       phoneE164,
@@ -239,6 +388,10 @@ export class UmblerSyncService {
       tagsHash,
       tagsJson: JSON.stringify(tags),
     });
+    console.log(`[UmblerSync]   ✅ Snapshot atualizado com sucesso`);
+    console.log(
+      `[UmblerSync] ✨ Cliente ${client.name} sincronizado com sucesso!`
+    );
 
     // 11. Throttle entre requisições
     await this.rateLimiter.throttle();
