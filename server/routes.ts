@@ -5260,6 +5260,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ received: true });
   });
 
+  // Rotas de sincronização Umbler → CRM
+  const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
+  app.use("/api/umbler-sync", umblerSyncRoutes.default);
+
   // Middleware de tratamento de erros deve ser o último
   app.use(errorHandler);
 

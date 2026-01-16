@@ -1,0 +1,116 @@
+# ===================================================================
+# Cron Configuration for Umbler → CRM Tag Sync
+# ===================================================================
+#
+# Para editar: crontab -e
+# Para listar: crontab -l
+# Para remover: crontab -r
+#
+# Formato: MIN HOUR DAY MONTH WEEKDAY COMMAND
+# ===================================================================
+
+# Diretório do projeto
+PROJECT_DIR=/home/thiago/dev/App-CRM
+
+# ===================================================================
+# OPÇÃO 1: Sincronização frequente (a cada 30 minutos)
+# ===================================================================
+# Ideal para alta frequência de mudanças
+# Processa 100 clientes por vez
+# Ciclo completo: ~2.5 horas (5000 clientes / 100 por batch / 2 batches por hora)
+
+*/30 * * * * cd $PROJECT_DIR && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+
+# ===================================================================
+# OPÇÃO 2: Sincronização moderada (a cada 1 hora)
+# ===================================================================
+# Balanceado entre frequência e carga do sistema
+# Ciclo completo: ~5 horas
+
+# 0 * * * * cd $PROJECT_DIR && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+
+# ===================================================================
+# OPÇÃO 3: Sincronização por período (horário comercial)
+# ===================================================================
+# Executa apenas das 8h às 18h, de segunda a sexta
+# Reduz carga fora do horário de trabalho
+
+# 0 8-18 * * 1-5 cd $PROJECT_DIR && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+
+# ===================================================================
+# OPÇÃO 4: Sincronização noturna (baixa carga)
+# ===================================================================
+# Executa uma vez por dia às 2h da manhã
+# Batch maior para processar mais clientes de uma vez
+
+# 0 2 * * * cd $PROJECT_DIR && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+
+# ===================================================================
+# TAREFA DE LIMPEZA: Remover snapshots órfãos
+# ===================================================================
+# Executa uma vez por semana (domingo às 3h)
+# Remove snapshots de clientes deletados
+
+# 0 3 * * 0 cd $PROJECT_DIR && curl -X POST http://localhost:5000/api/umbler-sync/cleanup >> logs/umbler-cleanup.log 2>&1
+
+# ===================================================================
+# MONITORAMENTO: Verificar status da sincronização
+# ===================================================================
+# Executa a cada 6 horas para monitorar saúde do sistema
+# Pode ser integrado com sistema de alertas
+
+# 0 */6 * * * cd $PROJECT_DIR && curl http://localhost:5000/api/umbler-sync/stats >> logs/umbler-stats.log 2>&1
+
+# ===================================================================
+# EXEMPLO COMPLETO - CONFIGURAÇÃO RECOMENDADA
+# ===================================================================
+# 
+# # Sincronização a cada 30 minutos (horário comercial)
+# */30 8-18 * * 1-5 cd /home/thiago/dev/App-CRM && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+#
+# # Sincronização a cada 2 horas (fora do horário comercial e fins de semana)
+# 0 */2 * * * cd /home/thiago/dev/App-CRM && npm run sync:umbler >> logs/umbler-sync.log 2>&1
+#
+# # Limpeza semanal (domingo às 3h)
+# 0 3 * * 0 cd /home/thiago/dev/App-CRM && curl -X POST http://localhost:5000/api/umbler-sync/cleanup >> logs/umbler-cleanup.log 2>&1
+#
+# ===================================================================
+
+# ===================================================================
+# NOTAS IMPORTANTES
+# ===================================================================
+#
+# 1. VARIÁVEIS DE AMBIENTE
+#    O cron não carrega o .bashrc/.zshrc automaticamente.
+#    Se precisar de variáveis de ambiente:
+#    
+#    */30 * * * * cd $PROJECT_DIR && source .env && npm run sync:umbler
+#
+# 2. NODE VERSION
+#    Se usar nvm, adicione:
+#    
+#    */30 * * * * . ~/.nvm/nvm.sh && cd $PROJECT_DIR && npm run sync:umbler
+#
+# 3. LOGS ROTACIONADOS
+#    Considere usar logrotate para gerenciar tamanho dos logs:
+#    
+#    /etc/logrotate.d/umbler-sync:
+#    /home/thiago/dev/App-CRM/logs/*.log {
+#      daily
+#      rotate 30
+#      compress
+#      missingok
+#      notifempty
+#    }
+#
+# 4. RATE LIMITING
+#    Com batch de 100 e 60ms de throttle:
+#    - ~16 requisições por segundo
+#    - ~1000 requisições por minuto
+#    - Bem abaixo do limite de 100 req/5s
+#
+# 5. FAILOVER
+#    Se um job falhar, o próximo tentará novamente
+#    O sistema é idempotente e seguro para retry
+#
+# ===================================================================

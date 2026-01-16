@@ -494,6 +494,43 @@ export const clientTagRelations = relations(clientTags, ({ one }) => ({
   }),
 }));
 
+// Tabela de snapshot de sincronização Umbler → CRM
+export const umblerContactSnapshot = pgTable(
+  "umbler_contact_snapshot",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    crmClientId: varchar("crm_client_id")
+      .notNull()
+      .unique()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    phoneE164: text("phone_e164").notNull(),
+    umblerContactId: text("umbler_contact_id"),
+    tagsHash: text("tags_hash"),
+    tagsJson: text("tags_json"), // JSON stringified das tags
+    lastSyncedAt: timestamp("last_synced_at"),
+    lastCheckedAt: timestamp("last_checked_at").defaultNow().notNull(),
+    notFoundAt: timestamp("not_found_at"),
+    syncStatus: text("sync_status", {
+      enum: ["pending", "synced", "not_found", "error"],
+    })
+      .notNull()
+      .default("pending"),
+    errorMessage: text("error_message"),
+    retryCount: integer("retry_count").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("umbler_snapshot_client_idx").on(table.crmClientId),
+    index("umbler_snapshot_phone_idx").on(table.phoneE164),
+    index("umbler_snapshot_last_checked_idx").on(table.lastCheckedAt),
+    index("umbler_snapshot_not_found_idx").on(table.notFoundAt),
+    index("umbler_snapshot_status_idx").on(table.syncStatus),
+  ]
+);
+
 export const clientInteractions = pgTable("client_interactions", {
   id: varchar("id")
     .primaryKey()

@@ -335,56 +335,60 @@ export class ClientsService {
       );
 
       console.log("Cliente criado:", client.id);
-      console.log("Tags recebidas:", externalTagIds);
+      // console.log("Tags recebidas:", externalTagIds);
 
+      // ============================================================
+      // FLUXO DE SINCRONIZAÇÃO DE TAGS - DESABILITADO TEMPORARIAMENTE
+      // ============================================================
       // Sincronizar tags no Umbler e no banco de dados local
-      if (
-        externalTagIds &&
-        externalTagIds.length > 0 &&
-        umblerContact?.contact?.id
-      ) {
-        try {
-          console.log(
-            `Iniciando sincronização de ${externalTagIds.length} tags para o cliente ${client.id}`
-          );
+      // if (
+      //   externalTagIds &&
+      //   externalTagIds.length > 0 &&
+      //   umblerContact?.contact?.id
+      // ) {
+      //   try {
+      //     console.log(
+      //       `Iniciando sincronização de ${externalTagIds.length} tags para o cliente ${client.id}`
+      //     );
 
-          // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
-          const tagAssignmentPromises = externalTagIds.map((tagId) =>
-            assignTagToContact(umblerContact.contact.id, tagId)
-          );
+      //     // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
+      //     const tagAssignmentPromises = externalTagIds.map((tagId) =>
+      //       assignTagToContact(umblerContact.contact.id, tagId)
+      //     );
 
-          const tagResults = await Promise.allSettled(tagAssignmentPromises);
+      //     const tagResults = await Promise.allSettled(tagAssignmentPromises);
 
-          // Verificar se houve falhas
-          const failedTags = tagResults.filter(
-            (result) => result.status === "rejected"
-          );
-          if (failedTags.length > 0) {
-            console.warn(
-              `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${externalTagIds.length}`
-            );
-            // Log dos erros específicos
-            failedTags.forEach((result, index) => {
-              if (result.status === "rejected") {
-                console.error(`Tag ${index} falhou:`, result.reason);
-              }
-            });
-          }
+      //     // Verificar se houve falhas
+      //     const failedTags = tagResults.filter(
+      //       (result) => result.status === "rejected"
+      //     );
+      //     if (failedTags.length > 0) {
+      //       console.warn(
+      //         `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${externalTagIds.length}`
+      //       );
+      //       // Log dos erros específicos
+      //       failedTags.forEach((result, index) => {
+      //         if (result.status === "rejected") {
+      //           console.error(`Tag ${index} falhou:`, result.reason);
+      //         }
+      //       });
+      //     }
 
-          // Sincronizar tags no banco de dados local
-          await this.clientsRepository.syncClientTags(
-            client.id,
-            externalTagIds
-          );
+      //     // Sincronizar tags no banco de dados local
+      //     await this.clientsRepository.syncClientTags(
+      //       client.id,
+      //       externalTagIds
+      //     );
 
-          console.log(
-            `Tags sincronizadas com sucesso para o cliente ${client.id}`
-          );
-        } catch (error) {
-          console.error("Erro ao sincronizar tags do cliente:", error);
-          // Não interrompe o fluxo de criação do cliente
-        }
-      }
+      //     console.log(
+      //       `Tags sincronizadas com sucesso para o cliente ${client.id}`
+      //     );
+      //   } catch (error) {
+      //     console.error("Erro ao sincronizar tags do cliente:", error);
+      //     // Não interrompe o fluxo de criação do cliente
+      //   }
+      // }
+      // ============================================================
 
       return {
         ...client,
@@ -445,71 +449,75 @@ export class ClientsService {
       }
 
       console.log("Cliente atualizado:", clientId);
-      console.log(
-        "Tags recebidas para atualização:",
-        validatedData.externalTagIds
-      );
+      // console.log(
+      //   "Tags recebidas para atualização:",
+      //   validatedData.externalTagIds
+      // );
 
+      // ============================================================
+      // FLUXO DE SINCRONIZAÇÃO DE TAGS - DESABILITADO TEMPORARIAMENTE
+      // ============================================================
       // Sincronizar tags se foram fornecidas
-      if (
-        validatedData.externalTagIds !== undefined &&
-        Array.isArray(validatedData.externalTagIds)
-      ) {
-        try {
-          console.log(
-            `Iniciando sincronização de ${validatedData.externalTagIds.length} tags para o cliente ${clientId}`
-          );
+      // if (
+      //   validatedData.externalTagIds !== undefined &&
+      //   Array.isArray(validatedData.externalTagIds)
+      // ) {
+      //   try {
+      //     console.log(
+      //       `Iniciando sincronização de ${validatedData.externalTagIds.length} tags para o cliente ${clientId}`
+      //     );
 
-          // Buscar contato no Umbler pelo telefone do cliente
-          const umblerContact = await getContactByPhone(
-            formatPhoneToDigits(client.phone)
-          );
+      //     // Buscar contato no Umbler pelo telefone do cliente
+      //     const umblerContact = await getContactByPhone(
+      //       formatPhoneToDigits(client.phone)
+      //     );
 
-          console.log("Contato encontrado no Umbler:", umblerContact.id);
+      //     console.log("Contato encontrado no Umbler:", umblerContact.id);
 
-          if (umblerContact?.id) {
-            // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
-            const tagAssignmentPromises = validatedData.externalTagIds.map(
-              (tagId) => assignTagToContact(umblerContact.id, tagId)
-            );
+      //     if (umblerContact?.id) {
+      //       // Sincronizar tags no Umbler (chamadas em paralelo para melhor performance)
+      //       const tagAssignmentPromises = validatedData.externalTagIds.map(
+      //         (tagId) => assignTagToContact(umblerContact.id, tagId)
+      //       );
 
-            const tagResults = await Promise.allSettled(tagAssignmentPromises);
+      //       const tagResults = await Promise.allSettled(tagAssignmentPromises);
 
-            // Verificar se houve falhas
-            const failedTags = tagResults.filter(
-              (result) => result.status === "rejected"
-            );
-            if (failedTags.length > 0) {
-              console.warn(
-                `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
-              );
-              // Log dos erros específicos
-              failedTags.forEach((result, index) => {
-                if (result.status === "rejected") {
-                  console.error(`Tag ${index} falhou:`, result.reason);
-                }
-              });
-            }
-          } else {
-            console.warn(
-              `Contato não encontrado no Umbler para o telefone ${client.phone}. Tags não foram sincronizadas no Umbler.`
-            );
-          }
+      //       // Verificar se houve falhas
+      //       const failedTags = tagResults.filter(
+      //         (result) => result.status === "rejected"
+      //       );
+      //       if (failedTags.length > 0) {
+      //         console.warn(
+      //           `Algumas tags falharam ao ser atribuídas no Umbler: ${failedTags.length} de ${validatedData.externalTagIds.length}`
+      //         );
+      //         // Log dos erros específicos
+      //         failedTags.forEach((result, index) => {
+      //           if (result.status === "rejected") {
+      //             console.error(`Tag ${index} falhou:`, result.reason);
+      //           }
+      //         });
+      //       }
+      //     } else {
+      //       console.warn(
+      //         `Contato não encontrado no Umbler para o telefone ${client.phone}. Tags não foram sincronizadas no Umbler.`
+      //       );
+      //     }
 
-          // Sincronizar tags no banco de dados local (independente do Umbler)
-          await this.clientsRepository.syncClientTags(
-            clientId,
-            validatedData.externalTagIds
-          );
+      //     // Sincronizar tags no banco de dados local (independente do Umbler)
+      //     await this.clientsRepository.syncClientTags(
+      //       clientId,
+      //       validatedData.externalTagIds
+      //     );
 
-          console.log(
-            `Tags sincronizadas com sucesso para o cliente ${clientId}`
-          );
-        } catch (error) {
-          console.error("Erro ao sincronizar tags do cliente:", error);
-          // Não interrompe o fluxo de atualização do cliente
-        }
-      }
+      //     console.log(
+      //       `Tags sincronizadas com sucesso para o cliente ${clientId}`
+      //     );
+      //   } catch (error) {
+      //     console.error("Erro ao sincronizar tags do cliente:", error);
+      //     // Não interrompe o fluxo de atualização do cliente
+      //   }
+      // }
+      // ============================================================
 
       return client;
     } catch (error) {

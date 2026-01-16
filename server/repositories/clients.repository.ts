@@ -26,7 +26,7 @@ export class ClientsRepository {
     filters: ClientFilters = {},
     page: number = 1,
     pageSize: number = 100
-  ): Promise<Client[]> {
+  ): Promise<any[]> {
     let query = this.db.select().from(clients);
     const conditions: any[] = [];
 
@@ -86,7 +86,19 @@ export class ClientsRepository {
       .orderBy(desc(clients.createdAt))
       .limit(pageSize)
       .offset(offset);
-    return result;
+
+    // Buscar tags para cada cliente
+    const clientsWithTags = await Promise.all(
+      result.map(async (client) => {
+        const tags = await this.getClientTags(client.id);
+        return {
+          ...client,
+          tags,
+        };
+      })
+    );
+
+    return clientsWithTags;
   }
 
   async getClientsCount(
@@ -408,43 +420,40 @@ export class ClientsRepository {
   /**
    * Associa tags externas ao cliente
    * @param clientId - ID do cliente
-   * @param externalTagIds - Array de IDs de tags externas do Umbler
+   * @param tagsData - Array de tags com id e name do Umbler
    */
   async syncClientTags(
     clientId: string,
-    externalTagIds: string[]
+    tagsData: Array<{ id: string; name: string }>
   ): Promise<void> {
     try {
       console.log(
         `[syncClientTags] Iniciando sincronização para cliente ${clientId}`
       );
-      console.log(
-        `[syncClientTags] Tags a serem sincronizadas:`,
-        externalTagIds
-      );
+      console.log(`[syncClientTags] Tags a serem sincronizadas:`, tagsData);
 
       // Primeiro, remove todas as tags antigas do cliente
       await this.db.delete(clientTags).where(eq(clientTags.clientId, clientId));
       console.log(`[syncClientTags] Tags antigas removidas`);
 
       // Se não há tags para adicionar, retorna
-      if (!externalTagIds || externalTagIds.length === 0) {
+      if (!tagsData || tagsData.length === 0) {
         console.log(`[syncClientTags] Nenhuma tag para adicionar`);
         return;
       }
 
-      // Para cada externalTagId, verificar se já existe na tabela externalTags
+      // Para cada tag, verificar se já existe na tabela externalTags
       // Se não existir, criar um registro
-      for (const externalTagId of externalTagIds) {
+      for (const tagData of tagsData) {
         console.log(
-          `[syncClientTags] Processando tag externa: ${externalTagId}`
+          `[syncClientTags] Processando tag externa: ${tagData.id} - ${tagData.name}`
         );
 
         // Buscar se já existe
         const [existingTag] = await this.db
           .select()
           .from(externalTags)
-          .where(eq(externalTags.externalId, externalTagId))
+          .where(eq(externalTags.externalId, tagData.id))
           .limit(1);
 
         let tagId: string;
@@ -454,19 +463,30 @@ export class ClientsRepository {
           console.log(
             `[syncClientTags] Tag externa encontrada com ID: ${tagId}`
           );
+
+          // Atualiza o nome da tag caso tenha mudado
+          if (existingTag.externalTagName !== tagData.name) {
+            await this.db
+              .update(externalTags)
+              .set({ externalTagName: tagData.name })
+              .where(eq(externalTags.id, tagId));
+            console.log(
+              `[syncClientTags] Nome da tag atualizado: ${tagData.name}`
+            );
+          }
         } else {
-          // Criar novo registro na tabela externalTags
+          // Criar novo registro na tabela externalTags com o nome
           const [newTag] = await this.db
             .insert(externalTags)
             .values({
-              externalId: externalTagId,
-              externalTagName: null, // Pode ser preenchido posteriormente
+              externalId: tagData.id,
+              externalTagName: tagData.name,
             })
             .returning();
 
           tagId = newTag.id;
           console.log(
-            `[syncClientTags] Nova tag externa criada com ID: ${tagId}`
+            `[syncClientTags] Nova tag externa criada com ID: ${tagId} - Nome: ${tagData.name}`
           );
         }
 
@@ -481,9 +501,9 @@ export class ClientsRepository {
       }
 
       console.log(
-        `[syncClientTags] ✅ Tags sincronizadas com sucesso para o cliente ${clientId}: ${externalTagIds.join(
-          ", "
-        )}`
+        `[syncClientTags] ✅ Tags sincronizadas com sucesso para o cliente ${clientId}: ${tagsData
+          .map((t) => t.name)
+          .join(", ")}`
       );
     } catch (error) {
       console.error(

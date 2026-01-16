@@ -307,6 +307,12 @@ export default function ClientsTableWithSelection({
                     Marcadores
                   </div>
                 </th>
+                <th className="p-4 text-left font-semibold text-gray-700 min-w-[150px]">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-gray-500" />
+                    Tags (Umbler)
+                  </div>
+                </th>
                 <th className="p-4 text-left font-semibold text-gray-700 min-w-[130px]">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
@@ -489,6 +495,40 @@ export default function ClientsTableWithSelection({
                     </div>
                   </td>
                   <td className="p-4">
+                    <div className="flex flex-wrap gap-1 max-w-[140px]">
+                      {client.tags && client.tags.length > 0 ? (
+                        client.tags
+                          .slice(0, 2)
+                          .map((tag: any, index: number) => (
+                            <Badge
+                              key={tag.id || index}
+                              variant="outline"
+                              className="text-xs bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-1"
+                              title={`ID: ${tag.externalId}`}
+                            >
+                              {tag.emoji && (
+                                <span className="mr-1">{tag.emoji}</span>
+                              )}
+                              {tag.externalTagName || tag.name || "Tag"}
+                            </Badge>
+                          ))
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">
+                          Sem tags
+                        </span>
+                      )}
+                      {client.tags && client.tags.length > 2 && (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-gray-100 text-gray-600"
+                          title={`${client.tags.length - 2} tags adicionais`}
+                        >
+                          +{client.tags.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-4">
                     <div className="flex items-center text-sm">
                       <div className="p-1 bg-blue-100 rounded-md mr-2">
                         <Calendar className="h-3 w-3 text-blue-600" />
@@ -526,7 +566,7 @@ export default function ClientsTableWithSelection({
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-16 text-center">
+                  <td colSpan={10} className="p-16 text-center">
                     <div className="flex flex-col items-center space-y-4">
                       <div className="p-4 bg-gray-100 rounded-full">
                         <User className="h-8 w-8 text-gray-400" />
