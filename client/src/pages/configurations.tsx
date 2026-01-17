@@ -25,6 +25,7 @@ import {
   Tags,
   Users,
   HelpCircle,
+  RefreshCcw,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
@@ -39,6 +40,7 @@ import EventsManagement from "@/components/events-management";
 import { Separator } from "@/components/ui/separator";
 import { AutomationManagement } from "@/components/automation-management";
 import { DealQuestionsManagement } from "@/components/deal-questions-management";
+import UmblerSyncManagement from "@/components/umbler-sync-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -217,6 +219,15 @@ export default function Configurations() {
                     <HelpCircle className="size-4" />
                     <span className="text-xs font-medium ">Questionário</span>
                   </TabsTrigger>
+
+                  <TabsTrigger
+                    value="umbler-sync"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title="Gerenciar sincronização com Umbler"
+                  >
+                    <RefreshCcw className="size-4" />
+                    <span className="text-xs font-medium ">Umbler Sync</span>
+                  </TabsTrigger>
                 </div>
               </TabsList>
             </div>
@@ -267,6 +278,10 @@ export default function Configurations() {
 
             <TabsContent value="deal-questions">
               <DealQuestionsManagement />
+            </TabsContent>
+
+            <TabsContent value="umbler-sync">
+              <UmblerSyncManagement />
             </TabsContent>
           </Tabs>
         </div>
