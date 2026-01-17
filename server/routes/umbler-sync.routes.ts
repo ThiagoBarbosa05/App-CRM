@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { umblerSyncService } from "../services/umbler-sync.service";
 import { runSyncWorker, runCleanupWorker } from "../jobs/umbler-sync.worker";
+import {
+  getSchedulerStatus,
+  restartUmblerSyncScheduler,
+  stopUmblerSyncScheduler,
+  startUmblerSyncScheduler,
+} from "../jobs/umbler-sync-scheduler";
 import { z } from "zod";
 
 const router = Router();
@@ -158,12 +164,14 @@ router.get("/status", async (req, res) => {
   try {
     const isRunning = umblerSyncService.isSyncInProgress();
     const stats = await umblerSyncService.getStats();
+    const schedulerStatus = getSchedulerStatus();
 
     res.json({
       success: true,
       data: {
         isRunning,
         stats,
+        scheduler: schedulerStatus,
       },
     });
   } catch (error) {
@@ -171,6 +179,90 @@ router.get("/status", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to get sync status",
+    });
+  }
+});
+
+/**
+ * POST /api/umbler-sync/scheduler/restart
+ * Reinicia o scheduler com nova configuração (opcional)
+ *
+ * Body:
+ * - cronExpression (opcional): expressão cron customizada
+ */
+router.post("/scheduler/restart", async (req, res) => {
+  try {
+    const schema = z.object({
+      cronExpression: z.string().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    restartUmblerSyncScheduler(data.cronExpression);
+
+    res.json({
+      success: true,
+      message: "Scheduler reiniciado com sucesso",
+      data: getSchedulerStatus(),
+    });
+  } catch (error) {
+    console.error("[UmblerSync] Error restarting scheduler:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to restart scheduler",
+    });
+  }
+});
+
+/**
+ * POST /api/umbler-sync/scheduler/stop
+ * Para o scheduler
+ */
+router.post("/scheduler/stop", async (req, res) => {
+  try {
+    stopUmblerSyncScheduler();
+
+    res.json({
+      success: true,
+      message: "Scheduler parado com sucesso",
+      data: getSchedulerStatus(),
+    });
+  } catch (error) {
+    console.error("[UmblerSync] Error stopping scheduler:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to stop scheduler",
+    });
+  }
+});
+
+/**
+ * POST /api/umbler-sync/scheduler/start
+ * Inicia o scheduler
+ *
+ * Body:
+ * - cronExpression (opcional): expressão cron customizada
+ */
+router.post("/scheduler/start", async (req, res) => {
+  try {
+    const schema = z.object({
+      cronExpression: z.string().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    startUmblerSyncScheduler(data.cronExpression);
+
+    res.json({
+      success: true,
+      message: "Scheduler iniciado com sucesso",
+      data: getSchedulerStatus(),
+    });
+  } catch (error) {
+    console.error("[UmblerSync] Error starting scheduler:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to start scheduler",
     });
   }
 });

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "url";
 import { umblerSyncService } from "../services/umbler-sync.service";
 
 /**
@@ -135,15 +136,18 @@ export async function runCleanupWorker(): Promise<{
 
 /**
  * Execução standalone (para cron job)
+ * Em ES modules, verificamos se o arquivo está sendo executado diretamente
  */
-// if (require.main === module) {
-//   runSyncWorker()
-//     .then((result) => {
-//       console.log("[UmblerSyncWorker] Worker finished:", result);
-//       process.exit(result.success ? 0 : 1);
-//     })
-//     .catch((error) => {
-//       console.error("[UmblerSyncWorker] Worker crashed:", error);
-//       process.exit(1);
-//     });
-// }
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  runSyncWorker()
+    .then((result) => {
+      console.log("[UmblerSyncWorker] Worker finished:", result);
+      process.exit(result.success ? 0 : 1);
+    })
+    .catch((error) => {
+      console.error("[UmblerSyncWorker] Worker crashed:", error);
+      process.exit(1);
+    });
+}

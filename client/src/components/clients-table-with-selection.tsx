@@ -65,6 +65,7 @@ export default function ClientsTableWithSelection({
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [confirmingClient, setConfirmingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [tagsModalClient, setTagsModalClient] = useState<Client | null>(null);
   const [sortField, setSortField] = useState<"name" | "categoria" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
@@ -494,8 +495,20 @@ export default function ClientsTableWithSelection({
                       )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1 max-w-[140px]">
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex flex-wrap gap-1 max-w-[140px] cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() =>
+                        client.tags &&
+                        client.tags.length > 0 &&
+                        setTagsModalClient(client)
+                      }
+                      title={
+                        client.tags && client.tags.length > 0
+                          ? "Clique para ver todas as tags"
+                          : undefined
+                      }
+                    >
                       {client.tags && client.tags.length > 0 ? (
                         client.tags
                           .slice(0, 2)
@@ -520,8 +533,10 @@ export default function ClientsTableWithSelection({
                       {client.tags && client.tags.length > 2 && (
                         <Badge
                           variant="secondary"
-                          className="text-xs bg-gray-100 text-gray-600"
-                          title={`${client.tags.length - 2} tags adicionais`}
+                          className="text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                          title={`${
+                            client.tags.length - 2
+                          } tags adicionais - Clique para ver todas`}
                         >
                           +{client.tags.length - 2}
                         </Badge>
@@ -682,6 +697,114 @@ export default function ClientsTableWithSelection({
           clientId={confirmingClient.id}
           clientName={confirmingClient.name}
         />
+      )}
+
+      {tagsModalClient && (
+        <AlertDialog
+          open={!!tagsModalClient}
+          onOpenChange={(open) => !open && setTagsModalClient(null)}
+        >
+          <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
+                  <Tag className="h-5 w-5 text-emerald-700" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    Tags do Umbler
+                  </div>
+                  <div className="text-sm font-normal text-gray-500 mt-1">
+                    {tagsModalClient.name}
+                  </div>
+                </div>
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+
+            <div className="mt-4">
+              {tagsModalClient.tags && tagsModalClient.tags.length > 0 ? (
+                <>
+                  <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 text-sm text-blue-800">
+                      <Tag className="h-4 w-4" />
+                      <span className="font-semibold">
+                        {tagsModalClient.tags.length} tag(s) encontrada(s)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {tagsModalClient.tags.map((tag: any, index: number) => (
+                      <div
+                        key={tag.id || index}
+                        className="group p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl hover:shadow-md hover:border-emerald-300 transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          {tag.emoji ? (
+                            <div className="text-3xl flex-shrink-0">
+                              {tag.emoji}
+                            </div>
+                          ) : (
+                            <div className="p-2 bg-emerald-200 rounded-lg flex-shrink-0">
+                              <Tag className="h-5 w-5 text-emerald-700" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 text-base mb-2 truncate">
+                              {tag.externalTagName ||
+                                tag.name ||
+                                "Tag sem nome"}
+                            </div>
+                            {tag.externalId && (
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-white border-emerald-300 text-emerald-800 font-mono"
+                                >
+                                  ID: {tag.externalId}
+                                </Badge>
+                              </div>
+                            )}
+                            {tag.color && (
+                              <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                                <div
+                                  className="w-4 h-4 rounded border-2 border-gray-300 shadow-sm"
+                                  style={{ backgroundColor: tag.color }}
+                                  title={`Cor: ${tag.color}`}
+                                />
+                                <span className="font-mono text-xs text-gray-500">
+                                  {tag.color}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <Tag className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Nenhuma tag encontrada
+                  </h3>
+                  <p className="text-gray-500">
+                    Este cliente ainda não possui tags do Umbler
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <AlertDialogFooter className="mt-6">
+              <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200">
+                Fechar
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

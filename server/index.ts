@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
+import "./jobs/umbler-sync-scheduler";
 import {
   initializePubSubSubscriber,
   shutdownPubSubSubscriber,
@@ -70,9 +71,9 @@ app.use((req, res, next) => {
   server.listen(
     {
       port,
-      // host: "127.0.0.1",
-      host: "0.0.0.0",
-      reuseProt: true,
+      host: "127.0.0.1",
+      // host: "0.0.0.0",
+      // reuseProt: true,
     },
     () => {
       log(`serving on port ${port}`);
