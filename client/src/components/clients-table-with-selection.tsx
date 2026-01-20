@@ -45,7 +45,7 @@ interface ClientsTableWithSelectionProps {
   clients: Client[];
   onSelectionChange?: (
     selectedIds: string[],
-    selectedClients: Client[]
+    selectedClients: Client[],
   ) => void;
   currentPage: number;
   setCurrentPage: (page: number | ((prev: number) => number)) => void;
@@ -131,7 +131,7 @@ export default function ClientsTableWithSelection({
     } else {
       const currentPageIds = clients.map((client) => client.id);
       setSelectedClientIds((prev) =>
-        prev.filter((id) => !currentPageIds.includes(id))
+        prev.filter((id) => !currentPageIds.includes(id)),
       );
     }
   };
@@ -190,7 +190,7 @@ export default function ClientsTableWithSelection({
   useEffect(() => {
     if (onSelectionChange) {
       const selectedClients = clients.filter((client) =>
-        selectedClientIds.includes(client.id)
+        selectedClientIds.includes(client.id),
       );
       onSelectionChange(selectedClientIds, selectedClients);
     }
@@ -203,16 +203,16 @@ export default function ClientsTableWithSelection({
   return (
     <div className="space-y-6">
       {selectedClientIds.length > 0 && (
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between  mt-6 mx-3 p-4 bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 from-blue-50 to-indigo-50 border-2 border-blue-200 dark:border-slate-700 rounded-xl shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
               <User className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <span className="font-semibold text-blue-900">
+              <span className="font-semibold text-blue-900 dark:text-blue-400">
                 {selectedClientIds.length} cliente(s) selecionado(s)
               </span>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-xs text-blue-700 dark:text-blue-500 mt-1">
                 Use as ações em lote para gerenciar os clientes selecionados
               </p>
             </div>
@@ -234,11 +234,11 @@ export default function ClientsTableWithSelection({
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b-2 border-gray-200">
+              <tr className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 border-b-2 border-gray-200 dark:border-slate-700">
                 <th className="p-4 text-left w-12">
                   <div className="flex items-center justify-center">
                     <Checkbox
@@ -248,19 +248,19 @@ export default function ClientsTableWithSelection({
                     />
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[250px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[250px]">
                   <button
                     onClick={() => handleSort("name")}
-                    className="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200 group"
+                    className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 group"
                   >
-                    <User className="h-4 w-4 text-gray-500 group-hover:text-blue-600" />
+                    <User className="h-4 w-4 text-gray-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                     Cliente
                     {sortField === "name" && (
-                      <div className="p-1 bg-blue-100 rounded-full">
+                      <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
                         {sortDirection === "asc" ? (
-                          <ChevronUp className="h-3 w-3 text-blue-600" />
+                          <ChevronUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <ChevronDown className="h-3 w-3 text-blue-600" />
+                          <ChevronDown className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                         )}
                       </div>
                     )}
@@ -272,73 +272,73 @@ export default function ClientsTableWithSelection({
                     Status
                   </div>
                 </th> */}
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[180px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[180px]">
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-gray-500" />
+                    <Phone className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Contato
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[150px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[150px]">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-gray-500" />
+                    <User className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Responsável
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[120px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[120px]">
                   <button
                     onClick={() => handleSort("categoria")}
-                    className="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200 group"
+                    className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 group"
                   >
-                    <Tag className="h-4 w-4 text-gray-500 group-hover:text-blue-600" />
+                    <Tag className="h-4 w-4 text-gray-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                     Categoria
                     {sortField === "categoria" && (
-                      <div className="p-1 bg-blue-100 rounded-full">
+                      <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
                         {sortDirection === "asc" ? (
-                          <ChevronUp className="h-3 w-3 text-blue-600" />
+                          <ChevronUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <ChevronDown className="h-3 w-3 text-blue-600" />
+                          <ChevronDown className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                         )}
                       </div>
                     )}
                   </button>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[130px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[130px]">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-gray-500" />
+                    <Tag className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Marcadores
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[150px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[150px]">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-gray-500" />
+                    <Tag className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Tags (Umbler)
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 min-w-[130px]">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[130px]">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <Calendar className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Aniversário
                   </div>
                 </th>
-                <th className="p-4 text-left font-semibold text-gray-700 w-28">
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 w-28">
                   <div className="flex items-center gap-2">
-                    <Edit className="h-4 w-4 text-gray-500" />
+                    <Edit className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                     Ações
                   </div>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {sortedClients.map((client, index) => (
                 <tr
                   key={client.id}
                   className={`
-                    group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 
+                    group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20
                     cursor-pointer transition-all duration-200 ease-in-out
-                    ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}
+                    ${index % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-gray-50/30 dark:bg-slate-900/30"}
                     ${
                       selectedClientIds.includes(client.id)
-                        ? "bg-blue-50 border-l-4 border-l-blue-500"
+                        ? "bg-blue-50 dark:bg-blue-900/30 border-l-4 border-l-blue-500 dark:border-l-blue-400"
                         : ""
                     }
                   `}
@@ -359,23 +359,23 @@ export default function ClientsTableWithSelection({
                         onCheckedChange={(checked) =>
                           handleSelectClient(client.id, checked as boolean)
                         }
-                        className="border-2 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        className="border-2 border-gray-300 dark:border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                       />
                     </div>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        <div className="p-1 rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center border border-blue-200 shadow-sm">
-                          <User className="h-4 w-4 text-blue-600" />
+                        <div className="p-1 rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
+                          <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-gray-900 truncate text-base group-hover:text-blue-700 transition-colors">
+                        <div className="font-semibold text-gray-900 dark:text-slate-100 truncate text-base group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                           {client.name}
                         </div>
-                        <div className="flex items-center text-sm text-gray-500 mt-1">
-                          <MapPin className="h-3 w-3 mr-1 shrink-0 text-gray-400" />
+                        <div className="flex items-center text-sm text-gray-500 dark:text-slate-400 mt-1">
+                          <MapPin className="h-3 w-3 mr-1 shrink-0 text-gray-400 dark:text-slate-500" />
                           <span className="truncate">
                             {client.city}, {client.state}
                           </span>
@@ -433,7 +433,10 @@ export default function ClientsTableWithSelection({
                           <div className="p-1 bg-gray-100 rounded-md mr-2">
                             <Mail className="h-3 w-3 text-gray-500" />
                           </div>
-                          <span className="truncate" title={client.email}>
+                          <span
+                            className="truncate dark:text-slate-200"
+                            title={client.email}
+                          >
                             {client.email}
                           </span>
                         </div>
@@ -445,16 +448,16 @@ export default function ClientsTableWithSelection({
                       <div className="p-1 bg-purple-100 rounded-md">
                         <User className="h-3 w-3 text-purple-600" />
                       </div>
-                      <span className="text-sm font-medium text-gray-900 truncate">
+                      <span className="text-sm font-medium text-gray-900 dark:text-slate-400 truncate">
                         {(() => {
                           const user = users.find(
-                            (u) => u.id === client.responsavelId
+                            (u) => u.id === client.responsavelId,
                           );
                           return user
                             ? user.name
                             : client.responsavelId
-                            ? "Usuário não encontrado"
-                            : "Não atribuído";
+                              ? "Usuário não encontrado"
+                              : "Não atribuído";
                         })()}
                       </span>
                     </div>
@@ -481,7 +484,7 @@ export default function ClientsTableWithSelection({
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-sm text-gray-400 italic">
+                        <span className="text-sm text-gray-400 dark:text-slate-400 italic">
                           Sem marcadores
                         </span>
                       )}
@@ -548,7 +551,7 @@ export default function ClientsTableWithSelection({
                       <div className="p-1 bg-blue-100 rounded-md mr-2">
                         <Calendar className="h-3 w-3 text-blue-600" />
                       </div>
-                      <span className="font-medium text-gray-700">
+                      <span className="font-medium text-gray-700 dark:text-slate-300">
                         {client.birthday
                           ? formatDate(client.birthday)
                           : "Não informado"}
@@ -604,7 +607,7 @@ export default function ClientsTableWithSelection({
       </div>
 
       {(currentPage > 1 || hasNextPage) && (
-        <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -644,7 +647,7 @@ export default function ClientsTableWithSelection({
                 <span className="hidden sm:inline">Anterior</span>
               </Button>
 
-              <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-sm">
                 <span className="text-sm font-medium text-gray-700">
                   Página {currentPage}
                 </span>

@@ -135,7 +135,7 @@ export function ClientCashbackTab({
 
       const dbValue = parseFloat(dbBalance.toString());
       const umblerValue = parseFloat(
-        umblerBalanceString.replace(/\./g, "").replace(",", ".")
+        umblerBalanceString.replace(/\./g, "").replace(",", "."),
       );
 
       if (isNaN(dbValue) || isNaN(umblerValue)) {
@@ -202,7 +202,9 @@ export function ClientCashbackTab({
                   </p>
                   <p className="text-3xl font-bold text-green-700 dark:text-green-300">
                     {formatCurrency(
-                      Number(cashbackBalance?.currentBalance?.toString() || "0")
+                      Number(
+                        cashbackBalance?.currentBalance?.toString() || "0",
+                      ),
                     )}
                   </p>
                 </div>
@@ -216,7 +218,7 @@ export function ClientCashbackTab({
                   </p>
                   <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
                     {formatCurrency(
-                      Number(cashbackBalance?.totalEarned?.toString() || "0")
+                      Number(cashbackBalance?.totalEarned?.toString() || "0"),
                     )}
                   </p>
                 </div>
@@ -226,7 +228,7 @@ export function ClientCashbackTab({
                   </p>
                   <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
                     {formatCurrency(
-                      Number(cashbackBalance?.totalUsed?.toString() || "0")
+                      Number(cashbackBalance?.totalUsed?.toString() || "0"),
                     )}
                   </p>
                 </div>
@@ -315,7 +317,7 @@ export function ClientCashbackTab({
                                 variant="ghost"
                                 onClick={() => setIsEditing(false)}
                               >
-                                <X className="h-4 w-4" />
+                                <X className="h-4 w-4 dark:text-slate-200" />
                               </Button>
                             </div>
                             {errors.value && (
@@ -326,15 +328,15 @@ export function ClientCashbackTab({
                           </form>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
+                            <div className="p-3 bg-gray-100 dark:bg-gray-800 dark:text-slate-200 rounded-md">
                               <p className="text-2xl font-bold">
                                 {formatCurrency(
                                   Number(
                                     customField.result.value.replace(
                                       ",",
-                                      "."
-                                    ) || "0"
-                                  )
+                                      ".",
+                                    ) || "0",
+                                  ),
                                 )}
                               </p>
                             </div>
@@ -434,7 +436,7 @@ export function ClientCashbackTab({
                 <RefreshCcw
                   className={cn(
                     "size-4 mr-2",
-                    syncCustomer.isPending && "animate-spin"
+                    syncCustomer.isPending && "animate-spin",
                   )}
                 />
                 {syncCustomer.isPending ? "Sincronizando..." : "Sincronizar"}

@@ -93,7 +93,7 @@ export default function ClientFilters({
   };
 
   const hasActiveFilters = Object.entries(currentFilters).some(
-    ([key, value]) => value !== "" && value !== "all"
+    ([key, value]) => value !== "" && value !== "all",
   );
 
   return (
@@ -101,15 +101,19 @@ export default function ClientFilters({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}
+          className={
+            hasActiveFilters
+              ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+              : ""
+          }
         >
           <Filter className="h-4 w-4 mr-2" />
           Filtros
           {hasActiveFilters && (
-            <span className="ml-2 bg-blue-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
+            <span className="ml-2 bg-blue-500 dark:bg-blue-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">
               {
                 Object.values(currentFilters).filter(
-                  (value) => value !== "" && value !== "all"
+                  (value) => value !== "" && value !== "all",
                 ).length
               }
             </span>
@@ -117,7 +121,7 @@ export default function ClientFilters({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80 p-4 overflow-y-auto" align="center">
-        <h4 className="font-medium">Filtros avançados</h4>
+        <h4 className="font-medium dark:text-slate-100">Filtros avançados</h4>
 
         <div className="space-y-4">
           <div className="space-y-3">

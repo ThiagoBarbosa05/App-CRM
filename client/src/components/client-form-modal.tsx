@@ -246,7 +246,7 @@ export default function ClientFormModal({
     const currentMarkers = form.getValues("markers") || [];
     form.setValue(
       "markers",
-      currentMarkers.filter((marker) => marker !== markerToRemove)
+      currentMarkers.filter((marker) => marker !== markerToRemove),
     );
   };
 
@@ -263,7 +263,7 @@ export default function ClientFormModal({
 
     try {
       const response = await fetch(
-        `https://viacep.com.br/ws/${cleanCep}/json/`
+        `https://viacep.com.br/ws/${cleanCep}/json/`,
       );
       const data = await response.json();
 
@@ -475,10 +475,10 @@ export default function ClientFormModal({
                                   {user.role === "admin"
                                     ? "Administrador"
                                     : user.role === "gerente"
-                                    ? "Gerente"
-                                    : user.role === "vendedor"
-                                    ? "Vendedor"
-                                    : "Usuário"}
+                                      ? "Gerente"
+                                      : user.role === "vendedor"
+                                        ? "Vendedor"
+                                        : "Usuário"}
                                 </SelectItem>
                               ))
                             )}
@@ -607,7 +607,7 @@ export default function ClientFormModal({
                         </FormControl>
                         <SelectContent>
                           {markers.filter(
-                            (marker: any) => marker.type === "marcador"
+                            (marker: any) => marker.type === "marcador",
                           ).length === 0 ? (
                             <div className="p-2 text-sm text-gray-500 text-center">
                               Nenhum marcador encontrado. Crie marcadores na
@@ -616,7 +616,7 @@ export default function ClientFormModal({
                           ) : (
                             markers
                               .filter(
-                                (marker: any) => marker.type === "marcador"
+                                (marker: any) => marker.type === "marcador",
                               )
                               .map((marker: any) => (
                                 <SelectItem key={marker.id} value={marker.name}>
@@ -641,7 +641,7 @@ export default function ClientFormModal({
                               className="h-3 w-3 cursor-pointer"
                               onClick={() => {
                                 const newMarkers = field.value.filter(
-                                  (m: string) => m !== marker
+                                  (m: string) => m !== marker,
                                 );
                                 field.onChange(newMarkers);
                               }}
@@ -655,7 +655,7 @@ export default function ClientFormModal({
                 )}
               />
 
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="externalTagIds"
                 render={({ field }) => (
@@ -676,7 +676,7 @@ export default function ClientFormModal({
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
 
               <FormField
                 control={form.control}
@@ -707,7 +707,7 @@ export default function ClientFormModal({
                       </div>
                     </FormControl>
                     <FormMessage />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs dark:text-slate-400 text-muted-foreground">
                       O endereço será preenchido automaticamente ao digitar o
                       CEP
                     </p>
@@ -800,26 +800,21 @@ export default function ClientFormModal({
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 bg-white">
+            <div className="flex justify-end space-x-3 pt-4 ">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                className=""
               >
                 Cancelar
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-purple-700 hover:bg-purple-800 text-white border-0"
-                style={{ backgroundColor: "#7c3aed", color: "white" }}
-              >
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting
                   ? "Salvando..."
                   : client
-                  ? "Atualizar Cliente"
-                  : "Salvar Cliente"}
+                    ? "Atualizar Cliente"
+                    : "Salvar Cliente"}
               </Button>
             </div>
           </form>

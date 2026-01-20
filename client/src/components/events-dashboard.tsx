@@ -93,7 +93,7 @@ export default function EventsDashboard() {
     try {
       // Usar endpoint proxy do backend
       const downloadUrl = `/api/events/download-image?fileUrl=${encodeURIComponent(imageUrl)}&fileName=${encodeURIComponent(fileName)}`;
-      
+
       const response = await fetch(downloadUrl, {
         headers: {
           "x-user-id": user?.id || "",
@@ -107,14 +107,14 @@ export default function EventsDashboard() {
       // Criar blob da resposta
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      
+
       // Criar link temporário para download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
-      
+
       // Limpar
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -137,17 +137,17 @@ export default function EventsDashboard() {
     // Normalizar a data de hoje para o início do dia (00:00:00) em horário de Brasília
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Converter a data do evento para Date e normalizar para o início do dia
     const event = new Date(eventDate);
     event.setHours(0, 0, 0, 0);
-    
+
     // Calcular a diferença em milissegundos
     const diffTime = event.getTime() - today.getTime();
-    
+
     // Converter para dias (arredondar para baixo para evitar contar dias extras)
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   };
 
@@ -203,7 +203,7 @@ export default function EventsDashboard() {
               <td>${formatDate(participant.registrationDate)}</td>
               <td>${participant.notes || ""}</td>
             </tr>
-          `
+          `,
               )
               .join("")
           : '<tr><td colspan="7" style="text-align: center; font-style: italic;">Nenhum participante cadastrado</td></tr>';
@@ -552,7 +552,7 @@ export default function EventsDashboard() {
       <div>
         <div class="info-item">
           <span class="info-label">Data:</span> ${formatEventDateTime(
-            event.eventDate
+            event.eventDate,
           )}
         </div>
         <div class="info-item">
@@ -565,7 +565,7 @@ export default function EventsDashboard() {
       <div>
         <div class="info-item">
           <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(
-            parseFloat(event.pricePerPerson)
+            parseFloat(event.pricePerPerson),
           )}
         </div>
         <div class="info-item">
@@ -577,7 +577,7 @@ export default function EventsDashboard() {
         </div>
         <div class="info-item">
           <span class="info-label">Status:</span> ${getEventStatusLabel(
-            event.status
+            event.status,
           )}
         </div>
       </div>
@@ -594,8 +594,8 @@ export default function EventsDashboard() {
           <h3>
             <span style="color: #4f46e5; font-size: 18px;">📸</span>
             Galeria do Evento (${event.attachments.length} ${
-            event.attachments.length === 1 ? "imagem" : "imagens"
-          })
+              event.attachments.length === 1 ? "imagem" : "imagens"
+            })
           </h3>
           <div class="images-gallery">
             ${
@@ -631,7 +631,7 @@ export default function EventsDashboard() {
                 </div>
                 `
                 : event.attachments.length === 2
-                ? `
+                  ? `
                 <!-- Layout para duas imagens -->
                 <div class="images-grid dual">
                   ${event.attachments
@@ -662,13 +662,13 @@ export default function EventsDashboard() {
                         </div>
                       </div>
                     </div>
-                  `
+                  `,
                     )
                     .join("")}
                 </div>
                 `
-                : event.attachments.length === 3
-                ? `
+                  : event.attachments.length === 3
+                    ? `
                 <!-- Layout especial para três imagens -->
                 <div class="images-grid multi">
                   <div class="image-container main-image">
@@ -727,12 +727,12 @@ export default function EventsDashboard() {
                         </div>
                       </div>
                     </div>
-                  `
+                  `,
                     )
                     .join("")}
                 </div>
                 `
-                : `
+                    : `
                 <!-- Layout em grid para 4+ imagens -->
                 <div class="images-grid grid-layout">
                   ${event.attachments
@@ -775,7 +775,7 @@ export default function EventsDashboard() {
                         </div>
                       </div>
                     </div>
-                  `
+                  `,
                     )
                     .join("")}
                 </div>
@@ -816,11 +816,11 @@ export default function EventsDashboard() {
 
   <div class="footer">
     <p>Lista gerada em ${new Date().toLocaleDateString(
-      "pt-BR"
+      "pt-BR",
     )} às ${new Date().toLocaleTimeString("pt-BR")}</p>
     <p>Total de participantes: ${participants.reduce(
       (total: number, p: any) => total + (p.numberOfParticipants || 1),
-      0
+      0,
     )}</p>
   </div>
 
@@ -869,7 +869,7 @@ export default function EventsDashboard() {
     })
     .sort(
       (a, b) =>
-        new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
+        new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime(),
     )
     .slice(0, 10);
 
@@ -878,29 +878,29 @@ export default function EventsDashboard() {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm">
       <Card className="shadow-none border-0 bg-transparent">
         <CardHeader className="pb-6 px-6 pt-6">
-          <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-900">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <CalendarIcon className="h-5 w-5 text-purple-600 shrink-0" />
+          <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-900 dark:text-slate-100">
+            <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+              <CalendarIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0" />
             </div>
             <span className="truncate">Próximos Eventos</span>
           </CardTitle>
-          <CardDescription className="text-sm text-gray-600 mt-2">
+          <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2">
             Eventos planejados e ativos dos próximos 30 dias para acompanhamento
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 pb-6">
           {upcomingEvents.length === 0 ? (
             <div className="text-center py-12 px-4">
-              <div className="bg-purple-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <CalendarIcon className="h-8 w-8 text-purple-600" />
+              <div className="bg-purple-50 dark:bg-purple-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <CalendarIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">
                 Nenhum evento próximo
               </h3>
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-slate-400">
                 Não há eventos programados para os próximos 30 dias
               </p>
             </div>
@@ -914,7 +914,7 @@ export default function EventsDashboard() {
                 return (
                   <div
                     key={event.id}
-                    className="group relative bg-white border border-gray-200 rounded-md overflow-hidden hover:border-gray-300 hover:shadow-md transition-all duration-200 ease-in-out"
+                    className="group relative bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md overflow-hidden hover:border-gray-300 dark:hover:border-slate-700 hover:shadow-md transition-all duration-200 ease-in-out"
                   >
                     {/* Indicador de urgência lateral */}
                     <div
@@ -922,10 +922,10 @@ export default function EventsDashboard() {
                         isToday
                           ? "bg-red-500"
                           : isTomorrow
-                          ? "bg-orange-400"
-                          : daysUntil <= 7
-                          ? "bg-yellow-400"
-                          : "bg-purple-400"
+                            ? "bg-orange-400"
+                            : daysUntil <= 7
+                              ? "bg-yellow-400"
+                              : "bg-purple-400"
                       }`}
                     />
 
@@ -938,7 +938,7 @@ export default function EventsDashboard() {
                           className="w-full h-full object-cover"
                         />
                         {/* Gradiente esmaecido suave para transição */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% via-white/30 via-70% to-white" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% via-white/30 dark:via-slate-900/30 via-70% to-white dark:to-slate-900" />
                       </div>
                     )}
 
@@ -950,26 +950,26 @@ export default function EventsDashboard() {
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg text-gray-900 mb-3 overflow-hidden text-ellipsis">
+                          <h3 className="font-semibold text-lg text-gray-900 dark:text-slate-100 mb-3 overflow-hidden text-ellipsis">
                             {event.name}
                           </h3>
                           <div className="flex flex-wrap gap-2 mb-4">
                             <Badge
                               className={`${
                                 EVENT_STATUS.find(
-                                  (s) => s.value === event.status
+                                  (s) => s.value === event.status,
                                 )?.color
                               } border-0 font-medium px-3 py-1 text-xs`}
                             >
                               {
                                 EVENT_STATUS.find(
-                                  (s) => s.value === event.status
+                                  (s) => s.value === event.status,
                                 )?.label
                               }
                             </Badge>
                             <Badge
                               variant="outline"
-                              className="text-xs font-medium px-2 py-1 bg-gray-50 text-gray-700 border-gray-200"
+                              className="text-xs font-medium px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700"
                             >
                               {event.category}
                             </Badge>
@@ -985,8 +985,8 @@ export default function EventsDashboard() {
                               isToday
                                 ? "bg-red-50"
                                 : isTomorrow
-                                ? "bg-orange-50"
-                                : "bg-blue-50"
+                                  ? "bg-orange-50"
+                                  : "bg-blue-50"
                             }`}
                           >
                             <CalendarIcon
@@ -994,28 +994,28 @@ export default function EventsDashboard() {
                                 isToday
                                   ? "text-red-600"
                                   : isTomorrow
-                                  ? "text-orange-600"
-                                  : "text-blue-600"
+                                    ? "text-orange-600"
+                                    : "text-blue-600"
                               }`}
                             />
                           </div>
                           <div className="flex-1">
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-gray-900 dark:text-slate-100">
                               {formatEventDateTime(event.eventDate)}
                             </div>
                             <div className="text-sm">
                               {isToday && (
-                                <span className="text-red-600 font-bold">
+                                <span className="text-red-600 dark:text-red-400 font-bold">
                                   🔴 Hoje!
                                 </span>
                               )}
                               {isTomorrow && (
-                                <span className="text-orange-600 font-bold">
+                                <span className="text-orange-600 dark:text-orange-400 font-bold">
                                   🟠 Amanhã
                                 </span>
                               )}
                               {!isToday && !isTomorrow && daysUntil > 0 && (
-                                <span className="text-blue-600">
+                                <span className="text-blue-600 dark:text-blue-400">
                                   📅 Em {daysUntil} dias
                                 </span>
                               )}
@@ -1024,22 +1024,22 @@ export default function EventsDashboard() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-50 rounded-lg">
-                            <MapPinIcon className="h-4 w-4 text-green-600" />
+                          <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                            <MapPinIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">
+                            <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                               {event.location}
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-purple-50 rounded-lg">
-                            <UsersIcon className="h-4 w-4 text-purple-600" />
+                          <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                            <UsersIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                               {event.participantCount} participante(s)
                               {event.maxCapacity && ` / ${event.maxCapacity}`}
                             </div>
@@ -1047,11 +1047,11 @@ export default function EventsDashboard() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-emerald-50 rounded-lg">
-                            <ClockIcon className="h-4 w-4 text-emerald-600" />
+                          <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                            <ClockIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-bold text-emerald-700">
+                            <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
                               {formatCurrency(parseFloat(event.pricePerPerson))}
                             </div>
                           </div>
@@ -1062,10 +1062,10 @@ export default function EventsDashboard() {
                       {event.attachments && event.attachments.length > 0 && (
                         <div className="mb-5">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 bg-purple-50 rounded-lg">
-                              <ImageIcon className="h-4 w-4 text-purple-600" />
+                            <div className="p-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                              <ImageIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700">
+                            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                               {event.attachments.length} imagem
                               {event.attachments.length !== 1 ? "s" : ""} do
                               evento
@@ -1097,7 +1097,7 @@ export default function EventsDashboard() {
                                             e.target as HTMLImageElement;
                                           target.style.display = "none";
                                           target.nextElementSibling?.classList.remove(
-                                            "hidden"
+                                            "hidden",
                                           );
                                         }}
                                       />
@@ -1123,7 +1123,10 @@ export default function EventsDashboard() {
                                             size="sm"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              handleDownloadImage(attachment.fileUrl, attachment.fileName);
+                                              handleDownloadImage(
+                                                attachment.fileUrl,
+                                                attachment.fileName,
+                                              );
                                             }}
                                             data-testid={`button-download-image-${index}`}
                                             className="h-8 w-8 p-0 bg-white/90 hover:bg-white text-purple-600 hover:text-purple-700 rounded-full ml-2 flex-shrink-0"
@@ -1179,7 +1182,7 @@ export default function EventsDashboard() {
                       {event.description && (
                         <div className="mb-4">
                           <div
-                            className="text-sm text-gray-600 leading-relaxed overflow-hidden text-ellipsis rich-text-content"
+                            className="text-sm text-gray-600 dark:text-slate-400 leading-relaxed overflow-hidden text-ellipsis rich-text-content"
                             dangerouslySetInnerHTML={{
                               __html: event.description,
                             }}
@@ -1190,7 +1193,7 @@ export default function EventsDashboard() {
                       {/* Deadline de inscrição */}
                       {event.registrationDeadline && (
                         <div className="mb-4">
-                          <div className="text-xs bg-orange-50 text-orange-800 p-3 rounded-lg border-l-4 border-orange-400">
+                          <div className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 p-3 rounded-lg border-l-4 border-orange-400 dark:border-orange-500">
                             <div className="font-semibold">
                               ⏰ Prazo de inscrição
                             </div>
@@ -1202,13 +1205,13 @@ export default function EventsDashboard() {
                       )}
 
                       {/* Botão de ação */}
-                      <div className="pt-4 border-t border-gray-100">
+                      <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handlePrintParticipants(event)}
                           data-testid="button-print-participants"
-                          className="w-full hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-colors font-medium"
+                          className="w-full hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:border-purple-200 dark:hover:border-purple-700 hover:text-purple-700 dark:hover:text-purple-300 transition-colors font-medium"
                         >
                           <CalendarIcon className="h-4 w-4 mr-2" />
                           Ver Detalhes do Evento

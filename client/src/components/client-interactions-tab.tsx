@@ -6,18 +6,18 @@ import { Client, type ClientInteractionWithUser } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Calendar, 
-  Clock, 
-  Phone, 
-  Mail, 
-  MessageSquare, 
-  Users, 
-  MapPin, 
+import {
+  Calendar,
+  Clock,
+  Phone,
+  Mail,
+  MessageSquare,
+  Users,
+  MapPin,
   StickyNote,
   Plus,
   Edit,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,13 +29,37 @@ interface ClientInteractionsTabProps {
 }
 
 const interactionTypeConfig = {
-  telemarketing: { label: "Ligação", icon: Phone, color: "bg-cyan-100 text-cyan-800" },
+  telemarketing: {
+    label: "Ligação",
+    icon: Phone,
+    color: "bg-cyan-100 text-cyan-800",
+  },
   email: { label: "E-mail", icon: Mail, color: "bg-green-100 text-green-800" },
-  meeting: { label: "Reunião", icon: Users, color: "bg-purple-100 text-purple-800" },
-  whatsapp: { label: "WhatsApp", icon: MessageSquare, color: "bg-emerald-100 text-emerald-800" },
-  visit: { label: "Visita", icon: MapPin, color: "bg-orange-100 text-orange-800" },
-  note: { label: "Anotação", icon: StickyNote, color: "bg-gray-100 text-gray-800" },
-  other: { label: "Outro", icon: Clock, color: "bg-indigo-100 text-indigo-800" },
+  meeting: {
+    label: "Reunião",
+    icon: Users,
+    color: "bg-purple-100 text-purple-800",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    icon: MessageSquare,
+    color: "bg-emerald-100 text-emerald-800",
+  },
+  visit: {
+    label: "Visita",
+    icon: MapPin,
+    color: "bg-orange-100 text-orange-800",
+  },
+  note: {
+    label: "Anotação",
+    icon: StickyNote,
+    color: "bg-gray-100 text-gray-800",
+  },
+  other: {
+    label: "Outro",
+    icon: Clock,
+    color: "bg-indigo-100 text-indigo-800",
+  },
 };
 
 const statusConfig = {
@@ -44,10 +68,13 @@ const statusConfig = {
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800" },
 };
 
-export default function ClientInteractionsTab({ client }: ClientInteractionsTabProps) {
+export default function ClientInteractionsTab({
+  client,
+}: ClientInteractionsTabProps) {
   const { toast } = useToast();
   const [showFormModal, setShowFormModal] = useState(false);
-  const [editingInteraction, setEditingInteraction] = useState<ClientInteractionWithUser | null>(null);
+  const [editingInteraction, setEditingInteraction] =
+    useState<ClientInteractionWithUser | null>(null);
 
   const { data: interactions = [], isLoading } = useQuery({
     queryKey: ["/api/clients", client.id, "interactions"],
@@ -63,7 +90,9 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
       await apiRequest("DELETE", `/api/interactions/${interactionId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "interactions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/clients", client.id, "interactions"],
+      });
       toast({
         title: "Interação excluída",
         description: "Interação foi removida com sucesso.",
@@ -91,11 +120,11 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/4"></div>
           <div className="space-y-3">
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-700 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-700 rounded"></div>
+            <div className="h-20 bg-gray-200  dark:bg-slate-700 rounded"></div>
           </div>
         </div>
       </div>
@@ -106,9 +135,14 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Histórico de Interações</h3>
-          <p className="text-sm text-gray-600">
-            {interactions.length} {interactions.length === 1 ? 'interação registrada' : 'interações registradas'}
+          <h3 className="text-lg font-semibold dark:text-slate-200 text-gray-900">
+            Histórico de Interações
+          </h3>
+          <p className="text-sm dark:text-slate-400 text-gray-600">
+            {interactions.length}{" "}
+            {interactions.length === 1
+              ? "interação registrada"
+              : "interações registradas"}
           </p>
         </div>
         <Button
@@ -123,7 +157,9 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
       {interactions.length === 0 ? (
         <div className="text-center py-12">
           <StickyNote className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma interação registrada</h3>
+          <h3 className="mt-2 text-sm dark:text-slate-200 font-medium text-gray-900">
+            Nenhuma interação registrada
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             Comece adicionando uma nova interação com este cliente.
           </p>
@@ -140,21 +176,27 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
       ) : (
         <div className="space-y-4">
           {interactions.map((interaction: ClientInteractionWithUser) => {
-            const typeConfig = interactionTypeConfig[interaction.type as keyof typeof interactionTypeConfig] || {
-              label: "Outro", 
-              icon: Clock, 
-              color: "bg-gray-100 text-gray-800"
+            const typeConfig = interactionTypeConfig[
+              interaction.type as keyof typeof interactionTypeConfig
+            ] || {
+              label: "Outro",
+              icon: Clock,
+              color:
+                "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-200",
             };
-            const statusConfig_ = statusConfig[interaction.status as keyof typeof statusConfig] || {
+            const statusConfig_ = statusConfig[
+              interaction.status as keyof typeof statusConfig
+            ] || {
               label: "Desconhecido",
-              color: "bg-gray-100 text-gray-800"
+              color:
+                "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-200",
             };
             const IconComponent = typeConfig.icon;
 
             return (
               <div
                 key={interaction.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-slate-950 dark:border-slate-800 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -163,23 +205,28 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                         <IconComponent className="h-4 w-4" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{interaction.subject}</h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                        <h4 className="font-medium dark:text-slate-200 text-gray-900">
+                          {interaction.subject}
+                        </h4>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-400 mt-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {formatDateTime(interaction.date.toString())}
                           </div>
-                          {interaction.callResult && interaction.type === "telemarketing" && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {formatCallResult(interaction.callResult)}
-                            </div>
-                          )}
+                          {interaction.callResult &&
+                            interaction.type === "telemarketing" && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {formatCallResult(interaction.callResult)}
+                              </div>
+                            )}
                         </div>
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-3">{interaction.description}</p>
+                    <p className="text-gray-700 dark:text-slate-300 mb-3">
+                      {interaction.description}
+                    </p>
 
                     {interaction.address && interaction.type === "visit" && (
                       <div className="mb-3 p-2 bg-blue-50 rounded-lg">
@@ -187,11 +234,15 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                           <MapPin className="h-3 w-3" />
                           <span className="font-medium">Local da visita:</span>
                         </div>
-                        <p className="text-sm text-blue-700 mt-1">{interaction.address}</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          {interaction.address}
+                        </p>
                         {interaction.latitude && interaction.longitude && (
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-blue-600">
-                              Coordenadas: {Number(interaction.latitude).toFixed(6)}, {Number(interaction.longitude).toFixed(6)}
+                              Coordenadas:{" "}
+                              {Number(interaction.latitude).toFixed(6)},{" "}
+                              {Number(interaction.longitude).toFixed(6)}
                             </span>
                             <a
                               href={`https://www.google.com/maps?q=${interaction.latitude},${interaction.longitude}`}
@@ -211,15 +262,22 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                         <Badge variant="secondary" className={typeConfig.color}>
                           {typeConfig.label}
                         </Badge>
-                        <Badge variant="secondary" className={statusConfig_.color}>
+                        <Badge
+                          variant="secondary"
+                          className={statusConfig_.color}
+                        >
                           {statusConfig_.label}
                         </Badge>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        por {interaction.user.name} • {formatDistanceToNow(new Date(interaction.createdAt.toString()), { 
-                          addSuffix: true, 
-                          locale: ptBR 
-                        })}
+                      <div className="text-xs text-gray-500 dark:text-slate-400">
+                        por {interaction.user.name} •{" "}
+                        {formatDistanceToNow(
+                          new Date(interaction.createdAt.toString()),
+                          {
+                            addSuffix: true,
+                            locale: ptBR,
+                          },
+                        )}
                       </div>
                     </div>
                   </div>
@@ -236,7 +294,9 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => deleteInteractionMutation.mutate(interaction.id)}
+                      onClick={() =>
+                        deleteInteractionMutation.mutate(interaction.id)
+                      }
                       className="text-red-500 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -254,7 +314,7 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
         onOpenChange={setShowFormModal}
         target={{
           id: client.id,
-          type: "client"
+          type: "client",
         }}
       />
 
@@ -262,10 +322,10 @@ export default function ClientInteractionsTab({ client }: ClientInteractionsTabP
         <InteractionFormModal
           open={!!editingInteraction}
           onOpenChange={(open) => !open && setEditingInteraction(null)}
-           target={{
-          id: client.id,
-          type: "client"
-        }}
+          target={{
+            id: client.id,
+            type: "client",
+          }}
           interaction={editingInteraction}
         />
       )}

@@ -100,8 +100,8 @@ export default function UmblerTagSelect({
             {isLoading
               ? "Carregando..."
               : value && Array.isArray(value) && value.length > 0
-              ? `${value.length} tag(s) selecionada(s)`
-              : placeholder}
+                ? `${value.length} tag(s) selecionada(s)`
+                : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
@@ -117,12 +117,12 @@ export default function UmblerTagSelect({
           <div className="max-h-64 overflow-y-auto">
             {filteredTags.length === 0 ? (
               <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-2">
+                <p className="text-sm text-gray-500  dark:text-slate-400 mb-2">
                   {isLoading
                     ? "Carregando tags..."
                     : searchTerm
-                    ? "Nenhuma tag encontrada."
-                    : "Nenhuma tag disponível."}
+                      ? "Nenhuma tag encontrada."
+                      : "Nenhuma tag disponível."}
                 </p>
               </div>
             ) : (
@@ -131,17 +131,17 @@ export default function UmblerTagSelect({
                   <DropdownMenuItem
                     key={tag.id}
                     onClick={() => handleTagToggle(tag.id)}
-                    className="flex items-center gap-2 cursor-pointer"
+                    className="flex items-center dark:text-slate-300 gap-2 cursor-pointer"
                   >
                     <Check
                       className={cn(
                         "h-4 w-4",
                         value && Array.isArray(value) && value.includes(tag.id)
                           ? "opacity-100"
-                          : "opacity-0"
+                          : "opacity-0",
                       )}
                     />
-                    <span className="flex-1 flex items-center gap-1">
+                    <span className="flex-1 flex dark:text-slate-300 items-center gap-1">
                       {tag.emoji && <span>{tag.emoji}</span>}
                       {tag.name}
                     </span>

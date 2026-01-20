@@ -52,7 +52,7 @@ export default function ClientImportModal({
     "upload" | "preview" | "field-mapping" | "importing" | "result"
   >("upload");
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
-    {}
+    {},
   );
   const [progress, setProgress] = useState(0);
 
@@ -150,7 +150,7 @@ export default function ClientImportModal({
         const cleanName = user.name.toLowerCase().trim();
         userMap.set(cleanName, user.id);
         console.log(
-          `Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`
+          `Mapeando usuário: '${user.name}' -> '${cleanName}' -> ${user.id}`,
         );
       });
       console.log("🗺️ Mapa final de usuários:", Array.from(userMap.entries()));
@@ -181,7 +181,7 @@ export default function ClientImportModal({
           console.log(
             `Linha ${i + 1}: Responsavel email original:`,
             responsavelEmail,
-            typeof responsavelEmail
+            typeof responsavelEmail,
           );
 
           if (
@@ -192,8 +192,8 @@ export default function ClientImportModal({
             try {
               const userResponse = await fetch(
                 `/api/users/by-email/${encodeURIComponent(
-                  responsavelEmail.trim()
-                )}`
+                  responsavelEmail.trim(),
+                )}`,
               );
               if (userResponse.ok) {
                 const user = await userResponse.json();
@@ -203,13 +203,13 @@ export default function ClientImportModal({
                     i + 1
                   }: Responsável encontrado: ${responsavelEmail} -> ${
                     user.name
-                  } (${user.id})`
+                  } (${user.id})`,
                 );
               } else {
                 console.warn(
                   `Linha ${
                     i + 1
-                  }: Responsável não encontrado para email: ${responsavelEmail}`
+                  }: Responsável não encontrado para email: ${responsavelEmail}`,
                 );
                 // Não falhar a importação por conta do responsável não encontrado, apenas logar
                 // results.errors.push({
@@ -222,7 +222,7 @@ export default function ClientImportModal({
             } catch (error) {
               console.error(
                 `Linha ${i + 1}: Erro ao buscar responsável:`,
-                error
+                error,
               );
               // Não falhar a importação por conta do erro, apenas logar
             }
@@ -238,7 +238,8 @@ export default function ClientImportModal({
           if (categoriaName && typeof categoriaName === "string") {
             const cleanCategoriaName = categoriaName.toLowerCase().trim();
             const foundCategory = categories.find(
-              (cat: any) => cat.name.toLowerCase().trim() === cleanCategoriaName
+              (cat: any) =>
+                cat.name.toLowerCase().trim() === cleanCategoriaName,
             );
             categoria = foundCategory ? foundCategory.name : "OUTROS";
             console.log(
@@ -248,11 +249,11 @@ export default function ClientImportModal({
                 foundCategory
                   ? foundCategory.name
                   : "NÃO ENCONTRADO, usando OUTROS"
-              }`
+              }`,
             );
             console.log(
               `Available categories:`,
-              categories.map((c: any) => c.name)
+              categories.map((c: any) => c.name),
             );
           }
 
@@ -264,7 +265,7 @@ export default function ClientImportModal({
           if (origemName && typeof origemName === "string") {
             const cleanOrigemName = origemName.toLowerCase().trim();
             const foundOrigin = origins.find(
-              (orig: any) => orig.name.toLowerCase().trim() === cleanOrigemName
+              (orig: any) => orig.name.toLowerCase().trim() === cleanOrigemName,
             );
             origem = foundOrigin ? foundOrigin.name : "OUTROS";
             console.log(
@@ -272,11 +273,11 @@ export default function ClientImportModal({
                 i + 1
               }: Origem '${origemName}' -> '${cleanOrigemName}' -> ${
                 foundOrigin ? foundOrigin.name : "NÃO ENCONTRADO, usando OUTROS"
-              }`
+              }`,
             );
             console.log(
               `Available origins:`,
-              origins.map((o: any) => o.name)
+              origins.map((o: any) => o.name),
             );
           }
 
@@ -394,7 +395,7 @@ export default function ClientImportModal({
             try {
               // Buscar cliente existente por telefone
               const existingClientResponse = await fetch(
-                `/api/clients/by-phone/${encodeURIComponent(phone)}`
+                `/api/clients/by-phone/${encodeURIComponent(phone)}`,
               );
 
               if (existingClientResponse.ok) {
@@ -406,7 +407,7 @@ export default function ClientImportModal({
                 });
                 results.success++;
                 console.log(
-                  `Linha ${i + 1}: Cliente atualizado por telefone ${phone}`
+                  `Linha ${i + 1}: Cliente atualizado por telefone ${phone}`,
                 );
               } else {
                 // Cliente não existe, criar novo
@@ -416,7 +417,7 @@ export default function ClientImportModal({
                 });
                 results.success++;
                 console.log(
-                  `Linha ${i + 1}: Novo cliente criado com telefone ${phone}`
+                  `Linha ${i + 1}: Novo cliente criado com telefone ${phone}`,
                 );
               }
             } catch (updateError: any) {
@@ -427,7 +428,7 @@ export default function ClientImportModal({
               });
               results.success++;
               console.log(
-                `Linha ${i + 1}: Cliente criado após erro na atualização`
+                `Linha ${i + 1}: Cliente criado após erro na atualização`,
               );
             }
           } else {
@@ -600,7 +601,9 @@ export default function ClientImportModal({
             </Alert>
 
             <div className="space-y-2">
-              <Label htmlFor="file">Arquivo Excel</Label>
+              <Label htmlFor="file" className="dark:text-slate-100">
+                Arquivo Excel
+              </Label>
               <Input
                 id="file"
                 type="file"

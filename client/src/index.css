@@ -197,98 +197,13 @@
   }
 }
 
-/* Force light theme for modals and popups */
+/* Dark mode support for components */
 @layer components {
-  [data-radix-portal] {
-    --background: 0 0% 100% !important;
-    --foreground: 222.2 84% 4.9% !important;
-    --card: 0 0% 100% !important;
-    --card-foreground: 222.2 84% 4.9% !important;
-    --popover: 0 0% 100% !important;
-    --popover-foreground: 222.2 84% 4.9% !important;
-    --border: 214.3 31.8% 91.4% !important;
-    --input: 214.3 31.8% 91.4% !important;
-  }
-
-  /* Ensure dialog content is light */
-  [role="dialog"] {
-    background: hsl(0 0% 100%) !important;
-    color: hsl(222.2 84% 4.9%) !important;
-    border-color: hsl(214.3 31.8% 91.4%) !important;
-  }
-
-  /* Ensure select content is light */
-  [role="listbox"] {
-    background: hsl(0 0% 100%) !important;
-    color: hsl(222.2 84% 4.9%) !important;
-    border-color: hsl(214.3 31.8% 91.4%) !important;
-  }
-
-  /* Ensure dropdown menus are light */
-  [role="menu"] {
-    background: hsl(0 0% 100%) !important;
-    color: hsl(222.2 84% 4.9%) !important;
-    border-color: hsl(214.3 31.8% 91.4%) !important;
-  }
-
-  /* Force popover content to be light */
-  [data-radix-popper-content-wrapper] {
-    --background: 0 0% 100% !important;
-    --foreground: 222.2 84% 4.9% !important;
-  }
-
-  /* Additional specific selectors for common UI components */
-  .bg-popover {
-    background: hsl(0 0% 100%) !important;
-  }
-
-  .text-popover-foreground {
-    color: hsl(222.2 84% 4.9%) !important;
-  }
-
-  .bg-card {
-    background: hsl(0 0% 100%) !important;
-  }
-
-  .text-card-foreground {
-    color: hsl(222.2 84% 4.9%) !important;
-  }
-
-  /* Ensure modal overlays don't interfere */
-  .bg-background {
-    background: hsl(0 0% 100%) !important;
-  }
-
-  .text-foreground {
-    color: hsl(222.2 84% 4.9%) !important;
-  }
-
-  /* Force light theme on all shadcn components */
-  [data-theme="dark"] [role="dialog"],
-  [data-theme="dark"] [role="listbox"],
-  [data-theme="dark"] [role="menu"],
-  [data-theme="dark"] [data-radix-portal] {
-    background: hsl(0 0% 100%) !important;
-    color: hsl(222.2 84% 4.9%) !important;
-  }
-
   /* Ensure buttons are visible in dialogs */
   [role="dialog"] button {
     visibility: visible !important;
     opacity: 1 !important;
     display: inline-flex !important;
-  }
-
-  /* Make sure dialog footer is visible */
-  [role="dialog"] .flex.justify-end {
-    background: white !important;
-    padding: 1rem !important;
-    border-top: 1px solid #e5e7eb;
-  }
-
-  /* Remove any problematic styles that might hide content */
-  .hidden {
-    display: none;
   }
 
   /* Ensure primary buttons have proper styling */
@@ -299,6 +214,49 @@
 
   .bg-primary:hover {
     background-color: #6d28d9 !important;
+  }
+
+  /* Dark mode for React Quill editor */
+  .dark .ql-toolbar {
+    border-color: hsl(217.2 32.6% 17.5%) !important;
+    background: hsl(222.2 84% 4.9%) !important;
+  }
+
+  .dark .ql-container {
+    border-color: hsl(217.2 32.6% 17.5%) !important;
+    background: hsl(222.2 84% 4.9%) !important;
+  }
+
+  .dark .ql-editor {
+    color: hsl(210 40% 98%) !important;
+  }
+
+  .dark .ql-editor::before {
+    color: hsl(215 20.2% 65.1%) !important;
+  }
+
+  .dark .ql-toolbar .ql-stroke {
+    stroke: hsl(215 20.2% 65.1%) !important;
+  }
+
+  .dark .ql-toolbar .ql-fill {
+    fill: hsl(215 20.2% 65.1%) !important;
+  }
+
+  .dark .ql-toolbar .ql-picker-label {
+    color: hsl(215 20.2% 65.1%) !important;
+  }
+
+  .dark .ql-toolbar button:hover .ql-stroke,
+  .dark .ql-toolbar button:focus .ql-stroke,
+  .dark .ql-toolbar button.ql-active .ql-stroke {
+    stroke: hsl(210 40% 98%) !important;
+  }
+
+  .dark .ql-toolbar button:hover .ql-fill,
+  .dark .ql-toolbar button:focus .ql-fill,
+  .dark .ql-toolbar button.ql-active .ql-fill {
+    fill: hsl(210 40% 98%) !important;
   }
 }
 
@@ -365,6 +323,23 @@
   background: rgb(156 163 175);
 }
 
+/* Dark mode scrollbar */
+.dark .scrollbar-thin {
+  scrollbar-color: rgb(75 85 99) rgb(31 41 55);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: rgb(31 41 55);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgb(75 85 99);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(107 114 128);
+}
+
 /* Mobile-first responsive breakpoints */
 @media (max-width: 640px) {
   .container {
@@ -397,7 +372,6 @@
 
 /* Touch-friendly interactive elements */
 @media (hover: none) and (pointer: coarse) {
-
   button,
   [role="button"],
   input,
@@ -475,11 +449,23 @@ pre {
   background: #f1f1f1;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #7b3aec;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #7b3aec;
+  background: #6d28d9;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #9333ea;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
 }
