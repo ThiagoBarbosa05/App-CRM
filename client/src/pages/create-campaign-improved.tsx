@@ -153,22 +153,22 @@ export default function CreateCampaignPage() {
   // Contatos exibidos na lista (limitado para performance)
   const displayedContacts = useMemo(
     () => contacts.slice(0, displayLimit),
-    [contacts, displayLimit]
+    [contacts, displayLimit],
   );
 
   const selectedBotData = useMemo(
     () => bots.find((b) => b.botId === selectedBot),
-    [bots, selectedBot]
+    [bots, selectedBot],
   );
 
   const selectedChannelData = useMemo(
     () => channels.find((c) => c.id === selectedChannel),
-    [channels, selectedChannel]
+    [channels, selectedChannel],
   );
 
   const activeChannels = useMemo(
     () => channels.filter((c) => c.state === "Live"),
-    [channels]
+    [channels],
   );
 
   // Auto-selecionar todos os contatos quando a lista mudar (APENAS no modo rápido)
@@ -301,27 +301,30 @@ export default function CreateCampaignPage() {
       alert(
         `Erro ao criar campanha: ${
           error instanceof Error ? error.message : "Erro desconhecido"
-        }`
+        }`,
       );
     }
   };
 
   const renderStep1 = () => (
     <Card className="shadow-sm">
-      <CardHeader className="border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
-        <CardTitle className="flex items-center gap-2 text-xl">
+      <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+        <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
           <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
             <MessageSquare className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           Informações da Campanha
         </CardTitle>
-        <CardDescription className="text-base">
+        <CardDescription className="text-base text-gray-600 dark:text-slate-400">
           Defina o nome e objetivo da sua campanha
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
         <div className="space-y-3">
-          <Label htmlFor="title" className="text-base font-semibold">
+          <Label
+            htmlFor="title"
+            className="text-base font-semibold text-gray-900 dark:text-slate-100"
+          >
             Nome da Campanha *
           </Label>
           <Input
@@ -333,10 +336,10 @@ export default function CreateCampaignPage() {
             maxLength={100}
           />
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-600 dark:text-slate-400">
               Escolha um nome descritivo para identificar sua campanha
             </p>
-            <span className="text-xs text-muted-foreground shrink-0 ml-2">
+            <span className="text-xs text-gray-500 dark:text-slate-500 shrink-0 ml-2">
               {title.length}/100
             </span>
           </div>
@@ -350,27 +353,29 @@ export default function CreateCampaignPage() {
       setSelectedTags((prev) =>
         prev.includes(tagId)
           ? prev.filter((id) => id !== tagId)
-          : [...prev, tagId]
+          : [...prev, tagId],
       );
     };
 
     return (
       <Card className="shadow-sm">
-        <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
-          <CardTitle className="flex items-center gap-2 text-xl">
+        <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+          <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
             <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
               <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             Seleção de Contatos
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base dark:text-slate-400">
             Escolha as tags para filtrar os destinatários da campanha
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <Label className="text-base font-semibold">Tags *</Label>
+              <Label className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                Tags *
+              </Label>
               {selectedTags.length > 0 && (
                 <Badge variant="secondary" className="font-normal">
                   {selectedTags.length}{" "}
@@ -385,8 +390,8 @@ export default function CreateCampaignPage() {
               {/* Tags selecionadas */}
               {selectedTags.length > 0 && (
                 <div className="relative">
-                  <div className="absolute -top-2 left-3 px-2 bg-background z-10">
-                    <span className="text-xs font-medium text-muted-foreground">
+                  <div className="absolute -top-2 left-3 px-2 bg-background dark:bg-slate-900 z-10">
+                    <span className="text-xs font-medium text-gray-600 dark:text-slate-400">
                       Tags Selecionadas
                     </span>
                   </div>
@@ -414,21 +419,21 @@ export default function CreateCampaignPage() {
 
               {/* Command para pesquisar tags */}
               <div className="relative">
-                <div className="absolute -top-2 left-3 px-2 bg-background z-10">
-                  <span className="text-xs font-medium text-muted-foreground">
+                <div className="absolute -top-2 left-3 px-2 bg-background dark:bg-slate-900 z-10">
+                  <span className="text-xs font-medium text-gray-600 dark:text-slate-400">
                     Buscar Tags
                   </span>
                 </div>
                 <Command
                   shouldFilter={false}
-                  className="border-2 rounded-xl shadow-sm overflow-hidden"
+                  className="border-2 border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden"
                 >
                   <div className="relative">
                     <CommandInput
                       placeholder="Digite para pesquisar tags..."
                       value={tagSearchQuery}
                       onValueChange={setTagSearchQuery}
-                      className="h-12 text-base"
+                      className="h-12 text-base dark:text-slate-200"
                     />
                     {isLoadingTags &&
                       tagSearchQuery !== debouncedTagSearchQuery && (
@@ -437,9 +442,9 @@ export default function CreateCampaignPage() {
                         </div>
                       )}
                   </div>
-                  <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+                  <CommandEmpty className="py-6 text-center text-sm text-gray-600 dark:text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
+                      <AlertCircle className="h-8 w-8 text-gray-400 dark:text-slate-500" />
                       <p>Nenhuma tag encontrada</p>
                     </div>
                   </CommandEmpty>
@@ -449,7 +454,7 @@ export default function CreateCampaignPage() {
                       tagSearchQuery === debouncedTagSearchQuery ? (
                         <div className="flex items-center justify-center gap-2 py-8">
                           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-gray-600 dark:text-slate-400">
                             Buscando tags...
                           </span>
                         </div>
@@ -463,7 +468,8 @@ export default function CreateCampaignPage() {
                                 onSelect={() => toggleTag(tag.id)}
                                 className={cn(
                                   "cursor-pointer rounded-lg px-3 py-3 transition-all",
-                                  isSelected && "bg-blue-50 dark:bg-blue-950/30"
+                                  isSelected &&
+                                    "bg-blue-50 dark:bg-blue-950/30",
                                 )}
                               >
                                 <div className="flex items-center gap-3 flex-1">
@@ -472,7 +478,7 @@ export default function CreateCampaignPage() {
                                       "h-5 w-5 border-2 rounded-md flex items-center justify-center transition-all shadow-sm",
                                       isSelected
                                         ? "bg-primary border-primary scale-110"
-                                        : "border-muted-foreground/50 hover:border-primary/50"
+                                        : "border-muted-foreground/50 hover:border-primary/50",
                                     )}
                                   >
                                     {isSelected && (
@@ -482,7 +488,7 @@ export default function CreateCampaignPage() {
                                   <span
                                     className={cn(
                                       "text-sm",
-                                      isSelected && "font-medium"
+                                      isSelected && "font-medium",
                                     )}
                                   >
                                     {tag.name}
@@ -502,7 +508,7 @@ export default function CreateCampaignPage() {
 
           <Separator />
 
-          <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-xl border">
+          <div className="flex items-start space-x-3 p-4 bg-muted/50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700">
             <Checkbox
               id="exclusive"
               checked={exclusiveTagFilter}
@@ -514,7 +520,7 @@ export default function CreateCampaignPage() {
             <div className="flex-1">
               <Label
                 htmlFor="exclusive"
-                className="text-sm font-medium cursor-pointer leading-relaxed flex items-center gap-2"
+                className="text-sm font-medium text-gray-900 dark:text-slate-100 cursor-pointer leading-relaxed flex items-center gap-2"
               >
                 Filtro exclusivo de tags
                 {exclusiveTagFilter && (
@@ -523,7 +529,7 @@ export default function CreateCampaignPage() {
                   </Badge>
                 )}
               </Label>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
                 {exclusiveTagFilter
                   ? "✓ Apenas contatos que possuem SOMENTE as tags selecionadas (sem tags extras)"
                   : "Contatos que possuem PELO MENOS uma das tags selecionadas (podem ter outras tags)"}
@@ -535,26 +541,26 @@ export default function CreateCampaignPage() {
             <>
               <Separator />
               {isLoadingContacts ? (
-                <div className="space-y-4 p-8 border rounded-xl bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+                <div className="space-y-4 p-8 border border-gray-200 dark:border-slate-700 rounded-xl bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
                   <div className="flex flex-col items-center gap-3">
                     <div className="relative">
                       <Loader2 className="h-12 w-12 animate-spin text-primary" />
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="h-8 w-8 rounded-full bg-background" />
+                        <div className="h-8 w-8 rounded-full bg-background dark:bg-slate-900" />
                       </div>
                     </div>
                     <div className="text-center space-y-1">
-                      <p className="text-base font-semibold text-foreground">
+                      <p className="text-base font-semibold text-gray-900 dark:text-slate-100">
                         Buscando todos os contatos...
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-gray-600 dark:text-slate-400">
                         Carregando em páginas de 220 contatos
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-slate-400">
                       <span>Progresso</span>
                       <span className="font-mono font-semibold">
                         {Math.round(loadingProgress)}%
@@ -563,8 +569,8 @@ export default function CreateCampaignPage() {
                     <Progress value={loadingProgress} className="h-2" />
                   </div>
 
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary dark:bg-blue-400 animate-pulse" />
                     <span>Aguarde enquanto processamos sua solicitação...</span>
                   </div>
                 </div>
@@ -638,7 +644,7 @@ export default function CreateCampaignPage() {
                   {/* Metadados de performance */}
                   {contactsData?.metadata && (
                     <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
-                      <AlertDescription className="text-xs text-muted-foreground">
+                      <AlertDescription className="text-xs text-gray-600 dark:text-slate-400">
                         <div className="flex items-center gap-4 flex-wrap">
                           <span>
                             ✓ Carregado em {contactsData.metadata.pages} página
@@ -667,14 +673,14 @@ export default function CreateCampaignPage() {
                   {/* Lista de contatos encontrados */}
                   {contacts.length > 0 && (
                     <div className="relative">
-                      <div className="absolute -top-2 left-3 px-2 bg-background z-10">
-                        <span className="text-xs font-medium text-muted-foreground">
+                      <div className="absolute -top-2 left-3 px-2 bg-background dark:bg-slate-900 z-10">
+                        <span className="text-xs font-medium text-gray-600 dark:text-slate-400">
                           Destinatários da Campanha
                         </span>
                       </div>
-                      <div className="border-2 rounded-xl overflow-hidden shadow-sm">
-                        <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900 border-b flex items-center justify-between">
-                          <span className="font-semibold text-sm">
+                      <div className="border-2 border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                        <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+                          <span className="font-semibold text-sm text-gray-900 dark:text-slate-100">
                             Lista de Contatos
                           </span>
                           <Badge variant="outline" className="font-mono">
@@ -686,7 +692,7 @@ export default function CreateCampaignPage() {
                             {displayedContacts.map(
                               (contact: any, index: number) => {
                                 const isSelected = selectedContacts.includes(
-                                  contact.id
+                                  contact.id,
                                 );
                                 return (
                                   <div
@@ -695,16 +701,16 @@ export default function CreateCampaignPage() {
                                       setSelectedContacts((prev) =>
                                         prev.includes(contact.id)
                                           ? prev.filter(
-                                              (id) => id !== contact.id
+                                              (id) => id !== contact.id,
                                             )
-                                          : [...prev, contact.id]
+                                          : [...prev, contact.id],
                                       );
                                     }}
                                     className={cn(
                                       "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer group",
                                       isSelected
                                         ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-                                        : "hover:bg-muted/70 border-transparent hover:border-border"
+                                        : "hover:bg-muted/70 border-transparent hover:border-border",
                                     )}
                                   >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -714,9 +720,9 @@ export default function CreateCampaignPage() {
                                           setSelectedContacts((prev) =>
                                             prev.includes(contact.id)
                                               ? prev.filter(
-                                                  (id) => id !== contact.id
+                                                  (id) => id !== contact.id,
                                                 )
-                                              : [...prev, contact.id]
+                                              : [...prev, contact.id],
                                           );
                                         }}
                                         onClick={(e) => e.stopPropagation()}
@@ -727,12 +733,12 @@ export default function CreateCampaignPage() {
                                           className={cn(
                                             "font-medium text-sm truncate transition-colors",
                                             isSelected &&
-                                              "text-green-700 dark:text-green-400"
+                                              "text-green-700 dark:text-green-400",
                                           )}
                                         >
                                           {contact.name}
                                         </span>
-                                        <span className="text-xs text-muted-foreground font-mono truncate">
+                                        <span className="text-xs text-muted-foreground dark:text-slate-200 font-mono truncate">
                                           {contact.phoneNumber}
                                         </span>
 
@@ -757,7 +763,7 @@ export default function CreateCampaignPage() {
                                           {contact.tags.map((tagId: string) => {
                                             const tag = Array.isArray(tags)
                                               ? tags.find(
-                                                  (t: Tag) => t.id === tagId
+                                                  (t: Tag) => t.id === tagId,
                                                 )
                                               : null;
                                             return tag ? (
@@ -778,15 +784,15 @@ export default function CreateCampaignPage() {
                                       )}
                                   </div>
                                 );
-                              }
+                              },
                             )}
                           </div>
                         </ScrollArea>
 
                         {/* Virtual rendering controls */}
                         {contacts.length > displayLimit && (
-                          <div className="p-3 border-t bg-muted/30">
-                            <p className="text-xs text-muted-foreground mb-2">
+                          <div className="p-3 border-t border-gray-200 dark:border-slate-700 bg-muted/30 dark:bg-slate-800/30">
+                            <p className="text-xs text-gray-600 dark:text-slate-400 mb-2">
                               Exibindo {displayLimit} de {contacts.length}{" "}
                               contatos
                             </p>
@@ -805,8 +811,8 @@ export default function CreateCampaignPage() {
                         )}
                         {contacts.length > 0 &&
                           displayLimit >= contacts.length && (
-                            <div className="p-2 border-t">
-                              <p className="text-xs text-center text-muted-foreground">
+                            <div className="p-2 border-t border-gray-200 dark:border-slate-700">
+                              <p className="text-xs text-center text-gray-600 dark:text-slate-400">
                                 Exibindo todos os {contacts.length} contatos
                               </p>
                             </div>
@@ -826,14 +832,14 @@ export default function CreateCampaignPage() {
   const renderStep3 = () => {
     return (
       <Card className="shadow-sm">
-        <CardHeader className="border-b bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-950/20 dark:to-teal-950/20">
-          <CardTitle className="flex items-center gap-2 text-xl">
+        <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-950/20 dark:to-teal-950/20">
+          <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
             <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
               <MessageSquare className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             Canal de Envio
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base dark:text-slate-400">
             Selecione o canal WhatsApp para enviar as mensagens
           </CardDescription>
         </CardHeader>
@@ -856,7 +862,9 @@ export default function CreateCampaignPage() {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <Label className="text-base font-semibold">Canal *</Label>
+                <Label className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                  Canal *
+                </Label>
                 <Badge variant="secondary" className="font-normal">
                   {activeChannels.length}{" "}
                   {activeChannels.length === 1
@@ -914,14 +922,14 @@ export default function CreateCampaignPage() {
   const renderStep4 = () => {
     return (
       <Card className="shadow-sm">
-        <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
-          <CardTitle className="flex items-center gap-2 text-xl">
+        <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
+          <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
             <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
               <Bot className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
             Bot e Mensagem
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base dark:text-slate-400">
             Escolha o bot e o gatilho para iniciar a conversa
           </CardDescription>
         </CardHeader>
@@ -965,7 +973,9 @@ export default function CreateCampaignPage() {
             <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <Label className="text-base font-semibold">Bot *</Label>
+                  <Label className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                    Bot *
+                  </Label>
                   <Badge variant="secondary" className="font-normal">
                     {bots.length}{" "}
                     {bots.length === 1 ? "bot disponível" : "bots disponíveis"}
@@ -976,7 +986,7 @@ export default function CreateCampaignPage() {
                 {selectedBot && selectedBotData && (
                   <div className="relative">
                     <div className="absolute -top-2 left-3 px-2 bg-background z-10">
-                      <span className="text-xs font-medium text-muted-foreground">
+                      <span className="text-xs font-medium dark:text-slate-300 text-muted-foreground">
                         Bot Selecionado
                       </span>
                     </div>
@@ -987,10 +997,10 @@ export default function CreateCampaignPage() {
                             <Bot className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-semibold text-base">
+                            <span className="font-semibold dark:text-slate-200 text-base">
                               {selectedBotData.botTitle}
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs dark:text-slate-400">
                               Gatilho: Início
                             </span>
                           </div>
@@ -1003,7 +1013,7 @@ export default function CreateCampaignPage() {
                           }}
                           className="h-8 hover:bg-orange-100 dark:hover:bg-orange-900"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4 dark:text-slate-400" />
                         </Button>
                       </div>
                     </div>
@@ -1014,11 +1024,11 @@ export default function CreateCampaignPage() {
                 {!selectedBot && (
                   <div className="relative">
                     <div className="absolute -top-2 left-3 px-2 bg-background z-10">
-                      <span className="text-xs font-medium text-muted-foreground">
+                      <span className="text-xs font-medium dark:text-slate-300 text-muted-foreground">
                         Selecionar Bot
                       </span>
                     </div>
-                    <div className="border-2 rounded-xl shadow-sm overflow-hidden">
+                    <div className="border-2 rounded-xl dark:border-slate-800 shadow-sm overflow-hidden">
                       <div className="p-3 border-b bg-muted/30">
                         <div className="relative">
                           <Input
@@ -1030,7 +1040,7 @@ export default function CreateCampaignPage() {
                           {isLoadingBots &&
                             botSearchQuery !== debouncedBotSearchQuery && (
                               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-slate-400" />
                               </div>
                             )}
                         </div>
@@ -1039,15 +1049,15 @@ export default function CreateCampaignPage() {
                       botSearchQuery === debouncedBotSearchQuery ? (
                         <div className="py-8 flex items-center justify-center gap-2">
                           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-muted-foreground dark:text-slate-400">
                             Buscando bots...
                           </span>
                         </div>
                       ) : bots.length === 0 ? (
                         <div className="py-8 text-center">
                           <div className="flex flex-col items-center gap-2">
-                            <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
-                            <p className="text-sm text-muted-foreground">
+                            <AlertCircle className="h-8 w-8 text-muted-foreground/50 dark:text-slate-400" />
+                            <p className="text-sm text-muted-foreground dark:text-slate-400">
                               {botSearchQuery
                                 ? "Nenhum bot encontrado com este nome"
                                 : "Nenhum bot disponível"}
@@ -1070,10 +1080,10 @@ export default function CreateCampaignPage() {
                                     <Bot className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                                   </div>
                                   <div className="flex flex-col flex-1 min-w-0">
-                                    <span className="font-medium text-sm truncate">
+                                    <span className="font-medium text-sm dark:text-slate-200 truncate">
                                       {bot.botTitle}
                                     </span>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs dark:text-slate-400">
                                       Gatilho: Início
                                     </span>
                                   </div>
@@ -1096,28 +1106,30 @@ export default function CreateCampaignPage() {
 
   const renderStep5 = () => (
     <Card className="shadow-sm">
-      <CardHeader className="border-b bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-950/20 dark:to-sky-950/20">
-        <CardTitle className="flex items-center gap-2 text-xl">
+      <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-950/20 dark:to-sky-950/20">
+        <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
           <div className="p-2 bg-cyan-100 dark:bg-cyan-900 rounded-lg">
             <Clock className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
           </div>
           Agendamento
         </CardTitle>
-        <CardDescription className="text-base">
+        <CardDescription className="text-base text-gray-600 dark:text-slate-400">
           Defina quando e como as mensagens serão enviadas
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Data de Início *</Label>
+            <Label className="text-base font-semibold text-gray-900 dark:text-slate-100">
+              Data de Início *
+            </Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
                     "w-full h-12 justify-start text-left font-normal text-base",
-                    !selectedDate && "text-muted-foreground"
+                    !selectedDate && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1138,7 +1150,10 @@ export default function CreateCampaignPage() {
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="time" className="text-base font-semibold">
+            <Label
+              htmlFor="time"
+              className="text-base font-semibold text-gray-900 dark:text-slate-100"
+            >
               Horário *
             </Label>
             <Input
@@ -1151,7 +1166,7 @@ export default function CreateCampaignPage() {
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+        <p className="text-sm text-gray-600 dark:text-slate-400 bg-muted/50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700">
           💡 As mensagens começarão a ser enviadas na data e horário
           especificados
         </p>
@@ -1168,7 +1183,10 @@ export default function CreateCampaignPage() {
         <Separator />
 
         <div className="space-y-3">
-          <Label htmlFor="interval" className="text-base font-semibold">
+          <Label
+            htmlFor="interval"
+            className="text-base font-semibold text-gray-900 dark:text-slate-100"
+          >
             Intervalo entre mensagens
           </Label>
           <div className="flex items-center gap-3">
@@ -1181,9 +1199,11 @@ export default function CreateCampaignPage() {
               onChange={(e) => setIntervalSeconds(Number(e.target.value))}
               className="h-12 text-base max-w-[120px]"
             />
-            <span className="text-sm text-muted-foreground">segundos</span>
+            <span className="text-sm text-gray-600 dark:text-slate-400">
+              segundos
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-gray-600 dark:text-slate-400">
             ⏱️ Tempo de espera entre cada mensagem (recomendado: 5-10 segundos)
           </p>
         </div>
@@ -1191,10 +1211,10 @@ export default function CreateCampaignPage() {
         <Separator />
 
         <div className="space-y-3">
-          <Label className="text-base font-semibold">
+          <Label className="text-base font-semibold text-gray-900 dark:text-slate-100">
             Cancelar envio automaticamente quando:
           </Label>
-          <div className="space-y-3 p-4 bg-muted/50 rounded-xl border">
+          <div className="space-y-3 p-4 bg-muted/50 dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-700">
             {[
               { value: "contato", label: "Contato responder", icon: "💬" },
               { value: "atendente", label: "Atendente responder", icon: "👤" },
@@ -1215,7 +1235,7 @@ export default function CreateCampaignPage() {
                     setCancelUpon((prev) =>
                       checked
                         ? [...prev, option.value]
-                        : prev.filter((v) => v !== option.value)
+                        : prev.filter((v) => v !== option.value),
                     );
                   }}
                 />
@@ -1346,25 +1366,31 @@ export default function CreateCampaignPage() {
 
     return (
       <Card className="shadow-sm sticky top-6">
-        <CardHeader className="border-b bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20">
-          <CardTitle className="flex items-center gap-2 text-xl">
+        <CardHeader className="border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20">
+          <CardTitle className="flex items-center gap-2 text-xl text-gray-900 dark:text-slate-100">
             <div className="p-2 bg-violet-100 dark:bg-violet-900 rounded-lg">
               <CheckCircle2 className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             Resumo da Campanha
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base dark:text-slate-400">
             Revise as informações antes de confirmar
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
           <div className="grid gap-4">
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Título</p>
-              <p className="font-medium">{title}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">
+                Título
+              </p>
+              <p className="font-medium text-gray-900 dark:text-slate-100">
+                {title}
+              </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Tags Selecionadas</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">
+                Tags Selecionadas
+              </p>
               <div className="flex flex-wrap gap-1">
                 {selectedTags.map((tagId) => {
                   const tag = Array.isArray(tags)
@@ -1385,7 +1411,7 @@ export default function CreateCampaignPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-600 dark:text-slate-400">
                   Contatos Selecionados
                 </p>
                 <Badge variant="secondary" className="font-mono">
@@ -1393,11 +1419,11 @@ export default function CreateCampaignPage() {
                 </Badge>
               </div>
               {selectedContacts.length > 0 && (
-                <div className="max-h-40 overflow-y-auto border rounded-lg">
+                <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-lg">
                   <div className="divide-y">
                     {selectedContacts.map((contactId) => {
                       const contact = contacts.find(
-                        (c: any) => c.id === contactId
+                        (c: any) => c.id === contactId,
                       );
                       if (!contact) return null;
                       return (
@@ -1407,10 +1433,10 @@ export default function CreateCampaignPage() {
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">
+                              <p className="text-sm font-medium truncate dark:text-slate-200">
                                 {contact.name}
                               </p>
-                              <p className="text-xs text-muted-foreground font-mono">
+                              <p className="text-xs text-muted-foreground dark:text-slate-400 font-mono">
                                 {contact.phoneNumber}
                               </p>
                             </div>
@@ -1422,7 +1448,7 @@ export default function CreateCampaignPage() {
                                       ? tagId
                                       : tagId.id;
                                   const tag = tags.find(
-                                    (t: Tag) => t.id === tagIdStr
+                                    (t: Tag) => t.id === tagIdStr,
                                   );
                                   return tag ? (
                                     <Badge
@@ -1454,16 +1480,20 @@ export default function CreateCampaignPage() {
             </div>
             <Separator />
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Canal</p>
-              <p className="font-medium">{selectedChannelData?.name}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">Canal</p>
+              <p className="font-medium text-gray-900 dark:text-slate-100">
+                {selectedChannelData?.name}
+              </p>
               {selectedChannelData?.phoneNumber && (
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-gray-600 dark:text-slate-400 font-mono">
                   {selectedChannelData.phoneNumber}
                 </p>
               )}
             </div>
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Bot</p>
+              <p className="text-sm text-muted-foreground dark:text-slate-200">
+                Bot
+              </p>
               {selectedBotData && (
                 <div className="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                   <div className="flex items-start gap-3">
@@ -1471,10 +1501,10 @@ export default function CreateCampaignPage() {
                       <Bot className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
+                      <p className="font-medium text-sm truncate dark:text-slate-200">
                         {selectedBotData.botTitle}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground dark:text-slate-400 mt-1">
                         Gatilho: Início
                       </p>
                     </div>
@@ -1484,14 +1514,18 @@ export default function CreateCampaignPage() {
             </div>
             <Separator />
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Início do Envio</p>
-              <p className="font-medium">
+              <p className="text-sm text-muted-foreground dark:text-slate-200">
+                Início do Envio
+              </p>
+              <p className="font-medium dark:text-slate-400">
                 {format(scheduledDateTime, "PPp", { locale: ptBR })}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Intervalo</p>
-              <p className="font-medium">
+              <p className="text-sm text-muted-foreground dark:text-slate-200">
+                Intervalo
+              </p>
+              <p className="font-medium dark:text-slate-400">
                 {intervalSeconds} segundos entre mensagens
               </p>
             </div>
@@ -1530,13 +1564,13 @@ export default function CreateCampaignPage() {
           onClick={() => setLocation("/umbler/contacts")}
           className="shrink-0"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 dark:text-slate-100" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold truncate">
+          <h1 className="text-2xl md:text-3xl text-gray-900 dark:text-slate-100 font-bold truncate">
             Criar Campanha
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
+          <p className="text-sm text-gray-600 dark:text-slate-400 md:text-base">
             Configure e agende mensagens em massa para seus contatos
           </p>
         </div>
@@ -1548,8 +1582,10 @@ export default function CreateCampaignPage() {
           <CardContent className="flex flex-col items-center gap-4 py-12">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <div className="text-center space-y-2">
-              <p className="text-lg font-medium">Carregando informações...</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-lg font-medium text-gray-900 dark:text-slate-100">
+                Carregando informações...
+              </p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 Preparando tags, canais e bots disponíveis
               </p>
             </div>
@@ -1566,9 +1602,9 @@ export default function CreateCampaignPage() {
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all",
                       currentStep >= step.num
-                        ? "border-primary bg-primary text-primary-foreground shadow-lg scale-110"
-                        : "border-muted-foreground/50 text-muted-foreground",
-                      currentStep === step.num && "ring-4 ring-primary/20"
+                        ? "border-primary dark:border-slate-500 bg-primary text-primary-foreground shadow-lg scale-110"
+                        : "border-muted-foreground/50 dark:border-slate-400 dark:text-slate-400  text-muted-foreground",
+                      currentStep === step.num && "ring-4 ring-primary/20",
                     )}
                   >
                     {currentStep > step.num ? (
@@ -1581,8 +1617,8 @@ export default function CreateCampaignPage() {
                     className={cn(
                       "text-xs font-medium hidden md:block",
                       currentStep >= step.num
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                        ? "text-primary dark:text-blue-400"
+                        : "text-muted-foreground dark:text-slate-400",
                     )}
                   >
                     {step.label}
@@ -1594,7 +1630,7 @@ export default function CreateCampaignPage() {
                       "h-0.5 w-8 md:w-16 mx-2 transition-all",
                       currentStep > step.num
                         ? "bg-primary"
-                        : "bg-muted-foreground/50"
+                        : "bg-muted-foreground/50",
                     )}
                   />
                 )}
@@ -1617,7 +1653,7 @@ export default function CreateCampaignPage() {
 
           {/* Navigation Buttons */}
           {currentStep < 6 && (
-            <div className="flex gap-3  bg-background/95 backdrop-blur-sm p-4 -mx-4 border-t shadow-lg">
+            <div className="flex gap-3 bg-background/95 dark:bg-slate-900/95 backdrop-blur-sm p-4 -mx-4 border-t border-gray-200 dark:border-slate-700 shadow-lg">
               {currentStep > 1 && (
                 <Button
                   variant="outline"

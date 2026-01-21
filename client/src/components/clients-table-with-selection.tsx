@@ -465,7 +465,7 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <Badge
                       variant="outline"
-                      className="capitalize bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium px-3 py-1"
+                      className="capitalize bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-100 from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium px-3 py-1"
                     >
                       {client.categoria}
                     </Badge>
@@ -477,7 +477,7 @@ export default function ClientsTableWithSelection({
                           <Badge
                             key={index}
                             variant="secondary"
-                            className="text-xs bg-gradient-to-r from-violet-100 to-purple-100 border-violet-200 text-violet-800 px-2 py-1"
+                            className="text-xs bg-gradient-to-r from-violet-100 dark:from-teal-600 dark:text-slate-50 dark:border-none dark:to-teal-800 to-purple-100 border-violet-200 text-violet-800 px-2 py-1"
                           >
                             <Tag className="h-3 w-3 mr-1" />
                             {marker}
@@ -491,7 +491,7 @@ export default function ClientsTableWithSelection({
                       {client.markers && client.markers.length > 2 && (
                         <Badge
                           variant="secondary"
-                          className="text-xs bg-gray-100 text-gray-600"
+                          className="text-xs bg-gray-100  text-gray-600"
                         >
                           +{client.markers.length - 2}
                         </Badge>
@@ -519,7 +519,7 @@ export default function ClientsTableWithSelection({
                             <Badge
                               key={tag.id || index}
                               variant="outline"
-                              className="text-xs bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-1"
+                              className="text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-50 from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-1"
                               title={`ID: ${tag.externalId}`}
                             >
                               {tag.emoji && (
@@ -710,14 +710,14 @@ export default function ClientsTableWithSelection({
           <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
-                  <Tag className="h-5 w-5 text-emerald-700" />
+                <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-600 dark:to-teal-600 rounded-lg">
+                  <Tag className="h-5 w-5 text-emerald-700 dark:text-slate-50" />
                 </div>
                 <div>
-                  <div className="text-lg font-semibold text-gray-900">
+                  <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                     Tags do Umbler
                   </div>
-                  <div className="text-sm font-normal text-gray-500 mt-1">
+                  <div className="text-sm font-normal text-gray-500 dark:text-slate-400 mt-1">
                     {tagsModalClient.name}
                   </div>
                 </div>
@@ -727,8 +727,8 @@ export default function ClientsTableWithSelection({
             <div className="mt-4">
               {tagsModalClient.tags && tagsModalClient.tags.length > 0 ? (
                 <>
-                  <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border dark:from-slate-950 dark:border-slate-700 dark:to-slate-950 border-blue-200">
+                    <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-400">
                       <Tag className="h-4 w-4" />
                       <span className="font-semibold">
                         {tagsModalClient.tags.length} tag(s) encontrada(s)
@@ -740,7 +740,7 @@ export default function ClientsTableWithSelection({
                     {tagsModalClient.tags.map((tag: any, index: number) => (
                       <div
                         key={tag.id || index}
-                        className="group p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl hover:shadow-md hover:border-emerald-300 transition-all duration-200"
+                        className="group p-4 bg-gradient-to-br from-emerald-50 dark:from-slate-900 dark:to-slate-950 dark:border-emerald-700 to-teal-50 border-2 border-emerald-200 rounded-xl hover:shadow-md hover:border-emerald-300 transition-all duration-200"
                       >
                         <div className="flex items-start gap-3">
                           {tag.emoji ? (
@@ -748,21 +748,21 @@ export default function ClientsTableWithSelection({
                               {tag.emoji}
                             </div>
                           ) : (
-                            <div className="p-2 bg-emerald-200 rounded-lg flex-shrink-0">
-                              <Tag className="h-5 w-5 text-emerald-700" />
+                            <div className="p-2 bg-emerald-200 dark:bg-emerald-700 rounded-lg flex-shrink-0">
+                              <Tag className="h-5 w-5 text-emerald-700 dark:text-slate-50" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-900 text-base mb-2 truncate">
+                            <div className="font-semibold text-gray-900 dark:text-slate-100 text-base mb-2 truncate">
                               {tag.externalTagName ||
                                 tag.name ||
                                 "Tag sem nome"}
                             </div>
                             {tag.externalId && (
-                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
                                 <Badge
                                   variant="outline"
-                                  className="bg-white border-emerald-300 text-emerald-800 font-mono"
+                                  className="bg-white border-emerald-300 dark:bg-slate-800 text-emerald-800 font-mono"
                                 >
                                   ID: {tag.externalId}
                                 </Badge>
@@ -802,7 +802,7 @@ export default function ClientsTableWithSelection({
             </div>
 
             <AlertDialogFooter className="mt-6">
-              <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200">
+              <AlertDialogCancel className="bg-gray-100 dark:bg-slate-800 hover:bg-gray-200">
                 Fechar
               </AlertDialogCancel>
             </AlertDialogFooter>

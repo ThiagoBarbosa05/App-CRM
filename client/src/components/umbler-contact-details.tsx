@@ -39,7 +39,7 @@ export function UmblerContactDetails({
     queryFn: async () => {
       if (!contact?.id) return [];
       const res = await fetch(
-        `/api/umbler/contacts/${contact.id}/conversations`
+        `/api/umbler/contacts/${contact.id}/conversations`,
       );
       if (!res.ok) return [];
       const data = await res.json();
@@ -58,12 +58,16 @@ export function UmblerContactDetails({
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <div className="flex items-center space-x-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
+            <div className="h-16 w-16 rounded-full bg-primary/10 dark:bg-slate-700 flex items-center justify-center">
+              <User className="h-8 w-8 text-primary dark:text-slate-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{contact.name}</h2>
-              <p className="text-muted-foreground">{contact.phoneNumber}</p>
+              <h2 className="text-xl font-bold dark:text-slate-100">
+                {contact.name}
+              </h2>
+              <p className="text-muted-foreground dark:text-slate-300">
+                {contact.phoneNumber}
+              </p>
               {contact.email && (
                 <p className="text-sm text-muted-foreground">{contact.email}</p>
               )}
@@ -72,18 +76,24 @@ export function UmblerContactDetails({
 
           <Tabs defaultValue="details">
             <TabsList className="w-full">
-              <TabsTrigger value="details" className="flex-1">
+              <TabsTrigger
+                value="details"
+                className="flex-1 dark:text-slate-100"
+              >
                 Detalhes
               </TabsTrigger>
-              <TabsTrigger value="conversations" className="flex-1">
+              <TabsTrigger
+                value="conversations"
+                className="flex-1 dark:text-slate-100"
+              >
                 Conversas
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="space-y-4">
               <div>
-                <h3 className="mb-2 font-semibold flex items-center gap-2">
-                  <Tag className="h-4 w-4" /> Etiquetas
+                <h3 className="mb-2 font-semibold flex dark:text-slate-100 items-center gap-2">
+                  <Tag className="h-4 w-4 dark:text-slate-100" /> Etiquetas
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {tags?.map((tag: any) => (
@@ -99,7 +109,7 @@ export function UmblerContactDetails({
                     </Badge>
                   ))}
                   {(!tags || tags.length === 0) && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground dark:text-slate-400">
                       Nenhuma etiqueta encontrada.
                     </p>
                   )}
@@ -113,28 +123,28 @@ export function UmblerContactDetails({
                   {conversations?.map((chat: any) => (
                     <div
                       key={chat.id}
-                      className="rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                      className="rounded-lg border dark:border-slate-700 p-3 hover:bg-muted/50  transition-colors"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4" />
+                        <span className="font-medium flex dark:text-slate-100 items-center gap-2">
+                          <MessageSquare className="h-4 w-4 dark:text-slate-100" />
                           {chat.channel?.name || "Canal desconhecido"}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground dark:text-slate-400">
                           {chat.lastMessage?.createdAtUTC &&
                             format(
                               new Date(chat.lastMessage.createdAtUTC),
-                              "dd/MM/yyyy HH:mm"
+                              "dd/MM/yyyy HH:mm",
                             )}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground dark:text-slate-400 line-clamp-2">
                         {chat.lastMessage?.content || "Sem mensagens"}
                       </p>
                     </div>
                   ))}
                   {(!conversations || conversations.length === 0) && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="text-sm text-muted-foreground dark:text-slate-400 text-center py-4">
                       Nenhuma conversa encontrada.
                     </p>
                   )}

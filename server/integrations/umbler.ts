@@ -543,7 +543,7 @@ export async function getChannels() {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -574,7 +574,7 @@ export async function getContactByPhone(phone: string) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
     if (!response.ok) {
       throw new Error("Failed to fetch contact by phone");
@@ -599,7 +599,7 @@ export async function getContacts(
   query?: string,
   tagIds?: string[],
   exclusiveTag?: boolean,
-  fetchAll: boolean = false // Se true, busca todos com paginação; se false, apenas primeira página
+  fetchAll: boolean = false, // Se true, busca todos com paginação; se false, apenas primeira página
 ): Promise<any | null> {
   try {
     const allContacts: any[] = [];
@@ -631,7 +631,7 @@ export async function getContacts(
         // Caso contrário, usa ContainsAny para filtrar contatos que têm pelo menos uma das tags
         params.append(
           "Tags.Rule",
-          exclusiveTag ? "ContainsAll" : "ContainsAny"
+          exclusiveTag ? "ContainsAll" : "ContainsAny",
         );
         tagIds.forEach((tagId) => {
           params.append("Tags.Values", tagId);
@@ -645,7 +645,7 @@ export async function getContacts(
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -659,7 +659,7 @@ export async function getContacts(
       if (pageNumber === 1 && responseData.totalCount) {
         totalCount = responseData.totalCount;
         console.log(
-          `[Umbler Contacts] Total de contatos disponíveis: ${totalCount}`
+          `[Umbler Contacts] Total de contatos disponíveis: ${totalCount}`,
         );
       }
 
@@ -675,7 +675,7 @@ export async function getContacts(
             responseData.items.length
           } contatos | Total acumulado: ${allContacts.length}${
             totalCount > 0 ? `/${totalCount} (${progress}%)` : ""
-          }`
+          }`,
         );
         skip += take;
 
@@ -729,7 +729,7 @@ export async function getContacts(
         filterApplied
           ? ` (${allContacts.length} antes do filtro exclusivo)`
           : ""
-      }`
+      }`,
     );
 
     return {
@@ -788,7 +788,7 @@ export async function getChat(data: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -810,7 +810,7 @@ export async function getChatById(id: string) {
         headers: {
           authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -888,7 +888,7 @@ export async function getBirthdayBots() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -911,7 +911,7 @@ export async function getBirthdayTodayBotsAutomation() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -934,7 +934,7 @@ export async function getBirthdayDaysBeforeBotAutomation() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -986,7 +986,7 @@ export async function getBot(query: string) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1011,7 +1011,7 @@ export async function getManualStartsBot(query: string) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1036,7 +1036,7 @@ export async function getCashbackField(contactId: string) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1059,7 +1059,7 @@ export async function getBotCashback() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1092,7 +1092,7 @@ export async function createCashback(data: {
           OrganizationId: "aGx7Jh43-au36EGi",
           CustomFieldDefinitionId: "aIpL5QxBcwmaXxEo",
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1126,7 +1126,7 @@ export async function updateCashback(data: {
           value: data.value,
           organizationId: "aGx7Jh43-au36EGi",
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1169,7 +1169,7 @@ export async function sendTemplateMessage(data: SendTemplateMessageRequest) {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        "Failed to send template message: " + JSON.stringify(error)
+        "Failed to send template message: " + JSON.stringify(error),
       );
     }
 
@@ -1184,7 +1184,7 @@ export async function sendTemplateMessage(data: SendTemplateMessageRequest) {
 }
 
 export async function createFile(
-  data: CreateFileRequest
+  data: CreateFileRequest,
 ): Promise<CreateFileResponse | null> {
   try {
     const formData = new FormData();
@@ -1233,7 +1233,7 @@ export async function deleteFile(fileId: string): Promise<boolean> {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1262,7 +1262,7 @@ export async function getTemplates(): Promise<GetTemplatesResponse | null> {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1294,7 +1294,7 @@ export async function getApprovedTemplates(): Promise<Template[] | null> {
 
     // Filtrar apenas templates aprovados
     const approvedTemplates = templatesResponse.items.filter(
-      (template) => template.status === "APPROVED"
+      (template) => template.status === "APPROVED",
     );
 
     return approvedTemplates;
@@ -1312,7 +1312,7 @@ export async function getApprovedTemplates(): Promise<Template[] | null> {
  */
 export async function createContactNote(
   contactId: string,
-  data: CreateContactNoteRequest
+  data: CreateContactNoteRequest,
 ): Promise<CreateContactNoteResponse | null> {
   try {
     if (!contactId || !contactId.trim()) {
@@ -1346,7 +1346,7 @@ export async function createContactNote(
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        "Failed to create contact note: " + JSON.stringify(error)
+        "Failed to create contact note: " + JSON.stringify(error),
       );
     }
 
@@ -1375,7 +1375,7 @@ export async function updateContact(
     gender: string;
     landline: string;
     address: ContactAddress;
-  }>
+  }>,
 ): Promise<CreateContactNoteResponse | null> {
   try {
     if (!contactId || !contactId.trim()) {
@@ -1391,7 +1391,7 @@ export async function updateContact(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1427,7 +1427,7 @@ export async function deleteContact(contactId: string): Promise<boolean> {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1449,7 +1449,7 @@ export async function deleteContact(contactId: string): Promise<boolean> {
  * @returns Promise com array de tags ou null em caso de erro
  */
 export async function getContactTags(
-  contactId: string
+  contactId: string,
 ): Promise<ContactTag[] | null> {
   try {
     if (!contactId || !contactId.trim()) {
@@ -1463,7 +1463,7 @@ export async function getContactTags(
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1487,7 +1487,7 @@ export async function getContactTags(
  * @returns Promise com as conversas ou null em caso de erro
  */
 export async function getContactConversations(
-  contactId: string
+  contactId: string,
 ): Promise<any | null> {
   try {
     if (!contactId || !contactId.trim()) {
@@ -1501,13 +1501,13 @@ export async function getContactConversations(
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        "Failed to fetch contact conversations: " + JSON.stringify(error)
+        "Failed to fetch contact conversations: " + JSON.stringify(error),
       );
     }
 
@@ -1534,7 +1534,7 @@ export async function getTags(): Promise<GetTagsResponse | null> {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -1554,7 +1554,7 @@ export async function getTags(): Promise<GetTagsResponse | null> {
 
 export async function assignTagToContact(
   contactId: string,
-  tagId: string
+  tagId: string,
 ): Promise<boolean> {
   try {
     const response = await fetch(`${apiEndpoint}/contacts/${contactId}/tags`, {
@@ -1569,7 +1569,7 @@ export async function assignTagToContact(
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        "Failed to assign tag to contact: " + JSON.stringify(error)
+        "Failed to assign tag to contact: " + JSON.stringify(error),
       );
     }
 
@@ -1587,7 +1587,7 @@ export async function assignTagToContact(
  * @returns Promise com a resposta da criação ou null em caso de erro
  */
 export async function createBulkSendSession(
-  data: CreateBulkSendSessionRequest
+  data: CreateBulkSendSessionRequest,
 ): Promise<CreateBulkSendSessionResponse | null> {
   try {
     const response = await fetch(`${apiEndpoint}/bulk-send-session`, {
@@ -1602,7 +1602,7 @@ export async function createBulkSendSession(
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        "Failed to create bulk send session: " + JSON.stringify(error)
+        "Failed to create bulk send session: " + JSON.stringify(error),
       );
     }
 
@@ -1622,7 +1622,7 @@ export async function createBulkSendSession(
  * @returns Promise com a resposta do agendamento ou null em caso de erro
  */
 export async function scheduleMessage(
-  data: ScheduleMessageRequest
+  data: ScheduleMessageRequest,
 ): Promise<ScheduleMessageResponse | null> {
   try {
     const response = await fetch(`${apiEndpoint}/scheduled-messages`, {
@@ -1665,7 +1665,7 @@ export async function getBots(
   query?: string,
   skip: number = 0,
   take: number = 34,
-  hidden: boolean = false
+  hidden: boolean = false,
 ): Promise<GetBotsResponse | null> {
   try {
     const params = new URLSearchParams();
@@ -1686,7 +1686,7 @@ export async function getBots(
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {

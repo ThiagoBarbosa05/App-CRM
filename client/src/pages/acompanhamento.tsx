@@ -541,7 +541,7 @@ export default function Acompanhamento() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [selectedClient, setSelectedClient] = useState<ClientWithStats | null>(
-    null
+    null,
   );
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
 
@@ -650,15 +650,15 @@ export default function Acompanhamento() {
   return (
     <div className="space-y-6 pb-6">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-slate-950 dark:border-slate-700 border border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <ClipboardList className="size-6 shrink-0 text-blue-600" />
+            <ClipboardList className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
             <div className="min-w-0 flex-1">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate dark:text-slate-200 ">
                 Acompanhamento
               </h2>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 overflow-hidden text-ellipsis">
+              <p className="text-sm sm:text-base text-gray-600 mt-1 overflow-hidden text-ellipsis dark:text-slate-400">
                 Clientes que precisam ser contactados
               </p>
             </div>
@@ -666,10 +666,10 @@ export default function Acompanhamento() {
 
           <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto">
             <div className="text-right">
-              <div className="text-xl sm:text-2xl font-bold text-primary">
+              <div className="text-xl sm:text-2xl font-bold text-primary dark:text-blue-400">
                 {stats.totalPendentes}
               </div>
-              <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">
                 Clientes pendentes
               </div>
             </div>
@@ -680,7 +680,7 @@ export default function Acompanhamento() {
 
       {/* Search */}
       <div
-        className="bg-white  border border-gray-200 
+        className="bg-white  border dark:bg-slate-950 dark:border-slate-700 border-gray-200 
         px-6 py-4 rounded-lg shadow-sm"
       >
         <div className="relative">
@@ -707,14 +707,14 @@ export default function Acompanhamento() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-200">
                       Total Pendentes
                     </p>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-2xl font-bold text-primary dark:text-blue-400">
                       {stats.totalPendentes}
                     </p>
                   </div>
-                  <Users className="h-8 w-8 text-primary/60" />
+                  <Users className="h-8 w-8 text-primary/60 dark:text-blue-400/60" />
                 </div>
               </CardContent>
             </Card>
@@ -723,15 +723,17 @@ export default function Acompanhamento() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 ">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-200">
                       Críticos
                     </p>
                     <p className="text-2xl font-bold text-red-600">
                       {stats.criticos}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">30+ dias</p>
+                    <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
+                      30+ dias
+                    </p>
                   </div>
-                  <AlertCircle className="h-8 w-8 text-red-500/60" />
+                  <AlertCircle className="h-8 w-8 text-red-500/60 dark:text-red-400/60" />
                 </div>
               </CardContent>
             </Card>
@@ -740,13 +742,13 @@ export default function Acompanhamento() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-200">
                       Taxa Produtividade
                     </p>
                     <p className="text-2xl font-bold text-green-600">
                       {stats.produtividade}%
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-slate-400  mt-1">
                       Clientes acompanhados
                     </p>
                   </div>
@@ -759,15 +761,17 @@ export default function Acompanhamento() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-gray-600 dark:text-slate-200">
                       Interações Média
                     </p>
                     <p className="text-2xl font-bold text-blue-600">
                       {stats.mediaInteracoes}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">Por cliente</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                      Por cliente
+                    </p>
                   </div>
-                  <BarChart3 className="h-8 w-8 text-blue-500/60" />
+                  <BarChart3 className="h-8 w-8 text-blue-500/60 dark:text-blue-400/60" />
                 </div>
               </CardContent>
             </Card>
@@ -781,7 +785,9 @@ export default function Acompanhamento() {
                   <div className="text-lg font-bold text-orange-600">
                     {stats.alta}
                   </div>
-                  <p className="text-xs text-gray-500">Alta (14-30 dias)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Alta (14-30 dias)
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -791,7 +797,9 @@ export default function Acompanhamento() {
                   <div className="text-lg font-bold text-yellow-600">
                     {stats.media}
                   </div>
-                  <p className="text-xs text-gray-500">Média (7-14 dias)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Média (7-14 dias)
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -801,7 +809,9 @@ export default function Acompanhamento() {
                   <div className="text-lg font-bold text-blue-600">
                     {stats.normal}
                   </div>
-                  <p className="text-xs text-gray-500">Normal (1-7 dias)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Normal (1-7 dias)
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -811,24 +821,26 @@ export default function Acompanhamento() {
                   <div className="text-lg font-bold text-purple-600">
                     {stats.totalInteracoes}
                   </div>
-                  <p className="text-xs text-gray-500">Total Interações</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Total Interações
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Lista de Clientes */}
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm">
             <div className={`min-h-[400px] ${isLoading ? "opacity-50" : ""}`}>
               {clients.length === 0 ? (
                 <div className="p-8 text-center flex flex-col justify-center items-center h-[400px]">
                   <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900  mb-2">
+                  <h3 className="text-lg font-medium text-gray-900  dark:text-slate-200 mb-2">
                     {debouncedSearchQuery
                       ? "Nenhum cliente encontrado"
                       : "Excelente trabalho!"}
                   </h3>
-                  <p className="text-gray-500">
+                  <p className="text-gray-500 dark:text-slate-400">
                     {debouncedSearchQuery
                       ? "Tente ajustar os termos de busca."
                       : "Todos os clientes estão sendo acompanhados adequadamente."}
@@ -837,23 +849,26 @@ export default function Acompanhamento() {
               ) : (
                 <div className="divide-y divide-gray-200 ">
                   {clients.map((client) => (
-                    <div key={client.id} className="p-6 hover:bg-gray-50">
+                    <div
+                      key={client.id}
+                      className="p-6 hover:bg-gray-50 dark:hover:bg-slate-900"
+                    >
                       <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                             <User className="text-primary h-4 w-4" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-lg font-medium text-gray-900">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-slate-200">
                               {client.name}
                             </h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 flex-wrap">
-                              <span className="flex items-center gap-1">
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-slate-400 flex-wrap">
+                              <span className="flex items-center dark:text-slate-400 gap-1">
                                 <Phone className="h-3 w-3" />
                                 {client.phone}
                               </span>
                               {client.email && <span>{client.email}</span>}
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center dark:text-slate-400 gap-1">
                                 <Calendar className="h-3 w-3" />
                                 Cadastrado há {client.daysSinceCreated} dias
                               </span>
@@ -865,7 +880,7 @@ export default function Acompanhamento() {
                           <div className="text-right">
                             <Badge
                               className={`${getPriorityColor(
-                                client.daysSinceCreated
+                                client.daysSinceCreated,
                               )} border`}
                             >
                               {getPriorityLabel(client.daysSinceCreated)}
@@ -878,7 +893,7 @@ export default function Acompanhamento() {
                             <a
                               href={`https://wa.me/${client.phone.replace(
                                 /\D/g,
-                                ""
+                                "",
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -910,7 +925,7 @@ export default function Acompanhamento() {
               )}
             </div>
             {pagination && pagination.totalPages > 1 && (
-              <div className="p-4 border-t border-gray-200">
+              <div className="p-4 border-t border-gray-200 dark:border-slate-700">
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
@@ -939,7 +954,7 @@ export default function Acompanhamento() {
                         onClick={(e) => {
                           e.preventDefault();
                           setPage((p) =>
-                            Math.min(p + 1, pagination.totalPages)
+                            Math.min(p + 1, pagination.totalPages),
                           );
                         }}
                         className={

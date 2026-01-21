@@ -280,7 +280,7 @@ export default function UmblerContactsPage() {
         </div>
 
         {/* Contacts Table */}
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
           {/* Tabela Desktop */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full">
@@ -587,13 +587,13 @@ export default function UmblerContactsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel className="text-xs font-normal text-gray-500">
+                            <DropdownMenuLabel className="text-xs font-normal text-gray-500 ">
                               Ações
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleViewDetails(contact)}
-                              className="cursor-pointer"
+                              className="cursor-pointer "
                             >
                               <Users className="mr-2 h-4 w-4" />
                               Ver Detalhes

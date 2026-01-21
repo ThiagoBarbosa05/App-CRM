@@ -283,7 +283,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedCompanies(
-        sortedCompanies.map((company: Company) => company.id)
+        sortedCompanies.map((company: Company) => company.id),
       );
     } else {
       setSelectedCompanies([]);
@@ -316,13 +316,15 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
 
   return (
     <div className="w-full">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
         <div className="flex items-center gap-2 flex-wrap justify-between">
           <div className="flex items-center gap-4">
             <Building2 className="size-6 text-blue-600" />
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Empresas</h2>
-              <p className="text-gray-600 mt-1">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-200">
+                Empresas
+              </h2>
+              <p className="text-gray-600 dark:text-slate-400 mt-1">
                 Gerencie as empresas cadastradas no sistema
               </p>
             </div>
@@ -393,10 +395,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         </div>
       </div>
 
-      <div className="mt-5 bg-white shadow-lg p-5 rounded-lg">
+      <div className="mt-5 bg-white shadow-lg dark:bg-slate-800 dark:border dark:border-slate-950 p-5 rounded-lg">
         <div className="flex w-full items-center gap-4">
           <div className="relative w-full flex-1 max-w-sm">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 dark:text-slate-400 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Busca geral..."
               value={searchQuery}
@@ -407,7 +409,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         </div>
         <div className="grid mt-5 grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-400 mb-1 block">
               Nome Fantasia
             </label>
             <Input
@@ -419,7 +421,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-400 mb-1 block">
               Razão Social
             </label>
             <Input
@@ -431,7 +433,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-400 mb-1 block">
               CNPJ
             </label>
             <Input
@@ -443,11 +445,11 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-400 mb-1 block">
               Responsável
             </label>
             <select
-              className="flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full dark:text-slate-400 rounded-md dark:bg-slate-800 border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={responsavelFilter}
               onChange={(e) => setResponsavelFilter(e.target.value)}
               data-testid="select-filter-responsavel"
@@ -461,11 +463,11 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-400 mb-1 block">
               Marcador
             </label>
             <select
-              className="flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full dark:text-slate-400 rounded-md dark:bg-slate-800 border border-gray-400 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={markerFilter}
               onChange={(e) => setMarkerFilter(e.target.value)}
               data-testid="select-filter-marker"
@@ -505,21 +507,23 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
           </div>
         )}
 
-        <div className="mt-10 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+        <div className="mt-10 bg-white dark:bg-slate-950 dark:border-slate-700 rounded-xl border border-gray-200 shadow-lg overflow-hidden">
           {isLoading || isFetching ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50">
+            <div className="flex flex-col items-center justify-center dark:from-slate-950 dark:to-slate-950 py-16 bg-gradient-to-br from-gray-50 to-blue-50">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-              <p className="text-gray-600 font-medium">
+              <p className="text-gray-600 font-medium dark:text-slate-400">
                 Carregando empresas...
               </p>
-              <p className="text-gray-500 text-sm mt-1">Aguarde um momento</p>
+              <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">
+                Aguarde um momento
+              </p>
             </div>
           ) : (
             <>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-blue-100 hover:bg-gradient-to-r hover:from-gray-100 hover:to-blue-100">
+                    <TableRow className="bg-gradient-to-r dark:from-slate-950 dark:to-slate-950  from-gray-50 to-blue-50 border-b-2 border-blue-100 hover:bg-gradient-to-r hover:from-gray-100 hover:to-blue-100">
                       <TableHead className="w-12 py-4 px-6">
                         <Checkbox
                           checked={
@@ -534,7 +538,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       <TableHead className="py-4 px-6">
                         <button
                           onClick={() => handleSort("nomeFantasia")}
-                          className="flex items-center gap-2 font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 group"
+                          className="flex items-center gap-2 font-semibold dark:text-slate-300 dark:hover:text-blue-500 text-gray-700 hover:text-blue-600 transition-all duration-200 group"
                         >
                           <Building2 className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
                           Nome Fantasia
@@ -549,7 +553,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       <TableHead className="py-4 px-6">
                         <button
                           onClick={() => handleSort("razaoSocial")}
-                          className="flex items-center gap-2 font-semibold text-gray-700 hover:text-blue-600 transition-all duration-200 group"
+                          className="flex items-center gap-2 font-semibold dark:text-slate-300 dark:hover:text-blue-500 text-gray-700 hover:text-blue-600 transition-all duration-200 group"
                         >
                           <FileText className="h-4 w-4 text-purple-500 group-hover:text-purple-600" />
                           Razão Social
@@ -561,43 +565,43 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                             ))}
                         </button>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold dark:text-slate-300 text-gray-700 ">
                         <div className="flex items-center gap-2">
                           <CreditCard className="h-4 w-4 text-green-500" />
                           CNPJ
                         </div>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-orange-500" />
                           Celular
                         </div>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-indigo-500" />
                           Email
                         </div>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-cyan-500" />
                           Responsável
                         </div>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
                           <Badge className="h-4 w-4 text-emerald-500" />
                           Status
                         </div>
                       </TableHead>
-                      <TableHead className="py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
                           <Badge className="h-4 w-4 text-purple-500" />
                           Marcadores
                         </div>
                       </TableHead>
-                      <TableHead className="text-right py-4 px-6 font-semibold text-gray-700">
+                      <TableHead className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-slate-300">
                         <div className="flex items-center justify-end gap-2">
                           <Settings className="h-4 w-4 text-gray-500" />
                           Ações
@@ -610,16 +614,16 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={10} className="text-center py-16">
                           <div className="flex flex-col items-center gap-4">
-                            <div className="p-4 bg-gray-100 rounded-full">
-                              <Building2 className="h-8 w-8 text-gray-400" />
+                            <div className="p-4 bg-gray-100 dark:bg-slate-800 rounded-full">
+                              <Building2 className="h-8 w-8 text-gray-400 dark:text-slate-400" />
                             </div>
                             <div className="text-center">
-                              <p className="text-gray-900 font-medium text-lg mb-2">
+                              <p className="text-gray-900 dark:text-slate-300 font-medium text-lg mb-2">
                                 {searchQuery
                                   ? "Nenhuma empresa encontrada"
                                   : "Nenhuma empresa cadastrada"}
                               </p>
-                              <p className="text-gray-500">
+                              <p className="text-gray-500 dark:text-slate-400">
                                 {searchQuery
                                   ? "Tente ajustar os filtros de busca para encontrar o que procura."
                                   : "Comece criando sua primeira empresa no sistema."}
@@ -632,11 +636,13 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                       sortedCompanies.map((company: Company, index: number) => (
                         <TableRow
                           key={company.id}
-                          className={`transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border-b border-gray-100 ${
-                            index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                          className={`transition-all duration-200 hover:bg-gradient-to-r dark:from-slate-950 dark:to-slate-950 hover:from-blue-50 hover:to-indigo-50 border-b border-gray-100 dark:border-slate-700 ${
+                            index % 2 === 0
+                              ? "bg-white dark:bg-slate-900"
+                              : "bg-gray-50/50 dark:bg-slate-800"
                           } ${
                             selectedCompanies.includes(company.id)
-                              ? "bg-blue-50 border-blue-200"
+                              ? "bg-blue-50 dark:bg-slate-800 border-blue-200 "
                               : ""
                           }`}
                         >
@@ -646,7 +652,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                               onCheckedChange={(checked) =>
                                 handleSelectCompany(
                                   company.id,
-                                  checked as boolean
+                                  checked as boolean,
                                 )
                               }
                               className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
@@ -655,17 +661,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                           <TableCell className="py-4 px-6">
                             <button
                               onClick={() => handleCompanyClick(company)}
-                              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-all duration-200 text-left max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap block"
+                              className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-all duration-200 text-left max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap block"
                             >
                               {company.nomeFantasia}
                             </button>
                           </TableCell>
-                          <TableCell className="py-4 px-6 text-gray-700 font-medium">
+                          <TableCell className="py-4 px-6 text-gray-700 dark:text-slate-300 font-medium">
                             {company.razaoSocial}
                           </TableCell>
                           <TableCell className="py-4 px-6">
                             {company.cnpj ? (
-                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-700">
+                              <span className="font-mono text-sm dark:bg-slate-700 dark:text-slate-100 bg-gray-100 px-2 py-1 rounded text-gray-700">
                                 {company.cnpj}
                               </span>
                             ) : (
@@ -675,17 +681,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                           <TableCell className="py-4 px-6">
                             {company.phone ? (
                               <div className="flex items-center gap-3">
-                                <span className="text-gray-700">
+                                <span className="text-gray-700 dark:text-slate-300">
                                   {company.phone}
                                 </span>
                                 <a
                                   href={`https://wa.me/${company.phone.replace(
                                     /\D/g,
-                                    ""
+                                    "",
                                   )}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-1.5 bg-green-100 hover:bg-green-200 rounded-lg text-green-600 hover:text-green-700 transition-all duration-200 hover:scale-110"
+                                  className="p-1.5 bg-green-100 dark:bg-slate-700 hover:bg-green-200 rounded-lg text-green-600 hover:text-green-700 transition-all duration-200 hover:scale-110"
                                   title="Abrir no WhatsApp"
                                 >
                                   <FaWhatsapp className="h-4 w-4" />
@@ -695,11 +701,11 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                               <span className="text-gray-400 italic">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="py-4 px-6 text-gray-700">
+                          <TableCell className="py-4 px-6 text-gray-700 dark:text-slate-300">
                             {company.email ? (
                               <a
                                 href={`mailto:${company.email}`}
-                                className="text-gray-700 hover:text-blue-600 transition-colors duration-200"
+                                className="text-gray-700 dark:text-slate-300 hover:text-blue-600 transition-colors duration-200"
                               >
                                 {company.email}
                               </a>
@@ -709,10 +715,10 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                           </TableCell>
                           <TableCell className="py-4 px-6">
                             <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-cyan-100 rounded-lg">
+                              <div className="p-1.5 bg-cyan-100 dark:bg-slate-700 rounded-lg">
                                 <User className="h-3 w-3 text-cyan-600" />
                               </div>
-                              <span className="text-gray-700 font-medium">
+                              <span className="text-gray-700 dark:text-slate-300 font-medium">
                                 {getResponsavelName(company.responsavelId)}
                               </span>
                             </div>
@@ -721,8 +727,8 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                             <Badge
                               className={`px-3 py-1 font-semibold ${
                                 company.active
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : "bg-red-100 text-red-800 border-red-200"
+                                  ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-800 dark:text-green-100 dark:border-green-700"
+                                  : "bg-red-100 text-red-800 border-red-200 dark:bg-red-800 dark:text-red-100 dark:border-red-700"
                               }`}
                               variant="outline"
                             >
@@ -736,7 +742,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                                   <Badge
                                     key={idx}
                                     variant="secondary"
-                                    className="bg-purple-100 text-purple-800 hover:bg-purple-200 text-xs"
+                                    className="bg-purple-100 text-purple-800 dark:bg-slate-700 dark:text-slate-100 hover:bg-purple-200 dark:hover:bg-slate-600 text-xs"
                                     data-testid={`badge-marker-${company.id}-${idx}`}
                                   >
                                     {marker}
@@ -753,7 +759,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(company)}
-                                className="p-2 hover:bg-blue-100 hover:text-blue-700 transition-all duration-200 rounded-lg"
+                                className="p-2 hover:bg-blue-100 dark:hover:bg-slate-600 dark:text-blue-200 hover:text-blue-700 transition-all duration-200 rounded-lg"
                                 title="Editar empresa"
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -763,7 +769,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="p-2 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-lg"
+                                    className="p-2 hover:bg-red-100 dark:hover:bg-slate-600 dark:text-red-200 hover:text-red-700 transition-all duration-200 rounded-lg"
                                     title="Excluir empresa"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -799,17 +805,17 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                   </TableBody>
                 </Table>
               </div>
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-t border-gray-200 p-6">
+              <div className="bg-gradient-to-r dark:from-slate-950 dark:to-slate-950 from-gray-50 to-blue-50 border-t dark:border-slate-700 border-gray-200 p-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Building2 className="h-5 w-5 text-blue-600" />
+                    <div className="p-2 bg-blue-100 dark:bg-slate-700 rounded-lg">
+                      <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-700">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                         Mostrando {companies.length} de {totalItems} empresas
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
                         {selectedCompanies.length > 0 &&
                           `${selectedCompanies.length} selecionada(s)`}
                       </p>
@@ -817,19 +823,19 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 shadow-sm p-1">
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg border border-gray-200 shadow-sm p-1">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setPage(page - 1)}
                         disabled={page === 1}
-                        className="px-3 py-2 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                        className="px-3 py-2 hover:bg-blue-50 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                       >
                         <ChevronUp className="h-4 w-4 rotate-[-90deg]" />
                         <span className="hidden sm:inline ml-1">Anterior</span>
                       </Button>
 
-                      <div className="px-4 py-2 bg-blue-50 rounded text-sm font-semibold text-blue-700 border border-blue-200">
+                      <div className="px-4 py-2 bg-blue-50 dark:bg-slate-700/50 rounded text-sm font-semibold text-blue-700 dark:text-blue-500 border border-blue-200 dark:border-blue-500">
                         {page} de {totalPages}
                       </div>
 
@@ -838,7 +844,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
                         size="sm"
                         onClick={() => setPage(page + 1)}
                         disabled={page === totalPages}
-                        className="px-3 py-2 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                        className="px-3 py-2 hover:bg-blue-50 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                       >
                         <span className="hidden sm:inline mr-1">Próxima</span>
                         <ChevronUp className="h-4 w-4 rotate-90" />
@@ -874,7 +880,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         open={isBulkDealModalOpen}
         onOpenChange={setIsBulkDealModalOpen}
         companies={companies.filter((company: Company) =>
-          selectedCompanies.includes(company.id)
+          selectedCompanies.includes(company.id),
         )}
       />
     </div>
