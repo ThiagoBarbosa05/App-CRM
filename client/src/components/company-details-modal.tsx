@@ -92,17 +92,17 @@ export default function CompanyDetailsModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="border-b border-gray-100 bg-gray-50 -m-6 mb-6 p-6">
+        <DialogHeader className="border-b border-gray-100 dark:border-gray-700 dark:bg-slate-800 bg-gray-50 -m-6 mb-6 p-6">
           <div className="flex items-center flex-col sm:flex-row gap-4 justify-between">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-100">
-                <Building2 className="h-5 w-5 text-blue-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-md  bg-blue-100 dark:bg-slate-900">
+                <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-semibold text-gray-900">
+                <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                   {company.nomeFantasia}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-gray-600 mt-1">
+                <DialogDescription className="text-sm text-gray-600 dark:text-slate-400 mt-1">
                   {company.razaoSocial}
                 </DialogDescription>
               </div>
@@ -112,8 +112,8 @@ export default function CompanyDetailsModal({
                 variant={company.active ? "default" : "secondary"}
                 className={
                   company.active
-                    ? "bg-green-100 text-green-700 border-green-200"
-                    : "bg-gray-100 text-gray-600 border-gray-200"
+                    ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+                    : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
                 }
               >
                 {company.active ? "Ativa" : "Inativa"}
@@ -123,10 +123,10 @@ export default function CompanyDetailsModal({
                   variant="outline"
                   size="sm"
                   onClick={() => onEdit(company)}
-                  className="border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                  className="border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-gray-400 transition-colors"
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 mr-2">
-                    <Edit className="h-3 w-3 text-gray-600" />
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-slate-900 mr-2">
+                    <Edit className="h-3 w-3 text-gray-600 dark:text-slate-400" />
                   </div>
                   Editar
                 </Button>
@@ -136,10 +136,10 @@ export default function CompanyDetailsModal({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gray-50 p-1 rounded-lg gap-1 sm:gap-0">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 dark:bg-slate-600 bg-gray-50 p-1 rounded-lg gap-1 sm:gap-0">
             <TabsTrigger
               value="info"
-              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              className="flex items-center dark:text-slate-100 justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white dark:data-[state=active]:text-blue-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
               <Building2 className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden xs:inline sm:hidden lg:inline">
@@ -149,7 +149,7 @@ export default function CompanyDetailsModal({
             </TabsTrigger>
             <TabsTrigger
               value="carta"
-              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              className="flex items-center justify-center gap-1 sm:gap-2 dark:text-slate-100 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white dark:data-[state=active]:text-blue-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
               <Wine className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden xs:inline sm:hidden lg:inline">
@@ -159,7 +159,7 @@ export default function CompanyDetailsModal({
             </TabsTrigger>
             <TabsTrigger
               value="questions"
-              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              className="flex items-center justify-center dark:text-slate-100 dark:data-[state=active]:text-blue-700 gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
               <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden xs:inline sm:hidden lg:inline">
@@ -169,14 +169,14 @@ export default function CompanyDetailsModal({
             </TabsTrigger>
             <TabsTrigger
               value="interactions"
-              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              className="flex items-center justify-center dark:text-slate-100 dark:data-[state=active]:text-blue-700 gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
               <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span>Interações</span>
             </TabsTrigger>
             <TabsTrigger
               value="funnels"
-              className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              className="flex items-center justify-center gap-1 dark:text-slate-100 dark:data-[state=active]:text-blue-700 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
             >
               <Target className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden xs:inline sm:hidden lg:inline">
@@ -190,12 +190,12 @@ export default function CompanyDetailsModal({
             <div className="space-y-6">
               {/* Informações básicas */}
               <Card>
-                <CardHeader className="border-b border-gray-100 bg-gray-50">
+                <CardHeader className="border-b dark:bg-slate-800 border-gray-100 rounded-tl-md rounded-tr-md bg-gray-50">
                   <CardTitle className="flex items-center gap-3 text-lg">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100">
-                      <Building2 className="h-4 w-4 text-blue-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md dark:bg-slate-900 bg-blue-100">
+                      <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">
                       Informações da Empresa
                     </span>
                   </CardTitle>
@@ -204,37 +204,43 @@ export default function CompanyDetailsModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {company.cnpj && (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                           CNPJ
                         </p>
-                        <p className="font-mono">{company.cnpj}</p>
+                        <p className="font-mono dark:text-slate-400">
+                          {company.cnpj}
+                        </p>
                       </div>
                     )}
 
                     {company.inscricaoEstadual && (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                           Inscrição Estadual
                         </p>
-                        <p className="font-mono">{company.inscricaoEstadual}</p>
+                        <p className="font-mono dark:text-slate-400">
+                          {company.inscricaoEstadual}
+                        </p>
                       </div>
                     )}
 
                     {company.nomeComprador && (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                           Nome do Comprador
                         </p>
-                        <p>{company.nomeComprador}</p>
+                        <p className="dark:text-slate-400">
+                          {company.nomeComprador}
+                        </p>
                       </div>
                     )}
 
                     {sector && (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                           Setor
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 dark:text-slate-400">
                           <Tag
                             className="h-4 w-4"
                             style={{ color: sector.color }}
@@ -245,12 +251,14 @@ export default function CompanyDetailsModal({
                     )}
 
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                      <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                         Cadastrada em
                       </p>
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>{formatDate(company.createdAt)}</span>
+                        <Calendar className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
+                        <span className="dark:text-slate-400">
+                          {formatDate(company.createdAt)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -260,12 +268,12 @@ export default function CompanyDetailsModal({
               {/* Contato */}
               {(company.email || company.phone || company.website) && (
                 <Card>
-                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                  <CardHeader className="border-b border-gray-100 rounded-tl-md rounded-tr-md dark:bg-slate-800 bg-gray-50 dark:border-slate-700">
                     <CardTitle className="flex items-center gap-3 text-lg">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100">
-                        <Phone className="h-4 w-4 text-green-600" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md dark:bg-slate-900 bg-green-100">
+                        <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
                       </div>
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">
                         Contato
                       </span>
                     </CardTitle>
@@ -274,14 +282,14 @@ export default function CompanyDetailsModal({
                     <div className="grid grid-cols-1 gap-4">
                       {company.email && (
                         <div className="flex items-center gap-3">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <Mail className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
                           <div>
-                            <p className="text-sm font-medium text-muted-foreground">
+                            <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                               Email
                             </p>
                             <a
                               href={`mailto:${company.email}`}
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-600 hover:underline dark:text-blue-400"
                             >
                               {company.email}
                             </a>
@@ -291,22 +299,22 @@ export default function CompanyDetailsModal({
 
                       {company.phone && (
                         <div className="flex items-center gap-3">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <Phone className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-muted-foreground">
+                            <p className="text-sm font-medium text-muted-foreground dark:text-slate-200">
                               Celular
                             </p>
                             <div className="flex items-center gap-2">
                               <a
                                 href={`tel:${company.phone}`}
-                                className="text-blue-600 hover:underline"
+                                className="text-blue-600 hover:underline dark:text-blue-400"
                               >
                                 {company.phone}
                               </a>
                               <a
                                 href={`https://wa.me/${company.phone.replace(
                                   /\D/g,
-                                  ""
+                                  "",
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -349,12 +357,12 @@ export default function CompanyDetailsModal({
                 company.state ||
                 company.cep) && (
                 <Card>
-                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                  <CardHeader className="border-b border-gray-100 bg-gray-50 dark:bg-slate-800 rounded-tl-md rounded-tr-md">
                     <CardTitle className="flex items-center gap-3 text-lg">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-100">
-                        <MapPin className="h-4 w-4 text-purple-600" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-100 dark:bg-slate-900">
+                        <MapPin className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                       </div>
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">
                         Endereço
                       </span>
                     </CardTitle>
@@ -363,11 +371,11 @@ export default function CompanyDetailsModal({
                     <div className="space-y-2">
                       {company.address && <p>{company.address}</p>}
                       {company.neighborhood && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground dark:text-slate-400">
                           Bairro: {company.neighborhood}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-slate-400">
                         {company.city && <span>{company.city}</span>}
                         {company.city && company.state && <span>-</span>}
                         {company.state && <span>{company.state}</span>}
@@ -386,18 +394,20 @@ export default function CompanyDetailsModal({
               {/* Observações */}
               {company.notes && (
                 <Card>
-                  <CardHeader className="border-b border-gray-100 bg-gray-50">
+                  <CardHeader className="border-b border-gray-100 bg-gray-50 dark:bg-slate-800 rounded-tl-md rounded-tr-md">
                     <CardTitle className="flex items-center gap-3 text-lg">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-100">
-                        <FileText className="h-4 w-4 text-orange-600" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-100 dark:bg-slate-900">
+                        <FileText className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                       </div>
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">
                         Observações
                       </span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="whitespace-pre-wrap">{company.notes}</p>
+                    <p className="whitespace-pre-wrap dark:text-slate-400">
+                      {company.notes}
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -416,8 +426,8 @@ export default function CompanyDetailsModal({
               <CardContent>
                 {!companyProducts || companyProducts.length === 0 ? (
                   <div className="text-center py-4">
-                    <Wine className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">
+                    <Wine className="h-8 w-8 mx-auto text-gray-300 dark:text-slate-400 mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
                       Nenhum vinho na carta ainda
                     </p>
                     <Button
@@ -432,7 +442,7 @@ export default function CompanyDetailsModal({
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-slate-400">
                         {companyProducts.length} vinho(s) na carta
                       </p>
                       <Button
@@ -450,35 +460,35 @@ export default function CompanyDetailsModal({
                       {companyProducts.slice(0, 3).map((item: any) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-md"
                         >
                           <div className="flex-1">
-                            <p className="font-medium text-sm">
+                            <p className="font-medium text-sm dark:text-slate-200">
                               {item.product?.name || "Nome não disponível"}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               {item.product?.country || "País não informado"} -{" "}
                               {item.product?.volume || "Volume não informado"}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-400">
+                              <span className="text-xs text-gray-400 dark:text-slate-500">
                                 Tabela: R${" "}
                                 {parseFloat(
-                                  item.product?.tablePrice || "0"
+                                  item.product?.tablePrice || "0",
                                 ).toFixed(2)}
                               </span>
-                              <span className="text-xs text-blue-600">
+                              <span className="text-xs text-blue-600 dark:text-blue-400">
                                 Padrão: R${" "}
                                 {parseFloat(
-                                  item.product?.negotiatedPrice || "0"
+                                  item.product?.negotiatedPrice || "0",
                                 ).toFixed(2)}
                               </span>
-                              <span className="text-xs text-green-600 font-semibold">
+                              <span className="text-xs text-green-600 font-semibold dark:text-green-400">
                                 Cliente: R${" "}
                                 {parseFloat(
                                   item.customNegotiatedPrice ||
                                     item.product?.negotiatedPrice ||
-                                    "0"
+                                    "0",
                                 ).toFixed(2)}
                               </span>
                             </div>
@@ -490,7 +500,7 @@ export default function CompanyDetailsModal({
                       ))}
 
                       {companyProducts.length > 3 && (
-                        <p className="text-xs text-gray-500 text-center">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 text-center">
                           e mais {companyProducts.length - 3} vinho(s)...
                         </p>
                       )}

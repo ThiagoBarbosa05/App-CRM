@@ -29,11 +29,11 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
     return (
       <div className="p-4 lg:p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/4"></div>
           <div className="space-y-3">
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
           </div>
         </div>
       </div>
@@ -44,12 +44,12 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
     <div className="p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-between items-start sm:items-center mb-6">
         <div className="flex-1">
-          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-1">
+          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-200 mb-1">
             Funis com Negócios
           </h3>
-          <p className="text-sm lg:text-base text-muted-foreground">
+          <p className="text-sm lg:text-base text-muted-foreground dark:text-slate-400">
             Funis onde{" "}
-            <span className="font-medium text-gray-700">
+            <span className="font-medium text-gray-700 dark:text-slate-300">
               {company.nomeFantasia}
             </span>{" "}
             possui negócios ativos
@@ -58,15 +58,15 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
       </div>
 
       {funnels.length === 0 ? (
-        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 dark:from-slate-800 to-gray-100 dark:to-slate-900">
           <CardContent className="flex flex-col items-center justify-center py-12 lg:py-16 px-6">
-            <div className="bg-blue-100 p-4 rounded-full mb-6">
-              <Target className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600" />
+            <div className="bg-blue-100 dark:bg-slate-700 p-4 rounded-full mb-6">
+              <Target className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600 dark:text-blue-400" />
             </div>
-            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-2 text-center">
+            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-200 mb-2 text-center">
               Nenhum funil encontrado
             </h3>
-            <p className="text-sm lg:text-base text-gray-500 text-center mb-6 max-w-md">
+            <p className="text-sm lg:text-base text-gray-500 dark:text-slate-400 text-center mb-6 max-w-md">
               Esta empresa ainda não possui negócios em nenhum funil. Os funis
               aparecem aqui quando há negócios ativos.
             </p>
@@ -77,20 +77,20 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
           {funnels.map((funnel: SalesFunnel) => (
             <Card
               key={funnel.id}
-              className="hover:shadow-md hover:border-gray-300 transition-all duration-200 hover:bg-gradient-to-r hover:from-white hover:to-gray-50 shadow-sm"
+              className="hover:shadow-md hover:border-gray-300 dark:hover:border-slate-700 dark:hover:to-slate-800/50 dark:hover:from-slate-800/50 transition-all duration-200 hover:bg-gradient-to-r hover:from-white hover:to-gray-50 shadow-sm"
             >
               <CardHeader className="pb-3">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="p-2 lg:p-3 rounded-full bg-gradient-to-r from-wine-100 to-purple-100 shadow-sm flex-shrink-0">
-                      <Target className="h-5 w-5 lg:h-6 lg:w-6 text-wine-600" />
+                      <Target className="h-5 w-5 lg:h-6 lg:w-6 text-wine-600 dark:text-slate-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base lg:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <CardTitle className="text-base lg:text-lg font-semibold text-gray-900 dark:text-slate-200 mb-1 truncate">
                         {funnel.name}
                       </CardTitle>
                       {funnel.description && (
-                        <p className="text-sm lg:text-base text-muted-foreground leading-relaxed">
+                        <p className="text-sm lg:text-base text-muted-foreground dark:text-slate-400 leading-relaxed">
                           {funnel.description}
                         </p>
                       )}
@@ -101,8 +101,8 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
                       variant={funnel.isActive ? "default" : "secondary"}
                       className={`shadow-sm font-medium text-xs lg:text-sm ${
                         funnel.isActive
-                          ? "bg-green-100 text-green-700 border-green-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
+                          ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+                          : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600"
                       }`}
                     >
                       {funnel.isActive ? "Ativo" : "Inativo"}
@@ -125,7 +125,7 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
               </CardHeader>
               <CardContent className="pt-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 dark:from-slate-950 dark:to-slate-950 to-indigo-50 rounded-lg border border-blue-100">
                     <div className="bg-blue-100 p-2 rounded-full">
                       <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
                     </div>

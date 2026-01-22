@@ -77,14 +77,14 @@ export default function CompanyAnsweredQuestionsTab({
       const promises = deals.map(async (deal: any) => {
         try {
           const response = await fetch(
-            `/api/companies/${company.id}/deals/${deal.id}/answered-questions`
+            `/api/companies/${company.id}/deals/${deal.id}/answered-questions`,
           );
           if (!response.ok) {
             // Se o deal não tem perguntas, não é um erro real
             if (response.status === 404) return null;
             console.warn(
               `Erro ao buscar perguntas do deal ${deal.id}:`,
-              response.status
+              response.status,
             );
             return null;
           }
@@ -175,11 +175,11 @@ export default function CompanyAnsweredQuestionsTab({
     return (
       <div className="p-4 lg:p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/4"></div>
           <div className="space-y-3">
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
           </div>
         </div>
       </div>
@@ -189,19 +189,19 @@ export default function CompanyAnsweredQuestionsTab({
   const dealsWithQuestions = dealQuestionsQueries.data || [];
   const totalQuestions = dealsWithQuestions.reduce(
     (sum: number, deal: DealInfo) => sum + deal.totalAnsweredQuestions,
-    0
+    0,
   );
 
   return (
     <div className="p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-between items-start sm:items-center mb-6">
         <div className="flex-1">
-          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-1">
+          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-100 mb-1">
             Perguntas Respondidas
           </h3>
-          <p className="text-sm lg:text-base text-muted-foreground">
+          <p className="text-sm lg:text-base text-muted-foreground dark:text-slate-400">
             Respostas dos questionários dos deals de{" "}
-            <span className="font-medium text-gray-700">
+            <span className="font-medium text-gray-700 dark:text-slate-300">
               {company.nomeFantasia}
             </span>
           </p>
@@ -220,13 +220,13 @@ export default function CompanyAnsweredQuestionsTab({
       {dealsWithQuestions.length === 0 ? (
         <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 to-gray-100">
           <CardContent className="flex flex-col items-center justify-center py-12 lg:py-16 px-6">
-            <div className="bg-blue-100 p-4 rounded-full mb-6">
-              <HelpCircle className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600" />
+            <div className="bg-blue-100 dark:bg-slate-800 p-4 rounded-full mb-6">
+              <HelpCircle className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600 dark:text-blue-400" />
             </div>
-            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-2 text-center">
+            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-300 mb-2 text-center">
               Nenhuma pergunta respondida
             </h3>
-            <p className="text-sm lg:text-base text-gray-500 text-center mb-6 max-w-md">
+            <p className="text-sm lg:text-base text-gray-500 dark:text-slate-400 text-center mb-6 max-w-md">
               Esta empresa ainda não possui perguntas respondidas em seus deals.
               As perguntas aparecem aqui quando são preenchidas nos formulários
               dos deals.
@@ -247,12 +247,12 @@ export default function CompanyAnsweredQuestionsTab({
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base lg:text-lg font-semibold text-gray-900 mb-1 truncate flex items-center gap-2">
+                      <CardTitle className="text-base lg:text-lg font-semibold text-gray-900 dark:text-slate-300 mb-1 truncate flex items-center gap-2">
                         <GitBranch className="h-5 w-5 text-blue-600 flex-shrink-0" />
                         {dealInfo.dealTitle ||
                           `Deal ${dealInfo.dealId.slice(0, 8)}...`}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground dark:text-slate-400">
                         {dealInfo.totalAnsweredQuestions} pergunta
                         {dealInfo.totalAnsweredQuestions !== 1 ? "s" : ""}{" "}
                         respondida
@@ -281,7 +281,7 @@ export default function CompanyAnsweredQuestionsTab({
                     <div className="space-y-3">
                       {dealInfo.answeredQuestions.map((question) => {
                         const TypeIcon = getQuestionTypeIcon(
-                          question.questionType
+                          question.questionType,
                         );
 
                         return (
@@ -293,11 +293,11 @@ export default function CompanyAnsweredQuestionsTab({
                               <div
                                 className={`p-2 rounded-full flex-shrink-0 ${
                                   getQuestionTypeColor(
-                                    question.questionType
+                                    question.questionType,
                                   ).split(" ")[0]
                                 } ${
                                   getQuestionTypeColor(
-                                    question.questionType
+                                    question.questionType,
                                   ).split(" ")[1]
                                 }`}
                               >
@@ -314,7 +314,7 @@ export default function CompanyAnsweredQuestionsTab({
                                   <p className="text-gray-700 font-medium text-sm">
                                     {formatAnswer(
                                       question.answer,
-                                      question.questionType
+                                      question.questionType,
                                     )}
                                   </p>
                                 </div>

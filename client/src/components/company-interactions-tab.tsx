@@ -84,7 +84,7 @@ export default function CompanyInteractionsTab({
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/companies/${company.id}/interactions`
+        `/api/companies/${company.id}/interactions`,
       );
       if (!response.ok) {
         throw new Error("Erro ao buscar interações da empresa");
@@ -139,11 +139,11 @@ export default function CompanyInteractionsTab({
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/4"></div>
           <div className="space-y-3">
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+            <div className="h-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
           </div>
         </div>
       </div>
@@ -154,12 +154,12 @@ export default function CompanyInteractionsTab({
     <div className="p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-between items-start sm:items-center mb-6">
         <div className="flex-1">
-          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-1">
+          <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-300 mb-1">
             Histórico de Interações
           </h3>
-          <p className="text-sm lg:text-base text-muted-foreground">
+          <p className="text-sm lg:text-base text-muted-foreground dark:text-slate-400">
             Acompanhe todas as interações com{" "}
-            <span className="font-medium text-gray-700">
+            <span className="font-medium text-gray-700 dark:text-slate-300">
               {company.nomeFantasia}
             </span>
           </p>
@@ -175,15 +175,15 @@ export default function CompanyInteractionsTab({
       </div>
 
       {interactions.length === 0 ? (
-        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 dark:from-gray-800 dark:to-gray-900 to-gray-100">
           <CardContent className="flex flex-col items-center justify-center py-12 lg:py-16 px-6">
             <div className="bg-blue-100 p-4 rounded-full mb-6">
               <MessageSquare className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600" />
             </div>
-            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-2 text-center">
+            <h3 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-slate-300 mb-2 text-center">
               Nenhuma interação registrada
             </h3>
-            <p className="text-sm lg:text-base text-gray-500 text-center mb-6 max-w-md">
+            <p className="text-sm lg:text-base text-gray-500 dark:text-slate-400 text-center mb-6 max-w-md">
               Comece registrando a primeira interação com esta empresa para
               acompanhar o relacionamento.
             </p>
@@ -205,27 +205,31 @@ export default function CompanyInteractionsTab({
               ] || interactionTypeConfig.other;
             const statusConfig_ = statusConfig[
               interaction.status as keyof typeof statusConfig
-            ] || { label: "Desconhecido", color: "bg-gray-100 text-gray-800" };
+            ] || {
+              label: "Desconhecido",
+              color:
+                "bg-gray-100 dark:bg-slate-950 text-gray-800 dark:text-slate-400",
+            };
             const IconComponent = typeConfig.icon;
 
             return (
               <div
                 key={interaction.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 lg:p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200 hover:bg-gradient-to-r hover:from-white hover:to-gray-50"
+                className="bg-white dark:bg-slate-800 dark:border-slate-700 border dark:hover:from-slate-800/50 dark:hover:to-slate-800/50 border-gray-200 rounded-lg p-4 lg:p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200 hover:bg-gradient-to-r hover:from-white hover:to-gray-50"
               >
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-3 mb-3">
                       <div
-                        className={`p-2 lg:p-3 rounded-full ${typeConfig.color} shadow-sm flex-shrink-0`}
+                        className={`p-2 lg:p-3 rounded-full ${typeConfig.color} dark:bg-slate-950 shadow-sm flex-shrink-0`}
                       >
-                        <IconComponent className="h-4 w-4 lg:h-5 lg:w-5" />
+                        <IconComponent className="h-4 w-4 lg:h-5 lg:w-5 dark:text-blue-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 text-sm lg:text-base mb-1 truncate">
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-300 text-sm lg:text-base mb-1 truncate">
                           {interaction.subject}
                         </h4>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs lg:text-sm text-gray-600">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs lg:text-sm text-gray-600 dark:text-slate-400">
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <Calendar className="h-3 w-3 lg:h-4 lg:w-4" />
                             <span className="font-medium">
@@ -235,8 +239,8 @@ export default function CompanyInteractionsTab({
                           {interaction.callResult &&
                             interaction.type === "telemarketing" && (
                               <div className="flex items-center gap-1 flex-shrink-0">
-                                <Phone className="h-3 w-3 lg:h-4 lg:w-4" />
-                                <span className="text-gray-700 font-medium">
+                                <Phone className="h-3 w-3 lg:h-4 lg:w-4 dark:text-blue-400" />
+                                <span className="text-gray-700 dark:text-slate-300 font-medium">
                                   {interaction.callResult}
                                 </span>
                               </div>
@@ -245,7 +249,7 @@ export default function CompanyInteractionsTab({
                       </div>
                     </div>
 
-                    <p className="text-gray-700 text-sm lg:text-base mb-4 leading-relaxed">
+                    <p className="text-gray-700 dark:text-slate-300 text-sm lg:text-base mb-4 leading-relaxed">
                       {interaction.description}
                     </p>
 
@@ -253,23 +257,23 @@ export default function CompanyInteractionsTab({
                     {interaction.type === "visit" &&
                       (interaction.address ||
                         (interaction.latitude && interaction.longitude)) && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 lg:p-4 mb-4 shadow-sm">
+                        <div className="bg-gradient-to-r from-blue-50 dark:to-slate-950 dark:from-slate-900 to-indigo-50 border border-blue-200 rounded-lg p-3 lg:p-4 mb-4 shadow-sm">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-blue-100 p-1 rounded-full">
-                              <MapPin className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
+                            <div className="bg-blue-100 dark:bg-slate-950 p-1 rounded-full">
+                              <MapPin className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="text-sm lg:text-base font-semibold text-blue-900">
+                            <span className="text-sm lg:text-base font-semibold text-blue-900 dark:text-blue-400">
                               Localização da Visita
                             </span>
                           </div>
                           {interaction.address && (
-                            <p className="text-sm lg:text-base text-blue-800 mb-2 leading-relaxed">
+                            <p className="text-sm lg:text-base text-blue-800 dark:text-blue-400 mb-2 leading-relaxed">
                               {interaction.address}
                             </p>
                           )}
                           {interaction.latitude && interaction.longitude && (
-                            <div className="bg-white bg-opacity-60 rounded px-2 py-1 inline-block">
-                              <p className="text-xs lg:text-sm text-blue-700 font-mono">
+                            <div className="bg-white dark:bg-slate-800 bg-opacity-60 rounded px-2 py-1 inline-block">
+                              <p className="text-xs lg:text-sm text-blue-700 dark:text-blue-400 font-mono">
                                 📍 {Number(interaction.latitude).toFixed(6)},{" "}
                                 {Number(interaction.longitude).toFixed(6)}
                               </p>
@@ -295,9 +299,9 @@ export default function CompanyInteractionsTab({
                       </div>
 
                       <div className="flex items-center justify-between sm:justify-end gap-3">
-                        <div className="text-xs lg:text-sm text-gray-500 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded">
-                          <User className="h-3 w-3 lg:h-4 lg:w-4" />
-                          <span className="font-medium">
+                        <div className="text-xs lg:text-sm text-gray-500 flex items-center gap-1 bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded">
+                          <User className="h-3 w-3 lg:h-4 lg:w-4 dark:text-slate-300" />
+                          <span className="font-medium dark:text-slate-300">
                             {interaction.user?.name || "Usuário não encontrado"}
                           </span>
                         </div>
@@ -306,7 +310,7 @@ export default function CompanyInteractionsTab({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditInteraction(interaction)}
-                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-slate-700 hover:text-blue-600 dark:text-slate-200 transition-colors"
                             title="Editar interação"
                           >
                             <Edit className="h-3 w-3 lg:h-4 lg:w-4" />
