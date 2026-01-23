@@ -181,7 +181,11 @@ export function useCreateUmblerChat(userId?: string, userRole?: string) {
       return response.json();
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["contactChat"] });
+      // Invalidar todas as queries de contactChat para garantir atualização
+      queryClient.invalidateQueries({ 
+        queryKey: ["contactChat"],
+        refetchType: "all"
+      });
       toast({
         title: "Chat criado com sucesso",
         description: "O chat foi criado no WhatsApp",
@@ -232,6 +236,9 @@ export function useSyncUmblerCustomer(userId?: string, userRole?: string) {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/umbler/contacts", variables.phoneNumber],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["umblerContactByPhone", variables.phoneNumber],
       });
       queryClient.invalidateQueries({
         queryKey: ["contactChat", variables.phoneNumber],

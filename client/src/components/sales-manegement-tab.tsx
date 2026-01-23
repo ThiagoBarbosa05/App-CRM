@@ -737,7 +737,20 @@ export function SalesManagementTab({
                           type="button"
                           disabled={createChatMutation.isPending || !contactId}
                           onClick={() =>
-                            createChatMutation.mutate({ contactId: contactId! })
+                            createChatMutation.mutate(
+                              { contactId: contactId! },
+                              {
+                                onSuccess: () => {
+                                  // Invalidar queries específicas para forçar atualização da UI
+                                  queryClient.invalidateQueries({
+                                    queryKey: ["contactChat", selectedClient?.phone],
+                                  });
+                                  queryClient.invalidateQueries({
+                                    queryKey: ["umblerContactByPhone", selectedClient?.phone],
+                                  });
+                                },
+                              }
+                            )
                           }
                           size="sm"
                           className="bg-amber-600 hover:bg-amber-700"
