@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +85,9 @@ export default function CompanyWineListModal({
     queryKey: ["/api/companies", company?.id, "available-products"],
     queryFn: async () => {
       if (!company?.id) return [];
-      const response = await fetch(`/api/companies/${company.id}/available-products`);
+      const response = await fetch(
+        `/api/companies/${company.id}/available-products`,
+      );
       if (!response.ok) throw new Error("Failed to fetch available products");
       return response.json();
     },
@@ -146,7 +147,7 @@ export default function CompanyWineListModal({
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -178,10 +179,19 @@ export default function CompanyWineListModal({
 
   // Mutation para atualizar preço customizado
   const updatePriceMutation = useMutation({
-    mutationFn: async ({ productId, price }: { productId: string; price: string }) => {
+    mutationFn: async ({
+      productId,
+      price,
+    }: {
+      productId: string;
+      price: string;
+    }) => {
       console.log("Updating price for product", productId, "to", price);
-      console.log("URL:", `/api/companies/${company?.id}/products/${productId}/price`);
-      
+      console.log(
+        "URL:",
+        `/api/companies/${company?.id}/products/${productId}/price`,
+      );
+
       if (!company?.id || !productId || !price) {
         throw new Error("Dados incompletos para atualização");
       }
@@ -196,7 +206,7 @@ export default function CompanyWineListModal({
             "x-user-role": user?.role || "",
           },
           body: JSON.stringify({ customPrice: price }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -241,25 +251,27 @@ export default function CompanyWineListModal({
     },
   });
 
-  const filteredProducts = companyProducts.filter((item) =>
-    item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.product.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.product.type.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = companyProducts.filter(
+    (item) =>
+      item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.product.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.product.type.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Filtrar produtos disponíveis baseado na busca
-  const filteredAvailableProducts = availableProducts.filter((product) =>
-    product.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-    product.country.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-    product.type.toLowerCase().includes(productSearchTerm.toLowerCase())
+  const filteredAvailableProducts = availableProducts.filter(
+    (product) =>
+      product.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      product.country.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      product.type.toLowerCase().includes(productSearchTerm.toLowerCase()),
   );
 
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      TINTO: "bg-red-100 text-red-800",
-      BRANCO: "bg-yellow-100 text-yellow-800",
-      ROSE: "bg-pink-100 text-pink-800",
-      ESPUMANTE: "bg-blue-100 text-blue-800",
+      TINTO: "bg-red-100 text-red-800 dark:bg-red-300 dark:text-red-900",
+      BRANCO: "bg-yellow-100 text-yellow-800 dark:bg-yellow-300 dark:text-yellow-900",
+      ROSE: "bg-pink-100 text-pink-800 dark:bg-pink-300 dark:text-pink-900",
+      ESPUMANTE: "bg-blue-100 text-blue-800 dark:bg-blue-300 dark:text-blue-900",
       "PÓS-REFEIÇÃO": "bg-purple-100 text-purple-800",
     };
     return colors[type] || "bg-gray-100 text-gray-800";
@@ -288,9 +300,9 @@ export default function CompanyWineListModal({
     }
 
     // Converter vírgula para ponto e validar
-    const priceValue = customPrice.replace(',', '.');
+    const priceValue = customPrice.replace(",", ".");
     const numericPrice = parseFloat(priceValue);
-    
+
     if (isNaN(numericPrice) || numericPrice < 0) {
       toast({
         title: "Erro",
@@ -351,12 +363,15 @@ export default function CompanyWineListModal({
                       <SelectContent className="max-h-60">
                         {filteredAvailableProducts.length === 0 ? (
                           <div className="px-2 py-6 text-center text-sm text-gray-500">
-                            {productSearchTerm ? "Nenhum vinho encontrado" : "Nenhum produto disponível"}
+                            {productSearchTerm
+                              ? "Nenhum vinho encontrado"
+                              : "Nenhum produto disponível"}
                           </div>
                         ) : (
                           filteredAvailableProducts.map((product) => (
                             <SelectItem key={product.id} value={product.id}>
-                              {product.name} - {product.country} ({product.volume})
+                              {product.name} - {product.country} (
+                              {product.volume})
                             </SelectItem>
                           ))
                         )}
@@ -367,7 +382,7 @@ export default function CompanyWineListModal({
                 <Button
                   onClick={() => addProductMutation.mutate(selectedProductId)}
                   disabled={!selectedProductId || addProductMutation.isPending}
-                  className="bg-wine-600 hover:bg-wine-700"
+                  className="bg-blue-500 hover:bg-blue-700 text-slate-50"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -396,13 +411,15 @@ export default function CompanyWineListModal({
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-500">Carregando carta de vinhos...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600 dark:border-slate-700 mx-auto"></div>
+                  <p className="mt-2 text-gray-500">
+                    Carregando carta de vinhos...
+                  </p>
                 </div>
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-8">
-                  <Wine className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500">
+                  <Wine className="h-12 w-12 mx-auto text-gray-300 dark:text-slate-400 mb-4" />
+                  <p className="text-gray-500 dark:text-slate-400">
                     {searchQuery
                       ? "Nenhum vinho encontrado com essa busca"
                       : "Nenhum vinho na carta ainda"}
@@ -413,12 +430,12 @@ export default function CompanyWineListModal({
                   {filteredProducts.map((item) => (
                     <div
                       key={item.id}
-                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className="border dark:border-slate-700 rounded-lg p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-lg">
+                            <h3 className="font-semibold text-lg dark:text-slate-100">
                               {item.product.name}
                             </h3>
                             <Badge className={getTypeColor(item.product.type)}>
@@ -428,19 +445,19 @@ export default function CompanyWineListModal({
 
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3 text-gray-400" />
-                              <span>{item.product.country}</span>
+                              <MapPin className="h-3 w-3 text-gray-400 dark:text-slate-400" />
+                              <span className="dark:text-slate-400">{item.product.country}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Package className="h-3 w-3 text-gray-400" />
-                              <span>{item.product.volume}</span>
+                              <Package className="h-3 w-3 text-gray-400 dark:text-slate-400" />
+                              <span  className="dark:text-slate-400">{item.product.volume}</span>
                             </div>
                           </div>
 
                           {/* Preço Negociado Customizado */}
-                          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="mt-3 p-3 bg-green-50 dark:bg-slate-950 rounded-lg border border-green-200">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-green-700">
+                              <span className="text-sm font-medium text-green-700 dark:text-green-500">
                                 Preço para {company.nomeFantasia}:
                               </span>
                               {editingPriceId === item.id ? (
@@ -450,7 +467,10 @@ export default function CompanyWineListModal({
                                     value={customPrice}
                                     onChange={(e) => {
                                       // Permitir apenas números, vírgula e ponto
-                                      const value = e.target.value.replace(/[^0-9.,]/g, '');
+                                      const value = e.target.value.replace(
+                                        /[^0-9.,]/g,
+                                        "",
+                                      );
                                       setCustomPrice(value);
                                     }}
                                     placeholder="0,00"
@@ -458,7 +478,9 @@ export default function CompanyWineListModal({
                                   />
                                   <Button
                                     size="sm"
-                                    onClick={() => handleSavePrice(item.product.id)}
+                                    onClick={() =>
+                                      handleSavePrice(item.product.id)
+                                    }
                                     disabled={updatePriceMutation.isPending}
                                   >
                                     Salvar
@@ -473,8 +495,11 @@ export default function CompanyWineListModal({
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg font-bold text-green-700">
-                                    {formatPrice(item.customNegotiatedPrice || item.product.negotiatedPrice)}
+                                  <span className="text-lg font-bold text-green-700 dark:text-green-500">
+                                    {formatPrice(
+                                      item.customNegotiatedPrice ||
+                                        item.product.negotiatedPrice,
+                                    )}
                                   </span>
                                   <Button
                                     size="sm"
@@ -494,7 +519,7 @@ export default function CompanyWineListModal({
                             )}
                           </div>
 
-                          <div className="mt-2 text-xs text-gray-500">
+                          <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                             Adicionado em{" "}
                             {new Date(item.addedAt).toLocaleDateString("pt-BR")}
                           </div>
@@ -503,7 +528,9 @@ export default function CompanyWineListModal({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => removeProductMutation.mutate(item.product.id)}
+                          onClick={() =>
+                            removeProductMutation.mutate(item.product.id)
+                          }
                           disabled={removeProductMutation.isPending}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
