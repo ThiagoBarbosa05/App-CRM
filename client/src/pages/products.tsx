@@ -803,8 +803,8 @@ export default function Products() {
                           isActive={currentPage === pageNumber}
                           className={`cursor-pointer ${
                             currentPage === pageNumber
-                              ? "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                              : "hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                              ? "bg-blue-600 text-white hover:bg-blue-700 dark:text-slate-400 dark:bg-blue-700 dark:hover:bg-blue-800"
+                              : "hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
                           }`}
                         >
                           {pageNumber}

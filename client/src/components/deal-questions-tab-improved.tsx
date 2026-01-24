@@ -133,7 +133,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
     if (completionPercentage === 100) {
       return {
         icon: CheckCircle,
-        color: "text-green-600 bg-green-100",
+        color: "text-green-600 bg-green-100 dark:bg-green-700 dark:text-green-200",
         text: "Completo",
         description: "Todas as perguntas foram respondidas",
       };
@@ -141,14 +141,14 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
     if (completionPercentage >= 50) {
       return {
         icon: Clock,
-        color: "text-yellow-600 bg-yellow-100",
+        color: "text-yellow-600 bg-yellow-100 dark:bg-yellow-700 dark:text-yellow-200",
         text: "Em andamento",
         description: "Algumas perguntas ainda precisam ser respondidas",
       };
     }
     return {
       icon: AlertCircle,
-      color: "text-red-600 bg-red-100",
+      color: "text-red-600 bg-red-100 dark:bg-red-700 dark:text-red-200",
       text: "Pendente",
       description: "A maioria das perguntas ainda não foi respondida",
     };
@@ -260,7 +260,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       // Verificar se question existe
       if (!question) {
         return (
-          <span className="text-gray-500 italic text-sm lg:text-base">
+          <span className="text-gray-500 dark:text-slate-400 italic text-sm lg:text-base">
             Sem resposta
           </span>
         );
@@ -271,12 +271,12 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
           <div className="flex items-center gap-2">
             <Check
               className={`h-4 w-4 ${
-                answer.answerBoolean ? "text-green-600" : "text-red-600"
+                answer.answerBoolean ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
               }`}
             />
             <span
               className={`text-sm lg:text-base font-medium ${
-                answer.answerBoolean ? "text-green-700" : "text-red-700"
+                answer.answerBoolean ? "text-green-700 dark:text-green-500" : "text-red-700 dark:text-red-500"
               }`}
             >
               {answer.answerBoolean ? "Sim" : "Não"}
@@ -288,8 +288,8 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       if (answer.answerNumber) {
         return (
           <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 text-blue-600" />
-            <span className="text-blue-700 font-medium text-sm lg:text-base">
+            <Hash className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <span className="text-blue-700 dar:text-blue-500 font-medium text-sm lg:text-base">
               {answer.answerNumber}
             </span>
           </div>
@@ -304,7 +304,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
           const options = answer.answerText.split(",");
           return (
             <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-              <CheckSquare className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+              <CheckSquare className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
               <div className="flex flex-wrap gap-1">
                 {options.map((option, index) => (
                   <Badge
@@ -323,10 +323,10 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         if (isSelect) {
           return (
             <div className="flex items-center gap-2">
-              <List className="h-4 w-4 text-indigo-600" />
+              <List className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               <Badge
                 variant="outline"
-                className="text-indigo-700 text-sm lg:text-base"
+                className="text-indigo-700 text-sm lg:text-base text:indigo-500"
               >
                 {answer.answerText}
               </Badge>
@@ -337,8 +337,8 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         // Text answer
         return (
           <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-            <Type className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
-            <p className="text-gray-700 text-sm lg:text-base leading-relaxed break-words">
+            <Type className="h-4 w-4 text-gray-600 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+            <p className="text-gray-700 dark:text-slate-400 text-sm lg:text-base leading-relaxed break-words">
               {answer.answerText}
             </p>
           </div>
@@ -346,7 +346,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       }
 
       return (
-        <span className="text-gray-500 italic text-sm lg:text-base">
+        <span className="text-gray-500 dark:text-slate-400 italic text-sm lg:text-base">
           Sem resposta
         </span>
       );
@@ -380,12 +380,12 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col items-center gap-4 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500" />
+            <AlertCircle className="h-12 w-12 text-red-500 dark:text-red-400" />
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-400 mb-2">
                 Erro ao carregar dados
               </h3>
-              <p className="text-gray-600 text-sm mb-4">
+              <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">
                 {error instanceof Error ? error.message : "Erro desconhecido"}
               </p>
               <Button onClick={handleRefresh} variant="outline">
@@ -402,8 +402,8 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-40 bg-gray-200 rounded-lg"></div>
-        <div className="h-24 bg-gray-200 rounded-lg"></div>
+        <div className="h-40 bg-gray-200 dark:text-slate-200 rounded-lg"></div>
+        <div className="h-24 bg-gray-200 dark:text-slate-200 rounded-lg"></div>
       </div>
     );
   }
@@ -413,7 +413,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
   return (
     <div className="space-y-4 lg:space-y-6">
       {/* Header com estatísticas otimizado e responsivo */}
-      <Card className="shadow-sm border-0 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="shadow-sm border-0 bg-gradient-to-r dark:border dark:border-slate-700 from-blue-50 dark:from-slate-900 dark:to-slate-950 to-indigo-50">
         <CardContent className="p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-3 lg:gap-4">
@@ -423,10 +423,10 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                 <StatusIcon className="h-5 w-5 lg:h-6 lg:w-6" />
               </div>
               <div>
-                <h3 className="text-base lg:text-lg font-semibold text-gray-900">
+                <h3 className="text-base lg:text-lg dark:text-slate-200 font-semibold text-gray-900">
                   Informações Adicionais
                 </h3>
-                <p className="text-gray-600 text-xs lg:text-sm">
+                <p className="text-gray-600 dark:text-slate-400 text-xs lg:text-sm">
                   {statusInfo.description}
                 </p>
               </div>
@@ -442,7 +442,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                 title="Atualizar dados"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 dark:text-slate-200 ${isLoading ? "animate-spin" : ""}`}
                 />
               </Button>
 
@@ -454,11 +454,11 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                   >
                     {statusInfo.text}
                   </Badge>
-                  <span className="text-xs lg:text-sm text-gray-600 font-medium">
+                  <span className="text-xs lg:text-sm text-gray-600 dark:text-slate-400 font-medium">
                     {stats.questionsAnswered}/{stats.totalQuestions}
                   </span>
                 </div>
-                <div className="text-xl lg:text-2xl font-bold text-blue-600">
+                <div className="text-xl lg:text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {stats.completionPercentage}%
                 </div>
               </div>
@@ -468,7 +468,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
           {/* Barra de progresso otimizada */}
           <div className="mt-4 lg:mt-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs lg:text-sm text-gray-600 font-medium">
+              <span className="text-xs lg:text-sm text-gray-600 dark:text-slate-400 font-medium">
                 Progresso das respostas
               </span>
               <span className="text-xs lg:text-sm font-semibold text-gray-700">
@@ -522,7 +522,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
 
         <CardContent className="p-4 lg:p-6">
           {stats.totalQuestions === 0 ? (
-            <div className="text-center py-12 lg:py-16 text-gray-500">
+            <div className="text-center py-12 lg:py-16 text-gray-500 dark:text-slate-400">
               <div className="text-4xl lg:text-5xl mb-4">📝</div>
               <p className="font-medium mb-2">Nenhuma pergunta configurada</p>
               <p className="text-sm max-w-md mx-auto">
@@ -545,31 +545,31 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                   key={item.question.id}
                   className={`p-4 rounded-lg border transition-all ${
                     item.isAnswered
-                      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                      : "bg-gray-50 border-gray-200"
+                      ? "bg-gradient-to-r from-green-50 dark:from-green-700 dark:to-green-800 dark:border-green-900 to-emerald-50 border-green-200"
+                      : "bg-gray-50 border-gray-200 dark:bg-slate-900 dark:border-slate-700"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={`p-2 rounded-full flex-shrink-0 mt-1 ${
-                        item.isAnswered ? "bg-green-100" : "bg-gray-100"
+                        item.isAnswered ? "bg-green-100 dark:bg-green-700" : "bg-gray-100 dark:bg-slate-700"
                       }`}
                     >
                       {item.isAnswered ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-200" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-gray-400" />
+                        <AlertCircle className="h-4 w-4 text-gray-400 dark:text-slate-200" />
                       )}
                     </div>
 
                     <div className="flex-1 space-y-2">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                         <div className="flex-1">
-                          <h4 className="text-sm font-semibold text-gray-900">
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200">
                             {item.question.question}
                           </h4>
                           {item.question.helpText && (
-                            <p className="text-xs text-gray-600 mt-1">
+                            <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
                               {item.question.helpText}
                             </p>
                           )}
@@ -577,7 +577,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                         {item.question.isRequired && (
                           <Badge
                             variant="outline"
-                            className="text-xs bg-red-50 border-red-200 text-red-700 flex-shrink-0"
+                            className="text-xs bg-red-50 dark:bg-red-700 dark:border-red-800 dark:text-red-200 border-red-200 text-red-700 flex-shrink-0"
                           >
                             Obrigatória
                           </Badge>
@@ -586,12 +586,12 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
 
                       <div className="pt-2">
                         {item.isAnswered && item.answer ? (
-                          <div className="bg-white rounded-md p-3 border border-gray-200">
+                          <div className="bg-white dark:bg-slate-800 dark:border-slate-700 rounded-md p-3 border border-gray-200">
                             {renderAnswerValue(item.answer, item.question)}
                           </div>
                         ) : (
-                          <div className="bg-white rounded-md p-3 border border-gray-200">
-                            <span className="text-gray-400 italic text-sm">
+                          <div className="bg-white rounded-md p-3 border border-gray-200 dark:bg-slate-800 dark:border-slate-700">
+                            <span className="text-gray-400 dark:text-slate-400 italic text-sm">
                               Não respondida
                             </span>
                           </div>
@@ -603,7 +603,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
               ))}
 
               {questionsWithAnswers.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 dark:text-slate-400">
                   <div className="text-4xl mb-4">📝</div>
                   <p className="font-medium mb-2">
                     Nenhuma pergunta configurada
@@ -620,8 +620,8 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
         <Card className="shadow-sm">
           <CardContent className="p-3 lg:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+                <div className="w-2 h-2 bg-green-500 dark:bg-green-700 rounded-full animate-pulse"></div>
                 <span className="text-xs lg:text-sm">
                   Última atualização:{" "}
                   {answers.length > 0
@@ -651,7 +651,7 @@ export function DealQuestionsTab({ dealId }: DealQuestionsTabProps) {
                     ? "✅ Completo"
                     : "⏳ Em andamento"}
                 </Badge>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                <span className="text-xs text-gray-500 dark:bg-slate-800 dark:text-slate-300 bg-gray-100 px-2 py-1 rounded">
                   {questionsWithAnswers.length} perguntas
                 </span>
               </div>

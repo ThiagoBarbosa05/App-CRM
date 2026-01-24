@@ -62,7 +62,7 @@ export default function DealDetailsModal({
                 value="details"
                 className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 dark:data-[state=active]:bg-slate-700 data-[state=active]:bg-white dark:data-[state=active]:text-slate-100 data-[state=active]:text-blue-600 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50 rounded-md"
               >
-                <Info className="h-4 w-4 flex-shrink-0" />
+                <Info className="h-4 w-4 flex-shrink-0 dark:text-slate-200" />
                 <span className="hidden sm:inline dark:text-slate-200">
                   Detalhes
                 </span>

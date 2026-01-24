@@ -95,7 +95,7 @@ export default function DealCard({
   return (
     <Card
       className={cn(
-        "hover:shadow-lg transition-all duration-200 border-l-4 border border-gray-200 dark:border-slate-700 dark:hover:border-slate-600 hover:border-gray-300",
+        "hover:shadow-lg transition-all dark:bg-slate-800/25 duration-200 border-l-4 border border-gray-200 dark:border-slate-700 dark:hover:border-slate-600 hover:border-gray-300",
         className,
       )}
       style={{ borderLeftColor: deal.stage?.color || "#6B7280" }}
@@ -151,7 +151,7 @@ export default function DealCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  className="h-8 w-8 p-0 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </Button>
@@ -162,7 +162,7 @@ export default function DealCard({
                     onClick={() => onEdit(deal)}
                     className="cursor-pointer"
                   >
-                    <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 mr-2">
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 dark:bg-slate-800 mr-2">
                       <Edit className="h-3 w-3 text-blue-600" />
                     </div>
                     Editar
@@ -195,7 +195,7 @@ export default function DealCard({
                     onClick={() => onDelete(deal)}
                     className="text-red-600 focus:text-red-600 cursor-pointer"
                   >
-                    <div className="flex h-4 w-4 items-center justify-center rounded bg-red-100 mr-2">
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-red-100 dark:bg-slate-800 mr-2">
                       <Trash2 className="h-3 w-3 text-red-600" />
                     </div>
                     Excluir
@@ -420,7 +420,7 @@ export default function DealCard({
 
         {/* Informações Adicionais */}
         {deal.notes && (
-          <div className="p-3 sm:p-4 bg-blue-50  dark:bg-blue-900/50 dark:border-l-blue-700 dark:border-slate-400 border-l-4 border-l-blue-200 rounded-lg border border-blue-100">
+          <div className="p-3 sm:p-4 bg-blue-50  dark:bg-blue-900/50 dark:border-l-blue-700 dark:border-slate-800 border-l-4 border-l-blue-200 rounded-lg border border-blue-100">
             <div className="flex items-center gap-2 mb-2">
               <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 dark:bg-blue-900">
                 <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />

@@ -288,20 +288,20 @@ export function DealQuestionsForm({
         return cleanAnswer;
       });
 
-    console.log("Respostas preparadas para envio:");
-    answersArray.forEach((answer, index) => {
-      console.log(`Resposta ${index}:`, {
-        questionId: answer.questionId,
-        answerBoolean: answer.answerBoolean,
-        answerNumber: answer.answerNumber,
-        answerText: answer.answerText,
-        fieldsPresent: Object.keys(answer).filter(
-          (key) =>
-            !["dealId", "questionId"].includes(key) &&
-            answer[key as keyof DealAnswer] !== undefined
-        ),
-      });
-    });
+    // console.log("Respostas preparadas para envio:");
+    // answersArray.forEach((answer, index) => {
+    //   console.log(`Resposta ${index}:`, {
+    //     questionId: answer.questionId,
+    //     answerBoolean: answer.answerBoolean,
+    //     answerNumber: answer.answerNumber,
+    //     answerText: answer.answerText,
+    //     fieldsPresent: Object.keys(answer).filter(
+    //       (key) =>
+    //         !["dealId", "questionId"].includes(key) &&
+    //         answer[key as keyof DealAnswer] !== undefined
+    //     ),
+    //   });
+    // });
     saveMutation.mutate(answersArray);
   }, [validateAnswers, answers, saveMutation]);
 
@@ -435,11 +435,11 @@ export function DealQuestionsForm({
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="font-semibold text-gray-900 mb-2">
+          <AlertCircle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <h3 className="font-semibold text-gray-900 dark:text-slate-200 mb-2">
             Erro ao carregar dados
           </h3>
-          <p className="text-gray-600 text-sm">
+          <p className="text-gray-600 dark:text-slate-400 text-sm">
             {hasError instanceof Error ? hasError.message : "Erro desconhecido"}
           </p>
         </CardContent>
@@ -451,8 +451,8 @@ export function DealQuestionsForm({
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="ml-2">Carregando perguntas...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+          <span className="ml-2 dark:text-slate-400">Carregando perguntas...</span>
         </CardContent>
       </Card>
     );
@@ -461,12 +461,12 @@ export function DealQuestionsForm({
   return (
     <div className="space-y-4">
       {/* Header com progresso */}
-      <div className="flex items-center justify-between pb-4 border-b">
+      <div className="flex items-center justify-between pb-4 border-b dark:border-slate-700">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             Questionário do Deal
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
             Preencha as informações adicionais sobre este deal
           </p>
         </div>
@@ -474,7 +474,7 @@ export function DealQuestionsForm({
           <Button
             onClick={handleSave}
             disabled={saveMutation.isPending}
-            className="min-w-[140px] bg-blue-600 hover:bg-blue-700"
+            className="min-w-[140px] bg-blue-600 text-white hover:bg-blue-700"
           >
             {saveMutation.isPending ? (
               <>
@@ -492,12 +492,12 @@ export function DealQuestionsForm({
       </div>
 
       {/* Progress bar */}
-      <div className="bg-gray-100 rounded-lg p-4">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-lg p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-400">
             Progresso do questionário
           </span>
-          <span className="text-sm font-semibold text-blue-600">
+          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
             {
               Array.from(answers.values()).filter(
                 (a) =>
@@ -545,10 +545,10 @@ export function DealQuestionsForm({
               key={question.id}
               className={`p-4 rounded-lg border-2 transition-all ${
                 hasError
-                  ? "border-red-300 bg-red-50"
+                  ? "border-red-300 dark:bg-red-700 dark:border-red-800 bg-red-50"
                   : isAnswered
-                  ? "border-green-300 bg-green-50"
-                  : "border-gray-200 bg-white hover:border-gray-300"
+                  ? "border-green-300 dark:border-green-700 dark:bg-green-800 bg-green-50"
+                  : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:hover:border-slate-600 hover:border-gray-300"
               }`}
             >
               <div className="space-y-3">
@@ -559,10 +559,10 @@ export function DealQuestionsForm({
                   <div
                     className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                       hasError
-                        ? "bg-red-200 text-red-700"
+                        ? "bg-red-200 text-red-700 dark:bg-red-700 dark:text-red-200"
                         : isAnswered
-                        ? "bg-green-200 text-green-700"
-                        : "bg-gray-200 text-gray-600"
+                        ? "bg-green-200 text-green-700 dark:bg-green-700 dark:text-green-200"
+                        : "bg-gray-200 text-gray-600 dark:bg-slate-700 dark:text-slate-200"
                     }`}
                   >
                     {index + 1}
@@ -570,25 +570,25 @@ export function DealQuestionsForm({
                   <div className="flex-1">
                     <Label
                       className={`text-base font-medium flex items-center gap-2 ${
-                        hasError ? "text-red-700" : "text-gray-900"
+                        hasError ? "text-red-700 dark:text-red-200" : "text-gray-900 dark:text-slate-200"
                       }`}
                     >
                       {question.question}
                       {question.isRequired && (
                         <Badge
                           variant="outline"
-                          className="text-xs bg-red-50 border-red-200 text-red-700"
+                          className="text-xs bg-red-50 dark:border-red-800 dark:bg-red-700 dark:text-red-200 border-red-200 text-red-700"
                         >
                           Obrigatória
                         </Badge>
                       )}
                       {isAnswered && !hasError && (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                       )}
                     </Label>
 
                     {question.helpText && (
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
                         {question.helpText}
                       </p>
                     )}
@@ -600,7 +600,7 @@ export function DealQuestionsForm({
                   {renderQuestionInput(question)}
 
                   {hasError && (
-                    <div className="flex items-center gap-1 mt-2 text-red-600 text-sm">
+                    <div className="flex items-center gap-1 mt-2 text-red-600 dark:text-slate-400 text-sm">
                       <AlertCircle className="h-4 w-4" />
                       {errors.get(question.id)}
                     </div>
@@ -614,7 +614,7 @@ export function DealQuestionsForm({
 
       {questions.length === 0 && (
         <Card>
-          <CardContent className="text-center py-8 text-gray-500">
+          <CardContent className="text-center py-8 text-gray-500 dark:text-slate-400">
             <div className="text-4xl mb-2">📝</div>
             <p className="font-medium mb-1">Nenhuma pergunta configurada</p>
             <p className="text-sm">
@@ -626,12 +626,12 @@ export function DealQuestionsForm({
 
       {/* Footer actions */}
       {!readOnly && questions.length > 0 && (
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
           <Button
             onClick={handleSave}
             disabled={saveMutation.isPending}
             size="lg"
-            className="min-w-[160px] bg-blue-600 hover:bg-blue-700"
+            className="min-w-[160px] bg-blue-600 hover:bg-blue-700 text-white"
           >
             {saveMutation.isPending ? (
               <>

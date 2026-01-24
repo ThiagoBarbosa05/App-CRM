@@ -299,10 +299,10 @@ export default function FunnelKanbanBoard({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center dark:text-slate-300 h-64">
         <div className="text-lg">Carregando deals...</div>
       </div>
-    );
+    );  
   }
 
   return (
