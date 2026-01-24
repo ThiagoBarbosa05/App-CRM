@@ -78,52 +78,88 @@ export default function CompanyImportModal({
     },
     onSuccess: (data: any) => {
       setImportData(data);
-      
+
       // Detectar campos disponíveis automaticamente
       if (data.length > 0) {
         const fields = Object.keys(data[0]);
         setAvailableFields(fields);
-        
+
         // Criar mapeamento automático baseado em nomes similares
         const autoMapping: FieldMapping = {};
-        fields.forEach(field => {
+        fields.forEach((field) => {
           const fieldLower = field.toLowerCase();
-          if (fieldLower.includes('nome fantasia') || fieldLower.includes('nomefantasia')) {
-            autoMapping[field] = 'nomeFantasia';
-          } else if (fieldLower.includes('razao social') || fieldLower.includes('razaosocial')) {
-            autoMapping[field] = 'razaoSocial';
-          } else if (fieldLower.includes('cnpj')) {
-            autoMapping[field] = 'cnpj';
-          } else if (fieldLower.includes('inscricao estadual') || fieldLower.includes('inscricaoestadual')) {
-            autoMapping[field] = 'inscricaoEstadual';
-          } else if (fieldLower.includes('comprador') || fieldLower.includes('buyer')) {
-            autoMapping[field] = 'nomeComprador';
-          } else if (fieldLower.includes('responsavel') || fieldLower.includes('responsible')) {
-            autoMapping[field] = 'responsavelNome';
-          } else if (fieldLower.includes('telefone') || fieldLower.includes('phone')) {
-            autoMapping[field] = 'phone';
-          } else if (fieldLower.includes('email')) {
-            autoMapping[field] = 'email';
-          } else if (fieldLower.includes('website') || fieldLower.includes('site')) {
-            autoMapping[field] = 'website';
-          } else if (fieldLower.includes('cep')) {
-            autoMapping[field] = 'cep';
-          } else if (fieldLower.includes('endereco') || fieldLower.includes('address')) {
-            autoMapping[field] = 'address';
-          } else if (fieldLower.includes('bairro') || fieldLower.includes('neighborhood')) {
-            autoMapping[field] = 'neighborhood';
-          } else if (fieldLower.includes('cidade') || fieldLower.includes('city')) {
-            autoMapping[field] = 'city';
-          } else if (fieldLower.includes('estado') || fieldLower.includes('state')) {
-            autoMapping[field] = 'state';
-          } else if (fieldLower.includes('observacoes') || fieldLower.includes('notes')) {
-            autoMapping[field] = 'notes';
+          if (
+            fieldLower.includes("nome fantasia") ||
+            fieldLower.includes("nomefantasia")
+          ) {
+            autoMapping[field] = "nomeFantasia";
+          } else if (
+            fieldLower.includes("razao social") ||
+            fieldLower.includes("razaosocial")
+          ) {
+            autoMapping[field] = "razaoSocial";
+          } else if (fieldLower.includes("cnpj")) {
+            autoMapping[field] = "cnpj";
+          } else if (
+            fieldLower.includes("inscricao estadual") ||
+            fieldLower.includes("inscricaoestadual")
+          ) {
+            autoMapping[field] = "inscricaoEstadual";
+          } else if (
+            fieldLower.includes("comprador") ||
+            fieldLower.includes("buyer")
+          ) {
+            autoMapping[field] = "nomeComprador";
+          } else if (
+            fieldLower.includes("responsavel") ||
+            fieldLower.includes("responsible")
+          ) {
+            autoMapping[field] = "responsavelNome";
+          } else if (
+            fieldLower.includes("telefone") ||
+            fieldLower.includes("phone")
+          ) {
+            autoMapping[field] = "phone";
+          } else if (fieldLower.includes("email")) {
+            autoMapping[field] = "email";
+          } else if (
+            fieldLower.includes("website") ||
+            fieldLower.includes("site")
+          ) {
+            autoMapping[field] = "website";
+          } else if (fieldLower.includes("cep")) {
+            autoMapping[field] = "cep";
+          } else if (
+            fieldLower.includes("endereco") ||
+            fieldLower.includes("address")
+          ) {
+            autoMapping[field] = "address";
+          } else if (
+            fieldLower.includes("bairro") ||
+            fieldLower.includes("neighborhood")
+          ) {
+            autoMapping[field] = "neighborhood";
+          } else if (
+            fieldLower.includes("cidade") ||
+            fieldLower.includes("city")
+          ) {
+            autoMapping[field] = "city";
+          } else if (
+            fieldLower.includes("estado") ||
+            fieldLower.includes("state")
+          ) {
+            autoMapping[field] = "state";
+          } else if (
+            fieldLower.includes("observacoes") ||
+            fieldLower.includes("notes")
+          ) {
+            autoMapping[field] = "notes";
           }
         });
-        
+
         setFieldMapping(autoMapping);
       }
-      
+
       setStep("mapping");
     },
     onError: () => {
@@ -173,10 +209,18 @@ export default function CompanyImportModal({
 
           // Aplicar mapeamento de campos
           Object.entries(fieldMapping).forEach(([excelField, systemField]) => {
-            if (company[excelField] !== undefined && company[excelField] !== null) {
-              if (systemField === 'cnpj' || systemField === 'inscricaoEstadual' || 
-                  systemField === 'phone' || systemField === 'cep') {
-                companyData[systemField] = company[excelField]?.toString() || "";
+            if (
+              company[excelField] !== undefined &&
+              company[excelField] !== null
+            ) {
+              if (
+                systemField === "cnpj" ||
+                systemField === "inscricaoEstadual" ||
+                systemField === "phone" ||
+                systemField === "cep"
+              ) {
+                companyData[systemField] =
+                  company[excelField]?.toString() || "";
               } else {
                 companyData[systemField] = company[excelField] || "";
               }
@@ -207,14 +251,16 @@ export default function CompanyImportModal({
             try {
               const usersResponse = await fetch("/api/users", {
                 headers: {
-                  'x-user-id': 'b314722c-8fd6-4592-a9de-9ee551ec35be',
-                  'x-user-role': 'admin'
-                }
+                  "x-user-id": "b314722c-8fd6-4592-a9de-9ee551ec35be",
+                  "x-user-role": "admin",
+                },
               });
               if (usersResponse.ok) {
                 const users = await usersResponse.json();
-                const responsavel = users.find((user: any) => 
-                  user.name.toLowerCase().includes(companyData.responsavelNome.toLowerCase().trim())
+                const responsavel = users.find((user: any) =>
+                  user.name
+                    .toLowerCase()
+                    .includes(companyData.responsavelNome.toLowerCase().trim()),
                 );
                 if (responsavel) {
                   companyData.responsavelId = responsavel.id;
@@ -231,7 +277,7 @@ export default function CompanyImportModal({
           const response = await apiRequest(
             "POST",
             "/api/companies",
-            companyData
+            companyData,
           );
           results.success++;
         } catch (error: any) {
@@ -309,7 +355,7 @@ export default function CompanyImportModal({
         CNPJ: "12.345.678/0001-99",
         "Inscrição Estadual": "123456789",
         "Nome do Comprador": "João Silva",
-        "Responsável": "Michel Sa",
+        Responsável: "Michel Sa",
         Telefone: "(11) 99999-9999",
         Email: "contato@empresa.com",
         Website: "https://www.empresa.com",
@@ -341,11 +387,11 @@ export default function CompanyImportModal({
         {step === "upload" && (
           <div className="space-y-6">
             <div className="text-center">
-              <FileSpreadsheet className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium">
+              <FileSpreadsheet className="h-16 w-16 text-gray-400 dark:text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium dark:text-slate-200">
                 Selecione um arquivo Excel
               </h3>
-              <p className="text-gray-500">
+              <p className="text-gray-500 dark:text-slate-400">
                 Faça upload de um arquivo .xlsx com os dados das empresas
               </p>
             </div>
@@ -426,9 +472,9 @@ export default function CompanyImportModal({
                     className="w-full p-2 border rounded-md"
                     value={fieldMapping[field] || ""}
                     onChange={(e) => {
-                      setFieldMapping(prev => ({
+                      setFieldMapping((prev) => ({
                         ...prev,
-                        [field]: e.target.value
+                        [field]: e.target.value,
                       }));
                     }}
                   >
@@ -436,7 +482,9 @@ export default function CompanyImportModal({
                     <option value="nomeFantasia">Nome Fantasia</option>
                     <option value="razaoSocial">Razão Social</option>
                     <option value="cnpj">CNPJ</option>
-                    <option value="inscricaoEstadual">Inscrição Estadual</option>
+                    <option value="inscricaoEstadual">
+                      Inscrição Estadual
+                    </option>
                     <option value="nomeComprador">Nome do Comprador</option>
                     <option value="responsavelNome">Responsável</option>
                     <option value="phone">Telefone</option>
@@ -492,43 +540,91 @@ export default function CompanyImportModal({
                   {importData.slice(0, 10).map((company, index) => (
                     <tr key={index} className="border-t">
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'nomeFantasia')?.[0] 
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'nomeFantasia')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "nomeFantasia",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "nomeFantasia",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'razaoSocial')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'razaoSocial')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "razaoSocial",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "razaoSocial",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'cnpj')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'cnpj')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "cnpj",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "cnpj",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'inscricaoEstadual')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "inscricaoEstadual",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "inscricaoEstadual",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'neighborhood')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'neighborhood')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "neighborhood",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "neighborhood",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'responsavelNome')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'responsavelNome')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "responsavelNome",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "responsavelNome",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'phone')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'phone')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "phone",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "phone",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                       <td className="px-3 py-2">
-                        {Object.entries(fieldMapping).find(([_, value]) => value === 'email')?.[0]
-                          ? company[Object.entries(fieldMapping).find(([_, value]) => value === 'email')![0]] || "N/A"
+                        {Object.entries(fieldMapping).find(
+                          ([_, value]) => value === "email",
+                        )?.[0]
+                          ? company[
+                              Object.entries(fieldMapping).find(
+                                ([_, value]) => value === "email",
+                              )![0]
+                            ] || "N/A"
                           : "N/A"}
                       </td>
                     </tr>

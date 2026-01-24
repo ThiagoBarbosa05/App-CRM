@@ -218,7 +218,7 @@ export default function CompanyAnsweredQuestionsTab({
       </div>
 
       {dealsWithQuestions.length === 0 ? (
-        <Card className="shadow-sm border-0 bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="shadow-sm border-0 bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 from-gray-50 to-gray-100">
           <CardContent className="flex flex-col items-center justify-center py-12 lg:py-16 px-6">
             <div className="bg-blue-100 dark:bg-slate-800 p-4 rounded-full mb-6">
               <HelpCircle className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600 dark:text-blue-400" />

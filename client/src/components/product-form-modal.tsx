@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,7 +33,19 @@ import { useAuth } from "@/hooks/useAuth";
 
 const productSchema = z.object({
   name: z.string().min(1, "Nome do vinho é obrigatório"),
-  country: z.enum(["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"]),
+  country: z.enum([
+    "CHILE",
+    "ARGENTINA",
+    "URUGUAI",
+    "BRASIL",
+    "EUA",
+    "FRANÇA",
+    "ITÁLIA",
+    "PORTUGAL",
+    "ESPANHA",
+    "ALEMANHA",
+    "OUTROS",
+  ]),
   volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]),
   type: z.enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"]),
   negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
@@ -57,7 +68,11 @@ interface ProductFormModalProps {
   product?: Product | null;
 }
 
-export function ProductFormModal({ open, onOpenChange, product }: ProductFormModalProps) {
+export function ProductFormModal({
+  open,
+  onOpenChange,
+  product,
+}: ProductFormModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const isEditing = !!product;
@@ -97,7 +112,7 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
     mutationFn: async (data: ProductFormData) => {
       const url = isEditing ? `/api/products/${product.id}` : "/api/products";
       const method = isEditing ? "PUT" : "POST";
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -115,7 +130,7 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
           errorMessage = error.message || errorMessage;
         } catch {
           // Se a resposta não é JSON válido, usar mensagem padrão
-          errorMessage = `Erro ${response.status}: ${response.statusText || 'Falha na requisição'}`;
+          errorMessage = `Erro ${response.status}: ${response.statusText || "Falha na requisição"}`;
         }
         throw new Error(errorMessage);
       }
@@ -126,8 +141,8 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: isEditing ? "Produto atualizado" : "Produto criado",
-        description: isEditing 
-          ? "O produto foi atualizado com sucesso." 
+        description: isEditing
+          ? "O produto foi atualizado com sucesso."
           : "O produto foi criado com sucesso.",
       });
       onOpenChange(false);
@@ -145,26 +160,29 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
   const onSubmit = (data: ProductFormData) => {
     // Converter preços formatados para números
     const convertPrice = (price: string): string => {
-      if (!price) return '0';
+      if (!price) return "0";
       // Remove todos os pontos (separadores de milhares) e substitui vírgula por ponto decimal
-      return price.replace(/\./g, '').replace(',', '.');
+      return price.replace(/\./g, "").replace(",", ".");
     };
-    
+
     const processedData = {
       ...data,
       negotiatedPrice: convertPrice(data.negotiatedPrice),
     };
-    
-    console.log('Dados processados para envio:', processedData);
+
+    console.log("Dados processados para envio:", processedData);
     productMutation.mutate(processedData);
   };
 
   const formatCurrency = (value: string) => {
     const numericValue = value.replace(/\D/g, "");
-    const formattedValue = (parseInt(numericValue) / 100).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    const formattedValue = (parseInt(numericValue) / 100).toLocaleString(
+      "pt-BR",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      },
+    );
     return formattedValue;
   };
 
@@ -182,8 +200,8 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
             {isEditing ? "Editar Produto" : "Novo Produto"}
           </DialogTitle>
           <DialogDescription>
-            {isEditing 
-              ? "Atualize as informações do produto." 
+            {isEditing
+              ? "Atualize as informações do produto."
               : "Preencha as informações do novo produto."}
           </DialogDescription>
         </DialogHeader>
@@ -197,7 +215,10 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
                 <FormItem>
                   <FormLabel>Nome do Vinho</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Cabernet Sauvignon Reserva" {...field} />
+                    <Input
+                      placeholder="Ex: Cabernet Sauvignon Reserva"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,18 +326,22 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
             />
 
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancelar
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={productMutation.isPending}
-                className="bg-wine-600 hover:bg-wine-700"
+                className="bg-wine-600 hover:bg-wine-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
               >
-                {productMutation.isPending 
-                  ? "Salvando..." 
-                  : isEditing 
-                    ? "Atualizar" 
+                {productMutation.isPending
+                  ? "Salvando..."
+                  : isEditing
+                    ? "Atualizar"
                     : "Criar Produto"}
               </Button>
             </div>

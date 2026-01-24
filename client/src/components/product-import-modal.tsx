@@ -50,7 +50,9 @@ export default function ProductImportModal({
   const [step, setStep] = useState<
     "upload" | "preview" | "field-mapping" | "importing" | "result"
   >("upload");
-  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({});
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(
+    {},
+  );
   const [progress, setProgress] = useState(0);
 
   const processFileMutation = useMutation({
@@ -75,26 +77,33 @@ export default function ProductImportModal({
     },
     onSuccess: (data: any) => {
       setImportData(data);
-      
+
       // Detectar campos disponíveis automaticamente e marcar os principais como selecionados
       if (data.length > 0) {
         const availableFields = Object.keys(data[0]);
         const initialFieldSelection: Record<string, boolean> = {};
-        
-        availableFields.forEach(field => {
+
+        availableFields.forEach((field) => {
           const fieldLower = field.toLowerCase();
           // Marcar campos essenciais como selecionados por padrão
-          initialFieldSelection[field] = 
-            fieldLower.includes('nome') || fieldLower.includes('name') || fieldLower.includes('vinho') ||
-            fieldLower.includes('país') || fieldLower.includes('pais') || fieldLower.includes('country') ||
-            fieldLower.includes('volume') ||
-            fieldLower.includes('tipo') || fieldLower.includes('type') ||
-            fieldLower.includes('valor') || fieldLower.includes('price') || fieldLower.includes('preço');
+          initialFieldSelection[field] =
+            fieldLower.includes("nome") ||
+            fieldLower.includes("name") ||
+            fieldLower.includes("vinho") ||
+            fieldLower.includes("país") ||
+            fieldLower.includes("pais") ||
+            fieldLower.includes("country") ||
+            fieldLower.includes("volume") ||
+            fieldLower.includes("tipo") ||
+            fieldLower.includes("type") ||
+            fieldLower.includes("valor") ||
+            fieldLower.includes("price") ||
+            fieldLower.includes("preço");
         });
-        
+
         setSelectedFields(initialFieldSelection);
       }
-      
+
       setStep("preview");
     },
     onError: () => {
@@ -119,12 +128,14 @@ export default function ProductImportModal({
       const usersResponse = await fetch("/api/users", {
         headers: {
           "x-user-id": "b314722c-8fd6-4592-a9de-9ee551ec35be",
-          "x-user-role": "admin"
-        }
+          "x-user-role": "admin",
+        },
       });
 
       const users = usersResponse.ok ? await usersResponse.json() : [];
-      const defaultUserId = users.find((u: any) => u.role === 'admin')?.id || 'b314722c-8fd6-4592-a9de-9ee551ec35be';
+      const defaultUserId =
+        users.find((u: any) => u.role === "admin")?.id ||
+        "b314722c-8fd6-4592-a9de-9ee551ec35be";
 
       for (let i = 0; i < products.length; i++) {
         const product = products[i];
@@ -134,7 +145,11 @@ export default function ProductImportModal({
           console.log(`Linha ${i + 1}: Dados da planilha:`, product);
 
           // Extrair e validar dados do produto
-          const name = product['Nome do Vinho'] || product.nome || product.name || product['Nome'];
+          const name =
+            product["Nome do Vinho"] ||
+            product.nome ||
+            product.name ||
+            product["Nome"];
           if (!name || !String(name).trim()) {
             results.errors.push({
               row: i + 2,
@@ -144,18 +159,28 @@ export default function ProductImportModal({
             continue;
           }
 
-          const country = String(product['País'] || product.pais || product.country || 'BRASIL').toUpperCase();
-          const volume = String(product['Volume'] || product.volume || '750ml');
-          const type = String(product['Tipo'] || product.tipo || product.type || 'TINTO').toUpperCase();
-          
+          const country = String(
+            product["País"] || product.pais || product.country || "BRASIL",
+          ).toUpperCase();
+          const volume = String(product["Volume"] || product.volume || "750ml");
+          const type = String(
+            product["Tipo"] || product.tipo || product.type || "TINTO",
+          ).toUpperCase();
+
           // Processar preço
-          let negotiatedPrice = '0.00';
-          const priceField = product['Valor de Tabela'] || product['Valor Negociado'] || product.valor || product.price || product['Preço'] || '0';
+          let negotiatedPrice = "0.00";
+          const priceField =
+            product["Valor de Tabela"] ||
+            product["Valor Negociado"] ||
+            product.valor ||
+            product.price ||
+            product["Preço"] ||
+            "0";
           if (priceField) {
             const numericPrice = parseFloat(
               String(priceField)
-                .replace(/[^\d,]/g, '')
-                .replace(',', '.')
+                .replace(/[^\d,]/g, "")
+                .replace(",", "."),
             );
             if (!isNaN(numericPrice) && numericPrice > 0) {
               negotiatedPrice = numericPrice.toFixed(2);
@@ -163,11 +188,31 @@ export default function ProductImportModal({
           }
 
           // Validar valores permitidos
-          const validCountries = ["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"];
+          const validCountries = [
+            "CHILE",
+            "ARGENTINA",
+            "URUGUAI",
+            "BRASIL",
+            "EUA",
+            "FRANÇA",
+            "ITÁLIA",
+            "PORTUGAL",
+            "ESPANHA",
+            "ALEMANHA",
+            "OUTROS",
+          ];
           const validVolumes = ["187ml", "375ml", "750ml", "1500ml"];
-          const validTypes = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"];
+          const validTypes = [
+            "ESPUMANTE",
+            "BRANCO",
+            "ROSE",
+            "TINTO",
+            "PÓS-REFEIÇÃO",
+          ];
 
-          const finalCountry = validCountries.includes(country) ? country : "OUTROS";
+          const finalCountry = validCountries.includes(country)
+            ? country
+            : "OUTROS";
           const finalVolume = validVolumes.includes(volume) ? volume : "750ml";
           const finalType = validTypes.includes(type) ? type : "TINTO";
 
@@ -177,20 +222,20 @@ export default function ProductImportModal({
             volume: finalVolume,
             type: finalType,
             negotiatedPrice,
-            createdBy: defaultUserId
+            createdBy: defaultUserId,
           };
 
           console.log(`Linha ${i + 1}: Dados processados:`, productData);
 
           // Criar produto
-          const response = await fetch('/api/products', {
-            method: 'POST',
+          const response = await fetch("/api/products", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'x-user-id': defaultUserId,
-              'x-user-role': 'admin'
+              "Content-Type": "application/json",
+              "x-user-id": defaultUserId,
+              "x-user-role": "admin",
             },
-            body: JSON.stringify(productData)
+            body: JSON.stringify(productData),
           });
 
           if (response.ok) {
@@ -209,7 +254,7 @@ export default function ProductImportModal({
           console.error(`Linha ${i + 1}: Erro inesperado:`, error);
           results.errors.push({
             row: i + 2,
-            error: `Erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+            error: `Erro inesperado: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
             data: product,
           });
         }
@@ -221,10 +266,10 @@ export default function ProductImportModal({
       setImportResult(results);
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      
+
       toast({
         title: "Importação concluída",
-        description: `${results.success} produtos importados com sucesso${results.errors.length > 0 ? `. ${results.errors.length} erros encontrados.` : '.'}`,
+        description: `${results.success} produtos importados com sucesso${results.errors.length > 0 ? `. ${results.errors.length} erros encontrados.` : "."}`,
       });
     },
     onError: () => {
@@ -248,7 +293,7 @@ export default function ProductImportModal({
     const selectedData = importData.filter((_, index) => {
       // Filtrar apenas linhas que tenham pelo menos o nome do produto
       const row = importData[index];
-      const name = row['Nome do Vinho'] || row.nome || row.name || row['Nome'];
+      const name = row["Nome do Vinho"] || row.nome || row.name || row["Nome"];
       return name && String(name).trim();
     });
 
@@ -278,24 +323,26 @@ export default function ProductImportModal({
   const downloadTemplate = () => {
     const templateData = [
       {
-        'Nome do Vinho': 'Vinho Tinto Exemplo',
-        'País': 'BRASIL',
-        'Volume': '750ml',
-        'Tipo': 'TINTO',
-        'Valor de Tabela': '45,99'
-      }
+        "Nome do Vinho": "Vinho Tinto Exemplo",
+        País: "BRASIL",
+        Volume: "750ml",
+        Tipo: "TINTO",
+        "Valor de Tabela": "45,99",
+      },
     ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template Produtos');
+    XLSX.utils.book_append_sheet(wb, ws, "Template Produtos");
 
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    const link = document.createElement('a');
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(data);
-    link.download = 'template_produtos.xlsx';
+    link.download = "template_produtos.xlsx";
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -306,12 +353,16 @@ export default function ProductImportModal({
         <DialogHeader>
           <DialogTitle>
             Importar Produtos
-            {step !== "upload" && ` - ${
-              step === "preview" ? "Visualizar Dados" :
-              step === "field-mapping" ? "Mapear Campos" :
-              step === "importing" ? "Importando..." :
-              "Resultado"
-            }`}
+            {step !== "upload" &&
+              ` - ${
+                step === "preview"
+                  ? "Visualizar Dados"
+                  : step === "field-mapping"
+                    ? "Mapear Campos"
+                    : step === "importing"
+                      ? "Importando..."
+                      : "Resultado"
+              }`}
           </DialogTitle>
         </DialogHeader>
 
@@ -319,12 +370,12 @@ export default function ProductImportModal({
           <div className="space-y-6">
             <div className="text-center">
               <div className="mx-auto mb-4 w-16 h-16 bg-wine-100 rounded-full flex items-center justify-center">
-                <Upload className="h-8 w-8 text-wine-600" />
+                <Upload className="h-8 w-8 text-wine-600 dark:text-slate-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-lg font-semibold mb-2 dark:text-slate-200">
                 Selecione um arquivo Excel
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-4 dark:text-slate-400">
                 Carregue um arquivo .xlsx ou .xls com os dados dos produtos
               </p>
             </div>
@@ -344,26 +395,27 @@ export default function ProductImportModal({
 
               {processFileMutation.isPending && (
                 <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600 mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-600">Processando arquivo...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600 dark:border-slate-700 mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    Processando arquivo...
+                  </p>
                 </div>
               )}
             </div>
 
-            <div className="border-t pt-4">
+            <div className="border-t dark:border-slate-700 pt-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Precisa de um modelo?</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadTemplate}
-                >
+                <h4 className="font-medium dark:text-slate-200">
+                  Precisa de um modelo?
+                </h4>
+                <Button variant="outline" size="sm" onClick={downloadTemplate}>
                   <Download className="h-4 w-4 mr-2" />
                   Baixar Template
                 </Button>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Use nosso template para garantir que os dados estejam no formato correto.
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-2">
+                Use nosso template para garantir que os dados estejam no formato
+                correto.
               </p>
             </div>
           </div>
@@ -374,8 +426,8 @@ export default function ProductImportModal({
             <Alert>
               <FileSpreadsheet className="h-4 w-4" />
               <AlertDescription>
-                Encontrados {importData.length} registros no arquivo.
-                Verifique os dados abaixo antes de continuar.
+                Encontrados {importData.length} registros no arquivo. Verifique
+                os dados abaixo antes de continuar.
               </AlertDescription>
             </Alert>
 
@@ -386,11 +438,14 @@ export default function ProductImportModal({
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-300">
+                    <table className="w-full border-collapse border border-gray-300 dark:border-slate-700">
                       <thead>
-                        <tr className="bg-gray-50">
+                        <tr className="bg-gray-50 dark:bg-slate-800">
                           {Object.keys(importData[0]).map((header) => (
-                            <th key={header} className="border border-gray-300 px-2 py-1 text-left text-xs">
+                            <th
+                              key={header}
+                              className="border border-gray-300 dark:border-slate-700 px-2 py-1 text-left text-xs"
+                            >
                               {header}
                             </th>
                           ))}
@@ -400,7 +455,10 @@ export default function ProductImportModal({
                         {importData.slice(0, 5).map((row, index) => (
                           <tr key={index}>
                             {Object.values(row).map((value, cellIndex) => (
-                              <td key={cellIndex} className="border border-gray-300 px-2 py-1 text-xs">
+                              <td
+                                key={cellIndex}
+                                className="border border-gray-300 dark:border-slate-700 px-2 py-1 text-xs"
+                              >
                                 {String(value)}
                               </td>
                             ))}
@@ -410,8 +468,9 @@ export default function ProductImportModal({
                     </table>
                   </div>
                   {importData.length > 5 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      Mostrando apenas as primeiras 5 linhas de {importData.length} registros.
+                    <p className="text-sm text-gray-600 dark:text-slate-400 mt-2">
+                      Mostrando apenas as primeiras 5 linhas de{" "}
+                      {importData.length} registros.
                     </p>
                   )}
                 </CardContent>
@@ -422,7 +481,7 @@ export default function ProductImportModal({
               <Button variant="outline" onClick={() => setStep("upload")}>
                 Voltar
               </Button>
-              <Button onClick={handleImport} className="bg-wine-600 hover:bg-wine-700">
+              <Button onClick={handleImport} variant={"default"}>
                 Importar Produtos
               </Button>
             </div>
@@ -431,16 +490,18 @@ export default function ProductImportModal({
 
         {step === "importing" && (
           <div className="space-y-6 text-center">
-            <div className="mx-auto mb-4 w-16 h-16 bg-wine-100 rounded-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600"></div>
+            <div className="mx-auto mb-4 w-16 h-16 bg-wine-10 dark:bg-slate-800 rounded-full flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine-600 dark:border-slate-700"></div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-2">Importando produtos...</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-lg font-semibold mb-2">
+                Importando produtos...
+              </h3>
+              <p className="text-gray-600 dark:text-slate-400 mb-4">
                 Por favor, aguarde enquanto processamos os dados.
               </p>
               <Progress value={progress} className="w-full" />
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-2">
                 {Math.round(progress)}% concluído
               </p>
             </div>
@@ -450,35 +511,43 @@ export default function ProductImportModal({
         {step === "result" && importResult && (
           <div className="space-y-6">
             <div className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className="mx-auto mb-4 w-16 h-16 bg-green-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Importação Concluída</h3>
+              <h3 className="text-lg font-semibold dark:text-slate-200 mb-2">
+                Importação Concluída
+              </h3>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="text-center py-4">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {importResult.success}
                   </div>
-                  <div className="text-sm text-gray-600">Sucessos</div>
+                  <div className="text-sm text-gray-600 dark:text-slate-400">
+                    Sucessos
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="text-center py-4">
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                     {importResult.errors.length}
                   </div>
-                  <div className="text-sm text-gray-600">Erros</div>
+                  <div className="text-sm text-gray-600 dark:text-slate-400">
+                    Erros
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="text-center py-4">
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {importResult.total}
                   </div>
-                  <div className="text-sm text-gray-600">Total</div>
+                  <div className="text-sm text-gray-600 dark:text-slate-400">
+                    Total
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -486,7 +555,7 @@ export default function ProductImportModal({
             {importResult.errors.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-red-600 flex items-center gap-2">
+                  <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
                     <AlertCircle className="h-5 w-5" />
                     Erros Encontrados
                   </CardTitle>
@@ -494,12 +563,15 @@ export default function ProductImportModal({
                 <CardContent>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {importResult.errors.map((error, index) => (
-                      <div key={index} className="border border-red-200 rounded p-2 bg-red-50">
-                        <div className="font-medium text-red-800">
+                      <div
+                        key={index}
+                        className="border border-red-200 dark:border-red-700 rounded p-2 bg-red-50 dark:bg-red-900"
+                      >
+                        <div className="font-medium text-red-800 dark:text-red-400">
                           Linha {error.row}: {error.error}
                         </div>
                         {error.data && (
-                          <div className="text-sm text-red-600 mt-1">
+                          <div className="text-sm text-red-600 dark:text-red-400 mt-1">
                             Dados: {JSON.stringify(error.data)}
                           </div>
                         )}

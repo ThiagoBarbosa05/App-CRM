@@ -56,7 +56,7 @@ export default function DealCard({
     if (cleanPhone.length === 11) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
         2,
-        7
+        7,
       )}-${cleanPhone.slice(7)}`;
     }
     return phone;
@@ -95,8 +95,8 @@ export default function DealCard({
   return (
     <Card
       className={cn(
-        "hover:shadow-lg transition-all duration-200 border-l-4 border border-gray-200 hover:border-gray-300",
-        className
+        "hover:shadow-lg transition-all duration-200 border-l-4 border border-gray-200 dark:border-slate-700 dark:hover:border-slate-600 hover:border-gray-300",
+        className,
       )}
       style={{ borderLeftColor: deal.stage?.color || "#6B7280" }}
     >
@@ -105,15 +105,16 @@ export default function DealCard({
         <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
           <div className="flex-1 space-y-2 w-full sm:w-auto min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <h3 className="font-semibold text-base sm:text-lg text-gray-900 line-clamp-2 min-w-0 flex-1">
+              <h3 className="font-semibold text-base sm:text-lg text-gray-900 dark:text-slate-100 line-clamp-2 min-w-0 flex-1">
                 {deal.title || "Negócio sem título"}
               </h3>
               <Badge
                 variant="outline"
-                className="text-xs whitespace-nowrap self-start sm:self-center"
+                className="text-xs whitespace-nowrap self-start dark:text-slate-200 sm:self-center"
                 style={{
-                  borderColor: deal.stage?.color || "#6B7280",
-                  color: deal.stage?.color || "#6B7280",
+                  borderColor:
+                    deal.stage?.color || "#6B7280 dark:border-slate-600",
+                  color: deal.stage?.color || "#6B7280 dark:text-slate-200",
                 }}
               >
                 {deal.stage?.name || "Sem estágio"}
@@ -121,21 +122,21 @@ export default function DealCard({
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <span className="text-xl sm:text-2xl font-bold text-green-600">
+              <span className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(parseFloat(deal.value))}
               </span>
-              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500">
-                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100">
-                  <Target className="h-3 w-3 text-green-600" />
+              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
+                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 dark:bg-green-900">
+                  <Target className="h-3 w-3 text-green-600 dark:text-green-400" />
                 </div>
                 <span>{Math.round(getClosingProbability())}% chance</span>
               </div>
             </div>
 
             {/* Responsável pelo negócio */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100">
-                <User className="h-3 w-3 text-gray-600" />
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-slate-400">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-slate-700">
+                <User className="h-3 w-3 text-gray-600 dark:text-slate-400" />
               </div>
               <span className="font-medium">Responsável:</span>
               <span className="truncate">
@@ -209,12 +210,14 @@ export default function DealCard({
         <div className="space-y-2 mt-4">
           <div className="flex items-center justify-between text-xs sm:text-sm">
             <div className="flex items-center gap-2">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100">
-                <TrendingUp className="h-3 w-3 text-blue-600" />
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 dark:bg-blue-900">
+                <TrendingUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
               </div>
-              <span className="text-gray-600">Progresso no funil</span>
+              <span className="text-gray-600 dark:text-slate-400">
+                Progresso no funil
+              </span>
             </div>
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-gray-900 dark:text-slate-100">
               {Math.round(getProgressByStage())}%
             </span>
           </div>
@@ -228,9 +231,9 @@ export default function DealCard({
               variant="outline"
               size="sm"
               onClick={() => onAddInteraction(deal)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 transition-colors"
+              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 transition-colors"
             >
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500 mr-2">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500 dark:bg-blue-900 mr-2">
                 <MessageSquare className="h-3 w-3 text-white" />
               </div>
               <span className="hidden sm:inline">Registrar Interação</span>
@@ -242,7 +245,7 @@ export default function DealCard({
 
       <CardContent className="space-y-4 p-4 sm:p-6">
         {/* Informações do Cliente/Empresa */}
-        <div className="flex items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100">
+        <div className="flex items-center gap-3 p-3 sm:p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700">
           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
             <AvatarFallback className="bg-primary text-white text-xs sm:text-sm">
               {deal.client ? (
@@ -257,29 +260,29 @@ export default function DealCard({
 
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 flex-shrink-0">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-slate-700 flex-shrink-0">
                 {deal.client ? (
-                  <User className="h-3 w-3 text-gray-600" />
+                  <User className="h-3 w-3 text-gray-600 dark:text-slate-400" />
                 ) : (
-                  <Building2 className="h-3 w-3 text-gray-600" />
+                  <Building2 className="h-3 w-3 text-gray-600 dark:text-slate-400" />
                 )}
               </div>
               {deal.client ? (
                 <button
                   onClick={() => onClientClick?.(deal.client)}
-                  className="font-medium text-sm sm:text-base text-gray-900 hover:text-blue-600 hover:underline truncate transition-colors"
+                  className="font-medium text-sm sm:text-base text-gray-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 hover:underline truncate transition-colors"
                 >
                   {deal.client.name}
                 </button>
               ) : deal.company ? (
                 <button
                   onClick={() => onCompanyClick?.(deal.company)}
-                  className="font-medium text-sm sm:text-base text-gray-900 hover:text-blue-600 hover:underline truncate transition-colors"
+                  className="font-medium text-sm sm:text-base text-gray-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 hover:underline truncate transition-colors"
                 >
                   {deal.company.nomeFantasia}
                 </button>
               ) : (
-                <span className="font-medium text-sm sm:text-base text-gray-500 truncate">
+                <span className="font-medium text-sm sm:text-base text-gray-500 dark:text-slate-400 truncate">
                   Sem cliente/empresa
                 </span>
               )}
@@ -288,9 +291,9 @@ export default function DealCard({
             {deal.client && (
               <div className="space-y-1">
                 {deal.client.phone && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 flex-shrink-0">
-                      <Phone className="h-2 w-2 text-green-600" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-slate-400">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 dark:bg-green-900 flex-shrink-0">
+                      <Phone className="h-2 w-2 text-green-600 dark:text-green-400" />
                     </div>
                     <span className="truncate">
                       {formatPhone(deal.client.phone)}
@@ -298,9 +301,9 @@ export default function DealCard({
                   </div>
                 )}
                 {deal.client.email && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 flex-shrink-0">
-                      <Mail className="h-2 w-2 text-blue-600" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-slate-400">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 dark:bg-blue-900 flex-shrink-0">
+                      <Mail className="h-2 w-2 text-blue-600 dark:text-blue-400" />
                     </div>
                     <span className="truncate">{deal.client.email}</span>
                   </div>
@@ -311,9 +314,9 @@ export default function DealCard({
             {deal.company && (
               <div className="space-y-1">
                 {deal.company.phone && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 flex-shrink-0">
-                      <Phone className="h-2 w-2 text-green-600" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-slate-200">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 dark:bg-green-900 flex-shrink-0">
+                      <Phone className="h-2 w-2 text-green-600 dark:text-green-400" />
                     </div>
                     <span className="truncate">
                       {formatPhone(deal.company.phone)}
@@ -321,9 +324,9 @@ export default function DealCard({
                   </div>
                 )}
                 {deal.company.email && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 flex-shrink-0">
-                      <Mail className="h-2 w-2 text-blue-600" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-slate-200">
+                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 dark:bg-blue-900 flex-shrink-0">
+                      <Mail className="h-2 w-2 text-blue-600 dark:text-blue-400" />
                     </div>
                     <span className="truncate">{deal.company.email}</span>
                   </div>
@@ -336,24 +339,28 @@ export default function DealCard({
         {/* Detalhes do Negócio */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
           <div className="space-y-3">
-            <div className="flex items-start gap-2 text-gray-600">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 flex-shrink-0 mt-0.5">
-                <Calendar className="h-3 w-3 text-blue-600" />
+            <div className="flex items-start gap-2 text-gray-600 dark:text-slate-200">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 dark:bg-blue-900 flex-shrink-0 mt-0.5">
+                <Calendar className="h-3 w-3 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900">Criado</div>
+                <div className="font-medium text-gray-900 dark:text-slate-200">
+                  Criado
+                </div>
                 <div className="truncate">
                   {formatDate(deal.createdAt.toString())}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-start gap-2 text-gray-600">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 flex-shrink-0 mt-0.5">
-                <User className="h-3 w-3 text-gray-600" />
+            <div className="flex items-start gap-2 text-gray-600 dark:text-slate-200">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-gray-800 flex-shrink-0 mt-0.5">
+                <User className="h-3 w-3 text-gray-600 dark:text-gray-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900">Responsável</div>
+                <div className="font-medium text-gray-900 dark:text-slate-200">
+                  Responsável
+                </div>
                 <div className="truncate">
                   {deal.assignedUser?.name || "Não definido"}
                 </div>
@@ -362,12 +369,12 @@ export default function DealCard({
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-start gap-2 text-gray-600">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-orange-100 flex-shrink-0 mt-0.5">
-                <Clock className="h-3 w-3 text-orange-600" />
+            <div className="flex items-start gap-2 text-gray-600 dark:text-slate-200">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-orange-100 dark:bg-orange-900 flex-shrink-0 mt-0.5">
+                <Clock className="h-3 w-3 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-gray-900 dark:text-slate-200">
                   Tempo no estágio
                 </div>
                 <div className="truncate">
@@ -376,12 +383,14 @@ export default function DealCard({
               </div>
             </div>
 
-            <div className="flex items-start gap-2 text-gray-600">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-purple-100 flex-shrink-0 mt-0.5">
-                <TrendingUp className="h-3 w-3 text-purple-600" />
+            <div className="flex items-start gap-2 text-gray-600 dark:text-slate-200">
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-purple-100 dark:bg-purple-900 flex-shrink-0 mt-0.5">
+                <TrendingUp className="h-3 w-3 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-gray-900">Funil</div>
+                <div className="font-medium text-gray-900 dark:text-slate-200">
+                  Funil
+                </div>
                 <div className="truncate">
                   {deal.funnel?.name || "Não definido"}
                 </div>
@@ -390,15 +399,17 @@ export default function DealCard({
 
             {/* Telefone da empresa ou cliente */}
             {(deal.client?.phone || deal.company?.phone) && (
-              <div className="flex items-start gap-2 text-gray-600">
-                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 flex-shrink-0 mt-0.5">
-                  <Phone className="h-3 w-3 text-green-600" />
+              <div className="flex items-start gap-2 text-gray-600 dark:text-slate-200">
+                <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 dark:bg-green-900 flex-shrink-0 mt-0.5">
+                  <Phone className="h-3 w-3 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-gray-900">Celular</div>
+                  <div className="font-medium text-gray-900 dark:text-slate-200">
+                    Celular
+                  </div>
                   <div className="truncate">
                     {formatPhone(
-                      deal.client?.phone || deal.company?.phone || ""
+                      deal.client?.phone || deal.company?.phone || "",
                     )}
                   </div>
                 </div>
@@ -409,35 +420,37 @@ export default function DealCard({
 
         {/* Informações Adicionais */}
         {deal.notes && (
-          <div className="p-3 sm:p-4 bg-blue-50 border-l-4 border-l-blue-200 rounded-lg border border-blue-100">
+          <div className="p-3 sm:p-4 bg-blue-50  dark:bg-blue-900/50 dark:border-l-blue-700 dark:border-slate-400 border-l-4 border-l-blue-200 rounded-lg border border-blue-100">
             <div className="flex items-center gap-2 mb-2">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100">
-                <MessageSquare className="h-3 w-3 text-blue-600" />
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-blue-100 dark:bg-blue-900">
+                <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="text-xs sm:text-sm font-medium text-blue-900">
+              <div className="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-100">
                 Observações
               </div>
             </div>
-            <p className="text-xs sm:text-sm text-blue-800 line-clamp-3 pl-6">
+            <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-100 line-clamp-3 pl-6">
               {deal.notes}
             </p>
           </div>
         )}
 
         {/* Última Interação */}
-        <div className="p-3 sm:p-4 border rounded-lg bg-gray-50 border-gray-200">
+        <div className="p-3 sm:p-4 border rounded-lg bg-gray-50 dark:bg-gray-900/50 dark:border-gray-700 border-gray-200">
           <div className="flex items-center justify-between text-xs sm:text-sm mb-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100">
-                <Clock className="h-3 w-3 text-green-600" />
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 dark:bg-green-900">
+                <Clock className="h-3 w-3 text-green-600 dark:text-green-400" />
               </div>
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 Última interação
               </span>
             </div>
-            <span className="text-gray-500 text-xs">Há 2 dias</span>
+            <span className="text-gray-500 text-xs dark:text-gray-400">
+              Há 2 dias
+            </span>
           </div>
-          <p className="text-xs sm:text-sm text-gray-600 pl-6">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 pl-6">
             Ligação realizada - Cliente interessado
           </p>
         </div>
@@ -451,8 +464,8 @@ export default function DealCard({
               onClick={() => onEdit(deal)}
               className="flex-1 text-xs sm:text-sm border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
-              <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 mr-1.5">
-                <Edit className="h-2 w-2 text-blue-600" />
+              <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 dark:bg-slate-900 mr-1.5">
+                <Edit className="h-2 w-2 text-blue-600 dark:text-blue-400" />
               </div>
               Editar
             </Button>

@@ -126,42 +126,42 @@ export default function CompanyFunnelsTab({ company }: CompanyFunnelsTabProps) {
               <CardContent className="pt-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                   <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 dark:from-slate-950 dark:to-slate-950 to-indigo-50 rounded-lg border border-blue-100">
-                    <div className="bg-blue-100 p-2 rounded-full">
-                      <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
+                    <div className="bg-blue-100  dark:bg-slate-900 p-2 rounded-full">
+                      <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600 dark:text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-xs lg:text-sm text-blue-700 font-medium">
+                      <p className="text-xs lg:text-sm text-blue-700 dark:text-blue-500 font-medium">
                         Criado em
                       </p>
-                      <p className="font-semibold text-sm lg:text-base text-blue-900">
+                      <p className="font-semibold text-sm lg:text-base text-blue-900 dark:text-blue-500">
                         {formatDate(funnel.createdAt)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                    <div className="bg-green-100 p-2 rounded-full">
-                      <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5 text-green-600" />
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 dark:from-slate-950 dark:to-slate-950 to-emerald-50 rounded-lg border border-green-100">
+                    <div className="bg-green-100 dark:bg-slate-900 p-2 rounded-full">
+                      <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5 text-green-600 dark:text-green-500" />
                     </div>
                     <div>
-                      <p className="text-xs lg:text-sm text-green-700 font-medium">
+                      <p className="text-xs lg:text-sm text-green-700 dark:text-green-500 font-medium">
                         Status
                       </p>
-                      <p className="font-semibold text-sm lg:text-base text-green-900">
+                      <p className="font-semibold text-sm lg:text-base text-green-900 dark:text-green-500">
                         {funnel.isActive ? "Em operação" : "Pausado"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-violet-50 rounded-lg border border-purple-100 sm:col-span-2 lg:col-span-1">
-                    <div className="bg-purple-100 p-2 rounded-full">
-                      <DollarSign className="h-4 w-4 lg:h-5 lg:w-5 text-purple-600" />
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 dark:from-slate-950 dark:to-slate-950 to-violet-50 rounded-lg border border-purple-100 sm:col-span-2 lg:col-span-1">
+                    <div className="bg-purple-100 dark:bg-slate-900  p-2 rounded-full">
+                      <DollarSign className="h-4 w-4 lg:h-5 lg:w-5 text-purple-600 dark:text-purple-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs lg:text-sm text-purple-700 font-medium">
+                      <p className="text-xs lg:text-sm text-purple-700 dark:text-purple-500 font-medium">
                         Negócios
                       </p>
-                      <p className="font-semibold text-sm lg:text-base text-purple-900 truncate">
+                      <p className="font-semibold text-sm lg:text-base text-purple-900 dark:text-purple-500 truncate">
                         Clique em "Ver Funil" para visualizar
                       </p>
                     </div>

@@ -115,28 +115,28 @@ export default function FunnelKanbanBoard({
           console.log("👤 USER DATA:", user.id, user.role);
           const response = await apiRequest(
             "GET",
-            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`
+            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
           );
           const data = await response.json();
           console.log(
             "🎯 DEALS CARREGADOS (com user):",
             data.length,
             "deals para funil",
-            funnelId
+            funnelId,
           );
           return data;
         }
         console.log("⚠️ SEM USER DATA - usando query básica");
         const response = await apiRequest(
           "GET",
-          `/api/deals?funnelId=${funnelId}`
+          `/api/deals?funnelId=${funnelId}`,
         );
         const data = await response.json();
         console.log(
           "🎯 DEALS CARREGADOS (sem user):",
           data.length,
           "deals para funil",
-          funnelId
+          funnelId,
         );
         return data;
       } catch (error) {
@@ -268,13 +268,13 @@ export default function FunnelKanbanBoard({
   const getDealsForStage = (stageId: string) => {
     if (!deals || !Array.isArray(deals)) return [];
     let filteredDeals = deals.filter(
-      (deal: DealWithClient) => deal.stageId === stageId
+      (deal: DealWithClient) => deal.stageId === stageId,
     );
 
     // Aplicar filtro por responsável se selecionado
     if (selectedUserId && selectedUserId !== "all") {
       filteredDeals = filteredDeals.filter(
-        (deal: DealWithClient) => deal.assignedTo === selectedUserId
+        (deal: DealWithClient) => deal.assignedTo === selectedUserId,
       );
     }
 
@@ -307,23 +307,23 @@ export default function FunnelKanbanBoard({
 
   return (
     <>
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="bg-white rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 shadow-sm">
+      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-900">
+        <div className="bg-white dark:bg-slate-950 dark:border-slate-700 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 flex-shrink-0">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 dark:bg-slate-800 flex-shrink-0">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400  " />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-100 truncate">
                   Pipeline de Vendas
                 </h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                  <p className="text-gray-600 text-xs sm:text-sm">
+                  <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm">
                     Gerencie seus negócios através do funil
                   </p>
                   {hasActiveFilters && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full w-fit">
+                    <span className="text-xs bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full w-fit">
                       {filteredDeals.length} de {deals.length} deals
                     </span>
                   )}
@@ -336,7 +336,7 @@ export default function FunnelKanbanBoard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="relative border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors flex-1 sm:flex-none"
+                    className="relative border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 dark:border-slate-700 hover:border-gray-400 transition-colors flex-1 sm:flex-none"
                   >
                     <Filter className="h-4 w-4 text-gray-600 sm:mr-2" />
                     <span className="hidden sm:inline">Filtros</span>
@@ -345,10 +345,15 @@ export default function FunnelKanbanBoard({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
+                <PopoverContent
+                  className="w-80 dark:border-slate-700"
+                  align="end"
+                >
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Filtrar Deals</h4>
+                      <h4 className="font-medium dark:text-slate-100">
+                        Filtrar Deals
+                      </h4>
                       {hasActiveFilters && (
                         <Button
                           variant="ghost"
@@ -366,7 +371,7 @@ export default function FunnelKanbanBoard({
                       <div>
                         <Label htmlFor="search">Buscar</Label>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400" />
                           <Input
                             id="search"
                             placeholder="Título ou descrição..."
@@ -510,49 +515,49 @@ export default function FunnelKanbanBoard({
             >
               {funnel.stages?.map((stage) => {
                 const stageDeals = filteredDeals.filter(
-                  (deal: any) => deal.stageId === stage.id
+                  (deal: any) => deal.stageId === stage.id,
                 );
                 const totalValue = stageDeals.reduce(
                   (sum: number, deal: any) =>
                     sum + parseFloat(deal.value || "0"),
-                  0
+                  0,
                 );
 
                 console.log(
                   `🏁 ESTÁGIO "${stage.name}" (${stage.id}):`,
                   stageDeals.length,
-                  "deals"
+                  "deals",
                 );
 
                 return (
                   <div
                     key={stage.id}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 kanban-column min-h-[500px] sm:min-h-[600px] w-72 sm:w-80 flex-shrink-0"
+                    className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 kanban-column min-h-[500px] sm:min-h-[600px] w-72 sm:w-80 flex-shrink-0"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, stage.id)}
                   >
-                    <div className="border-b border-gray-100 bg-gray-50 p-3 sm:p-4 rounded-t-lg sticky top-0 z-10">
+                    <div className="border-b border-gray-100 bg-gray-50 dark:bg-slate-800 p-3 sm:p-4 rounded-t-lg sticky top-0 z-10">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-semibold text-gray-900 flex items-center gap-2 min-w-0 flex-1">
                           <div
                             className="w-3 h-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: stage.color }}
                           />
-                          <span className="text-sm sm:text-base">
+                          <span className="text-sm sm:text-base text-gray-900 dark:text-slate-100">
                             {stage.name}
                           </span>
                         </h3>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="bg-white text-gray-600 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                          <span className="bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
                             {stageDeals.length}
                           </span>
-                          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium hidden sm:inline">
+                          <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-2 py-1 rounded-full font-medium hidden sm:inline">
                             {formatCurrency(totalValue)}
                           </span>
                         </div>
                       </div>
                       <div className="sm:hidden mt-2">
-                        <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+                        <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-2 py-1 rounded-full font-medium">
                           {formatCurrency(totalValue)}
                         </span>
                       </div>
@@ -569,10 +574,10 @@ export default function FunnelKanbanBoard({
                             draggable
                             onDragStart={() => handleDragStart(deal)}
                             onClick={() => setSelectedDeal(deal)}
-                            className="kanban-card bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+                            className="kanban-card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 sm:p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
                           >
                             <div className="flex items-start justify-between mb-3 gap-2">
-                              <h4 className="font-semibold text-gray-900 text-sm leading-tight flex-1 min-w-0">
+                              <h4 className="font-semibold text-gray-900 dark:text-slate-100 text-sm leading-tight flex-1 min-w-0">
                                 <span className="line-clamp-2">
                                   {deal.title}
                                 </span>
@@ -604,27 +609,27 @@ export default function FunnelKanbanBoard({
                             </div>
 
                             <div className="space-y-2">
-                              <div className="bg-gray-50 rounded-lg p-2 border-l-3 border-blue-400">
-                                <p className="text-xs text-gray-600 mb-1">
+                              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 border-l-3 border-blue-400 dark:border-blue-600">
+                                <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
                                   Responsável:
                                 </p>
-                                <p className="text-sm font-medium text-gray-900 truncate">
+                                <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                                   {deal.assignedUser?.name || "Não atribuído"}
                                 </p>
                               </div>
 
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                <p className="text-base sm:text-lg font-bold text-green-600">
+                                <p className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
                                   {formatCurrency(parseFloat(deal.value))}
                                 </p>
-                                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full w-fit">
+                                <span className="text-xs text-gray-400 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full w-fit">
                                   {formatDate(deal.createdAt.toString())}
                                 </span>
                               </div>
 
                               {deal.notes && (
-                                <div className="bg-yellow-50 border-l-3 border-yellow-400 p-2 rounded-r-lg">
-                                  <p className="text-xs text-gray-700 line-clamp-3 sm:line-clamp-2">
+                                <div className="bg-yellow-50 dark:bg-yellow-900 border-l-3 border-yellow-400 dark:border-yellow-600 p-2 rounded-r-lg">
+                                  <p className="text-xs text-gray-700 dark:text-yellow-300 line-clamp-3 sm:line-clamp-2">
                                     {deal.notes}
                                   </p>
                                 </div>
@@ -635,13 +640,13 @@ export default function FunnelKanbanBoard({
 
                         {stageDeals.length === 0 && (
                           <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center px-2">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                              <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                              <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 dark:text-slate-400" />
                             </div>
-                            <p className="text-sm text-gray-500 font-medium mb-1">
+                            <p className="text-sm text-gray-500 dark:text-slate-400 font-medium mb-1">
                               Nenhum deal
                             </p>
-                            <p className="text-xs text-gray-400 text-center leading-tight">
+                            <p className="text-xs text-gray-400 dark:text-slate-400 text-center leading-tight">
                               Arraste um deal ou <br className="sm:hidden" />
                               <span className="sm:inline">crie um novo</span>
                             </p>

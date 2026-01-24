@@ -79,10 +79,10 @@ export default function FunnelsManagement() {
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
   const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
-    null
+    null,
   );
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
-    "list"
+    "list",
   );
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
   const [updateFunnelModal, setUpdateFunnelModal] = useState<boolean>(false);
@@ -185,7 +185,7 @@ export default function FunnelsManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center dark:text-slate-400 justify-center h-64">
         <div className="text-lg">Carregando funis...</div>
       </div>
     );
@@ -196,7 +196,7 @@ export default function FunnelsManagement() {
     return (
       <div>
         <div className="mb-6">
-          <div className="border-b border-gray-100 bg-gray-50 -m-6 mb-6 p-4 sm:p-6">
+          <div className="border-b border-gray-100 dark:border-slate-700 d dark:bg-slate-900 bg-gray-50 -m-6 mb-6 p-4 sm:p-6">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0 flex-1 w-full sm:w-auto">
                 <Button
@@ -205,23 +205,23 @@ export default function FunnelsManagement() {
                     setViewMode("list");
                     setSelectedFunnel(null);
                   }}
-                  className="border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors w-full sm:w-auto"
+                  className="border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-gray-400 dark:hover:border-slate-600 transition-colors w-full sm:w-auto"
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 mr-2">
-                    <ArrowLeft className="h-3 w-3 text-gray-600" />
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-slate-800 mr-2">
+                    <ArrowLeft className="h-3 w-3 text-gray-600 dark:text-slate-400" />
                   </div>
                   <span className="hidden xs:inline">Voltar aos Funis</span>
                   <span className="xs:hidden">Voltar</span>
                 </Button>
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 flex-shrink-0">
-                    <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 dark:bg-slate-800 flex-shrink-0">
+                    <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-100 truncate">
                       {selectedFunnel.name}
                     </h2>
-                    <p className="text-gray-600 text-xs sm:text-sm mt-1 truncate">
+                    <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mt-1 truncate">
                       Board Kanban - Gerencie seus deals e oportunidades
                     </p>
                   </div>
@@ -234,8 +234,8 @@ export default function FunnelsManagement() {
                   }
                   className={
                     selectedFunnel.isActive === "true"
-                      ? "bg-green-100 text-green-700 border-green-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
+                      ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-400 dark:border-green-700"
+                      : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
                   }
                 >
                   {selectedFunnel.isActive === "true" ? "Ativo" : "Inativo"}
@@ -299,15 +299,15 @@ export default function FunnelsManagement() {
   return (
     <div>
       <div className="mb-6">
-        <div className="bg-white border-b w-full border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+        <div className="bg-white dark:bg-slate-950 border-b w-full border-gray-200 dark:border-slate-700 dark:border px-6 py-4 rounded-lg shadow-sm">
           <div className="flex items-center gap-2 flex-wrap justify-between">
             <div className="flex items-center gap-4">
-              <GitBranch className="size-6 shrink-0 text-blue-600" />
+              <GitBranch className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                   Funis de Vendas
                 </h2>
-                <p className="text-gray-600 mt-1">
+                <p className="text-gray-600 dark:text-slate-400 mt-1">
                   Configure e gerencie seus funis de vendas
                 </p>
               </div>
@@ -380,15 +380,15 @@ export default function FunnelsManagement() {
         {(funnels as SalesFunnel[])?.map((funnel: SalesFunnel) => (
           <Card
             key={funnel.id}
-            className="hover:shadow-lg flex flex-col transition-all duration-200 border border-gray-200 hover:border-gray-300"
+            className="hover:shadow-lg flex flex-col transition-all duration-200 border dark:border-slate-700 dark:hover:border-slate-600 border-gray-200 hover:border-gray-300"
           >
             <CardHeader className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 flex-shrink-0">
-                    <GitBranch className="h-4 w-4 text-blue-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900 flex-shrink-0">
+                    <GitBranch className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
                     {funnel.name}
                   </CardTitle>
                 </div>
@@ -396,14 +396,14 @@ export default function FunnelsManagement() {
                   variant={funnel.isActive === "true" ? "default" : "secondary"}
                   className={
                     funnel.isActive === "true"
-                      ? "bg-green-100 text-green-700 border-green-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
+                      ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+                      : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
                   }
                 >
                   {funnel.isActive === "true" ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
-              <CardDescription className="text-sm text-gray-600 mt-2 line-clamp-2">
+              <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2 line-clamp-2">
                 {funnel.description || "Sem descrição"}
               </CardDescription>
             </CardHeader>
@@ -411,10 +411,10 @@ export default function FunnelsManagement() {
               <div className="flex flex-col gap-4">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className="text-sm font-medium text-gray-700 dark:text-slate-400">
                       Estágios
                     </p>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="text-sm text-gray-500 bg-gray-100 dark:bg-slate-800 dark:text-slate-200 px-2 py-1 rounded-full">
                       {funnel.stages?.length || 0}
                     </span>
                   </div>
@@ -432,7 +432,7 @@ export default function FunnelsManagement() {
                     {funnel.stages && funnel.stages.length > 3 && (
                       <Badge
                         variant="outline"
-                        className="text-xs text-gray-500"
+                        className="text-xs text-gray-500 dark:text-slate-400"
                       >
                         +{funnel.stages.length - 3}
                       </Badge>
@@ -440,7 +440,7 @@ export default function FunnelsManagement() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 border-t border-gray-100 pt-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500 dark:text-slate-400 border-t border-gray-100 dark:border-slate-700 pt-3">
                   <span className="truncate">
                     Criado por: {funnel.creator?.name || "N/A"}
                   </span>
@@ -552,11 +552,11 @@ export default function FunnelsManagement() {
         {(!funnels || (funnels as SalesFunnel[]).length === 0) && (
           <Card className="col-span-full">
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <GitBranch className="h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <GitBranch className="h-12 w-12 text-gray-400 dark:text-slate-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">
                 Nenhum funil encontrado
               </h3>
-              <p className="text-gray-500 mb-4">
+              <p className="text-gray-500 d ark:text-slate-400 mb-4">
                 Crie seu primeiro funil de vendas para começar
               </p>
               <Button onClick={() => setIsCreateModalOpen(true)}>
