@@ -16,6 +16,7 @@ import {
   Menu,
   Settings,
   Shield,
+  ShoppingCart,
   Sparkles,
   Target,
   User,
@@ -40,7 +41,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
   };
 
   return (
-    <aside className="w-72 bg-white dark:bg-slate-950 p-5 shadow-lg border-r border-slate-200 dark:border-slate-800 h-full overflow-auto flex flex-col">
+    <aside className="w-72 bg-white dark:bg-slate-900 p-5 shadow-lg border-r border-slate-200 dark:border-slate-800 h-full overflow-auto flex flex-col">
       <Button
         className="absolute lg:hidden top-0 right-0 hover:bg-slate-100 dark:hover:bg-slate-800"
         variant={"ghost"}
@@ -85,7 +86,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/dashboard"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/dashboard" ? { backgroundColor: "#9334ea" } : {}
@@ -102,7 +103,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/clientes"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/clientes" ? { backgroundColor: "#9334ea" } : {}
@@ -119,7 +120,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/umbler/contacts"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/umbler/contacts"
@@ -138,7 +139,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/acompanhamento"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/acompanhamento"
@@ -158,7 +159,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/empresas"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/empresas" ? { backgroundColor: "#9334ea" } : {}
@@ -176,7 +177,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/products"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/products" ? { backgroundColor: "#9334ea" } : {}
@@ -195,7 +196,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
                 location === "/funil"
                   ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
               )}
               style={
                 location === "/funil" ? { backgroundColor: "#9334ea" } : {}
@@ -214,7 +215,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/calendario"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/calendario" ? { backgroundColor: "#9334ea" } : {}
@@ -232,7 +233,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/metas"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={location === "/metas" ? { backgroundColor: "#9334ea" } : {}}
           >
@@ -249,7 +250,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
                 location === "/relatorios"
                   ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
               )}
               style={
                 location === "/relatorios" ? { backgroundColor: "#9334ea" } : {}
@@ -261,6 +262,28 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
           </Link>
         )}
 
+        {/* {(user?.role === "admin" || user?.role === "gerente") && (
+          <Link href="/bling/vendas">
+            <button
+              onClick={closeMobileMenu}
+              className={cn(
+                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
+                location === "/bling/vendas"
+                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+              )}
+              style={
+                location === "/bling/vendas"
+                  ? { backgroundColor: "#9334ea" }
+                  : {}
+              }
+            >
+              <ShoppingCart className="mr-3 h-4 w-4" />
+              <span className="mobile-text">Vendas Bling</span>
+            </button>
+          </Link>
+        )} */}
+
         <Link href="/assistente-ia">
           <button
             onClick={closeMobileMenu}
@@ -268,7 +291,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/assistente-ia"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/assistente-ia"
@@ -288,7 +311,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/treinamentos"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/treinamentos" ? { backgroundColor: "#9334ea" } : {}
@@ -307,7 +330,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
                 location === "/admin-metas"
                   ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
               )}
               style={
                 location === "/admin-metas"
@@ -328,7 +351,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
               location === "/cashback"
                 ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
             )}
             style={
               location === "/cashback" ? { backgroundColor: "#9334ea" } : {}
@@ -347,7 +370,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
                 location === "/configuracoes"
                   ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
               )}
               style={
                 location === "/configuracoes"

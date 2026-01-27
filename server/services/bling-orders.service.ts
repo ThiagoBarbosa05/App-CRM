@@ -49,7 +49,7 @@ export class BlingOrdersService {
    * @returns Promise<BlingOrderWithDetails> - Pedido criado com seus relacionamentos
    */
   async createOrder(
-    params: CreateBlingOrderParams
+    params: CreateBlingOrderParams,
   ): Promise<BlingOrderWithDetails> {
     const { message } = params;
     const { order, metadata } = message;
@@ -64,14 +64,14 @@ export class BlingOrdersService {
 
       if (existingOrder.length > 0) {
         throw new Error(
-          `Pedido com ID ${order.id} já existe no banco de dados`
+          `Pedido com ID ${order.id} já existe no banco de dados`,
         );
       }
 
       // Prepara os dados do pedido principal
       const orderData: InsertBlingOrder = {
         blingOrderId: order.id.toString(),
-        orderNumber: order.numero,
+        orderNumber: order.numero.toString(),
         storeOrderNumber: order.numeroLoja || null,
         saleDate: order.data,
         departureDate: order.dataSaida || null,
@@ -81,6 +81,8 @@ export class BlingOrdersService {
         sellerName: order.vendedor.nome,
         contactId: String(order.contato.id),
         contactName: order.contato.nome,
+        contactDocument: order.contato.documento || null,
+        contactType: order.contato.tipo || null,
         storeId: String(order.loja.id),
         situationId: order.situacao?.id ? String(order.situacao.id) : null,
         situationValue: order.situacao?.valor || null,
@@ -161,7 +163,7 @@ export class BlingOrdersService {
    * @returns Promise<BlingOrderWithDetails> - Pedido atualizado com seus relacionamentos
    */
   async updateOrder(
-    params: UpdateBlingOrderParams
+    params: UpdateBlingOrderParams,
   ): Promise<BlingOrderWithDetails> {
     const { message } = params;
     const { order, metadata } = message;
@@ -174,14 +176,14 @@ export class BlingOrdersService {
         .where(
           and(
             eq(blingOrders.blingOrderId, order.id.toString()),
-            isNull(blingOrders.deletedAt)
-          )
+            isNull(blingOrders.deletedAt),
+          ),
         )
         .limit(1);
 
       if (existingOrder.length === 0) {
         throw new Error(
-          `Pedido com ID ${order.id} não encontrado no banco de dados`
+          `Pedido com ID ${order.id} não encontrado no banco de dados`,
         );
       }
 
@@ -189,7 +191,7 @@ export class BlingOrdersService {
 
       // Prepara os dados atualizados
       const updateData: Partial<InsertBlingOrder> = {
-        orderNumber: order.numero,
+        orderNumber: order.numero.toString(),
         storeOrderNumber: order.numeroLoja || null,
         saleDate: order.data,
         departureDate: order.dataSaida || null,
@@ -298,14 +300,14 @@ export class BlingOrdersService {
         .where(
           and(
             eq(blingOrders.blingOrderId, order.id.toString()),
-            isNull(blingOrders.deletedAt)
-          )
+            isNull(blingOrders.deletedAt),
+          ),
         )
         .limit(1);
 
       if (existingOrder.length === 0) {
         throw new Error(
-          `Pedido com ID ${order.id} não encontrado ou já foi deletado`
+          `Pedido com ID ${order.id} não encontrado ou já foi deletado`,
         );
       }
 
@@ -331,7 +333,7 @@ export class BlingOrdersService {
    * @returns Promise<BlingOrderWithDetails | null> - Pedido encontrado ou null
    */
   async getOrderByBlingId(
-    blingOrderId: number
+    blingOrderId: number,
   ): Promise<BlingOrderWithDetails | null> {
     try {
       const [order] = await db
@@ -340,8 +342,8 @@ export class BlingOrdersService {
         .where(
           and(
             eq(blingOrders.blingOrderId, blingOrderId.toString()),
-            isNull(blingOrders.deletedAt)
-          )
+            isNull(blingOrders.deletedAt),
+          ),
         )
         .limit(1);
 
@@ -380,7 +382,7 @@ export class BlingOrdersService {
    */
   async listOrdersByAccount(
     accountId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<BlingOrderWithDetails[]> {
     try {
       const orders = await db
@@ -389,8 +391,8 @@ export class BlingOrdersService {
         .where(
           and(
             eq(blingOrders.accountId, accountId),
-            isNull(blingOrders.deletedAt)
-          )
+            isNull(blingOrders.deletedAt),
+          ),
         )
         .orderBy(desc(blingOrders.saleDate))
         .limit(limit);
@@ -412,7 +414,7 @@ export class BlingOrdersService {
             items,
             installments,
           };
-        })
+        }),
       );
 
       return ordersWithDetails;

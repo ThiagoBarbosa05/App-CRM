@@ -102,7 +102,7 @@ export default function FunnelStagesManager({
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/funnels/stages/${funnel.id}`
+        `/api/funnels/stages/${funnel.id}`,
       );
       return response.json();
     },
@@ -121,7 +121,7 @@ export default function FunnelStagesManager({
       return await apiRequest(
         "POST",
         `/api/funnels/stages/${funnel.id}`,
-        stageData
+        stageData,
       );
     },
     onSuccess: () => {
@@ -329,7 +329,7 @@ export default function FunnelStagesManager({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Carregando etapas...</div>
+        <div className="text-lg dark:text-slate-400">Carregando etapas...</div>
       </div>
     );
   }
@@ -339,8 +339,10 @@ export default function FunnelStagesManager({
       <div className="space-y-6">
         <div className="flex items-center flex-wrap gap-4 justify-between">
           <div>
-            <h3 className="text-lg font-semibold">Etapas do Funil</h3>
-            <p className="text-gray-600">
+            <h3 className="text-lg font-semibold dark:text-slate-200">
+              Etapas do Funil
+            </h3>
+            <p className="text-gray-600 dark:text-slate-400">
               Configure as etapas do seu funil de vendas
             </p>
           </div>
@@ -420,8 +422,8 @@ export default function FunnelStagesManager({
                   draggedItem?.id === stage.id
                     ? "opacity-50 scale-95"
                     : draggedOver === stage.id
-                    ? "ring-2 ring-primary bg-primary/5 scale-105"
-                    : "hover:shadow-md"
+                      ? "ring-2 ring-primary bg-primary/5 scale-105"
+                      : "hover:shadow-md"
                 }`}
               >
                 <CardHeader className="pb-3">
@@ -440,7 +442,7 @@ export default function FunnelStagesManager({
                         <CardTitle className="text-base">
                           {stage.name}
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="dark:text-slate-400">
                           Posição: {stage.order}
                         </CardDescription>
                       </div>
@@ -563,7 +565,7 @@ export default function FunnelStagesManager({
                   deleteStageMutation.mutate(deletingStage.id);
                 }
               }}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Excluir
             </AlertDialogAction>

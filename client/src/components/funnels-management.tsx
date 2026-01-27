@@ -257,7 +257,7 @@ export default function FunnelsManagement() {
     return (
       <div>
         <div className="mb-6">
-          <div className="border-b border-gray-100 bg-gray-50 -m-6 mb-6 p-4 sm:p-6">
+          <div className="border-b border-gray-100 bg-gray-50 dark:bg-slate-950 dark:border-slate-700 -m-6 mb-6 p-4 sm:p-6">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0 flex-1 w-full sm:w-auto">
                 <Button
@@ -268,21 +268,23 @@ export default function FunnelsManagement() {
                   }}
                   className="border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors w-full sm:w-auto"
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 mr-2">
-                    <ArrowLeft className="h-3 w-3 text-gray-600" />
+                  <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-slate-950 mr-2">
+                    <ArrowLeft className="h-3 w-3 text-gray-600 dark:text-slate-400" />
                   </div>
-                  <span className="hidden xs:inline">Voltar aos Funis</span>
-                  <span className="xs:hidden">Voltar</span>
+                  <span className="hidden xs:inline dark:text-slate-400">
+                    Voltar aos Funis
+                  </span>
+                  <span className="xs:hidden dark:text-slate-400">Voltar</span>
                 </Button>
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-orange-100 flex-shrink-0">
-                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-orange-100 dark:bg-orange-900 flex-shrink-0">
+                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-200" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-200 truncate">
                       {editingFunnel.name}
                     </h2>
-                    <p className="text-gray-600 text-xs sm:text-sm mt-1 truncate">
+                    <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mt-1 truncate">
                       Gerencie etapas do funil de vendas
                     </p>
                   </div>

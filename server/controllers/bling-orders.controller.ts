@@ -11,25 +11,35 @@ import { z } from "zod";
 const listOrdersQuerySchema = z.object({
   accountId: z.string().optional(),
   userId: z.string().optional(),
-  contactId: z.coerce.number().optional(),
-  sellerId: z.coerce.number().optional(),
-  storeId: z.coerce.number().optional(),
-  situationId: z.coerce.number().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  contactId: z.string().optional(),
+  sellerId: z.string().optional(),
+  storeId: z.string().optional(),
+  situationId: z.string().optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD").optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD").optional(),
   includeDeleted: z
     .enum(["true", "false"])
     .optional()
     .transform((val) => val === "true"),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
-});
+}).refine(
+  (data) => {
+    // Validar que se ambas as datas forem fornecidas, startDate <= endDate
+    if (data.startDate && data.endDate) {
+      return new Date(data.startDate) <= new Date(data.endDate);
+    }
+    return true;
+  },
+  { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+);
 
 /**
  * Schema para parâmetros de rota
+ * Note: blingOrderId é uma string (text no banco de dados)
  */
 const orderIdParamSchema = z.object({
-  blingOrderId: z.coerce.number(),
+  blingOrderId: z.string(),
 });
 
 /**
@@ -137,10 +147,13 @@ export class BlingOrdersController {
   async getSalesStatistics(req: Request, res: Response) {
     try {
       const schema = z.object({
-        startDate: z.string(),
-        endDate: z.string(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD"),
         accountId: z.string().optional(),
-      });
+      }).refine(
+        (data) => new Date(data.startDate) <= new Date(data.endDate),
+        { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+      );
 
       const query = schema.parse(req.query);
 
@@ -182,10 +195,13 @@ export class BlingOrdersController {
   async getTopSellers(req: Request, res: Response) {
     try {
       const schema = z.object({
-        startDate: z.string(),
-        endDate: z.string(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD"),
         limit: z.coerce.number().min(1).max(50).optional().default(10),
-      });
+      }).refine(
+        (data) => new Date(data.startDate) <= new Date(data.endDate),
+        { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+      );
 
       const query = schema.parse(req.query);
 
@@ -227,10 +243,13 @@ export class BlingOrdersController {
   async getTopProducts(req: Request, res: Response) {
     try {
       const schema = z.object({
-        startDate: z.string(),
-        endDate: z.string(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD"),
         limit: z.coerce.number().min(1).max(50).optional().default(10),
-      });
+      }).refine(
+        (data) => new Date(data.startDate) <= new Date(data.endDate),
+        { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+      );
 
       const query = schema.parse(req.query);
 

@@ -81,7 +81,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch clients");
       return response.json();
@@ -102,7 +102,7 @@ export default function Reports() {
             "x-user-id": user?.id || "",
             "x-user-role": user?.role || "",
           },
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch companies");
       return response.json();
@@ -159,7 +159,7 @@ export default function Reports() {
         const thisYearBirthday = new Date(
           currentYear,
           birthday.getMonth(),
-          birthday.getDate()
+          birthday.getDate(),
         );
 
         // Se já passou este ano, considerar o próximo ano
@@ -172,7 +172,7 @@ export default function Reports() {
           ...client,
           nextBirthday,
           daysUntil: Math.ceil(
-            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            (nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
           ),
         };
       })
@@ -180,7 +180,7 @@ export default function Reports() {
         isWithinInterval(client.nextBirthday, {
           start: today,
           end: next30Days,
-        })
+        }),
       )
       .sort((a, b) => a.daysUntil - b.daysUntil);
   };
@@ -195,62 +195,74 @@ export default function Reports() {
   const totalCompanies = companiesArray.length;
 
   // Estatísticas por categoria (apenas categorias válidas)
-  const clientsByCategory = clientsArray.reduce((acc, client) => {
-    const category = client.categoria;
-    // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
-    if (!category) {
-      acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
-    } else if (validCategoryNames.has(category)) {
-      acc[category] = (acc[category] || 0) + 1;
-    }
-    // Ignora categorias que foram excluídas das configurações
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByCategory = clientsArray.reduce(
+    (acc, client) => {
+      const category = client.categoria;
+      // Só contar se a categoria ainda existe nas configurações ou se não tem categoria
+      if (!category) {
+        acc["Sem categoria"] = (acc["Sem categoria"] || 0) + 1;
+      } else if (validCategoryNames.has(category)) {
+        acc[category] = (acc[category] || 0) + 1;
+      }
+      // Ignora categorias que foram excluídas das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por origem (apenas origens válidas)
-  const clientsByOrigin = clientsArray.reduce((acc, client) => {
-    const origin = client.origem;
-    // Só contar se a origem ainda existe nas configurações ou se não tem origem
-    if (!origin) {
-      acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
-    } else if (validOriginNames.has(origin)) {
-      acc[origin] = (acc[origin] || 0) + 1;
-    }
-    // Ignora origens que foram excluídas das configurações
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByOrigin = clientsArray.reduce(
+    (acc, client) => {
+      const origin = client.origem;
+      // Só contar se a origem ainda existe nas configurações ou se não tem origem
+      if (!origin) {
+        acc["Sem origem"] = (acc["Sem origem"] || 0) + 1;
+      } else if (validOriginNames.has(origin)) {
+        acc[origin] = (acc[origin] || 0) + 1;
+      }
+      // Ignora origens que foram excluídas das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por usuário responsável
-  const clientsByUser = clientsArray.reduce((acc, client) => {
-    const responsibleId = client.responsavelId;
-    if (!responsibleId) {
-      acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
-    } else if (validUserIds.has(responsibleId)) {
-      const user = users.find((u) => u.id === responsibleId);
-      const userName = user ? user.name : "Usuário não encontrado";
-      acc[userName] = (acc[userName] || 0) + 1;
-    }
-    // Ignora usuários que foram removidos do sistema
-    return acc;
-  }, {} as Record<string, number>);
+  const clientsByUser = clientsArray.reduce(
+    (acc, client) => {
+      const responsibleId = client.responsavelId;
+      if (!responsibleId) {
+        acc["Sem responsável"] = (acc["Sem responsável"] || 0) + 1;
+      } else if (validUserIds.has(responsibleId)) {
+        const user = users.find((u) => u.id === responsibleId);
+        const userName = user ? user.name : "Usuário não encontrado";
+        acc[userName] = (acc[userName] || 0) + 1;
+      }
+      // Ignora usuários que foram removidos do sistema
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Estatísticas por marcadores
-  const clientsByMarkers = clientsArray.reduce((acc, client) => {
-    const clientMarkers = client.markers || [];
-    const validClientMarkers = clientMarkers.filter((markerName) =>
-      validMarkerNames.has(markerName)
-    );
+  const clientsByMarkers = clientsArray.reduce(
+    (acc, client) => {
+      const clientMarkers = client.markers || [];
+      const validClientMarkers = clientMarkers.filter((markerName) =>
+        validMarkerNames.has(markerName),
+      );
 
-    if (validClientMarkers.length === 0) {
-      acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
-    } else {
-      validClientMarkers.forEach((markerName) => {
-        acc[markerName] = (acc[markerName] || 0) + 1;
-      });
-    }
-    // Ignora marcadores que foram excluídos das configurações
-    return acc;
-  }, {} as Record<string, number>);
+      if (validClientMarkers.length === 0) {
+        acc["Sem marcador"] = (acc["Sem marcador"] || 0) + 1;
+      } else {
+        validClientMarkers.forEach((markerName) => {
+          acc[markerName] = (acc[markerName] || 0) + 1;
+        });
+      }
+      // Ignora marcadores que foram excluídos das configurações
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Mantemos apenas as estatísticas de clientes, empresas foram movidas para useCompanyReports
 
@@ -274,15 +286,15 @@ export default function Reports() {
     <div className="flex">
       <div className="flex-1 overflow-auto">
         <div className="space-y-6">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-950 dark:border-slate-700 dark:border border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
             <div className="flex items-center gap-2 flex-wrap justify-between">
               <div className="flex items-center gap-4">
-                <Users className="size-6 shrink-0 text-blue-600" />
+                <Users className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     Relatórios
                   </h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 dark:text-slate-400 mt-1">
                     Acompanhe métricas e informações importantes dos clientes e
                     empresas
                   </p>
@@ -293,14 +305,14 @@ export default function Reports() {
 
           {/* Estatísticas Gerais */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900/70">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <div className="space-y-1">
-                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                     Total de Clientes
                   </CardTitle>
                 </div>
-                <div className="bg-green-100 dark:bg-green-900/30 rounded-xl p-3 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
+                <div className="bg-green-100 dark:bg-green-900 rounded-xl p-3 group-hover:bg-green-200 dark:group-hover:bg-green-800/40 transition-colors">
                   <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
               </CardHeader>
@@ -308,20 +320,20 @@ export default function Reports() {
                 <div className="text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
                   {totalClients}
                 </div>
-                <p className="text-sm text-green-600/70 dark:text-green-400/70 font-medium">
+                <p className="text-sm text-green-600 dark:text-green-300 font-medium">
                   clientes cadastrados no sistema
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900/70">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <div className="space-y-1">
-                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                     Total de Empresas
                   </CardTitle>
                 </div>
-                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                <div className="bg-blue-100 dark:bg-blue-900 rounded-xl p-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
                   <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </CardHeader>
@@ -329,20 +341,20 @@ export default function Reports() {
                 <div className="text-3xl font-bold text-blue-700 dark:text-blue-400 mb-2">
                   {companyReports?.totalCompanies || totalCompanies}
                 </div>
-                <p className="text-sm text-blue-600/70 dark:text-blue-400/70 font-medium">
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                   empresas cadastradas no sistema
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900 dark:to-orange-900/70">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <div className="space-y-1">
-                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                     Aniversários Próximos
                   </CardTitle>
                 </div>
-                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-xl p-3 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 transition-colors">
+                <div className="bg-amber-100 dark:bg-amber-900 rounded-xl p-3 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 transition-colors">
                   <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
               </CardHeader>
@@ -350,20 +362,20 @@ export default function Reports() {
                 <div className="text-3xl font-bold text-amber-700 dark:text-amber-400 mb-2">
                   {upcomingBirthdaysFiltered.length}
                 </div>
-                <p className="text-sm text-amber-600/70 dark:text-amber-400/70 font-medium">
+                <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
                   nos próximos 30 dias
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900 dark:to-teal-900/70">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <div className="space-y-1">
-                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                     Setores Ativos
                   </CardTitle>
                 </div>
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-xl p-3 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
+                <div className="bg-emerald-100 dark:bg-emerald-900 rounded-xl p-3 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
                   <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </CardHeader>
@@ -371,7 +383,7 @@ export default function Reports() {
                 <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 mb-2">
                   {companyReports?.companiesBySector.length || 0}
                 </div>
-                <p className="text-sm text-emerald-600/70 dark:text-emerald-400/70 font-medium">
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
                   setores diferentes
                 </p>
               </CardContent>
@@ -379,8 +391,8 @@ export default function Reports() {
           </div>
 
           {/* Próximos Aniversários */}
-          <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
-            <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-t-xl border-b border-amber-100 dark:border-amber-800/30">
+          <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-amber-50  to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
+            <CardHeader className="bg-gradient-to-r from-amber-50 dark:from-amber-900/20 to-orange-50  dark:to-orange-900/20 rounded-t-xl border-b border-amber-100 dark:border-amber-800/30">
               <CardTitle className="flex items-center gap-3">
                 <div className="bg-amber-100 dark:bg-amber-900/30 rounded-xl p-2.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 transition-colors">
                   <Gift className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -465,19 +477,19 @@ export default function Reports() {
                               const thisYearBirthday = new Date(
                                 currentYear,
                                 birthday.getMonth(),
-                                birthday.getDate()
+                                birthday.getDate(),
                               );
                               const nextBirthday =
                                 thisYearBirthday < today
                                   ? new Date(
                                       currentYear + 1,
                                       birthday.getMonth(),
-                                      birthday.getDate()
+                                      birthday.getDate(),
                                     )
                                   : thisYearBirthday;
                               const daysUntil = Math.ceil(
                                 (nextBirthday.getTime() - today.getTime()) /
-                                  (1000 * 60 * 60 * 24)
+                                  (1000 * 60 * 60 * 24),
                               );
 
                               if (daysUntil === 0) return "Hoje";
@@ -713,9 +725,9 @@ export default function Reports() {
 
           {/* Cards de Status das Empresas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br dark:from-green-900 dark:to-emerald-900 from-green-50 to-emerald-50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                   Empresas Ativas
                 </CardTitle>
                 <div className="bg-green-100 rounded-xl p-3">
@@ -723,20 +735,20 @@ export default function Reports() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-700 mb-2">
+                <div className="text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
                   {companyReportsLoading
                     ? "..."
                     : companyReports?.companiesActive || 0}
                 </div>
-                <p className="text-sm text-green-600 font-medium">
+                <p className="text-sm text-green-600 dark:text-green-300 font-medium">
                   empresas ativas
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-red-50 to-rose-50">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br dark:from-red-900 dark:to-rose-900 from-red-50 to-rose-50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                   Empresas Inativas
                 </CardTitle>
                 <div className="bg-red-100 rounded-xl p-3">
@@ -744,20 +756,20 @@ export default function Reports() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-700 mb-2">
+                <div className="text-3xl font-bold text-red-700 dark:text-red-400 mb-2">
                   {companyReportsLoading
                     ? "..."
                     : companyReports?.companiesInactive || 0}
                 </div>
-                <p className="text-sm text-red-600 font-medium">
+                <p className="text-sm text-red-600 dark:text-red-300 font-medium">
                   empresas inativas
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 dark:from-indigo-900 dark:to-indigo-900 to-indigo-50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                   Com CNPJ
                 </CardTitle>
                 <div className="bg-blue-100 rounded-xl p-3">
@@ -765,33 +777,33 @@ export default function Reports() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-700 mb-2">
+                <div className="text-3xl font-bold text-blue-700 dark:text-indigo-400 mb-2">
                   {companyReportsLoading
                     ? "..."
                     : companyReports?.companiesWithCNPJ || 0}
                 </div>
-                <p className="text-sm text-blue-600 font-medium">
+                <p className="text-sm text-blue-600 dark:text-indigo-300 font-medium">
                   empresas com CNPJ
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-gray-50 to-slate-50">
+            <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br dark:from-gray-900 dark:to-slate-900 from-gray-50 to-slate-50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-semibold text-gray-700">
+                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-200">
                   Sem CNPJ
                 </CardTitle>
                 <div className="bg-gray-100 rounded-xl p-3">
-                  <XCircle className="h-5 w-5 text-gray-600" />
+                  <XCircle className="h-5 w-5 text-gray-600 dark:text-slate-400" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-gray-700 mb-2">
+                <div className="text-3xl font-bold text-gray-700 dark:text-slate-200 mb-2">
                   {companyReportsLoading
                     ? "..."
                     : companyReports?.companiesWithoutCNPJ || 0}
                 </div>
-                <p className="text-sm text-gray-600 font-medium">
+                <p className="text-sm text-gray-600 dark:text-slate-400 font-medium">
                   empresas sem CNPJ
                 </p>
               </CardContent>

@@ -297,15 +297,15 @@ export default function AIAssistant() {
     <div className="flex">
       <div className="flex-1">
         <div className="space-y-6">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-950 border-b dark:border dark:border-gray-700 border-gray-200 px-6 py-4 rounded-lg shadow-sm">
             <div className="flex items-center gap-2 flex-wrap justify-between">
               <div className="flex items-center gap-4">
-                <Sparkles className="size-6 shrink-0 text-blue-600" />
+                <Sparkles className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     Assistente de IA
                   </h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
                     Ferramentas inteligentes para seu negócio de vinhos
                   </p>
                 </div>
@@ -485,7 +485,7 @@ export default function AIAssistant() {
                           className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
                           onClick={() =>
                             setChatInput(
-                              "Como harmonizar vinho tinto com carne?"
+                              "Como harmonizar vinho tinto com carne?",
                             )
                           }
                         >
@@ -496,7 +496,7 @@ export default function AIAssistant() {
                           className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
                           onClick={() =>
                             setChatInput(
-                              "Qual a temperatura ideal para servir vinho branco?"
+                              "Qual a temperatura ideal para servir vinho branco?",
                             )
                           }
                         >
@@ -516,7 +516,7 @@ export default function AIAssistant() {
                           className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
                           onClick={() =>
                             setChatInput(
-                              "Quais regiões produzem os melhores vinhos tintos?"
+                              "Quais regiões produzem os melhores vinhos tintos?",
                             )
                           }
                         >
@@ -527,7 +527,7 @@ export default function AIAssistant() {
                           className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
                           onClick={() =>
                             setChatInput(
-                              "Qual vinho combina com comida japonesa?"
+                              "Qual vinho combina com comida japonesa?",
                             )
                           }
                         >
@@ -538,7 +538,7 @@ export default function AIAssistant() {
                           className="cursor-pointer border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 rounded-lg px-3 py-1"
                           onClick={() =>
                             setChatInput(
-                              "Como identificar um vinho de qualidade?"
+                              "Como identificar um vinho de qualidade?",
                             )
                           }
                         >
@@ -666,7 +666,7 @@ export default function AIAssistant() {
                                     onClick={() =>
                                       copyToClipboard(
                                         message.content,
-                                        message.id
+                                        message.id,
                                       )
                                     }
                                     className="h-8 w-8 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors"

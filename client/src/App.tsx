@@ -27,6 +27,7 @@ import UmblerContactsPage from "./pages/umbler-contacts";
 import CreateCampaignPage from "./pages/create-campaign-improved";
 import CampaignsDashboardPage from "./pages/campaigns-dashboard";
 import CampaignDetailsPage from "./pages/campaign-details";
+import BlingSalesPage from "./pages/bling-sales";
 import { lazy } from "react";
 
 function Router() {
@@ -192,6 +193,14 @@ function Router() {
           </MainLayout>
         )}
       />
+      {/* <Route
+        path="/bling/vendas"
+        component={() => (
+          <MainLayout>
+            <BlingSalesPage />
+          </MainLayout>
+        )}
+      /> */}
       <Route component={NotFound} />
     </Switch>
   );

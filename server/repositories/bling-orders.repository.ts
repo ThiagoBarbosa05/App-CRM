@@ -16,12 +16,12 @@ import { eq, and, isNull, desc, gte, lte, sql } from "drizzle-orm";
 export interface OrderFilters {
   accountId?: string;
   userId?: string;
-  contactId?: number;
-  sellerId?: number;
-  storeId?: number;
+  contactId?: string;
+  sellerId?: string;
+  storeId?: string;
   startDate?: string;
   endDate?: string;
-  situationId?: number;
+  situationId?: string;
   includeDeleted?: boolean;
 }
 
@@ -36,7 +36,7 @@ export class BlingOrdersRepository {
    * Busca um pedido por ID do Bling com seus relacionamentos
    */
   async findByBlingId(
-    blingOrderId: number,
+    blingOrderId: string,
     includeDeleted = false
   ): Promise<BlingOrderWithDetails | null> {
     const conditions = includeDeleted

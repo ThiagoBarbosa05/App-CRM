@@ -59,6 +59,8 @@ import {
   users,
   serviceChannels,
   userServiceChannel,
+  blingOrders,
+  blingOrderItems,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -266,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
         .leftJoin(
           serviceChannels,
-          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id),
         );
 
       if (!user) {
@@ -372,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
         .leftJoin(
           serviceChannels,
-          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id),
         );
 
       if (!user) {
@@ -418,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query as string,
         tagIds as string[],
         exclusive,
-        shouldFetchAll
+        shouldFetchAll,
       );
       res.json(contacts);
     } catch (error) {
@@ -471,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (query && tags && tags.items) {
         const searchLower = query.toLowerCase();
         tags.items = tags.items.filter((tag: any) =>
-          tag.name.toLowerCase().includes(searchLower)
+          tag.name.toLowerCase().includes(searchLower),
         );
       }
 
@@ -493,7 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bots = await getBots(
         query as string | undefined,
         skipNumber,
-        takeNumber
+        takeNumber,
         // hiddenBoolean
       );
 
@@ -513,9 +515,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/umbler/campaigns", async (req, res) => {
     try {
-      const { createCampaignController } = await import(
-        "./controllers/campaigns/create-campaign.controller"
-      );
+      const { createCampaignController } =
+        await import("./controllers/campaigns/create-campaign.controller");
       await createCampaignController(req, res);
     } catch (error) {
       console.error("Erro ao criar campanha:", error);
@@ -528,9 +529,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/campaigns", async (req, res) => {
     try {
-      const { listCampaignsController } = await import(
-        "./controllers/campaigns/list-campaigns.controller"
-      );
+      const { listCampaignsController } =
+        await import("./controllers/campaigns/list-campaigns.controller");
       await listCampaignsController(req, res);
     } catch (error) {
       console.error("Erro ao listar campanhas:", error);
@@ -543,9 +543,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/campaigns/:id", async (req, res) => {
     try {
-      const { getCampaignDetailsController } = await import(
-        "./controllers/campaigns/get-campaign-details.controller"
-      );
+      const { getCampaignDetailsController } =
+        await import("./controllers/campaigns/get-campaign-details.controller");
       await getCampaignDetailsController(req, res);
     } catch (error) {
       console.error("Erro ao buscar detalhes da campanha:", error);
@@ -558,9 +557,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/umbler/campaigns/:id/stats", async (req, res) => {
     try {
-      const { getCampaignStatsController } = await import(
-        "./controllers/campaigns/get-campaign-stats.controller"
-      );
+      const { getCampaignStatsController } =
+        await import("./controllers/campaigns/get-campaign-stats.controller");
       await getCampaignStatsController(req, res);
     } catch (error) {
       console.error("Erro ao buscar estatísticas da campanha:", error);
@@ -615,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
         .leftJoin(
           serviceChannels,
-          eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+          eq(userServiceChannel.serviceChannelId, serviceChannels.id),
         );
 
       if (!user) {
@@ -719,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         result: fields
           ? fields.filter(
-              (field) => field.customFieldDefinitionId === "aIpL5QxBcwmaXxEo"
+              (field) => field.customFieldDefinitionId === "aIpL5QxBcwmaXxEo",
             )[0]
           : [],
       });
@@ -862,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const searchCondition = or(
           like(clients.name, lowercasedQuery),
           like(clients.phone, lowercasedQuery),
-          like(clients.cpf, lowercasedQuery)
+          like(clients.cpf, lowercasedQuery),
         );
         if (searchCondition) {
           baseConditions.push(searchCondition);
@@ -916,8 +914,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             finalConditions,
             lte(clients.createdAt, fourteenDaysAgo),
-            gt(clients.createdAt, thirtyDaysAgo)
-          )
+            gt(clients.createdAt, thirtyDaysAgo),
+          ),
         );
       const mediaQuery = db
         .select({ count: count() })
@@ -926,8 +924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             finalConditions,
             lte(clients.createdAt, sevenDaysAgo),
-            gt(clients.createdAt, fourteenDaysAgo)
-          )
+            gt(clients.createdAt, fourteenDaysAgo),
+          ),
         );
       const normalQuery = db
         .select({ count: count() })
@@ -972,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientsToContact = clientsToContactRaw.map((client) => {
         const createdDate = new Date(client.createdAt);
         const daysSinceCreated = Math.floor(
-          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
         );
         return {
           ...client,
@@ -994,7 +992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         produtividade:
           totalClientes > 0
             ? Math.round(
-                ((totalClientes - totalPendentes) / totalClientes) * 100
+                ((totalClientes - totalPendentes) / totalClientes) * 100,
               )
             : 100,
         totalInteracoes,
@@ -3617,7 +3615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Number(month),
         Number(year),
         userId,
-        userRole
+        userRole,
       );
       res.json(goals);
     } catch (error) {
@@ -3687,7 +3685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getTelemarketingStatsByPeriod(
         parseInt(month),
-        parseInt(year)
+        parseInt(year),
       );
       res.json(stats);
     } catch (error) {
@@ -3728,7 +3726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(month),
         parseInt(year),
         userId,
-        userRole
+        userRole,
       );
       res.json(goals);
     } catch (error) {
@@ -3760,7 +3758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .parse(req.body);
       const goal = await storage.updateClientRegistrationGoal(
         id,
-        validatedData
+        validatedData,
       );
       res.json(goal);
     } catch (error) {
@@ -3795,7 +3793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getClientRegistrationStatsByPeriod(
         parseInt(month),
-        parseInt(year)
+        parseInt(year),
       );
       res.json(stats);
     } catch (error) {
@@ -3812,7 +3810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId, userRole } = req.query;
       const goals = await storage.getMarkerGoals(
         userId as string,
-        userRole as string
+        userRole as string,
       );
       res.json(goals);
     } catch (error) {
@@ -3829,7 +3827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(month),
         parseInt(year),
         userId as string,
-        userRole as string
+        userRole as string,
       );
       res.json(goals);
     } catch (error) {
@@ -3891,7 +3889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getMarkerStatsByPeriod(
         parseInt(month),
-        parseInt(year)
+        parseInt(year),
       );
       res.json(stats);
     } catch (error) {
@@ -3908,7 +3906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId, userRole } = req.query;
       const goals = await storage.getInteractionGoals(
         userId as string,
-        userRole as string
+        userRole as string,
       );
       res.json(goals);
     } catch (error) {
@@ -3925,7 +3923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(month),
         parseInt(year),
         userId as string,
-        userRole as string
+        userRole as string,
       );
       res.json(goals);
     } catch (error) {
@@ -3989,7 +3987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { month, year } = req.params;
       const stats = await storage.getInteractionStatsByPeriod(
         parseInt(month),
-        parseInt(year)
+        parseInt(year),
       );
       res.json(stats);
     } catch (error) {
@@ -4052,7 +4050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(
-        req.path
+        req.path,
       );
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
@@ -4073,7 +4071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectStorageService = new ObjectStorageService();
       const objectPath = objectStorageService.normalizeObjectEntityPath(
-        req.body.imageURL
+        req.body.imageURL,
       );
 
       res.status(200).json({
@@ -4118,7 +4116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const trainingUpdated = await storage.updateTraining(
         validatedData,
-        trainingId
+        trainingId,
       );
 
       await storage.updateTrainingAttachments(
@@ -4128,7 +4126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: trainingUpdated.title,
           url: validatedData.videoUrl,
         },
-        training.training_attachments?.url!
+        training.training_attachments?.url!,
       );
 
       res.status(201).json(training);
@@ -4158,9 +4156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const trainingId = req.params.id;
 
-      await storage.deleteTrainingAttachments(trainingId),
+      (await storage.deleteTrainingAttachments(trainingId),
         await storage.deleteTraining(trainingId),
-        res.json({ message: "Treinamento deletado com sucesso" });
+        res.json({ message: "Treinamento deletado com sucesso" }));
     } catch (error) {
       console.error("Erro ao deletar Treinamento: ", error);
       res.status(500).json({ message: "Erro ao deletar treinamento" });
@@ -4241,7 +4239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new DeleteObjectCommand({
             Bucket: "crm-test",
             Key: training.training_attachments?.url!,
-          })
+          }),
         );
 
         const url = randomUUID() + "-" + req.file?.originalname;
@@ -4252,7 +4250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Body: req.file?.buffer,
             Key: url,
             ContentType: req.file?.mimetype,
-          })
+          }),
         );
 
         const [trainingsAttachmentsUpdated] = await db
@@ -4271,7 +4269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro ao atualizar arquivo:", error);
         res.status(500).json({ message: "Erro ao atualizar arquivo" });
       }
-    }
+    },
   );
 
   app.delete("/api/trainings/documents/:id", async (req, res) => {
@@ -4283,7 +4281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new DeleteObjectCommand({
           Bucket: "crm-test",
           Key: training.training_attachments?.url!,
-        })
+        }),
       );
 
       await storage.deleteTrainingAttachments(id);
@@ -4389,7 +4387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           Body: req.file?.buffer,
           Key: url,
           ContentType: req.file?.mimetype,
-        })
+        }),
       );
 
       res.json({ url, fileType: req.file?.mimetype });
@@ -4420,7 +4418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new DeleteObjectCommand({
           Bucket: "crm-test",
           Key: fileUrl,
-        })
+        }),
       );
 
       res.json({ message: "Arquivo removido com sucesso" });
@@ -4522,7 +4520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { data, total } = await storage.getProducts(
         filters,
         page,
-        pageSize
+        pageSize,
       );
 
       res.json({
@@ -4661,7 +4659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(500)
           .json({ error: "Failed to remove product from company" });
       }
-    }
+    },
   );
 
   // Update custom negotiated price for company product
@@ -4702,7 +4700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = await storage.updateCompanyProductPrice(
           companyId,
           productId,
-          numericPrice.toString()
+          numericPrice.toString(),
         );
 
         if (!result) {
@@ -4717,7 +4715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro ao atualizar preço customizado:", error);
         res.status(500).json({ message: "Erro interno do servidor" });
       }
-    }
+    },
   );
 
   // Get companies that have a specific product
@@ -4725,11 +4723,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { productId } = req.params;
       console.log(`API: Fetching companies for product ${productId}`);
-      const companiesWithProduct = await storage.getCompaniesWithProduct(
-        productId
-      );
+      const companiesWithProduct =
+        await storage.getCompaniesWithProduct(productId);
       console.log(
-        `API: Found ${companiesWithProduct.length} companies for product ${productId}`
+        `API: Found ${companiesWithProduct.length} companies for product ${productId}`,
       );
       res.json(companiesWithProduct);
     } catch (error) {
@@ -4811,7 +4808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Body: req.file.buffer,
             Key: fileName,
             ContentType: req.file.mimetype,
-          })
+          }),
         );
 
         res.json({ imageUrl: fileName });
@@ -4819,7 +4816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Erro ao fazer upload da imagem:", error);
         res.status(500).json({ message: "Erro ao fazer upload da imagem" });
       }
-    }
+    },
   );
 
   app.post("/api/events", async (req, res) => {
@@ -4832,7 +4829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(
         "Dados recebidos para criar evento:",
-        JSON.stringify(req.body, null, 2)
+        JSON.stringify(req.body, null, 2),
       );
 
       const eventData = {
@@ -4879,7 +4876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline + ":00-03:00"
+          eventData.registrationDeadline + ":00-03:00",
         ); // Forçar timezone brasileiro
       }
 
@@ -4935,7 +4932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         typeof eventData.registrationDeadline === "string"
       ) {
         eventData.registrationDeadline = new Date(
-          eventData.registrationDeadline + ":00-03:00"
+          eventData.registrationDeadline + ":00-03:00",
         ); // Forçar timezone brasileiro
       }
 
@@ -5040,7 +5037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .parse(req.body);
         const participant = await storage.updateEventParticipant(
           participantId,
-          validatedData
+          validatedData,
         );
         res.json(participant);
       } catch (error) {
@@ -5051,7 +5048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error updating event participant:", error);
         res.status(500).json({ message: "Erro ao atualizar participante" });
       }
-    }
+    },
   );
 
   app.delete(
@@ -5070,7 +5067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error removing event participant:", error);
         res.status(500).json({ message: "Erro ao remover participante" });
       }
-    }
+    },
   );
 
   // Event attachments routes
@@ -5125,7 +5122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error deleting event attachment:", error);
         res.status(500).json({ message: "Erro ao remover anexo do evento" });
       }
-    }
+    },
   );
 
   // ========================================================================
@@ -5143,19 +5140,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post(
     "/api/message-automation-settings",
-    createMessageAutomationSettingsController
+    createMessageAutomationSettingsController,
   );
   app.get(
     "/api/message-automation-settings",
-    getMessageAutomationSettingsController
+    getMessageAutomationSettingsController,
   );
   app.put(
     "/api/message-automation-settings/:id",
-    updateMessageAutomationSettingsController
+    updateMessageAutomationSettingsController,
   );
   app.delete(
     "/api/message-automation-settings/:id",
-    deleteMessageAutomationSettingsController
+    deleteMessageAutomationSettingsController,
   );
 
   // Rotas para Message Jobs Logs
@@ -5171,12 +5168,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/birthday-automation/trigger", async (req, res) => {
     try {
       console.log(
-        "[Manual Trigger] Disparando automação de aniversário manualmente..."
+        "[Manual Trigger] Disparando automação de aniversário manualmente...",
       );
 
-      const { sendBirthdayMessages } = await import(
-        "./jobs/send-birthday-mensage"
-      );
+      const { sendBirthdayMessages } =
+        await import("./jobs/send-birthday-mensage");
 
       // Disparar o job principal (todas as automações ativas)
       await sendBirthdayMessages();
@@ -5201,12 +5197,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/birthday-automation/trigger-scheduled", async (req, res) => {
     try {
       console.log(
-        "[Manual Trigger Scheduled] Disparando automação de aniversário agendada manualmente..."
+        "[Manual Trigger Scheduled] Disparando automação de aniversário agendada manualmente...",
       );
 
-      const { sendBirthdayMessagesScheduled } = await import(
-        "./jobs/send-birthday-mensage"
-      );
+      const { sendBirthdayMessagesScheduled } =
+        await import("./jobs/send-birthday-mensage");
 
       // Disparar o job agendado (apenas automações no horário correto)
       await sendBirthdayMessagesScheduled();
@@ -5219,7 +5214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(
         "[Manual Trigger Scheduled] Erro ao executar automação agendada:",
-        error
+        error,
       );
       res.status(500).json({
         success: false,
@@ -5260,6 +5255,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ received: true });
   });
 
+  app.get("/api/reports/sales", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+
+      // if (!startDate || !endDate) {
+      //   return res
+      //     .status(400)
+      //     .json({ message: "startDate e endDate são obrigatórios" });
+      // }
+
+      const salesReport = await db
+        .select({
+          id: blingOrders.id,
+          saleDate: blingOrders.saleDate,
+          totalValue: blingOrders.totalValue,
+          sellerName: blingOrders.sellerName,
+          contactName: blingOrders.contactName,
+          accountName: blingOrders.accountName,
+          items: sql<
+            Array<{
+              productName: string;
+              quantity: number;
+              unitPrice: number;
+            }>
+          >`ARRAY_AGG(
+            JSON_BUILD_OBJECT(
+              'productName', ${blingOrderItems.description},
+              'quantity', ${blingOrderItems.quantity},
+              'unitPrice', ${blingOrderItems.value}
+            )
+          )`.as("items"),
+        })
+        .from(blingOrders)
+        .leftJoin(blingOrderItems, eq(blingOrders.id, blingOrderItems.orderId))
+        .groupBy(blingOrders.id);
+      res.json(salesReport);
+    } catch (error) {
+      console.error("Erro ao gerar relatório de vendas:", error);
+      res.status(500).json({ message: "Erro ao gerar relatório de vendas" });
+    }
+  });
   // Rotas de sincronização Umbler → CRM
   const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
   app.use("/api/umbler-sync", umblerSyncRoutes.default);
