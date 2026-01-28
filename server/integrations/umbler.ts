@@ -623,7 +623,7 @@ export async function getContacts(
       params.append("includeGroups", "true");
 
       if (query) {
-        params.append("query", query);
+        params.append("QueryString", query);
       }
 
       if (tagIds && tagIds.length > 0) {
@@ -1483,19 +1483,17 @@ export async function getContactTags(
 
 /**
  * Busca as conversas/chats de um contato no Umbler
- * @param contactId - ID do contato
+ * @query phoneNumber - Número de telefone do contato
+ * @query channelId - ID do canal para filtrar as conversas
  * @returns Promise com as conversas ou null em caso de erro
  */
 export async function getContactConversations(
-  contactId: string,
+  phoneNumber: string,
+  channelId: string,
 ): Promise<any | null> {
   try {
-    if (!contactId || !contactId.trim()) {
-      throw new Error("Contact ID is required");
-    }
-
     const response = await fetch(
-      `${apiEndpoint}/chats/?organizationId=${organizationId}&ContactIds=${contactId}&Skip=0&Take=50&Behavior=GetSliceOnly`,
+      `${apiEndpoint}/chats?organizationId=${organizationId}&PhoneNumbers=${phoneNumber}&ChatState=Open&LastMessage=All&Order=Desc&ChatOrderBy=LastMessage&IncludePinneds=true&Messages=All&Channels.Rule=ContainsAny&Channels.Values=${channelId}&Skip=0&Take=50&Behavior=GetSliceOnly`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -1512,9 +1510,18 @@ export async function getContactConversations(
     }
 
     const responseData = await response.json();
-    console.log("Contact conversations fetched successfully");
 
-    return responseData;
+    const chatDetailsResponse = await fetch(
+      `${apiEndpoint}/chats/${responseData.items[0].id}?organizationId=aGx7Jh43-au36EGi&includeMessages=10`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+    );
+
+    return await chatDetailsResponse.json();
   } catch (error) {
     console.error("Error fetching contact conversations:", error);
     return null;

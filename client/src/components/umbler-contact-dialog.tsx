@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -101,7 +102,10 @@ export function UmblerContactDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["umbler-contacts"] });
-      toast({ title: "Sucesso", description: "Contato atualizado com sucesso" });
+      toast({
+        title: "Sucesso",
+        description: "Contato atualizado com sucesso",
+      });
       onOpenChange?.(false);
     },
     onError: () => {
@@ -182,7 +186,8 @@ export function UmblerContactDialog({
               type="submit"
               className="w-full"
               disabled={
-                createContactMutation.isPending || updateContactMutation.isPending
+                createContactMutation.isPending ||
+                updateContactMutation.isPending
               }
             >
               {contact ? "Salvar Alterações" : "Criar Contato"}

@@ -188,6 +188,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/umbler/contacts/conversations", async (req, res) => {
+    try {
+      const { phoneNumber, channelId } = req.query;
+      const conversations = await getContactConversations(
+        phoneNumber as string,
+        channelId as string,
+      );
+      res.json(conversations);
+    } catch (error) {
+      console.error("Erro ao buscar conversas do contato:", error);
+      res.status(500).json({ message: "Erro ao buscar conversas do contato" });
+    }
+  });
+
   app.get("/api/umbler/contacts/:phone", async (req, res) => {
     try {
       const { phone } = req.params as { phone: string };
@@ -566,17 +580,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Erro ao buscar estatísticas da campanha",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-    }
-  });
-
-  app.get("/api/umbler/contacts/:id/conversations", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const conversations = await getContactConversations(id);
-      res.json(conversations);
-    } catch (error) {
-      console.error("Erro ao buscar conversas do contato:", error);
-      res.status(500).json({ message: "Erro ao buscar conversas do contato" });
     }
   });
 
