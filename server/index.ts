@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
-import "./jobs/umbler-sync-scheduler";
+// import "./jobs/umbler-sync-scheduler";
 import {
   initializePubSubSubscriber,
   shutdownPubSubSubscriber,
