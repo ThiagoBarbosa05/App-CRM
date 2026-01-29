@@ -25,6 +25,7 @@ import userGoalsRouter, {
   userRegistrationStatsRouter,
 } from "./user-goals.routes";
 import blingRouter from "./bling-orders.routes";
+import { messageJobsLogsRouter } from "./message-jobs-logs.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -56,10 +57,11 @@ apiRouter.use("/", sectorsRouter);
 apiRouter.use("/automations", automationTriggersRouter);
 apiRouter.use("/automation", automationExecutionRouter);
 apiRouter.use("/user-goals", userGoalsRouter);
-apiRouter.use("/", blingRouter);
+apiRouter.use("/bling-orders", blingRouter);
 apiRouter.use("/user-goals-with-results", userGoalsWithResultsRouter);
 apiRouter.use("/user-registration-stats", userRegistrationStatsRouter);
 apiRouter.use("/weekly-results", weeklyResultsRouter);
+apiRouter.use("/message-jobs-logs", messageJobsLogsRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);

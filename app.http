@@ -2,4 +2,4 @@
 POST https://1f0bbde6-1c5c-4e9a-82c3-ec21ba583692-00-hgbt6xeiwp4q.janeway.replit.dev/api/umbler-sync/trigger    
 
 ###
-GET http://localhost:5000/api/reports/sales
+GET http://localhost:5000/api/message-jobs-logs

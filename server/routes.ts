@@ -136,10 +136,6 @@ import { createMessageAutomationSettingsController } from "./controllers/create-
 import { getMessageAutomationSettingsController } from "./controllers/get-message-automation-settings.controller";
 import { updateMessageAutomationSettingsController } from "./controllers/update-message-automation-settings.controller";
 import { deleteMessageAutomationSettingsController } from "./controllers/delete-message-automation-settings.controller";
-import { createMessageJobsLogController } from "./controllers/create-message-jobs-logs.controller";
-import { getMessageJobsLogsController } from "./controllers/get-message-jobs-logs.controller";
-import { updateMessageJobsLogController } from "./controllers/update-message-jobs-logs.controller";
-import { deleteMessageJobsLogController } from "./controllers/delete-message-jobs-logs.controller";
 import { getTemplatesController } from "./controllers/get-templates-controller";
 import { apiRouter } from "./routes/index";
 
@@ -164,6 +160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === ROTAS ANTIGAS (EM MIGRAÇÃO) ===
   // TODO: Migrar gradualmente todas as rotas para a nova arquitetura
+
+  // MIGRADO: Rotas para Message Jobs Logs - ver message-jobs-logs.routes.ts
 
   // Umbler Integrations
   app.get("/api/umbler/channels", async (req, res) => {
@@ -5157,12 +5155,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/message-automation-settings/:id",
     deleteMessageAutomationSettingsController,
   );
-
-  // Rotas para Message Jobs Logs
-  app.post("/api/message-jobs-logs", createMessageJobsLogController);
-  app.get("/api/message-jobs-logs", getMessageJobsLogsController);
-  app.put("/api/message-jobs-logs/:id", updateMessageJobsLogController);
-  app.delete("/api/message-jobs-logs/:id", deleteMessageJobsLogController);
 
   // Rota para buscar templates do Umbler
   app.get("/api/templates", getTemplatesController);
