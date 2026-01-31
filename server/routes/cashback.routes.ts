@@ -10,6 +10,7 @@ import {
   getCashbackTransactionsListController,
   getCashbackReports30DaysController,
 } from "../controllers/cashback/index";
+import { createCashbackTransaction } from "../controllers/cashback/create-cashback-transaction.controller";
 
 /**
  * Router para operações de cashback (cálculos, transações, consultas)
@@ -280,6 +281,28 @@ cashbackRouter.get(
   "/cashback-transactions",
   getCashbackTransactionsListController
 );
+
+/**
+ * @route POST /api/cashback-transactions
+ * @description Cria uma nova transação de cashback (para registro de vendas)
+ * @access Private (requer autenticação)
+ * @bodyParams {string} clientId - UUID do cliente (obrigatório)
+ * @bodyParams {string} purchaseAmount - Valor da compra (obrigatório)
+ * @bodyParams {string} cashbackAmount - Valor do cashback (obrigatório)
+ * @bodyParams {string} cashbackRate - Taxa de cashback aplicada (obrigatório)
+ * @bodyParams {string} status - Status da transação ("pending" | "approved" | "expired")
+ * @bodyParams {string} [settingId] - UUID da configuração de cashback
+ * @bodyParams {string} [notes] - Observações
+ * @bodyParams {string} [invoiceNumber] - Número da nota fiscal
+ * @bodyParams {string} [saleDate] - Data da venda
+ * @bodyParams {string} [processedBy] - UUID do usuário que processou
+ * @returns {Object} Transação criada
+ *
+ * @notes
+ * - Calcula automaticamente a data de expiração baseada na configuração
+ * - Atualiza automaticamente o saldo do cliente
+ */
+cashbackRouter.post("/cashback-transactions", createCashbackTransaction);
 
 /**
  * @route GET /api/cashback-reports/30-days

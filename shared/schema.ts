@@ -1613,7 +1613,7 @@ export const insertCashbackTransactionSchema = z.object({
   saleDate: z
     .union([z.date(), z.string().transform((str) => new Date(str)), z.null()])
     .optional(),
-  expiresAt: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  expiresAt: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
   processedBy: z.string().optional(),
   processedAt: z
     .union([z.date(), z.string().transform((str) => new Date(str)), z.null()])

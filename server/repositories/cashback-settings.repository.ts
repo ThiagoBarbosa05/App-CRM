@@ -144,8 +144,10 @@ class CashbackSettingsRepository {
   async createCashbackTransaction(
     data: InsertCashbackTransaction
   ): Promise<CashbackTransaction> {
-    // Se não foi fornecida data de validade, calcular baseado na configuração da regra
-    if (!data.expiresAt) {
+    // Calcular data de validade se não foi fornecida
+    let expiresAt = data.expiresAt;
+    
+    if (!expiresAt) {
       let expirationDays = 28; // Padrão de 28 dias
 
       // Se há uma regra de cashback definida, usar os dias de validade dela
@@ -162,12 +164,15 @@ class CashbackSettingsRepository {
 
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + expirationDays);
-      data.expiresAt = expirationDate;
+      expiresAt = expirationDate;
     }
 
     const [transaction] = await db
       .insert(cashbackTransactions)
-      .values(data)
+      .values({
+        ...data,
+        expiresAt,
+      })
       .returning();
 
     return transaction;
