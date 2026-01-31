@@ -360,7 +360,7 @@ export default function CalendarPage() {
                           <>
                             <div
                               key={client.id}
-                              className="p-4 sm:p-6 bg-gradient-to-r from-amber-50 to-wine-50 hover:from-amber-100 hover:to-wine-100 rounded-lg border border-amber-200 hover:border-amber-300 transition-all duration-200 hover:shadow-sm min-w-0 overflow-hidden"
+                              className="p-4 sm:p-6 bg-gradient-to-r from-amber-50 dark:from-slate-950 dark:to-slate-950 to-wine-50 hover:from-amber-100 hover:to-wine-100 rounded-lg border border-amber-200 dark:border-amber-700 hover:border-amber-300 transition-all duration-200 hover:shadow-sm min-w-0 overflow-hidden"
                             >
                               <div className="flex items-start flex-col sm:flex-row gap-3 sm:gap-4 justify-between">
                                 <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -459,7 +459,7 @@ export default function CalendarPage() {
                                       )
                                     }
                                   >
-                                    <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 dark:bg-green-700 mr-1.5">
+                                    <div className="flex h-3 w-3 items-center justify-center rounded  mr-1.5">
                                       <Phone className="h-2 w-2 text-green-600 dark:text-green-100" />
                                     </div>
                                     Ligar
@@ -478,7 +478,7 @@ export default function CalendarPage() {
                                       )
                                     }
                                   >
-                                    <div className="flex h-3 w-3 items-center justify-center rounded bg-blue-100 dark:bg-blue-700 mr-1.5">
+                                    <div className="flex h-3 w-3 items-center justify-center rounded  mr-1.5">
                                       <Mail className="h-2 w-2 text-blue-600 dark:text-blue-100" />
                                     </div>
                                     Email
@@ -494,7 +494,7 @@ export default function CalendarPage() {
                                     setBirthdayBot(true);
                                   }}
                                 >
-                                  <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 dark:bg-green-700 mr-1.5">
+                                  <div className="flex h-3 w-3 items-center justify-center rounded  mr-1.5">
                                     <MessageSquare className="h-2 w-2 text-green-600 dark:text-green-100" />
                                   </div>
                                   WhatsApp
@@ -511,7 +511,7 @@ export default function CalendarPage() {
                                       className="text-xs border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
                                       onClick={() => setSelectedClient(client)}
                                     >
-                                      <div className="flex h-3 w-3 items-center justify-center rounded bg-amber-100 dark:bg-amber-700 mr-1.5">
+                                      <div className="flex h-3 w-3 items-center justify-center rounded mr-1.5">
                                         <Bell className="h-2 w-2 text-amber-600 dark:text-amber-100" />
                                       </div>
                                       Lembrete

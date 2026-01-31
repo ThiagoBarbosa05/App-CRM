@@ -309,8 +309,8 @@ export default function AdminGoals() {
       <div className=" flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle className="text-red-600">Acesso Negado</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-red-600 dark:text-red-400">Acesso Negado</CardTitle>
+            <CardDescription className="dark:text-slate-400">
               Você não tem permissão para acessar esta página. Apenas
               administradores e gerentes podem gerenciar metas de usuários.
             </CardDescription>
@@ -1059,15 +1059,15 @@ export default function AdminGoals() {
     <div>
       <div className="flex-1 ml-0 ">
         <div className="">
-          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-950 border-b dark:border dark:border-slate-700 border-gray-200 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <Target className="size-6 shrink-0 text-blue-600" />
+                <Target className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">
                     Administração de Metas
                   </h2>
-                  <p className="text-sm sm:text-base text-gray-600 mt-1 overflow-hidden">
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400 mt-1 overflow-hidden">
                     Gerencie as metas de vendas, ticket médio e itens por venda
                     de todos os usuários do sistema
                   </p>
@@ -1087,7 +1087,7 @@ export default function AdminGoals() {
                       id="month-select"
                       value={selectedMonth}
                       onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {Array.from({ length: 12 }, (_, i) => i + 1).map(
                         (month) => (
@@ -1115,7 +1115,7 @@ export default function AdminGoals() {
                       id="year-select"
                       value={selectedYear}
                       onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 xs:flex-none min-w-0 px-2 sm:px-3 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {Array.from(
                         { length: 5 },
@@ -1136,7 +1136,7 @@ export default function AdminGoals() {
                     setIsModalOpen(true);
                   }}
                   disabled={usersWithoutGoals.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto shrink-0"
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto shrink-0"
                 >
                   <Target className="mr-2 h-4 w-4 shrink-0" />
                   <span className="truncate">Nova Meta</span>
@@ -1160,7 +1160,7 @@ export default function AdminGoals() {
                 <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {users.length}
                 </div>
-                <p className="text-xs font-medium text-blue-600/70 dark:text-blue-400/70">
+                <p className="text-xs font-medium text-blue-600/70 dark:text-blue-400">
                   Usuários cadastrados
                 </p>
               </CardContent>
@@ -1179,7 +1179,7 @@ export default function AdminGoals() {
                 <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {userGoals.length}
                 </div>
-                <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">
+                <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400">
                   Usuários com metas
                 </p>
               </CardContent>
@@ -1202,7 +1202,7 @@ export default function AdminGoals() {
                       .toString()
                   )}
                 </div>
-                <p className="text-xs font-medium text-purple-600/70 dark:text-purple-400/70">
+                <p className="text-xs font-medium text-purple-600/70 dark:text-purple-400">
                   Soma de todas as metas
                 </p>
               </CardContent>
@@ -1230,7 +1230,7 @@ export default function AdminGoals() {
                       )
                     : "R$ 0,00"}
                 </div>
-                <p className="text-xs font-medium text-orange-600/70 dark:text-orange-400/70">
+                <p className="text-xs font-medium text-orange-600/70 dark:text-orange-400">
                   Média dos tickets
                 </p>
               </CardContent>
@@ -1239,10 +1239,10 @@ export default function AdminGoals() {
 
           {/* Tabs para Metas de Vendas, Telemarketing, Cadastros, Marcadores e Interações */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-1 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700 h-auto">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-1 p-1 bg-gray-50 dark:bg-gray-900 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700 h-auto">
               <TabsTrigger
                 value="admin-metas"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800/50"
               >
                 <div className="bg-blue-100 dark:bg-blue-900/30 rounded-md p-1.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 group-data-[state=active]:bg-blue-200 dark:group-data-[state=active]:bg-blue-800/40 transition-colors">
                   <Target className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
@@ -1254,7 +1254,7 @@ export default function AdminGoals() {
               </TabsTrigger>
               <TabsTrigger
                 value="metas-telemarketing"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <div className="bg-purple-100 dark:bg-purple-900/30 rounded-md p-1.5 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 group-data-[state=active]:bg-purple-200 dark:group-data-[state=active]:bg-purple-800/40 transition-colors">
                   <Phone className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
@@ -1266,7 +1266,7 @@ export default function AdminGoals() {
               </TabsTrigger>
               <TabsTrigger
                 value="metas-cadastros"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-md p-1.5 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 group-data-[state=active]:bg-emerald-200 dark:group-data-[state=active]:bg-emerald-800/40 transition-colors">
                   <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1278,7 +1278,7 @@ export default function AdminGoals() {
               </TabsTrigger>
               <TabsTrigger
                 value="metas-marcadores"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <div className="bg-amber-100 dark:bg-amber-900/30 rounded-md p-1.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 group-data-[state=active]:bg-amber-200 dark:group-data-[state=active]:bg-amber-800/40 transition-colors">
                   <Package className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
@@ -1290,7 +1290,7 @@ export default function AdminGoals() {
               </TabsTrigger>
               <TabsTrigger
                 value="metas-interacoes"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-md p-1.5 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40 group-data-[state=active]:bg-indigo-200 dark:group-data-[state=active]:bg-indigo-800/40 transition-colors">
                   <MessageSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -1317,7 +1317,7 @@ export default function AdminGoals() {
                       <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
                         Metas de Vendas por Usuário
                       </CardTitle>
-                      <CardDescription className="text-sm text-blue-600/70 dark:text-blue-400/70 mt-1">
+                      <CardDescription className="text-sm text-blue-600/70 dark:text-blue-400 mt-1">
                         Lista de todos os usuários e suas respectivas metas de
                         vendas
                       </CardDescription>
@@ -1327,7 +1327,7 @@ export default function AdminGoals() {
                 <CardContent className="p-6">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                      <div className="flex items-center gap-3 text-gray-500">
+                      <div className="flex items-center gap-3 text-gray-500 dark-text-slate-400">
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
                         <span className="font-medium">Carregando metas...</span>
                       </div>

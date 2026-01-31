@@ -297,15 +297,15 @@ export default function Metas() {
     <div className="flex">
       <div className="flex-1 overflow-auto">
         <div className="space-y-6">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+          <div className="bg-white border-b border-gray-200 dark:border dark:border-slate-700 dark:bg-slate-950 px-6 py-4 rounded-lg shadow-sm">
             <div className="flex items-center gap-2 flex-wrap justify-between">
               <div className="flex items-center gap-4">
-                <Target className="size-6 shrink-0 text-blue-600" />
+                <Target className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     Análise de Metas
                   </h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 dark:text-slate-400 mt-1">
                     Acompanhe o progresso das metas de vendas em{" "}
                     {format(
                       new Date(selectedYear, selectedMonth - 1),
@@ -323,7 +323,7 @@ export default function Metas() {
                     id="month-select"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-gray-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 rounded-md focus:ring-2 focus:ring-blue-500"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(
                       (month) => (
@@ -343,7 +343,7 @@ export default function Metas() {
                     id="year-select"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-gray-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 rounded-md focus:ring-2 focus:ring-blue-500"
                   >
                     {Array.from(
                       { length: 5 },
@@ -418,10 +418,10 @@ export default function Metas() {
 
           {/* Nota informativa para vendedores */}
           {user?.role === "vendedor" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="bg-blue-50 border border-blue-200 dark:bg-slate-800 dark:border-blue-700 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-                <p className="text-blue-800 font-medium">
+                <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <p className="text-blue-800 dark:text-blue-200 font-medium">
                   Os resultados semanais são cadastrados pelos gerentes e
                   administradores do sistema.
                 </p>
@@ -432,12 +432,12 @@ export default function Metas() {
           {/* Cards de Metas por Usuário */}
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-gray-500">Carregando metas...</div>
+              <div className="text-gray-500 dark:text-slate-400">Carregando metas...</div>
             </div>
           ) : filteredGoals.length === 0 ? (
             <div className="text-center py-8">
-              <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-4">
+              <Target className="h-12 w-12 text-gray-400 dark:text-slate-400 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-slate-300 mb-4">
                 Nenhuma meta encontrada para este período
               </p>
             </div>
@@ -484,18 +484,18 @@ export default function Metas() {
                             {weeklyResults.length}/4 semanas
                           </Badge>
                         </div>
-                        <CardDescription>{goal.userEmail}</CardDescription>
+                        <CardDescription className="dark:text-slate-400">{goal.userEmail}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
                         {/* Meta de Vendas */}
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">Vendas</span>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm font-medium dark:text-slate-300">Vendas</span>
+                            <span className="text-sm text-gray-500 dark:text-slate-400">
                               {salesPercentage.toFixed(1)}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                             <div
                               className="bg-green-600 h-3 rounded-full transition-all duration-300"
                               style={{
@@ -503,7 +503,7 @@ export default function Metas() {
                               }}
                             ></div>
                           </div>
-                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <div className="flex justify-between text-xs text-gray-600 dark:text-slate-400 mt-1">
                             <span>
                               Alcançado: {formatCurrency(totalSalesAchieved)}
                             </span>
@@ -514,14 +514,14 @@ export default function Metas() {
                         {/* Meta de Ticket Médio */}
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium dark:text-slate-300">
                               Ticket Médio
                             </span>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 dark:text-slate-400">
                               {ticketPercentage.toFixed(1)}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                             <div
                               className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                               style={{
@@ -529,7 +529,7 @@ export default function Metas() {
                               }}
                             ></div>
                           </div>
-                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <div className="flex justify-between text-xs text-gray-600 dark:text-slate-400 mt-1">
                             <span>
                               Alcançado: {formatCurrency(avgTicketAchieved)}
                             </span>
@@ -542,14 +542,14 @@ export default function Metas() {
                         {/* Meta de Itens por Venda */}
                         <div>
                           <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium dark:text-slate-300">
                               Itens Vendidos
                             </span>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 dark:text-slate-400">
                               {itemsPercentage.toFixed(1)}%
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                             <div
                               className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                               style={{
@@ -557,15 +557,15 @@ export default function Metas() {
                               }}
                             ></div>
                           </div>
-                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          <div className="flex justify-between text-xs text-gray-600 dark:text-slate-400 mt-1">
                             <span>Alcançado: {totalItemsAchieved} itens</span>
                             <span>Meta: {goal.itemsPerSale} itens</span>
                           </div>
                         </div>
 
                         {/* Resumo das Semanas */}
-                        <div className="mt-4 pt-4 border-t">
-                          <p className="text-xs text-gray-500 mb-2">
+                        <div className="mt-4 pt-4 border-t dark:border-slate-700">
+                          <p className="text-xs text-gray-500 dark:text-slate-300 mb-2">
                             Resultados por semana:
                           </p>
                           <div className="grid grid-cols-4 gap-1">
@@ -578,8 +578,8 @@ export default function Metas() {
                                   key={week}
                                   className={`text-center p-1 rounded text-xs ${
                                     weekResult
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-gray-100 text-gray-500"
+                                      ? "bg-green-100 dark:bg-green-800 dark:text-green-100 text-green-800"
+                                      : "bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-300"
                                   }`}
                                 >
                                   S{week}
@@ -1230,12 +1230,12 @@ export default function Metas() {
               {registrationStats.length > 0 && (
                 <div className="mt-12">
                   <div className="flex items-center gap-3 mb-6">
-                    <Trophy className="h-8 w-8 text-yellow-600" />
+                    <Trophy className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-200">
                         Ranking de Cadastros
                       </h2>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-slate-400">
                         Usuários com mais clientes cadastrados no sistema
                       </p>
                     </div>
@@ -1284,7 +1284,7 @@ export default function Metas() {
                                   <CardTitle className="text-lg">
                                     {stat.userName}
                                   </CardTitle>
-                                  <CardDescription className="text-sm max-w-[164px] sm:max-w-full sm:text-normal overflow-hidden text-ellipsis">
+                                  <CardDescription className="text-sm max-w-[164px] dark:text-slate-400 sm:max-w-full sm:text-normal overflow-hidden text-ellipsis">
                                     {stat.userEmail}
                                   </CardDescription>
                                 </div>
@@ -1299,12 +1299,12 @@ export default function Metas() {
                           </CardHeader>
                           <CardContent>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-600">
+                              <span className="text-sm text-gray-600 dark:text-slate-400">
                                 Clientes cadastrados
                               </span>
                               <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-blue-600" />
-                                <span className="text-2xl font-bold text-blue-600">
+                                <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                                   {stat.registrationCount}
                                 </span>
                               </div>
