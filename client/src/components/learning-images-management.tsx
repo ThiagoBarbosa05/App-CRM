@@ -279,7 +279,7 @@ export default function LearningImagesManagement() {
   const moveTraining = async (
     trainingId: string,
     direction: "up" | "down",
-    type: string
+    type: string,
   ) => {
     try {
       const response = await fetch(`/api/trainings/${trainingId}/order`, {
@@ -536,13 +536,13 @@ export default function LearningImagesManagement() {
                                       className="rounded-lg w-full h-44 border-0 shadow-sm"
                                       src={
                                         training.attachmentUrl?.includes(
-                                          "www.youtube.com"
+                                          "www.youtube.com",
                                         ) &&
                                         !training.attachmentUrl.includes(
-                                          "embed"
+                                          "embed",
                                         )
                                           ? getYouTubeEmbedUrl(
-                                              training.attachmentUrl
+                                              training.attachmentUrl,
                                             )
                                           : training.attachmentUrl || ""
                                       }
@@ -705,7 +705,7 @@ export default function LearningImagesManagement() {
                                           moveTraining(
                                             training.id,
                                             "up",
-                                            "document"
+                                            "document",
                                           )
                                         }
                                       >
@@ -721,7 +721,7 @@ export default function LearningImagesManagement() {
                                           moveTraining(
                                             training.id,
                                             "down",
-                                            "document"
+                                            "document",
                                           )
                                         }
                                       >
@@ -738,7 +738,7 @@ export default function LearningImagesManagement() {
                                         }
                                         onClick={() =>
                                           deleteDocumentTrainingMutation.mutateAsync(
-                                            training.id
+                                            training.id,
                                           )
                                         }
                                       >
@@ -762,7 +762,7 @@ export default function LearningImagesManagement() {
                                     className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                                   >
                                     {(documentsTrainings?.findIndex(
-                                      (d) => d.id === training.id
+                                      (d) => d.id === training.id,
                                     ) || 0) + 1}
                                     º
                                   </Badge>
@@ -932,7 +932,7 @@ export default function LearningImagesManagement() {
                                         moveTraining(
                                           script.id,
                                           "down",
-                                          "script"
+                                          "script",
                                         )
                                       }
                                     >
@@ -1090,12 +1090,10 @@ export default function LearningImagesManagement() {
 
                   {showEditor && (
                     <div ref={formRef} className="mt-6">
-                      <Card className="border-teal-200 dark:border-teal-800 shadow-lg">
-                        <ScriptForm
-                          scriptToEdit={editingScript}
-                          onOpenChange={setShowEditor}
-                        />
-                      </Card>
+                      <ScriptForm
+                        scriptToEdit={editingScript}
+                        onOpenChange={setShowEditor}
+                      />
                     </div>
                   )}
                 </>

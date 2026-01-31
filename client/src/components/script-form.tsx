@@ -143,11 +143,13 @@ export function ScriptForm({ onOpenChange, scriptToEdit }: ScriptFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="mt-5 bg-white p-5 rounded-md shadow-lg flex flex-col gap-5"
+      className="mt-5 bg-white dark:bg-slate-700 p-5 rounded-md shadow-lg flex flex-col gap-5"
     >
       <div>
-        <h3 className="text-2xl font-semibold">Adicionar Novo Script</h3>
-        <p className="text-sm text-gray-500">
+        <h3 className="text-2xl font-semibold dark:text-slate-100">
+          Adicionar Novo Script
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-300">
           Utilize o editor de texto para criar um novo script de vendas para sua
           equipe.
         </p>

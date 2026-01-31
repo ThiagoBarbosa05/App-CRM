@@ -38,22 +38,34 @@ interface UserFormModalProps {
   user: User | null;
 }
 
-const userFormSchema = insertUserSchema.extend({
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").optional(),
-  confirmPassword: z.string().optional(),
-}).refine((data) => {
-  if (data.password && data.password !== data.confirmPassword) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Senhas não coincidem",
-  path: ["confirmPassword"],
-});
+const userFormSchema = insertUserSchema
+  .extend({
+    password: z
+      .string()
+      .min(6, "Senha deve ter pelo menos 6 caracteres")
+      .optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.password && data.password !== data.confirmPassword) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Senhas não coincidem",
+      path: ["confirmPassword"],
+    },
+  );
 
 type UserFormData = z.infer<typeof userFormSchema>;
 
-export default function UserFormModal({ open, onOpenChange, user }: UserFormModalProps) {
+export default function UserFormModal({
+  open,
+  onOpenChange,
+  user,
+}: UserFormModalProps) {
   const { toast } = useToast();
   const isEditing = !!user;
 
@@ -94,7 +106,7 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
   const userMutation = useMutation({
     mutationFn: async (data: UserFormData) => {
       const { confirmPassword, ...userData } = data;
-      
+
       if (isEditing) {
         // Se não há nova senha, remove o campo password
         if (!userData.password) {
@@ -108,7 +120,9 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
     onSuccess: () => {
       toast({
         title: "Sucesso",
-        description: isEditing ? "Usuário atualizado com sucesso" : "Usuário cadastrado com sucesso",
+        description: isEditing
+          ? "Usuário atualizado com sucesso"
+          : "Usuário cadastrado com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       onOpenChange(false);
@@ -126,10 +140,12 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
   const onSubmit = (data: UserFormData) => {
     // Validação adicional para senha em criação
     if (!isEditing && !data.password) {
-      form.setError("password", { message: "Senha é obrigatória para novos usuários" });
+      form.setError("password", {
+        message: "Senha é obrigatória para novos usuários",
+      });
       return;
     }
-    
+
     userMutation.mutate(data);
   };
 
@@ -141,10 +157,9 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
             {isEditing ? "Editar Usuário" : "Novo Usuário"}
           </DialogTitle>
           <DialogDescription>
-            {isEditing 
+            {isEditing
               ? "Atualize as informações do usuário. Deixe a senha em branco para mantê-la inalterada."
-              : "Preencha os dados para criar um novo usuário no sistema."
-            }
+              : "Preencha os dados para criar um novo usuário no sistema."}
           </DialogDescription>
         </DialogHeader>
 
@@ -171,7 +186,11 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
                 <FormItem>
                   <FormLabel>E-mail</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="email@exemplo.com" {...field} />
+                    <Input
+                      type="email"
+                      placeholder="email@exemplo.com"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -184,7 +203,10 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Perfil de Usuário</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o perfil" />
@@ -211,7 +233,11 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
                       {isEditing ? "Nova Senha (opcional)" : "Senha"}
                     </FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Digite a senha" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="Digite a senha"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,7 +251,11 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
                   <FormItem>
                     <FormLabel>Confirmar Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Confirme a senha" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="Confirme a senha"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -237,17 +267,19 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
               control={form.control}
               name="isActive"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg dark:border-slate-700 border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Usuário Ativo</FormLabel>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground dark:text-slate-400">
                       Usuários inativos não podem acessar o sistema
                     </div>
                   </div>
                   <FormControl>
                     <Switch
                       checked={field.value === "true"}
-                      onCheckedChange={(checked) => field.onChange(checked ? "true" : "false")}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked ? "true" : "false")
+                      }
                     />
                   </FormControl>
                 </FormItem>
@@ -264,10 +296,13 @@ export default function UserFormModal({ open, onOpenChange, user }: UserFormModa
                 Cancelar
               </Button>
               <Button type="submit" disabled={userMutation.isPending}>
-                {userMutation.isPending 
-                  ? (isEditing ? "Atualizando..." : "Cadastrando...") 
-                  : (isEditing ? "Atualizar" : "Cadastrar")
-                }
+                {userMutation.isPending
+                  ? isEditing
+                    ? "Atualizando..."
+                    : "Cadastrando..."
+                  : isEditing
+                    ? "Atualizar"
+                    : "Cadastrar"}
               </Button>
             </div>
           </form>

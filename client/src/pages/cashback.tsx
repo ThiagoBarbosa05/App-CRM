@@ -228,7 +228,7 @@ export default function Cashback() {
   const calculateSaleValues = (
     grossValue: number,
     clientBalance: number,
-    shouldUseCashback: boolean = true
+    shouldUseCashback: boolean = true,
   ) => {
     // Aplicar cashback existente apenas se o vendedor escolher usar
     let cashbackUsed = 0;
@@ -388,7 +388,7 @@ export default function Cashback() {
     const result = calculateSaleValues(
       grossValue,
       selectedClientBalance,
-      useCashback
+      useCashback,
     );
 
     // Buscar configuração ativa para obter a taxa real
@@ -528,7 +528,7 @@ export default function Cashback() {
   const handleDeleteSale = (saleId: string) => {
     if (
       !confirm(
-        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
+        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.",
       )
     ) {
       return;
@@ -552,15 +552,15 @@ export default function Cashback() {
     <div className="flex">
       <div className="flex-1 overflow-auto">
         <div className="  space-y-6">
-          <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-950 dark:border dark:border-slate-700 border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
             <div className="flex items-center gap-2 flex-wrap justify-between">
               <div className="flex items-center gap-4">
-                <Gift className="size-6 shrink-0 text-blue-600" />
+                <Gift className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                     Sistema de Cashback
                   </h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 mt-1 dark:text-gray-400">
                     Gerencie programa de cashback e recompensas para clientes
                   </p>
                 </div>

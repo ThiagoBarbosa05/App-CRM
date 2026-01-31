@@ -204,7 +204,7 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="automation"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
                     title="Configurações de automação"
                   >
                     <Bot className="size-4" />
@@ -213,7 +213,7 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="deal-questions"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
                     title="Gerenciar perguntas dos deals"
                   >
                     <HelpCircle className="size-4" />
@@ -222,7 +222,7 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="umbler-sync"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm  data-[state=active]:text-purple-700 data-[state=active]:border data-[state=active]:border-gray-200 hover:bg-white/50 dark:data-[state=active]:bg-gray-700 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
                     title="Gerenciar sincronização com Umbler"
                   >
                     <RefreshCcw className="size-4" />

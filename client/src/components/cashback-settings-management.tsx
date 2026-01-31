@@ -330,7 +330,7 @@ export default function CashbackSettingsManagement() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full h-10 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 dark:focus:border-purple-500"
+                className="w-full h-10 px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 dark:focus:border-purple-500"
               >
                 <option value="all">Todos os Status</option>
                 <option value="active">Apenas Ativos</option>
@@ -503,7 +503,7 @@ export default function CashbackSettingsManagement() {
                             <p className="font-semibold text-slate-900 dark:text-slate-100">
                               {setting.validUntil
                                 ? new Date(
-                                    setting.validUntil
+                                    setting.validUntil,
                                   ).toLocaleDateString("pt-BR", {
                                     timeZone: "UTC",
                                   })

@@ -317,7 +317,7 @@ export default function AIAssistant() {
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
               <TabsTrigger
                 value="wine-assistant"
-                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
+                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
                 <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
                   <Wine className="h-4 w-4 text-purple-600 dark:text-purple-400 group-data-[state=active]:text-white" />
@@ -329,7 +329,7 @@ export default function AIAssistant() {
 
               <TabsTrigger
                 value="message-generator"
-                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
+                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
                 <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
                   <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 group-data-[state=active]:text-white" />
@@ -341,7 +341,7 @@ export default function AIAssistant() {
 
               <TabsTrigger
                 value="ai-config"
-                className="group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
+                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
               >
                 <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
                   <Settings className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-data-[state=active]:text-white" />
@@ -835,7 +835,7 @@ export default function AIAssistant() {
                       }
                       max={100}
                       step={10}
-                      className="w-full"
+                      className="w-full dark:bg-slate-700"
                     />
                     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 font-medium">
                       <span>Conservador</span>
@@ -859,7 +859,7 @@ export default function AIAssistant() {
                       }
                       max={100}
                       step={5}
-                      className="w-full"
+                      className="w-full dark:bg-slate-700"
                     />
                     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 font-medium">
                       <span>Determinístico (0.0)</span>

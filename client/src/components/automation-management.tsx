@@ -91,7 +91,7 @@ function useTestAutomationAll() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          errorData.message || "Falha ao executar automações do dia"
+          errorData.message || "Falha ao executar automações do dia",
         );
       }
 
@@ -434,7 +434,7 @@ function useDeleteAutomation() {
         `/api/message-automation-settings/${automation.id}`,
         {
           method: "DELETE",
-        }
+        },
       );
       if (!response.ok) throw new Error("Failed to delete automation");
       return response.json();
@@ -501,7 +501,7 @@ function FileUploadComponent({
   isUploading?: boolean;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    currentFileUrl || null
+    currentFileUrl || null,
   );
   const [isDragOver, setIsDragOver] = useState(false);
   const fileUploadMutation = useFileUpload();
@@ -518,7 +518,7 @@ function FileUploadComponent({
     // Validar se o arquivo tem extensão de imagem se o tipo MIME não for detectado
     const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
     const hasImageExtension = imageExtensions.some((ext) =>
-      file.name.toLowerCase().endsWith(ext)
+      file.name.toLowerCase().endsWith(ext),
     );
 
     // Bloquear SVG explicitamente por questões de segurança
@@ -530,7 +530,7 @@ function FileUploadComponent({
         "SVG rejeitado por questões de segurança:",
         file.type,
         "Nome:",
-        file.name
+        file.name,
       );
       toast({
         title: "Tipo de arquivo não permitido",
@@ -547,7 +547,7 @@ function FileUploadComponent({
         "Tipo de arquivo rejeitado:",
         file.type,
         "Nome:",
-        file.name
+        file.name,
       );
       toast({
         title: "Tipo de arquivo inválido",
@@ -943,7 +943,7 @@ function AutomationForm({
                 .filter(
                   (channel) =>
                     channel.channelType === "WhatsappApi" &&
-                    channel.state === "Live"
+                    channel.state === "Live",
                 )
                 .map((channel) => (
                   <SelectItem key={channel.id} value={channel.id}>
@@ -1169,7 +1169,7 @@ export function AutomationManagement() {
       { id: editingAutomation.id, data },
       {
         onSuccess: () => setEditingAutomation(null),
-      }
+      },
     );
   };
 
@@ -1262,7 +1262,7 @@ export function AutomationManagement() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-teal-50">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 dark:from-slate-800 dark:to-slate-800 via-blue-50 dark:via-slate-700 to-teal-50">
         <div className="p-4 lg:p-8 space-y-6">
           {/* Header Skeleton */}
           <div className="mb-8">
@@ -1278,7 +1278,10 @@ export function AutomationManagement() {
           {/* Stats Cards Skeleton */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border shadow-sm p-6">
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl border shadow-sm p-6"
+              >
                 <div className="flex justify-between items-start mb-4">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-10 w-10 rounded-full" />
@@ -1290,7 +1293,7 @@ export function AutomationManagement() {
           </div>
 
           {/* Test Section Skeleton */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
+          <div className="bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl border shadow-sm p-6">
             <div className="flex items-center gap-4 mb-6">
               <Skeleton className="h-12 w-12 rounded-xl" />
               <div className="flex-1">
@@ -1300,7 +1303,10 @@ export function AutomationManagement() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-6">
+                <div
+                  key={i}
+                  className="bg-gray-50 dark:bg-slate-700 dark:border-slate-600 rounded-xl p-6"
+                >
                   <div className="flex items-center gap-3 mb-4">
                     <Skeleton className="h-10 w-10 rounded-lg" />
                     <div>
@@ -1319,7 +1325,10 @@ export function AutomationManagement() {
           {/* Automation Cards Skeleton */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border shadow-sm p-6">
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl border shadow-sm p-6"
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <Skeleton className="h-5 w-32 mb-2" />
@@ -1353,7 +1362,7 @@ export function AutomationManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-teal-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 via-blue-50 to-teal-50">
       <div className="p-4 lg:p-8 space-y-8">
         {/* Header moderno com gradiente */}
         <div className="relative bg-gradient-to-r from-emerald-600 via-blue-600 to-teal-600 rounded-2xl shadow-xl overflow-hidden">
@@ -1425,10 +1434,10 @@ export function AutomationManagement() {
 
         {/* Cards de estatísticas modernos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 group hover:scale-105">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all dark:border dark:border-slate-700 duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-800 group hover:scale-105">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 dark:group-hover:text-slate   -300 transition-colors">
                   Total de Automações
                 </CardTitle>
                 <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
@@ -1437,10 +1446,10 @@ export function AutomationManagement() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold text-gray-900 dark:text-slate-300 mb-1">
                 {stats.totalCount}
               </div>
-              <p className="text-sm text-emerald-600 font-medium">
+              <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
                 {stats.totalCount === 1
                   ? "automação configurada"
                   : "automações configuradas"}
@@ -1448,10 +1457,10 @@ export function AutomationManagement() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-green-50 group hover:scale-105">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all dark:border dark:border-slate-700 duration-300 bg-gradient-to-br from-white dark:from-slate-800 dark:to-slate-800  to-green-50 group hover:scale-105">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 dark:group-hover:text-slate-300 transition-colors">
                   Automações Ativas
                 </CardTitle>
                 <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
@@ -1460,23 +1469,25 @@ export function AutomationManagement() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-3xl font-bold text-green-600 mb-1">
+              <div className="text-3xl font-bold text-green-600 dark:text-emerald-400 mb-1">
                 {stats.activeCount}
               </div>
-              <p className="text-sm text-green-600 font-medium">
+              <p className="text-sm text-green-600 dark:text-emerald-400 font-medium">
                 enviando mensagens automaticamente
               </p>
               <div className="flex items-center mt-2 gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-green-600">Em funcionamento</span>
+                <span className="text-xs text-green-600 dark:text-emerald-400">
+                  Em funcionamento
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50 group hover:scale-105 sm:col-span-2 lg:col-span-1">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all dark:border dark:border-slate-700 duration-300 bg-gradient-to-br from-white dark:from-slate-800 dark:to-slate-800  to-blue-50 group hover:scale-105 sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 transition-colors">
+                <CardTitle className="text-sm font-semibold text-gray-700 group-hover:text-gray-800 dark:group-hover:text-slate-300 transition-colors">
                   Automações Inativas
                 </CardTitle>
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-300">
@@ -1485,10 +1496,10 @@ export function AutomationManagement() {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-3xl font-bold text-blue-600 mb-1">
+              <div className="text-3xl font-bold text-blue-600 dark:text-slate-400 mb-1">
                 {stats.inactiveCount}
               </div>
-              <p className="text-sm text-blue-600 font-medium">
+              <p className="text-sm text-blue-600 dark:text-slate-400 font-medium">
                 pausadas ou desabilitadas
               </p>
             </CardContent>
@@ -1498,7 +1509,7 @@ export function AutomationManagement() {
         {/* Seção de Controle de Execuções - NOVA */}
         <Card className="border-2 border-orange-200/60 bg-gradient-to-br from-background via-orange-50/30 to-background relative overflow-hidden">
           {/* Background decorativo */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 dark:from-slate-800 dark:to-slate-800 via-transparent to-red-500/5 pointer-events-none" />
 
           <CardHeader className="relative">
             <div className="flex items-center justify-between">
@@ -1517,7 +1528,7 @@ export function AutomationManagement() {
                   <CardTitle className="text-xl">
                     Controle de Execuções
                   </CardTitle>
-                  <CardDescription className="text-base mt-1">
+                  <CardDescription className="text-base mt-1 dark:text-slate-400">
                     Monitore e cancele automações em andamento
                   </CardDescription>
                 </div>
@@ -1664,7 +1675,7 @@ export function AutomationManagement() {
                               <span className="text-gray-500">Data Alvo:</span>
                               <p className="font-semibold">
                                 {new Date(
-                                  execution.targetDate
+                                  execution.targetDate,
                                 ).toLocaleDateString()}
                               </p>
                             </div>
@@ -1763,14 +1774,14 @@ export function AutomationManagement() {
           <CardHeader className="relative">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-lg">
+                <div className="p-3 bg-gradient-to-br from-primary to-primary/80 dark:border dark:border-slate-700 rounded-xl shadow-lg">
                   <TestTube className="h-6 w-6" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
               </div>
               <div className="flex-1">
                 <CardTitle className="text-xl ">Testar Automações</CardTitle>
-                <CardDescription className="text-base mt-1">
+                <CardDescription className="text-base mt-1 dark:text-slate-400">
                   Execute testes manuais para verificar o funcionamento das
                   automações em tempo real
                 </CardDescription>
@@ -1784,25 +1795,25 @@ export function AutomationManagement() {
               {/* Teste Completo */}
               <div className="group relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative bg-gradient-to-br from-background to-blue-50/50 border border-blue-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-blue-300/80">
+                <div className="relative bg-gradient-to-br from-background dark:border-slate-500 to-blue-50/50 border border-blue-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-blue-300/80">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
                         <Play className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-lg text-blue-900">
+                        <h4 className="font-semibold text-lg text-blue-900 dark:text-blue-400">
                           Executar Automações do Dia
                         </h4>
-                        <p className="text-sm text-blue-700">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
                           Trigger principal
                         </p>
                       </div>
                     </div>
 
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-muted-foreground dark:text-slate-400 leading-relaxed">
                       Executa{" "}
-                      <span className="font-medium text-blue-600">
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
                         automações agendadas para hoje
                       </span>{" "}
                       que ainda não foram executadas. Respeita horários
@@ -1838,25 +1849,25 @@ export function AutomationManagement() {
               {/* Teste Agendado */}
               <div className="group relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative bg-gradient-to-br from-background to-green-50/50 border border-green-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-green-300/80">
+                <div className="relative bg-gradient-to-br from-background dark:border-green-700 to-green-50/50 border border-green-200/60 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-green-300/80">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
                         <Clock className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-lg text-green-900">
+                        <h4 className="font-semibold text-lg text-green-900 dark:text-green-400">
                           Catch-up (Recuperar Perdidas)
                         </h4>
-                        <p className="text-sm text-green-700">
+                        <p className="text-sm text-green-700 dark:text-green-300">
                           Recuperação automática
                         </p>
                       </div>
                     </div>
 
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-muted-foreground dark:text-slate-400 leading-relaxed">
                       Recupera automações dos{" "}
-                      <span className="font-medium text-green-600">
+                      <span className="font-medium text-green-600 dark:text-green-400">
                         últimos 7 dias que falharam
                       </span>
                       . Útil após períodos de inatividade do servidor.
@@ -1926,18 +1937,18 @@ export function AutomationManagement() {
               {/* Dica informativa */}
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl blur-lg" />
-                <div className="relative bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-xl p-4 shadow-sm">
+                <div className="relative bg-gradient-to-r from-blue-50/80 dark:from-indigo-700/20 dark:border-indigo-600 dark:to-indigo-800/20 to-indigo-50/80 border border-blue-200/60 rounded-xl p-4 shadow-sm">
                   <div className="flex items-start gap-4">
                     <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md flex-shrink-0">
                       <MessageSquare className="h-5 w-5 text-white" />
                     </div>
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <h5 className="font-semibold text-blue-900">
+                        <h5 className="font-semibold text-blue-900 dark:text-blue-400">
                           💡 Sistema de Automação Serverless
                         </h5>
                       </div>
-                      <div className="text-sm text-blue-800 leading-relaxed space-y-1">
+                      <div className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed space-y-1">
                         <p>
                           • <span className="font-medium">Executar Agora:</span>{" "}
                           Dispara automações agendadas para hoje. Respeita
@@ -1951,7 +1962,7 @@ export function AutomationManagement() {
                         <p>
                           • Configure serviços externos (cron-job.org) para
                           garantir execução diária.{" "}
-                          <span className="font-medium text-blue-600">
+                          <span className="font-medium text-blue-600 dark:text-blue-400">
                             Ver AUTOMACAO_SERVERLESS.md
                           </span>
                         </p>
@@ -1978,10 +1989,10 @@ export function AutomationManagement() {
 
               {/* Indicador de status das automações ativas */}
               {stats.activeCount > 0 && (
-                <div className="flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/60 rounded-lg">
+                <div className="flex items-center justify-center gap-3 p-3 bg-gradient-to-r dark:border-emerald-700 from-green-50 dark:from-emerald-700/20  dark:to-emerald-800/20  to-emerald-50 border border-green-200/60 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-green-800">
+                    <div className="w-2 h-2 bg-green-500 dark:text-green-300  rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-300">
                       {stats.activeCount} automação
                       {stats.activeCount > 1 ? "ões" : ""} ativa
                       {stats.activeCount > 1 ? "s" : ""} pronta
@@ -1998,7 +2009,7 @@ export function AutomationManagement() {
         <Card>
           <CardHeader>
             <CardTitle>Automações Configuradas</CardTitle>
-            <CardDescription>
+            <CardDescription className="dark:text-slate-300">
               {automations.length === 0
                 ? "Nenhuma automação configurada ainda."
                 : `${automations.length} automação${
@@ -2009,11 +2020,11 @@ export function AutomationManagement() {
           <CardContent>
             {automations.length === 0 ? (
               <div className="text-center py-8">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium">
+                <MessageSquare className="h-12 w-12 text-muted-foreground dark:text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg dark:text-slate-300 font-medium">
                   Nenhuma automação configurada
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-muted-foreground dark:text-slate-400 mb-4">
                   Crie sua primeira automação para começar a enviar mensagens de
                   aniversário automaticamente.
                 </p>
@@ -2027,7 +2038,7 @@ export function AutomationManagement() {
                 {automations.map((automation, index) => (
                   <Card
                     key={automation.id}
-                    className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white via-emerald-50/30 to-blue-50/30 hover:scale-[1.01] lg:hover:scale-[1.02] relative overflow-hidden"
+                    className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white via-emerald-50/30 to-blue-50/30 dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 hover:scale-[1.01] lg:hover:scale-[1.02] relative overflow-hidden"
                   >
                     {/* Gradiente decorativo */}
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-blue-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -2056,7 +2067,7 @@ export function AutomationManagement() {
                               ></div>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">
+                              <h3 className="font-semibold text-base sm:text-lg text-gray-900 dark:text-slate-200 truncate">
                                 Automação #{index + 1}
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
@@ -2080,16 +2091,16 @@ export function AutomationManagement() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-teal-50 px-3 sm:px-4 py-2 rounded-xl border border-blue-200/60 self-start sm:self-auto">
-                            <Calendar className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 dark:from-gray-800 to-teal-50 dark:to-gray-700 px-3 sm:px-4 py-2 rounded-xl border border-blue-200/60 self-start sm:self-auto">
+                            <Calendar className="h-4 w-4 text-blue-600 dark:text-slate-400 flex-shrink-0" />
                             <div className="text-center">
-                              <div className="text-xs sm:text-sm font-semibold text-blue-700">
+                              <div className="text-xs sm:text-sm font-semibold text-blue-700 dark:text-slate-300">
                                 {automation.sendTime}
                               </div>
                               <div className="text-xs text-blue-600 hidden xs:block">
                                 {getDaysBeforeLabel(automation.daysBefore)}
                               </div>
-                              <div className="text-xs text-blue-600 xs:hidden">
+                              <div className="text-xs text-blue-600 dark:text-blue-300 xs:hidden">
                                 {automation.daysBefore === 0
                                   ? "No dia"
                                   : `${automation.daysBefore}d antes`}
@@ -2101,18 +2112,18 @@ export function AutomationManagement() {
                         {/* Informações detalhadas - Layout responsivo */}
                         <div className="space-y-3 sm:space-y-4">
                           {/* Canal de envio */}
-                          <div className="bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border border-blue-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                          <div className="bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border dark:from-blue-800 dark:border-blue-700/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
                             <div className="flex items-start gap-2 sm:gap-3">
                               <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg shadow-md flex-shrink-0">
                                 <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-blue-900 mb-1 text-sm sm:text-base">
+                                <h4 className="font-semibold text-blue-900 dark:text-slate-100 mb-1 text-sm sm:text-base">
                                   Canal de Envio
                                 </h4>
-                                <p className="text-xs sm:text-sm text-blue-700 break-all leading-relaxed">
+                                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-200 break-all leading-relaxed">
                                   {getChannelName(
-                                    automation.externalChannelId || ""
+                                    automation.externalChannelId || "",
                                   )}
                                 </p>
                               </div>
@@ -2124,16 +2135,16 @@ export function AutomationManagement() {
                             <div
                               className={`bg-gradient-to-r ${
                                 automation.type === "bot"
-                                  ? "from-purple-50/50 to-indigo-50/50 border-purple-200/60"
-                                  : "from-emerald-50/50 to-teal-50/50 border-emerald-200/60"
+                                  ? "from-purple-50/50 to-indigo-50/50 dark:from-purple-800 dark:to-indigo-800 border-purple-200/60"
+                                  : "from-emerald-50/50 to-teal-50/50 dark:from-emerald-800 dark:to-teal-800 dark:border-emerald-200/60"
                               } border rounded-lg sm:rounded-xl p-3 sm:p-4`}
                             >
                               <div className="flex items-start gap-2 sm:gap-3">
                                 <div
                                   className={`p-1.5 sm:p-2 ${
                                     automation.type === "bot"
-                                      ? "bg-gradient-to-br from-purple-500 to-indigo-600"
-                                      : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                                      ? "bg-gradient-to-br from-purple-500 dark:from-purple-600 to-indigo-600 dark:to-indigo-700"
+                                      : "bg-gradient-to-br from-emerald-500 dark:from-emerald-600 to-teal-600 dark:to-teal-700"
                                   } rounded-lg shadow-md flex-shrink-0`}
                                 >
                                   <span className="text-white font-bold text-xs sm:text-sm">
@@ -2144,8 +2155,8 @@ export function AutomationManagement() {
                                   <h4
                                     className={`font-semibold ${
                                       automation.type === "bot"
-                                        ? "text-purple-900"
-                                        : "text-emerald-900"
+                                        ? "text-purple-900 dark:text-purple-100"
+                                        : "text-emerald-900 dark:text-emerald-100"
                                     } mb-1 text-sm sm:text-base`}
                                   >
                                     {automation.type === "bot"
@@ -2155,16 +2166,16 @@ export function AutomationManagement() {
                                   <p
                                     className={`text-xs sm:text-sm ${
                                       automation.type === "bot"
-                                        ? "text-purple-700"
-                                        : "text-emerald-700"
+                                        ? "text-purple-700 dark:text-purple-300"
+                                        : "text-emerald-700 dark:text-emerald-300"
                                     } break-all leading-relaxed`}
                                   >
                                     {automation.type === "bot"
                                       ? getBotName(
-                                          automation.externalTemplateId || ""
+                                          automation.externalTemplateId || "",
                                         )
                                       : getTemplateName(
-                                          automation.externalTemplateId || ""
+                                          automation.externalTemplateId || "",
                                         )}
                                   </p>
                                 </div>
@@ -2175,13 +2186,13 @@ export function AutomationManagement() {
                           {/* Arquivo de mídia - Layout otimizado para mobile */}
                           {automation.type === "template" &&
                             automation.externalFileUrl && (
-                              <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 border border-purple-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                              <div className="bg-gradient-to-r from-purple-50/50 dark:from-purple-800 dark:to-pink-700 to-pink-50/50 border border-purple-200/60 rounded-lg sm:rounded-xl p-3 sm:p-4">
                                 <div className="flex items-start gap-2 sm:gap-3">
                                   <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-md flex-shrink-0">
                                     <Image className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-purple-900 mb-2 text-sm sm:text-base">
+                                    <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-2 text-sm sm:text-base">
                                       Arquivo de Mídia
                                     </h4>
 
@@ -2191,7 +2202,7 @@ export function AutomationManagement() {
                                         <img
                                           src={automation.externalFileUrl}
                                           alt="Mídia da automação"
-                                          className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 object-cover rounded-lg border-2 border-white shadow-md group-hover:shadow-lg transition-all duration-300"
+                                          className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 object-cover rounded-lg border-2 border-white dark:border-gray-700 shadow-md group-hover:shadow-lg transition-all duration-300"
                                           onError={(e) => {
                                             e.currentTarget.style.display =
                                               "none";
@@ -2202,12 +2213,12 @@ export function AutomationManagement() {
 
                                       <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
                                         <div className="flex items-center gap-2">
-                                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full" />
-                                          <span className="text-xs font-medium text-green-600">
+                                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 dark:bg-green-600 rounded-full" />
+                                          <span className="text-xs font-medium text-green-600 dark:text-green-400">
                                             Arquivo configurado
                                           </span>
                                         </div>
-                                        <p className="text-xs text-purple-700 leading-relaxed">
+                                        <p className="text-xs text-purple-700 dark:text-purple-200 leading-relaxed">
                                           <span className="hidden sm:inline">
                                             Este arquivo será enviado
                                             automaticamente junto com a mensagem
@@ -2217,8 +2228,8 @@ export function AutomationManagement() {
                                           </span>
                                         </p>
                                         {automation.externalFileId && (
-                                          <div className="bg-white/60 rounded border px-2 py-1">
-                                            <p className="text-xs text-purple-600 font-mono break-all">
+                                          <div className="bg-white/60 dark:bg-gray-800 rounded border px-2 py-1">
+                                            <p className="text-xs text-purple-600 dark:text-purple-300 font-mono break-all">
                                               <span className="hidden sm:inline">
                                                 ID:{" "}
                                               </span>
@@ -2247,7 +2258,7 @@ export function AutomationManagement() {
                                 disabled={updateMutation.isPending}
                                 className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-200"
                               />
-                              <span className="text-xs text-gray-600 mt-1 block font-medium">
+                              <span className="text-xs text-gray-600 dark:text-gray-400 mt-1 block font-medium">
                                 {automation.enabled ? "Ativado" : "Desativado"}
                               </span>
                             </div>
@@ -2259,7 +2270,7 @@ export function AutomationManagement() {
                               variant="outline"
                               size="sm"
                               onClick={() => setEditingAutomation(automation)}
-                              className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-300 font-medium text-xs xs:text-sm"
+                              className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r dark:from-blue-800 dark:to-cyan-700 dark:text-slate-100 from-blue-50 to-cyan-50 border-blue-200 hover:from-blue-100 hover:to-cyan-100 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-300 font-medium text-xs xs:text-sm"
                               title="Editar automação"
                             >
                               <Edit className="h-3 w-3 xs:h-4 xs:w-4 mr-1 xs:mr-2" />
@@ -2274,7 +2285,7 @@ export function AutomationManagement() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r from-red-50 to-pink-50 border-red-200 hover:from-red-100 hover:to-pink-100 hover:border-red-300 text-red-700 hover:text-red-800 transition-all duration-300 font-medium text-xs xs:text-sm"
+                                  className="h-9 xs:h-10 px-3 xs:px-4 bg-gradient-to-r dark:from-red-800 dark:to-pink-700 dark:text-slate-100 from-red-50 to-pink-50 border-red-200 hover:from-red-100 hover:to-pink-100 hover:border-red-300 text-red-700 hover:text-red-800 transition-all duration-300 font-medium text-xs xs:text-sm"
                                   title="Remover automação"
                                 >
                                   <Trash2 className="h-3 w-3 xs:h-4 xs:w-4 mr-1 xs:mr-2" />
@@ -2325,18 +2336,18 @@ export function AutomationManagement() {
         </Card>
 
         {/* Logs/resultados das automações - Design minimalista */}
-        <Card className="border border-gray-200/60 shadow-sm bg-white">
-          <CardHeader className="border-b border-gray-100 bg-gray-50/50 px-4 sm:px-6 py-4">
+        <Card className="border border-gray-200/60 dark:bg-slate-900 dark:border-slate-700 shadow-sm bg-white">
+          <CardHeader className="border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800 px-4 sm:px-6 py-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <MessageSquare className="h-4 w-4 text-gray-600" />
+                <div className="p-2 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                 </div>
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">
                     Resultados das Automações
                   </CardTitle>
-                  <CardDescription className="text-gray-500 text-sm mt-0.5">
+                  <CardDescription className="text-gray-500 dark:text-slate-400 text-sm mt-0.5">
                     Histórico de execução e status das mensagens
                   </CardDescription>
                 </div>
@@ -2346,12 +2357,12 @@ export function AutomationManagement() {
                 variant="outline"
                 size="sm"
                 onClick={() => refetchLogs()}
-                className="border-gray-200 hover:bg-gray-50 text-gray-700 hover:text-gray-900 w-full sm:w-auto"
+                className="border-gray-200 hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 w-full sm:w-auto"
               >
                 <RefreshCcw
                   className={cn(
                     "h-3 w-3 mr-2",
-                    isFetchingLogs && "animate-spin"
+                    isFetchingLogs && "animate-spin",
                   )}
                 />
                 <span className="text-sm">
@@ -2363,8 +2374,10 @@ export function AutomationManagement() {
           <CardContent className="p-4 sm:p-6">
             {isLoadingAutomations ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3" />
-                <p className="text-sm text-gray-500">Carregando filtros...</p>
+                <div className="w-6 h-6 border-2 border-gray-300 dark:border-slate-700 border-t-gray-600 dark:border-t-slate-400 rounded-full animate-spin mb-3" />
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Carregando filtros...
+                </p>
               </div>
             ) : (
               <>
@@ -2397,12 +2410,12 @@ export function AutomationManagement() {
                         value={selectedAutomationId || "all"}
                         onValueChange={(value) => {
                           setSelectedAutomationId(
-                            value === "all" ? null : value
+                            value === "all" ? null : value,
                           );
                           setLogsPage(1);
                         }}
                       >
-                        <SelectTrigger className="h-9 border-gray-200 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
+                        <SelectTrigger className="h-9 border-gray-200 dark:border-slate-700 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
                           <SelectValue placeholder="Todas as automações" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2416,7 +2429,7 @@ export function AutomationManagement() {
                               className="text-sm"
                             >
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                                <div className="w-3 h-3 border-2 border-gray-300 dark:border-slate-700 border-t-gray-600 dark:border-t-slate-400 rounded-full animate-spin" />
                                 <span>Carregando...</span>
                               </div>
                             </SelectItem>
@@ -2436,10 +2449,10 @@ export function AutomationManagement() {
                                 className="text-sm"
                               >
                                 <div className="flex flex-col items-start py-1">
-                                  <span className="font-medium text-gray-900">
+                                  <span className="font-medium text-gray-900 dark:text-slate-200">
                                     {getChannelName(a.externalChannelId || "")}
                                   </span>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 dark:text-slate-400">
                                     {getDaysBeforeLabel(a.daysBefore)} às{" "}
                                     {a.sendTime}
                                   </span>
@@ -2453,19 +2466,19 @@ export function AutomationManagement() {
 
                     {/* Filtro por status */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                      <Label className="text-xs font-medium text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                         Status
                       </Label>
                       <Select
                         value={selectedStatus}
                         onValueChange={(
-                          value: "agendado" | "enviado" | "falhou" | "all"
+                          value: "agendado" | "enviado" | "falhou" | "all",
                         ) => {
                           setSelectedStatus(value);
                           setLogsPage(1);
                         }}
                       >
-                        <SelectTrigger className="h-9 border-gray-200 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
+                        <SelectTrigger className="h-9 border-gray-200 dark:border-slate-700 text-sm focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -2501,11 +2514,11 @@ export function AutomationManagement() {
 
                 {/* Resumo minimalista dos resultados */}
                 {!isLoadingLogs && logsData && (
-                  <div className="border border-gray-100 rounded-lg bg-gray-50/50 p-4 mb-6">
+                  <div className="border border-gray-100 dark:border-slate-700 dark:bg-slate-800 rounded-lg bg-gray-50/50 p-4 mb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex flex-wrap items-center gap-4">
-                        <div className="text-sm text-gray-600">
-                          <span className="font-semibold text-gray-900">
+                        <div className="text-sm text-gray-600 dark:text-slate-400">
+                          <span className="font-semibold text-gray-900 dark:text-slate-200">
                             {logsData.data.length}
                           </span>{" "}
                           {logsData.data.length === 1
@@ -2522,31 +2535,31 @@ export function AutomationManagement() {
                                   acc[log.status] = (acc[log.status] || 0) + 1;
                                   return acc;
                                 },
-                                {} as Record<string, number>
+                                {} as Record<string, number>,
                               );
 
                               return Object.entries(statusCounts).map(
                                 ([status, count]) => {
                                   const config = getStatusConfig(
-                                    status as "agendado" | "enviado" | "falhou"
+                                    status as "agendado" | "enviado" | "falhou",
                                   );
                                   return (
                                     <div
                                       key={status}
-                                      className="flex items-center gap-1.5 px-2 py-1 bg-white rounded text-xs border border-gray-200"
+                                      className="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-700 rounded text-xs border border-gray-200 dark:border-slate-600"
                                     >
                                       <div
                                         className={`w-1.5 h-1.5 rounded-full ${config.color}`}
                                       />
-                                      <span className="text-gray-600">
+                                      <span className="text-gray-600 dark:text-slate-400">
                                         {config.label}:{" "}
-                                        <span className="font-medium text-gray-900">
+                                        <span className="font-medium text-gray-900 dark:text-slate-200">
                                           {count}
                                         </span>
                                       </span>
                                     </div>
                                   );
-                                }
+                                },
                               );
                             })()}
                           </div>
@@ -2559,7 +2572,7 @@ export function AutomationManagement() {
                           variant="ghost"
                           size="sm"
                           onClick={handleResetFilters}
-                          className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 text-xs"
+                          className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 px-3 py-1.5 text-xs"
                         >
                           <RotateCcw className="h-3 w-3 mr-1.5" />
                           Resetar
@@ -2571,20 +2584,20 @@ export function AutomationManagement() {
 
                 {isLoadingLogs ? (
                   <div className="flex flex-col items-center justify-center py-16">
-                    <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-3" />
-                    <p className="text-sm text-gray-500">
+                    <div className="w-6 h-6 border-2 border-gray-300 dark:border-slate-600 border-t-gray-600 dark:border-t-slate-200 rounded-full animate-spin mb-3" />
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
                       Carregando resultados...
                     </p>
                   </div>
                 ) : !logsData || logsData.data.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                      <MessageSquare className="h-6 w-6 text-gray-400" />
+                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center mb-4">
+                      <MessageSquare className="h-6 w-6 text-gray-400 dark:text-slate-400" />
                     </div>
-                    <h3 className="text-base font-medium text-gray-900 mb-1">
+                    <h3 className="text-base font-medium text-gray-900 dark:text-slate-200 mb-1">
                       Nenhum resultado encontrado
                     </h3>
-                    <p className="text-sm text-gray-500 max-w-sm">
+                    <p className="text-sm text-gray-500 dark:text-slate-400 max-w-sm">
                       {selectedAutomationId
                         ? "Esta automação ainda não enviou mensagens."
                         : "Ainda não há mensagens enviadas pelas automações."}
@@ -2594,26 +2607,26 @@ export function AutomationManagement() {
                   <div className="space-y-6">
                     {/* Tabela desktop minimalista */}
                     <div className="hidden lg:block">
-                      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                      <div className="border border-gray-200 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-50/80 border-b border-gray-100">
+                            <tr className="bg-gray-50/80 dark:bg-slate-700 border-b border-gray-100 dark:border-slate-600">
                               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
                                 Cliente
                               </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Status
                               </th>
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Tentativas
                               </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Agendado
                               </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Enviado
                               </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Erro
                               </th>
                             </tr>
@@ -2623,11 +2636,13 @@ export function AutomationManagement() {
                               <tr
                                 key={log.id}
                                 className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
-                                  index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                                  index % 2 === 0
+                                    ? "bg-white dark:bg-slate-800"
+                                    : "bg-gray-50/30 dark:bg-slate-700"
                                 }`}
                               >
                                 <td className="px-4 py-3">
-                                  <div className="font-medium text-gray-900">
+                                  <div className="font-medium text-gray-900 dark:text-slate-200">
                                     {log.client?.name || log.clientId}
                                   </div>
                                 </td>
@@ -2647,14 +2662,14 @@ export function AutomationManagement() {
                                   })()}
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-100 text-xs font-medium text-gray-700">
+                                  <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-700 dark:text-slate-200">
                                     {log.attempts}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 text-gray-600 text-xs">
+                                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 text-xs">
                                   {log.scheduledSendAt
                                     ? new Date(
-                                        log.scheduledSendAt
+                                        log.scheduledSendAt,
                                       ).toLocaleString("pt-BR", {
                                         day: "2-digit",
                                         month: "2-digit",
@@ -2663,7 +2678,7 @@ export function AutomationManagement() {
                                       })
                                     : "—"}
                                 </td>
-                                <td className="px-4 py-3 text-gray-600 text-xs">
+                                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 text-xs">
                                   {log.actualSendAt
                                     ? new Date(log.actualSendAt).toLocaleString(
                                         "pt-BR",
@@ -2672,7 +2687,7 @@ export function AutomationManagement() {
                                           month: "2-digit",
                                           hour: "2-digit",
                                           minute: "2-digit",
-                                        }
+                                        },
                                       )
                                     : "—"}
                                 </td>
@@ -2680,14 +2695,14 @@ export function AutomationManagement() {
                                   {log.lastError ? (
                                     <div className="max-w-xs">
                                       <p
-                                        className="text-xs text-red-600 truncate font-mono"
+                                        className="text-xs text-red-600 dark:text-red-500 truncate font-mono"
                                         title={log.lastError}
                                       >
                                         {log.lastError}
                                       </p>
                                     </div>
                                   ) : (
-                                    <span className="text-gray-400 text-xs">
+                                    <span className="text-gray-400 dark:text-slate-500 text-xs">
                                       —
                                     </span>
                                   )}
@@ -2704,15 +2719,15 @@ export function AutomationManagement() {
                       {logsData.data.map((log) => (
                         <div
                           key={log.id}
-                          className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50/50 transition-colors"
+                          className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:bg-gray-50/50 dark:hover:bg-slate-700 transition-colors"
                         >
                           <div className="space-y-3">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-900 truncate text-sm">
+                                <h4 className="font-semibold text-gray-900 dark:text-slate-200 truncate text-sm">
                                   {log.client?.name || log.clientId}
                                 </h4>
-                                <p className="text-xs text-gray-500 mt-0.5">
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                                   ID: {log.clientId.slice(-8)}
                                 </p>
                               </div>
@@ -2733,21 +2748,21 @@ export function AutomationManagement() {
 
                             <div className="grid grid-cols-2 gap-4 text-xs">
                               <div>
-                                <div className="text-gray-500 mb-1">
+                                <div className="text-gray-500 dark:text-slate-400 mb-1">
                                   Tentativas
                                 </div>
-                                <div className="font-semibold text-gray-900">
+                                <div className="font-semibold text-gray-900 dark:text-slate-200">
                                   {log.attempts}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-gray-500 mb-1">
+                                <div className="text-gray-500 dark:text-slate-400 mb-1">
                                   Agendado
                                 </div>
-                                <div className="text-gray-700">
+                                <div className="text-gray-700 dark:text-slate-200">
                                   {log.scheduledSendAt
                                     ? new Date(
-                                        log.scheduledSendAt
+                                        log.scheduledSendAt,
                                       ).toLocaleString("pt-BR", {
                                         day: "2-digit",
                                         month: "2-digit",
@@ -2760,11 +2775,11 @@ export function AutomationManagement() {
                             </div>
 
                             {log.actualSendAt && (
-                              <div className="text-xs pt-2 border-t border-gray-100">
-                                <div className="text-gray-500 mb-1">
+                              <div className="text-xs pt-2 border-t border-gray-100 dark:border-slate-700">
+                                <div className="text-gray-500 dark:text-slate-400 mb-1">
                                   Enviado em
                                 </div>
-                                <div className="text-gray-700">
+                                <div className="text-gray-700 dark:text-slate-200">
                                   {new Date(log.actualSendAt).toLocaleString(
                                     "pt-BR",
                                     {
@@ -2772,18 +2787,18 @@ export function AutomationManagement() {
                                       month: "2-digit",
                                       hour: "2-digit",
                                       minute: "2-digit",
-                                    }
+                                    },
                                   )}
                                 </div>
                               </div>
                             )}
 
                             {log.lastError && (
-                              <div className="text-xs pt-2 border-t border-red-100 bg-red-50/50 -mx-4 -mb-4 px-4 pb-4 mt-3">
-                                <div className="text-red-700 font-medium mb-1">
+                              <div className="text-xs pt-2 border-t border-red-100 dark:border-red-700 bg-red-50/50 dark:bg-red-900/50 -mx-4 -mb-4 px-4 pb-4 mt-3">
+                                <div className="text-red-700 dark:text-red-500 font-medium mb-1">
                                   Erro
                                 </div>
-                                <p className="text-red-600 leading-relaxed font-mono">
+                                <p className="text-red-600 dark:text-red-400 leading-relaxed font-mono">
                                   {log.lastError}
                                 </p>
                               </div>
@@ -2798,12 +2813,12 @@ export function AutomationManagement() {
                       {automations.filter(
                         (automation) =>
                           automation.type === "template" &&
-                          automation.externalFileUrl
+                          automation.externalFileUrl,
                       ).length > 0 && (
                         <div className="space-y-4">
                           <div className="flex items-center gap-2 pb-2 border-b border-muted/30">
                             <Image className="h-5 w-5 text-primary" />
-                            <h4 className="font-semibold text-base">
+                            <h4 className="font-semibold text-base text-gray-900 dark:text-slate-200">
                               Automações com Mídia
                             </h4>
                             <Badge variant="secondary" className="ml-auto">
@@ -2811,7 +2826,7 @@ export function AutomationManagement() {
                                 automations.filter(
                                   (automation) =>
                                     automation.type === "template" &&
-                                    automation.externalFileUrl
+                                    automation.externalFileUrl,
                                 ).length
                               }
                             </Badge>
@@ -2820,12 +2835,12 @@ export function AutomationManagement() {
                             .filter(
                               (automation) =>
                                 automation.type === "template" &&
-                                automation.externalFileUrl
+                                automation.externalFileUrl,
                             )
                             .map((automation, index) => (
                               <Card
                                 key={`mobile-media-${automation.id}`}
-                                className="overflow-hidden border-l-4 border-l-primary/50 hover:border-l-primary transition-colors"
+                                className="overflow-hidden border-l-4 border-l-primary/50 dark:border-l-primary/70  hover:border-l-primary transition-colors"
                               >
                                 <CardContent className="p-4">
                                   <div className="space-y-4">
@@ -2841,30 +2856,30 @@ export function AutomationManagement() {
                                             }
                                             className={`text-xs ${
                                               automation.enabled
-                                                ? "bg-green-100 text-green-800"
-                                                : "bg-gray-100 text-gray-600"
+                                                ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
+                                                : "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
                                             }`}
                                           >
                                             {automation.enabled
                                               ? "Ativa"
                                               : "Inativa"}
                                           </Badge>
-                                          <span className="text-xs text-muted-foreground">
+                                          <span className="text-xs text-muted-foreground dark:text-slate-400">
                                             Automação #{index + 1}
                                           </span>
                                         </div>
                                         <h5 className="font-medium text-sm truncate">
                                           {getChannelName(
-                                            automation.externalChannelId || ""
+                                            automation.externalChannelId || "",
                                           )}
                                         </h5>
-                                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground dark:text-slate-400 mt-1">
                                           <Clock className="h-3 w-3" />
                                           <span>{automation.sendTime}</span>
                                           <span>•</span>
                                           <span>
                                             {getDaysBeforeLabel(
-                                              automation.daysBefore
+                                              automation.daysBefore,
                                             )}
                                           </span>
                                         </div>
@@ -2872,7 +2887,7 @@ export function AutomationManagement() {
                                     </div>
 
                                     {/* Mídia */}
-                                    <div className="bg-muted/30 rounded-lg p-3">
+                                    <div className="bg-muted/30 dark:bg-muted/20 rounded-lg p-3">
                                       <div className="flex items-start gap-3">
                                         <div className="relative group">
                                           <img
@@ -2949,12 +2964,12 @@ export function AutomationManagement() {
                             {
                               length: Math.min(
                                 5,
-                                Math.ceil(logsData.total / logsData.pageSize)
+                                Math.ceil(logsData.total / logsData.pageSize),
                               ),
                             },
                             (_, i) => {
                               const totalPages = Math.ceil(
-                                logsData.total / logsData.pageSize
+                                logsData.total / logsData.pageSize,
                               );
                               let pageNumber;
 
@@ -2986,7 +3001,7 @@ export function AutomationManagement() {
                                   {pageNumber}
                                 </Button>
                               );
-                            }
+                            },
                           )}
                         </div>
 

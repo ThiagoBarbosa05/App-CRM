@@ -31,6 +31,12 @@ No test runner is currently configured. If implementing tests:
 - **Preferred:** Vitest (Vite-compatible)
 - **Run single test:** `npx vitest run path/to/file.test.ts`
 - **Run all tests:** `npx vitest`
+- Add test files with `.test.ts` or `.spec.ts` suffix (excluded from build)
+
+### Linting & Formatting
+- **No ESLint/Prettier configured** - Follow TypeScript strict mode and existing code patterns
+- Use `npm run check` for type validation
+- Match formatting of surrounding code when editing
 
 ### Type Checking
 **CRITICAL:** Always run `npm run check` before finishing any task involving code changes. This validates types across the entire monorepo.

@@ -249,12 +249,12 @@ DICAS DE PRONÚNCIA
   const updateCard = (
     cardId: string,
     field: keyof LearningCard,
-    value: string | boolean
+    value: string | boolean,
   ) => {
     setLearningCards((prev) =>
       prev.map((card) =>
-        card.id === cardId ? { ...card, [field]: value } : card
-      )
+        card.id === cardId ? { ...card, [field]: value } : card,
+      ),
     );
   };
 
@@ -289,7 +289,7 @@ DICAS DE PRONÚNCIA
   };
 
   const handleUploadComplete = (
-    result: UploadResult<Record<string, unknown>, Record<string, unknown>>
+    result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
   ) => {
     if (result.successful && result.successful.length > 0) {
       const uploadedFile = result.successful[0];
@@ -548,7 +548,7 @@ ATENDIMENTO AO CLIENTE
   const moveTraining = async (
     trainingId: string,
     direction: "up" | "down",
-    type: string
+    type: string,
   ) => {
     try {
       const response = await fetch(`/api/trainings/${trainingId}/order`, {
@@ -609,15 +609,15 @@ ATENDIMENTO AO CLIENTE
   return (
     <div>
       <div>
-        <div className="bg-white border-b border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
+        <div className="bg-white border-b dark:bg-slate-950 dark:border dark:border-slate-700 border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
           <div className="flex items-center gap-2 flex-wrap justify-between">
             <div className="flex items-center gap-4">
-              <GraduationCap className="size-6 shrink-0 text-blue-600" />
+              <GraduationCap className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Centro de Treinamento
                 </h2>
-                <p className="text-gray-600 mt-1">
+                <p className="text-gray-600 mt-1 dark:text-gray-400">
                   Vídeos, documentos e recursos para aprimorar suas habilidades
                 </p>
               </div>
@@ -638,15 +638,24 @@ ATENDIMENTO AO CLIENTE
 
         <Tabs defaultValue="videos" className="space-y-6">
           <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-            <TabsTrigger value="videos" className="flex items-center gap-2">
+            <TabsTrigger
+              value="videos"
+              className="flex items-center gap-2 dark:text-slate-300"
+            >
               <Video className="h-4 w-4" />
               <p>Vídeos de Treinamento</p>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
+            <TabsTrigger
+              value="documents"
+              className="flex items-center gap-2 dark:text-slate-300"
+            >
               <FileText className="h-4 w-4" />
               <p>Documentos e Manuais</p>
             </TabsTrigger>
-            <TabsTrigger value="scripts" className="flex items-center gap-2">
+            <TabsTrigger
+              value="scripts"
+              className="flex items-center gap-2 dark:text-slate-300"
+            >
               <FileText className="h-4 w-4" />
               <p> Script de Vendas</p>
             </TabsTrigger>
@@ -691,7 +700,7 @@ ATENDIMENTO AO CLIENTE
                       <iframe
                         src={
                           selectedVideo.attachmentUrl?.includes(
-                            "www.youtube.com"
+                            "www.youtube.com",
                           ) && !selectedVideo.attachmentUrl.includes("embed")
                             ? getYouTubeEmbedUrl(selectedVideo.attachmentUrl)
                             : selectedVideo.attachmentUrl || ""
@@ -843,7 +852,7 @@ ATENDIMENTO AO CLIENTE
                                       moveTraining(
                                         training.id,
                                         "up",
-                                        "document"
+                                        "document",
                                       )
                                     }
                                   >
@@ -855,7 +864,7 @@ ATENDIMENTO AO CLIENTE
                                       moveTraining(
                                         training.id,
                                         "down",
-                                        "document"
+                                        "document",
                                       )
                                     }
                                   >

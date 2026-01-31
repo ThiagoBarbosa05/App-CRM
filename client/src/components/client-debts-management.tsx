@@ -330,7 +330,7 @@ export default function ClientDebtsManagement() {
                 setIsAddDialogOpen(true);
                 setClientSearch("");
               }}
-              className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-white/20 hover:bg-white/30 dark:bg-orange-800 dark:hover:bg-orange-700 dark:border-orange-900 text-white  border-white/30 backdrop-blur-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300"
               variant="outline"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -360,7 +360,7 @@ export default function ClientDebtsManagement() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full h-10 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 dark:focus:border-red-500"
+                className="w-full h-10 px-3 py-2 bg-white dark:text-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 dark:focus:border-red-500"
               >
                 <option value="all">Todos os Status</option>
                 <option value="pending">Pendente</option>
@@ -465,8 +465,8 @@ export default function ClientDebtsManagement() {
                                   debt.status === "paid"
                                     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800"
                                     : new Date(debt.dueDate) < new Date()
-                                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800"
-                                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+                                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800"
+                                      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
                                 }
                               >
                                 {getStatusText(debt.status, debt.dueDate)}
