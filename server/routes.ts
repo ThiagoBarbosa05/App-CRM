@@ -314,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "ID do usuário e ID do canal são obrigatórios" });
       }
 
-      // Verificar se o usuário e o canal existem
+      // Verificar se o usuário existe
       const userExists = await db
         .select({ id: users.id })
         .from(users)
@@ -323,10 +323,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
 
-      const channelExists = await db
+      // Verificar se o canal existe na tabela local
+      let channelExists = await db
         .select({ id: serviceChannels.id })
         .from(serviceChannels)
         .where(eq(serviceChannels.id, serviceChannelId));
+      
+      // Se o canal não existe localmente, tentar sincronizar da API do Umbler
+      if (channelExists.length === 0) {
+        try {
+          const { getChannels } = await import("./integrations/umbler");
+          const umblerChannels = await getChannels();
+          
+          // Buscar o canal específico na resposta do Umbler
+          const umblerChannel = umblerChannels.find((ch: any) => ch.id === serviceChannelId);
+          
+          if (umblerChannel) {
+            // Inserir o canal na tabela local (upsert)
+            await db
+              .insert(serviceChannels)
+              .values({
+                id: umblerChannel.id,
+                name: umblerChannel.name,
+                phoneNumber: umblerChannel.phoneNumber || null,
+              })
+              .onConflictDoUpdate({
+                target: serviceChannels.id,
+                set: {
+                  name: umblerChannel.name,
+                  phoneNumber: umblerChannel.phoneNumber || null,
+                },
+              });
+            
+            // Verificar novamente
+            channelExists = await db
+              .select({ id: serviceChannels.id })
+              .from(serviceChannels)
+              .where(eq(serviceChannels.id, serviceChannelId));
+          }
+        } catch (syncError) {
+          console.error("Erro ao sincronizar canal do Umbler:", syncError);
+        }
+      }
+      
       if (channelExists.length === 0) {
         return res
           .status(404)
