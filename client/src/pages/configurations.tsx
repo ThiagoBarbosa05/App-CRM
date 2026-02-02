@@ -48,23 +48,23 @@ export default function Configurations() {
   // Verificar se o usuário é administrador
   if (!user || user.role !== "admin") {
     return (
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen bg-gray-50 dark:bg-slate-800">
         <div className="flex-1 overflow-auto">
           <div className="p-6 flex items-center justify-center h-full">
             <Card className="w-full max-w-md">
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
-                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-200" />
                 </div>
-                <CardTitle className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <CardTitle className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                   Acesso Restrito
                 </CardTitle>
-                <CardDescription className="text-gray-600 dark:text-gray-400">
+                <CardDescription className="text-gray-600 dark:text-slate-400">
                   Esta página é restrita apenas para administradores
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Você não possui permissão para acessar as configurações do
                   sistema. Entre em contato com um administrador se precisar
                   fazer alterações.

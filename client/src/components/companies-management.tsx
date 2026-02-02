@@ -395,7 +395,7 @@ export function CompaniesManagement({ currentUser }: CompaniesManagementProps) {
         </div>
       </div>
 
-      <div className="mt-5 bg-white shadow-lg dark:bg-slate-800 dark:border dark:border-slate-950 p-5 rounded-lg">
+      <div className="mt-5 bg-white shadow-lg dark:bg-slate-800/50 dark:border dark:border-slate-950 p-5 rounded-lg">
         <div className="flex w-full items-center gap-4">
           <div className="relative w-full flex-1 max-w-sm">
             <Search className="absolute left-2 top-1/2 dark:text-slate-400 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

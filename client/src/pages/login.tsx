@@ -132,7 +132,7 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-800 via-purple-600 to-purple-400 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br dark:from-slate-950 dark:to-indigo-900  from-purple-800 via-purple-600 to-purple-400 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       {/* Background decorativo */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         {/* <div
@@ -143,14 +143,14 @@ export default function Login({ onLogin }: LoginProps) {
         /> */}
       </div>
 
-      <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm border-0 shadow-2xl ring-1 ring-white/20 transform transition-all duration-300 hover:shadow-3xl">
+      <Card className="w-full max-w-md bg-white/95 dark:bg-slate-900 dark:border-0 backdrop-blur-sm shadow-md dark:shadow-slate-950 transform transition-all duration-300 hover:shadow-3xl">
         <CardHeader className="text-center pb-2 pt-8">
           {/* Logo com animação */}
           <div className="flex justify-center mb-6">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-600 rounded-full blur-lg opacity-30 animate-pulse" />
-              <div className="relative bg-gradient-to-r from-primary to-purple-600 p-4 rounded-full shadow-lg">
-                <Wine className="h-8 w-8 " />
+              <div className="relative bg-gradient-to-r from-primary to-purple-600 dark:from-purple-900 dark:to-purple-950 p-4 rounded-full shadow-lg">
+                <Wine className="h-8 w-8 dark:text-white" />
               </div>
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function Login({ onLogin }: LoginProps) {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text mb-2">
             CRM Grand Cru
           </CardTitle>
-          <CardDescription className="text-gray-600 text-sm leading-relaxed px-2">
+          <CardDescription className="text-gray-600 text-sm dark:text-slate-400 leading-relaxed px-2">
             Sistema de gestão e relacionamento com clientes
           </CardDescription>
         </CardHeader>

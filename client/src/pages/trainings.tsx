@@ -722,7 +722,7 @@ ATENDIMENTO AO CLIENTE
                 {trainingVideos &&
                   trainingVideos.map((video, index) => (
                     <div
-                      className="w-full bg-white transition-transform ease-in duration-100 hover:scale-105 flex flex-col border overflow-hidden border-gray-200 rounded-lg shadow-lg min-h-96 relative"
+                      className="w-full bg-white dark:bg-slate-800 transition-transform ease-in duration-100 hover:scale-105 flex flex-col border overflow-hidden border-gray-200 dark:border-slate-700 rounded-lg shadow-lg min-h-96 relative"
                       key={video.id}
                     >
                       {isAdmin && (
@@ -732,7 +732,7 @@ ATENDIMENTO AO CLIENTE
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="bg-white/90 hover:bg-white"
+                                className="bg-white/90 hover:bg-white dark:bg-slate-800/90 dark:hover:bg-slate-800"
                               >
                                 <MoreVertical className="size-4" />
                               </Button>
@@ -779,8 +779,8 @@ ATENDIMENTO AO CLIENTE
                         className="p-4 flex-1 space-y-5 cursor-pointer"
                       >
                         <div>
-                          <p className="text-lg font-medium">{video.title}</p>
-                          <p className="text-sm leading-none">
+                          <p className="text-lg font-medium dark:text-slate-200">{video.title}</p>
+                          <p className="text-sm leading-none dark:text-slate-400">
                             {video.description}
                           </p>
                         </div>
@@ -800,10 +800,10 @@ ATENDIMENTO AO CLIENTE
             <div className="flex flex-col gap-6">
               {/* Cabeçalho da seção */}
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                   Documentos e Manuais
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-slate-400">
                   Material de apoio e documentação técnica
                 </p>
               </div>
@@ -813,30 +813,30 @@ ATENDIMENTO AO CLIENTE
                 {trainingDocument &&
                   trainingDocument.map((training, index) => (
                     <div
-                      className="bg-white w-full shadow-lg rounded-lg overflow-hidden border border-gray-200"
+                      className="bg-white dark:bg-slate-800 w-full shadow-lg rounded-lg overflow-hidden border dark:border-slate-700 border-gray-200"
                       key={training.id}
                     >
                       {/* Cabeçalho do documento */}
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 p-6 border-b">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="bg-white p-3 rounded-full shadow-sm">
-                              <File className="size-8 text-blue-600" />
+                            <div className="bg-white dark:bg-blue-700 p-3 rounded-full shadow-sm">
+                              <File className="size-8 text-blue-600 dark:text-blue-200" />
                             </div>
                             <div>
-                              <h3 className="text-xl font-bold text-gray-900">
+                              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-200">
                                 {training.title}
                               </h3>
-                              <p className="text-gray-600 mt-1">
+                              <p className="text-gray-600 dark:text-slate-400 mt-1">
                                 {training.description}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <Badge variant="secondary" className="px-3 py-1">
+                            <Badge variant="secondary" className="px-3 x py-1">
                               Documento #{index + 1}
                             </Badge>
-                            <Badge variant="outline" className="px-3 py-1">
+                            <Badge variant="outline" className="px-3 dark:border-blue-200 dark:text-blue-400 py-1">
                               {training.category}
                             </Badge>
                             {isAdmin && (
@@ -880,7 +880,7 @@ ATENDIMENTO AO CLIENTE
 
                       {/* Visualização do documento */}
                       <div className="p-6">
-                        <div className="bg-gray-50 rounded-lg overflow-hidden border-2 border-dashed border-gray-200">
+                        <div className="bg-gray-50 dark:bg-slate-900 dark:border-slate-700 rounded-lg overflow-hidden border-2 border-dashed border-gray-200">
                           <div className="w-full h-[700px] bg-white flex items-center justify-center">
                             <iframe
                               src={`https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/${training.attachmentUrl}`}
@@ -928,14 +928,14 @@ ATENDIMENTO AO CLIENTE
               {scripts?.map((script, index) => (
                 <div
                   key={script.id}
-                  className="bg-white flex flex-col items-start p-5 rounded-md shadow-md"
+                  className="bg-white dark:bg-slate-700 flex flex-col items-start p-5 rounded-md shadow-md"
                 >
                   <div className="flex items-center gap-2 mb-4 w-full">
-                    <FileText className="flex-shrink-0" />
+                    <FileText className="flex-shrink-0 dark:text-slate-400" />
 
                     <div className="flex-1">
-                      <h4 className="text-xl font-medium">{script.title}</h4>
-                      <p className="text-sm">{script.description}</p>
+                      <h4 className="text-xl font-medium dark:text-slate-100">{script.title}</h4>
+                      <p className="text-sm dark:text-slate-300">{script.description}</p>
                     </div>
 
                     {isAdmin && (
@@ -973,7 +973,7 @@ ATENDIMENTO AO CLIENTE
                       wordWrap: "break-word",
                       color: "white",
                     }}
-                    className="prose w-full flex-1 p-4 preview-content leading-none max-w-none max-h-96 overflow-x-hidden break-words"
+                    className="prose w-full flex-1 dark:text-slate-400 p-4 preview-content leading-none max-w-none max-h-96 overflow-x-hidden break-words"
                     dangerouslySetInnerHTML={{
                       __html: script.content || (
                         <p>Nenhum conteúdo encontrado</p>

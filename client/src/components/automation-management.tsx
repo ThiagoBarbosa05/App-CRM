@@ -1237,8 +1237,8 @@ export function AutomationManagement() {
     const configs = {
       enviado: {
         label: "Enviado",
-        color: "bg-green-500",
-        textColor: "text-green-600",
+        color: "bg-green-500 dark:bg-green-800",
+        textColor: "text-green-600 dark:text-green-200",
         bgColor: "bg-green-50",
         icon: "✓",
       },
@@ -1775,7 +1775,7 @@ export function AutomationManagement() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="p-3 bg-gradient-to-br from-primary to-primary/80 dark:border dark:border-slate-700 rounded-xl shadow-lg">
-                  <TestTube className="h-6 w-6" />
+                  <TestTube className="h-6 w-6 dark:text-slate-400" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background shadow-sm" />
               </div>
@@ -2611,7 +2611,7 @@ export function AutomationManagement() {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="bg-gray-50/80 dark:bg-slate-700 border-b border-gray-100 dark:border-slate-600">
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                                 Cliente
                               </th>
                               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
@@ -2635,7 +2635,7 @@ export function AutomationManagement() {
                             {logsData.data.map((log, index) => (
                               <tr
                                 key={log.id}
-                                className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
+                                className={`border-b border-gray-50 dark:border-0 hover:bg-gray-50/50 transition-colors ${
                                   index % 2 === 0
                                     ? "bg-white dark:bg-slate-800"
                                     : "bg-gray-50/30 dark:bg-slate-700"
@@ -2795,7 +2795,7 @@ export function AutomationManagement() {
 
                             {log.lastError && (
                               <div className="text-xs pt-2 border-t border-red-100 dark:border-red-700 bg-red-50/50 dark:bg-red-900/50 -mx-4 -mb-4 px-4 pb-4 mt-3">
-                                <div className="text-red-700 dark:text-red-500 font-medium mb-1">
+                                <div className="text-red-700 dark:text-red-300 font-medium mb-1">
                                   Erro
                                 </div>
                                 <p className="text-red-600 dark:text-red-400 leading-relaxed font-mono">
@@ -2931,17 +2931,17 @@ export function AutomationManagement() {
                       )}
                     </div>
                     {/* Paginação minimalista */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-6 border-t border-gray-200">
-                      <div className="text-xs text-gray-500 text-center sm:text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                      <div className="text-xs text-gray-500 dark:text-slate-200 text-center sm:text-left">
                         Página{" "}
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-slate-200">
                           {logsData.page}
                         </span>{" "}
                         de{" "}
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-slate-200">
                           {Math.ceil(logsData.total / logsData.pageSize)}
                         </span>
-                        <span className="hidden sm:inline text-gray-400">
+                        <span className="hidden sm:inline text-gray-400 dark:text-slate-200">
                           {" "}
                           • {logsData.total} resultado
                           {logsData.total !== 1 ? "s" : ""}
@@ -2953,7 +2953,7 @@ export function AutomationManagement() {
                           size="sm"
                           onClick={() => setLogsPage((p) => Math.max(1, p - 1))}
                           disabled={logsData.page === 1}
-                          className="px-3 h-8 text-gray-600 hover:bg-gray-100 disabled:hover:bg-transparent border border-gray-200 disabled:border-gray-100"
+                          className="px-3 h-8 text-gray-600 dark:text-slate-200 dark:hover:bg-slate-800 hover:bg-gray-100 disabled:hover:bg-transparent border border-gray-200 dark:border-slate-700 disabled:border-gray-100"
                         >
                           <span className="hidden sm:inline">Anterior</span>
                           <span className="sm:hidden">‹</span>

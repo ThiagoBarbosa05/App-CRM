@@ -233,15 +233,15 @@ export default function Products() {
   const getTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
       ESPUMANTE:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-400",
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100",
       BRANCO:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400",
-      ROSE: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-400",
-      TINTO: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400",
+        "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100",
+      ROSE: "bg-pink-100 text-pink-800 dark:bg-pink-800 dark:text-pink-100",
+      TINTO: "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100",
       "PÓS-REFEIÇÃO":
-        "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-400",
+        "bg-purple-100 text-purple-800 dark:bg-purple-100 dark:text-purple-100",
     };
-    return colors[type] || "bg-gray-100 text-gray-800";
+    return colors[type] || "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100";
   };
 
   return (
@@ -387,7 +387,7 @@ export default function Products() {
               </CardContent>
             </Card>
 
-            <Card className="border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <Card className="border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
               <CardHeader className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-6">
                 <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900 dark:text-slate-200">
                   <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
@@ -494,7 +494,7 @@ export default function Products() {
         </Card>
       )}
 
-      <Card className="border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <Card className="border border-gray-200 overflow-hidden dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
         <CardHeader className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900 dark:text-slate-200">
@@ -559,8 +559,8 @@ export default function Products() {
             </select>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <CardContent className="p-0 ">
+          <div className="border border-gray-200 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-gray-200 bg-gray-50 dark:bg-slate-800">
@@ -715,7 +715,7 @@ export default function Products() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditProduct(product)}
-                            className="h-8 w-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-slate-800"
+                            className="h-8 w-8 text-gray-600 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-slate-800"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -724,7 +724,7 @@ export default function Products() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-slate-800"
+                                className="h-8 w-8 text-gray-600 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-slate-800"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

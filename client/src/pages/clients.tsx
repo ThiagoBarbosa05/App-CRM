@@ -175,7 +175,7 @@ export default function Clients() {
     <div className="bg-gray-50 dark:bg-slate-900">
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 px-6 py-4 rounded-lg shadow-sm">
+        <div className="bg-white dark:bg-slate-950 border-b dark:border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
           <div className="flex items-center gap-2 flex-wrap justify-between">
             <div className="flex items-center gap-4">
               <Users className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
@@ -217,7 +217,7 @@ export default function Clients() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-6 py-4 rounded-lg shadow-sm">
+        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
           <div className="flex flex-col lg:flex-row gap-2">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
@@ -284,9 +284,9 @@ export default function Clients() {
         </div>
 
         {/* Clients Table */}
-        <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
           {/* Header da tabela com informações de paginação */}
-          <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+          <div className="bg-gradient-to-r from-gray-50  to-slate-50 dark:from-slate-900 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">

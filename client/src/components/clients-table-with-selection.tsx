@@ -203,7 +203,7 @@ export default function ClientsTableWithSelection({
   return (
     <div className="space-y-6">
       {selectedClientIds.length > 0 && (
-        <div className="flex items-center justify-between  mt-6 mx-3 p-4 bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 from-blue-50 to-indigo-50 border-2 border-blue-200 dark:border-slate-700 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between  mt-6 mx-3 p-4 bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 from-blue-50 to-indigo-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
               <User className="h-4 w-4 text-blue-600" />
@@ -234,11 +234,11 @@ export default function ClientsTableWithSelection({
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-slate-950  shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 border-b-2 border-gray-200 dark:border-slate-700">
+              <tr className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 border-b border-gray-200 dark:border-slate-700">
                 <th className="p-4 text-left w-12">
                   <div className="flex items-center justify-center">
                     <Checkbox
@@ -416,8 +416,8 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">
-                        <div className="p-1 bg-green-100 rounded-md mr-2">
-                          <Phone className="h-3 w-3 text-green-600" />
+                        <div className="p-1 bg-green-100 dark:bg-green-800 rounded-md mr-2">
+                          <Phone className="h-3 w-3 text-green-600 dark:text-green-100" />
                         </div>
                         <a
                           href={`tel:${client.phone}`}
@@ -430,8 +430,8 @@ export default function ClientsTableWithSelection({
                       </div>
                       {client.email && (
                         <div className="flex items-center text-sm text-gray-600">
-                          <div className="p-1 bg-gray-100 rounded-md mr-2">
-                            <Mail className="h-3 w-3 text-gray-500" />
+                          <div className="p-1 bg-gray-100 rounded-md dark:bg-slate-800 mr-2">
+                            <Mail className="h-3 w-3 text-gray-500 dark:text-slate-100" />
                           </div>
                           <span
                             className="truncate dark:text-slate-200"
@@ -445,8 +445,8 @@ export default function ClientsTableWithSelection({
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <div className="p-1 bg-purple-100 rounded-md">
-                        <User className="h-3 w-3 text-purple-600" />
+                      <div className="p-1 bg-purple-100 dark:bg-purple-800 rounded-md">
+                        <User className="h-3 w-3 text-purple-600 dark:text-purple-100" />
                       </div>
                       <span className="text-sm font-medium text-gray-900 dark:text-slate-400 truncate">
                         {(() => {
@@ -607,17 +607,17 @@ export default function ClientsTableWithSelection({
       </div>
 
       {(currentPage > 1 || hasNextPage) && (
-        <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800  p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <User className="h-4 w-4 text-blue-600" />
+              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                <User className="h-4 w-4 text-blue-600 dark:text-blue-100" />
               </div>
               <div className="text-sm">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-gray-900 dark:text-slate-400">
                   Mostrando {clients.length} clientes
                 </span>
-                <span className="text-gray-500 ml-2">
+                <span className="text-gray-500 dark:text-slate-400 ml-2">
                   • Página {currentPage}
                 </span>
               </div>
@@ -648,7 +648,7 @@ export default function ClientsTableWithSelection({
               </Button>
 
               <div className="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-sm">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-400">
                   Página {currentPage}
                 </span>
               </div>

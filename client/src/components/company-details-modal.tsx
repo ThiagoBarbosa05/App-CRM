@@ -190,7 +190,7 @@ export default function CompanyDetailsModal({
             <div className="space-y-6">
               {/* Informações básicas */}
               <Card>
-                <CardHeader className="border-b dark:bg-slate-800 border-gray-100 rounded-tl-md rounded-tr-md bg-gray-50">
+                <CardHeader className="border-b dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-tl-md rounded-tr-md bg-gray-50">
                   <CardTitle className="flex items-center gap-3 text-lg">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md dark:bg-slate-900 bg-blue-100">
                       <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -357,7 +357,7 @@ export default function CompanyDetailsModal({
                 company.state ||
                 company.cep) && (
                 <Card>
-                  <CardHeader className="border-b border-gray-100 bg-gray-50 dark:bg-slate-800 rounded-tl-md rounded-tr-md">
+                  <CardHeader className="border-b border-gray-100 bg-gray-50 dark:border-slate-700 dark:bg-slate-800 rounded-tl-md rounded-tr-md">
                     <CardTitle className="flex items-center gap-3 text-lg">
                       <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-100 dark:bg-slate-900">
                         <MapPin className="h-4 w-4 text-purple-600 dark:text-purple-400" />
@@ -369,7 +369,7 @@ export default function CompanyDetailsModal({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {company.address && <p>{company.address}</p>}
+                      {company.address && <p className="dark:text-slate-400">{company.address}</p>}
                       {company.neighborhood && (
                         <p className="text-sm text-muted-foreground dark:text-slate-400">
                           Bairro: {company.neighborhood}

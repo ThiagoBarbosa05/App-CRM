@@ -258,8 +258,8 @@ export default function UmblerSyncManagement() {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">Carregando status...</p>
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 dark:border-t-blue-400 dark:border-blue-100 rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-500 dark:text-slate-300">Carregando status...</p>
         </div>
       </div>
     );
@@ -270,21 +270,21 @@ export default function UmblerSyncManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
             Sincronização Umbler
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
             Gerencie a sincronização automática de tags entre Umbler e CRM
           </p>
         </div>
         <div className="flex items-center gap-2">
           {status?.scheduler.isActive ? (
-            <Badge className="bg-green-100 text-green-800 border-green-200 gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 dark:border-green-700 border-green-200 gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500 dark:bg-green-200 animate-pulse" />
               Ativo
             </Badge>
           ) : (
-            <Badge className="bg-gray-100 text-gray-800 border-gray-200 gap-1">
+            <Badge className="bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 border-gray-200 gap-1">
               <div className="w-2 h-2 rounded-full bg-gray-500" />
               Inativo
             </Badge>
@@ -294,21 +294,21 @@ export default function UmblerSyncManagement() {
 
       {/* Sync em andamento */}
       {status?.isRunning && (
-        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <Card className="border-2 border-blue-200 dark:from-blue-900 dark:to-indigo-900 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500 rounded-lg">
+              <div className="p-3 bg-blue-500 dark:bg-blue-400 rounded-lg">
                 <RefreshCcw className="h-6 w-6 text-white animate-spin" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-blue-900 text-lg">
+                <p className="font-semibold text-blue-900 dark:text-blue-100 text-lg">
                   Sincronização em andamento
                 </p>
-                <p className="text-sm text-blue-700 mt-1">
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                   Processando clientes... Aguarde a conclusão.
                 </p>
               </div>
-              <Activity className="h-8 w-8 text-blue-400 animate-pulse" />
+              <Activity className="h-8 w-8 text-blue-400 dark:text-blue-200 animate-pulse" />
             </div>
           </CardContent>
         </Card>
@@ -316,39 +316,39 @@ export default function UmblerSyncManagement() {
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-blue-50 to-indigo-50 border-l-4 border-l-blue-500">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 border-l-4 border-l-blue-500 dark:border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
-            <CardTitle className="text-sm font-semibold text-gray-700">
+            <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-100">
               Total de Clientes
             </CardTitle>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-600 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-100" />
             </div>
           </CardHeader>
           <CardContent className="px-6 pb-6">
-            <div className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="text-3xl font-bold text-gray-900 dark:text-slate-200 mb-2">
               {status?.stats.total || 0}
             </div>
-            <p className="text-sm text-gray-600 font-medium">
+            <p className="text-sm text-gray-600 dark:text-slate-300 font-medium">
               Clientes no sistema
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-l-green-500">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-green-50 dark:from-green-900 dark:to-emerald-900 dark:border-l-green-500 to-emerald-50 border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
-            <CardTitle className="text-sm font-semibold text-gray-700">
+            <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-100">
               Sincronizados
             </CardTitle>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-600 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-100" />
             </div>
           </CardHeader>
           <CardContent className="px-6 pb-6">
-            <div className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="text-3xl font-bold text-gray-900 dark:text-slate-300 mb-2">
               {status?.stats.synced || 0}
             </div>
-            <p className="text-sm text-gray-600 font-medium">
+            <p className="text-sm text-gray-600 dark:text-slate-300 font-medium">
               {status?.stats.total
                 ? `${Math.round(
                     ((status.stats.synced || 0) / status.stats.total) * 100
@@ -358,39 +358,39 @@ export default function UmblerSyncManagement() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-yellow-50 to-amber-50 border-l-4 border-l-yellow-500">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-yellow-50 dark:from-yellow-900 dark:to-amber-900 dark:border-l-yellow-500 to-amber-50 border-l-4 border-l-yellow-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
-            <CardTitle className="text-sm font-semibold text-gray-700">
+            <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-100">
               Pendentes
             </CardTitle>
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="h-5 w-5 text-yellow-600" />
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-500 rounded-lg">
+              <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-100" />
             </div>
           </CardHeader>
           <CardContent className="px-6 pb-6">
-            <div className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="text-3xl font-bold text-gray-900 dark:text-slate-200 mb-2">
               {status?.stats.pending || 0}
             </div>
-            <p className="text-sm text-gray-600 font-medium">
+            <p className="text-sm text-gray- dark:text-slate-300 font-medium">
               Aguardando sincronização
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-red-50 to-rose-50 border-l-4 border-l-red-500">
+        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-red-50 dark:from-red-900 dark:to-rose-900 dark:border-l-red-500 to-rose-50 border-l-4 border-l-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
-            <CardTitle className="text-sm font-semibold text-gray-700">
+            <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-100">
               Erros
             </CardTitle>
-            <div className="p-2 bg-red-100 rounded-lg">
-              <XCircle className="h-5 w-5 text-red-600" />
+            <div className="p-2 bg-red-100 dark:bg-red-600 rounded-lg">
+              <XCircle className="h-5 w-5 text-red-600 dark:text-red-100" />
             </div>
           </CardHeader>
           <CardContent className="px-6 pb-6">
-            <div className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="text-3xl font-bold text-gray-900 dark:text-slate-200 mb-2">
               {status?.stats.error || 0}
             </div>
-            <p className="text-sm text-gray-600 font-medium">
+            <p className="text-sm text-gray-600 dark:text-slate-300 font-medium">
               Falhas na sincronização
             </p>
           </CardContent>
@@ -408,7 +408,7 @@ export default function UmblerSyncManagement() {
                 Scheduler Automático
               </CardTitle>
               {status?.scheduler.isActive ? (
-                <Badge className="bg-green-100 text-green-800 border-green-200">
+                <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-700">
                   Ativo
                 </Badge>
               ) : (

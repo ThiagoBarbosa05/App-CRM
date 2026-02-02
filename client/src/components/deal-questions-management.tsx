@@ -632,11 +632,11 @@ export function DealQuestionsManagement() {
       <Card>
         <CardContent className="flex items-center justify-center p-8">
           <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <AlertCircle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-2">
               Erro ao carregar perguntas
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-slate-400 mb-4">
               {questionsError instanceof Error
                 ? questionsError.message
                 : "Erro desconhecido"}
@@ -660,18 +660,18 @@ export function DealQuestionsManagement() {
   return (
     <div className="space-y-6">
       {/* Header minimalista */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="bg-white border dark:bg-slate-800 dark:border-slate-700 border-gray-200 rounded-lg p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <HelpCircle className="h-5 w-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-800 rounded-lg flex items-center justify-center">
+                <HelpCircle className="h-5 w-5 text-blue-600 dark:text-blue-200" />
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
                 Questionário dos Deals
               </h1>
             </div>
-            <p className="text-sm text-gray-600 max-w-2xl">
+            <p className="text-sm text-gray-600 dark:text-slate-400 max-w-2xl">
               Configure as perguntas que aparecem nos deals para coletar
               informações dos clientes
             </p>
@@ -766,13 +766,13 @@ export function DealQuestionsManagement() {
 
       <Tabs defaultValue="questions" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="questions">Questionário</TabsTrigger>
-          <TabsTrigger value="statistics">Estatísticas de Uso</TabsTrigger>
+          <TabsTrigger value="questions" className="dark:text-slate-300">Questionário</TabsTrigger>
+          <TabsTrigger value="statistics" className="dark:text-slate-300">Estatísticas de Uso</TabsTrigger>
         </TabsList>
 
         <TabsContent value="questions">
           {/* Filtros minimalistas */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="bg-white border dark:bg-slate-800 dark:border-slate-700 border-gray-200 mb-4  rounded-lg p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Switch
@@ -788,8 +788,8 @@ export function DealQuestionsManagement() {
                 </Label>
               </div>
 
-              <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded border">
-                <span className="font-medium text-gray-900">
+              <div className="text-xs text-gray-500 dark:text-slate-400 dark:border-slate-700 dark:bg-slate-900 bg-gray-50 px-3 py-2 rounded border">
+                <span className="font-medium text-gray-900 dark:text-slate-100">
                   {filteredQuestions.length}
                 </span>{" "}
                 pergunta{filteredQuestions.length !== 1 ? "s" : ""} encontrada
@@ -799,23 +799,23 @@ export function DealQuestionsManagement() {
           </div>
 
           {/* Lista de Perguntas */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200 rounded-lg overflow-hidden">
             {questionsLoading ? (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-                <span className="ml-3 text-gray-600">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-600 dark:text-slate-400" />
+                <span className="ml-3 text-gray-600 dark:text-slate-400">
                   Carregando perguntas...
                 </span>
               </div>
             ) : filteredQuestions.length === 0 ? (
               <div className="text-center p-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <HelpCircle className="h-8 w-8 text-gray-400" />
+                <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <HelpCircle className="h-8 w-8 text-gray-400 dark:text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-400 mb-2">
                   Nenhuma pergunta encontrada
                 </h3>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                <p className="text-gray-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
                   {questions.length === 0
                     ? "Comece criando sua primeira pergunta do questionário."
                     : "Nenhuma pergunta corresponde aos filtros selecionados."}
@@ -833,36 +833,36 @@ export function DealQuestionsManagement() {
                 <div className="hidden lg:block">
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
+                      <thead className="bg-gray-50 dark:bg-slate-800 dark:border-slate-700 border-b border-gray-200">
                         <tr>
-                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                             Pergunta
                           </th>
-                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                             Tipo
                           </th>
-                          <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 dark:text-slate-400uppercase tracking-wide">
                             Obrigatória
                           </th>
-                          <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                             Status
                           </th>
-                          <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                             Ações
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                         {filteredQuestions.map((question, index) => (
                           <tr
                             key={question.id}
-                            className={`hover:bg-gray-50/50 transition-colors ${
-                              index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                            className={`hover:bg-gray-50/50 dark:text-slate-800/50 transition-colors ${
+                              index % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-gray-50/30 dark:bg-slate-800/30"
                             }`}
                           >
                             <td className="py-4 px-4">
                               <div className="max-w-md">
-                                <p className="font-medium text-gray-900 mb-1">
+                                <p className="font-medium text-gray-900 dark:text-slate-200 mb-1">
                                   {question.question}
                                 </p>
                                 {question.helpText && (
