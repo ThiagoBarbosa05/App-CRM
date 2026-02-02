@@ -30,17 +30,17 @@ let lastExecutionResult: any = null;
  * @param cronExpression - Expressão cron customizada (opcional)
  */
 export function startUmblerSyncScheduler(
-  cronExpression: string = "*/5 8-22 * * *"
+  cronExpression: string = "*/5 8-22 * * *",
 ): void {
   if (syncJob) {
     console.log(
-      "[UmblerSyncScheduler] ⚠️ Scheduler já está ativo, cancelando anterior..."
+      "[UmblerSyncScheduler] ⚠️ Scheduler já está ativo, cancelando anterior...",
     );
     syncJob.stop();
   }
 
   console.log(
-    `[UmblerSyncScheduler] 🚀 Iniciando scheduler com expressão: ${cronExpression}`
+    `[UmblerSyncScheduler] 🚀 Iniciando scheduler com expressão: ${cronExpression}`,
   );
   console.log(`[UmblerSyncScheduler] 📅 Próxima execução será em ~5 minutos`);
 
@@ -49,7 +49,7 @@ export function startUmblerSyncScheduler(
     async () => {
       const startTime = new Date();
       console.log(
-        `\n[UmblerSyncScheduler] ⏰ Executando sincronização agendada - ${startTime.toISOString()}`
+        `\n[UmblerSyncScheduler] ⏰ Executando sincronização agendada - ${startTime.toISOString()}`,
       );
 
       try {
@@ -60,22 +60,22 @@ export function startUmblerSyncScheduler(
 
         if (result.success) {
           console.log(
-            `[UmblerSyncScheduler] ✅ Sincronização concluída com sucesso`
+            `[UmblerSyncScheduler] ✅ Sincronização concluída com sucesso`,
           );
           console.log(
             `[UmblerSyncScheduler] 📊 Estatísticas:`,
-            JSON.stringify(result.stats, null, 2)
+            JSON.stringify(result.stats, null, 2),
           );
         } else {
           console.error(
-            `[UmblerSyncScheduler] ❌ Sincronização falhou: ${result.message}`
+            `[UmblerSyncScheduler] ❌ Sincronização falhou: ${result.message}`,
           );
         }
 
         if (result.errors && result.errors.length > 0) {
           console.error(
             `[UmblerSyncScheduler] ⚠️ ${result.errors.length} erros encontrados:`,
-            result.errors.slice(0, 5)
+            result.errors.slice(0, 5),
           );
         }
       } catch (error) {
@@ -83,7 +83,7 @@ export function startUmblerSyncScheduler(
           error instanceof Error ? error.message : String(error);
         console.error(
           `[UmblerSyncScheduler] 💥 Erro crítico na execução agendada:`,
-          errorMessage
+          errorMessage,
         );
         lastExecutionResult = {
           success: false,
@@ -95,16 +95,16 @@ export function startUmblerSyncScheduler(
       const endTime = new Date();
       const duration = endTime.getTime() - startTime.getTime();
       console.log(
-        `[UmblerSyncScheduler] ⏱️ Execução finalizada em ${duration}ms\n`
+        `[UmblerSyncScheduler] ⏱️ Execução finalizada em ${duration}ms\n`,
       );
     },
     {
       timezone: "America/Sao_Paulo",
-    }
+    },
   );
 
   console.log(
-    "[UmblerSyncScheduler] ✅ Scheduler ativado e aguardando próxima execução"
+    "[UmblerSyncScheduler] ✅ Scheduler ativado e aguardando próxima execução",
   );
 }
 
@@ -146,18 +146,18 @@ export function restartUmblerSyncScheduler(cronExpression?: string): void {
 }
 
 // Auto-start do scheduler quando o módulo é importado
-console.log("[UmblerSyncScheduler] 🔧 Inicializando módulo de agendamento...");
-startUmblerSyncScheduler();
+// console.log("[UmblerSyncScheduler] 🔧 Inicializando módulo de agendamento...");
+// startUmblerSyncScheduler();
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log(
-    "[UmblerSyncScheduler] 📴 Recebido SIGTERM, parando scheduler..."
-  );
-  stopUmblerSyncScheduler();
-});
+// process.on("SIGTERM", () => {
+//   console.log(
+//     "[UmblerSyncScheduler] 📴 Recebido SIGTERM, parando scheduler..."
+//   );
+//   stopUmblerSyncScheduler();
+// });
 
-process.on("SIGINT", () => {
-  console.log("[UmblerSyncScheduler] 📴 Recebido SIGINT, parando scheduler...");
-  stopUmblerSyncScheduler();
-});
+// process.on("SIGINT", () => {
+//   console.log("[UmblerSyncScheduler] 📴 Recebido SIGINT, parando scheduler...");
+//   stopUmblerSyncScheduler();
+// });
