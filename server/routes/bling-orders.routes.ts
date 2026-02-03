@@ -75,6 +75,36 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bling-orders/filters/sellers
+ * @desc    Lista vendedores disponíveis com contagem de pedidos
+ * @access  Private
+ */
+router.get(
+  "/filters/sellers",
+  blingOrdersController.getAvailableSellers.bind(blingOrdersController)
+);
+
+/**
+ * @route   GET /api/bling-orders/filters/stores
+ * @desc    Lista lojas disponíveis com contagem de pedidos
+ * @access  Private
+ */
+router.get(
+  "/filters/stores",
+  blingOrdersController.getAvailableStores.bind(blingOrdersController)
+);
+
+/**
+ * @route   GET /api/bling-orders/filters/situations
+ * @desc    Lista situações disponíveis com contagem de pedidos
+ * @access  Private
+ */
+router.get(
+  "/filters/situations",
+  blingOrdersController.getAvailableSituations.bind(blingOrdersController)
+);
+
+/**
  * @route   GET /api/bling-orders/:blingOrderId
  * @desc    Busca um pedido específico por ID do Bling
  * @params  blingOrderId: number
@@ -84,5 +114,6 @@ router.get(
   "/:blingOrderId",
   blingOrdersController.getOrderById.bind(blingOrdersController)
 );
+
 
 export default router;

@@ -262,27 +262,27 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
           </Link>
         )}
 
-        {/* {(user?.role === "admin" || user?.role === "gerente") && (
-          <Link href="/bling/vendas">
+        {(user?.role === "admin" || user?.role === "gerente") && (
+          <Link href="/vendas">
             <button
               onClick={closeMobileMenu}
               className={cn(
                 "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/bling/vendas"
+                location === "/vendas"
                   ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
               )}
               style={
-                location === "/bling/vendas"
+                location === "/vendas"
                   ? { backgroundColor: "#9334ea" }
                   : {}
               }
             >
               <ShoppingCart className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Vendas Bling</span>
+              <span className="mobile-text">Vendas</span>
             </button>
           </Link>
-        )} */}
+        )} 
 
         <Link href="/assistente-ia">
           <button

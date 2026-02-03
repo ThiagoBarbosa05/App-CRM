@@ -16,17 +16,13 @@ import {
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import type { BlingOrder } from "@/hooks/use-bling-orders";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, InboxIcon } from "lucide-react";
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { OrderDetailsDialog } from "./order-details-dialog";
 
 interface OrdersTableProps {
   orders: BlingOrder[];
@@ -36,6 +32,32 @@ interface OrdersTableProps {
   hasMore: boolean;
 }
 
+// Helper to get badge color based on status text (since we don't have IDs mapping handy for all)
+// This is a heuristic approach. Ideal would be to map specific IDs.
+function getStatusVariant(statusName: string | undefined): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
+  if (!statusName) return "outline";
+  
+  const status = statusName.toLowerCase();
+  
+  if (status.includes("cancelado")) return "destructive";
+  if (status.includes("atendido") || status.includes("verificado") || status.includes("concluído")) return "success"; // 'success' requires custom badge or standard 'default' with class
+  if (status.includes("pendente") || status.includes("em aberto")) return "warning"; // 'warning' requires custom badge or standard 'secondary'
+  
+  return "secondary";
+}
+
+// Custom Badge component wrapper if needed, or just use Badge with className
+function StatusBadge({ name }: { name: string }) {
+  const variant = getStatusVariant(name);
+  let className = "";
+  
+  if (variant === "success") className = "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60 border-transparent";
+  if (variant === "warning") className = "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:hover:bg-yellow-900/60 border-transparent";
+  if (variant === "destructive") className = "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60 border-transparent";
+  
+  return <Badge variant={variant === "success" || variant === "warning" || variant === "destructive" ? "outline" : variant} className={className}>{name}</Badge>;
+}
+
 export function OrdersTable({
   orders,
   isLoading,
@@ -43,12 +65,18 @@ export function OrdersTable({
   onPageChange,
   hasMore,
 }: OrdersTableProps) {
-  const [selectedOrder, setSelectedOrder] = useState<BlingOrder | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const handleViewDetails = (blingOrderId: string) => {
+    setSelectedOrderId(blingOrderId);
+    setIsDetailsOpen(true);
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="rounded-md border">
+        <div className="rounded-md border shadow-sm bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -96,16 +124,16 @@ export function OrdersTable({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border shadow-sm bg-card overflow-hidden">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Vendedor</TableHead>
-              <TableHead>Situação</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="font-semibold text-foreground">Número</TableHead>
+              <TableHead className="font-semibold text-foreground">Data</TableHead>
+              <TableHead className="font-semibold text-foreground">Cliente</TableHead>
+              <TableHead className="font-semibold text-foreground">Vendedor</TableHead>
+              <TableHead className="font-semibold text-foreground">Situação</TableHead>
+              <TableHead className="text-right font-semibold text-foreground">Valor</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -114,31 +142,38 @@ export function OrdersTable({
               <TableRow>
                 <TableCell
                   colSpan={7}
-                  className="h-24 text-center text-muted-foreground"
+                  className="h-64 text-center text-muted-foreground"
                 >
-                  Nenhum pedido encontrado.
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <InboxIcon className="h-8 w-8 text-muted-foreground/50" />
+                    <p>Nenhum pedido encontrado com os filtros selecionados.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
+                <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
+                  <TableCell className="font-medium font-mono text-xs">
                     {order.orderNumber}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-sm">
                     {format(new Date(order.saleDate), "dd/MM/yyyy")}
                   </TableCell>
-                  <TableCell>{order.contactName || "Não informado"}</TableCell>
-                  <TableCell>{order.sellerName || "Não informado"}</TableCell>
-                  <TableCell>{order.situationName || "-"}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-sm font-medium">{order.contactName || "Não informado"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{order.sellerName || "-"}</TableCell>
+                  <TableCell>
+                    <StatusBadge name={order.situationName || order.situationId || "-"} />
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
                     {formatCurrency(parseFloat(order.totalValue))}
                   </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setSelectedOrder(order)}
+                      className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                      onClick={() => handleViewDetails(order.blingOrderId)}
+                      title="Ver detalhes"
                     >
                       <EyeIcon className="h-4 w-4" />
                     </Button>
@@ -150,7 +185,10 @@ export function OrdersTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+            Mostrando {orders.length} pedidos
+        </div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
@@ -176,33 +214,15 @@ export function OrdersTable({
         </Pagination>
       </div>
 
-      <Dialog
-        open={!!selectedOrder}
-        onOpenChange={(open) => !open && setSelectedOrder(null)}
-      >
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Pedido #{selectedOrder?.orderNumber}</DialogTitle>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-semibold mb-2">Informações Gerais</h4>
-                  <div className="text-sm space-y-1">
-                    <p><span className="text-muted-foreground">Data:</span> {format(new Date(selectedOrder.saleDate), "dd/MM/yyyy")}</p>
-                    <p><span className="text-muted-foreground">Cliente:</span> {selectedOrder.contactName}</p>
-                    <p><span className="text-muted-foreground">Vendedor:</span> {selectedOrder.sellerName}</p>
-                    <p><span className="text-muted-foreground">Situação:</span> {selectedOrder.situationName}</p>
-                    <p><span className="text-muted-foreground">Valor Total:</span> {formatCurrency(parseFloat(selectedOrder.totalValue))}</p>
-                  </div>
-                </div>
-                {/* We can add items and installments here later if the API returns them in the list or if we fetch details separately */}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <OrderDetailsDialog
+        blingOrderId={selectedOrderId}
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) setSelectedOrderId(null);
+        }}
+      />
     </div>
   );
 }
+

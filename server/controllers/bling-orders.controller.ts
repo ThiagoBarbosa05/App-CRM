@@ -12,6 +12,7 @@ const listOrdersQuerySchema = z.object({
   accountId: z.string().optional(),
   userId: z.string().optional(),
   contactId: z.string().optional(),
+  contactName: z.string().optional(),
   sellerId: z.string().optional(),
   storeId: z.string().optional(),
   situationId: z.string().optional(),
@@ -58,6 +59,7 @@ export class BlingOrdersController {
         accountId: query.accountId,
         userId: query.userId,
         contactId: query.contactId,
+        contactName: query.contactName,
         sellerId: query.sellerId,
         storeId: query.storeId,
         situationId: query.situationId,
@@ -280,6 +282,81 @@ export class BlingOrdersController {
       return res.status(500).json({
         success: false,
         error: "Erro ao buscar top produtos",
+      });
+    }
+  }
+
+  /**
+   * Retorna lista de vendedores disponíveis
+   * GET /api/bling-orders/filters/sellers
+   */
+  async getAvailableSellers(req: Request, res: Response) {
+    try {
+      const sellers = await blingOrdersRepository.getAvailableSellers();
+
+      return res.json({
+        success: true,
+        data: sellers,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar vendedores:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar vendedores",
+      });
+    }
+  }
+
+  /**
+   * Retorna lista de lojas disponíveis
+   * GET /api/bling-orders/filters/stores
+   */
+  async getAvailableStores(req: Request, res: Response) {
+    try {
+      const stores = await blingOrdersRepository.getAvailableStores();
+
+      return res.json({
+        success: true,
+        data: stores,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar lojas:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar lojas",
+      });
+    }
+  }
+
+  /**
+   * Retorna lista de situações disponíveis
+   * GET /api/bling-orders/filters/situations
+   */
+  async getAvailableSituations(req: Request, res: Response) {
+    try {
+      const situations = await blingOrdersRepository.getAvailableSituations();
+
+      return res.json({
+        success: true,
+        data: situations,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar situações:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar situações",
       });
     }
   }

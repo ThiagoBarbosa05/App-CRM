@@ -17,11 +17,17 @@ export default function BlingSalesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  // Default to last 7 days
+  // Default to last 90 days to show data by default
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().setDate(new Date().getDate() - 7)),
+    from: new Date(new Date().setDate(new Date().getDate() - 90)),
     to: new Date(),
   });
+
+  // Advanced filters
+  const [contactName, setContactName] = useState("");
+  const [sellerId, setSellerId] = useState<string | undefined>();
+  const [storeId, setStoreId] = useState<string | undefined>();
+  const [situationId, setSituationId] = useState<string | undefined>();
 
   const formattedStartDate = dateRange?.from
     ? format(dateRange.from, "yyyy-MM-dd")
@@ -50,10 +56,14 @@ export default function BlingSalesPage() {
     5
   );
 
-  // Fetch Orders
+  // Fetch Orders with all filters
   const { data: ordersData, isLoading: isOrdersLoading } = useBlingOrders({
     startDate: formattedStartDate,
     endDate: formattedEndDate,
+    contactName: contactName || undefined,
+    sellerId,
+    storeId,
+    situationId,
     limit: pageSize,
     offset: (page - 1) * pageSize,
   });
@@ -61,6 +71,11 @@ export default function BlingSalesPage() {
   // Calculate hasMore (assuming the API doesn't return total count yet, or we'd check against total)
   // For now, if we got a full page, assume there might be more
   const hasMore = ordersData ? ordersData.length === pageSize : false;
+
+  // Reset page when filters change
+  const handleFilterChange = () => {
+    setPage(1);
+  };
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -72,7 +87,27 @@ export default function BlingSalesPage() {
         dateRange={dateRange}
         onDateRangeChange={(range) => {
           setDateRange(range);
-          setPage(1); // Reset to first page when filter changes
+          handleFilterChange();
+        }}
+        contactName={contactName}
+        onContactNameChange={(name) => {
+          setContactName(name);
+          handleFilterChange();
+        }}
+        sellerId={sellerId}
+        onSellerIdChange={(id) => {
+          setSellerId(id);
+          handleFilterChange();
+        }}
+        storeId={storeId}
+        onStoreIdChange={(id) => {
+          setStoreId(id);
+          handleFilterChange();
+        }}
+        situationId={situationId}
+        onSituationIdChange={(id) => {
+          setSituationId(id);
+          handleFilterChange();
         }}
         isLoading={isOrdersLoading}
       />

@@ -193,14 +193,15 @@ function Router() {
           </MainLayout>
         )}
       />
-      {/* <Route
-        path="/bling/vendas"
+
+     <Route
+        path="/vendas"
         component={() => (
           <MainLayout>
             <BlingSalesPage />
           </MainLayout>
         )}
-      /> */}
+      /> 
       <Route component={NotFound} />
     </Switch>
   );

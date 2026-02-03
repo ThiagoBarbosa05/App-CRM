@@ -25,7 +25,7 @@ interface TopSellersChartProps {
 export function TopSellersChart({ data, isLoading }: TopSellersChartProps) {
   if (isLoading) {
     return (
-      <Card className="col-span-1">
+      <Card className="col-span-1 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
           <CardTitle>Top Vendedores</CardTitle>
           <CardDescription>Ranking por valor de vendas</CardDescription>
@@ -45,7 +45,7 @@ export function TopSellersChart({ data, isLoading }: TopSellersChartProps) {
     })) || [];
 
   return (
-    <Card className="col-span-1">
+    <Card className="col-span-1 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader>
         <CardTitle>Top Vendedores</CardTitle>
         <CardDescription>Ranking por valor de vendas</CardDescription>
@@ -71,7 +71,13 @@ export function TopSellersChart({ data, isLoading }: TopSellersChartProps) {
                     formatCurrency(value),
                     "Vendas",
                   ]}
-                  labelStyle={{ color: "black" }}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    borderColor: "hsl(var(--border))",
+                    color: "hsl(var(--popover-foreground))",
+                  }}
+                  itemStyle={{ color: "hsl(var(--primary))" }}
+                  cursor={{ fill: "hsl(var(--muted)/0.4)" }}
                 />
                 <Bar
                   dataKey="value"

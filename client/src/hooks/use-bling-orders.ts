@@ -65,6 +65,7 @@ interface OrderFilters {
   accountId?: string;
   userId?: string;
   contactId?: string;
+  contactName?: string;
   sellerId?: string;
   storeId?: string;
   situationId?: string;
@@ -73,6 +74,24 @@ interface OrderFilters {
   includeDeleted?: boolean;
   limit?: number;
   offset?: number;
+}
+
+// Types for filter options
+export interface SellerOption {
+  sellerId: string | null;
+  sellerName: string | null;
+  orderCount: number;
+}
+
+export interface StoreOption {
+  storeId: string;
+  orderCount: number;
+}
+
+export interface SituationOption {
+  situationId: string | null;
+  situationValue: string | null;
+  orderCount: number;
 }
 
 // Fetch functions
@@ -205,5 +224,45 @@ export function useBlingOrderById(blingOrderId: string | null) {
     queryKey: ["bling-order", blingOrderId],
     queryFn: () => fetchOrderById(blingOrderId!),
     enabled: !!blingOrderId,
+  });
+}
+
+// Hooks for filter options
+export function useAvailableSellers() {
+  return useQuery({
+    queryKey: ["bling-sellers"],
+    queryFn: async () => {
+      const response = await fetch("/api/bling-orders/filters/sellers");
+      if (!response.ok) throw new Error("Falha ao buscar vendedores");
+      const result = await response.json();
+      return result.data as SellerOption[];
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+export function useAvailableStores() {
+  return useQuery({
+    queryKey: ["bling-stores"],
+    queryFn: async () => {
+      const response = await fetch("/api/bling-orders/filters/stores");
+      if (!response.ok) throw new Error("Falha ao buscar lojas");
+      const result = await response.json();
+      return result.data as StoreOption[];
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+export function useAvailableSituations() {
+  return useQuery({
+    queryKey: ["bling-situations"],
+    queryFn: async () => {
+      const response = await fetch("/api/bling-orders/filters/situations");
+      if (!response.ok) throw new Error("Falha ao buscar situações");
+      const result = await response.json();
+      return result.data as SituationOption[];
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 }

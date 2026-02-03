@@ -8,7 +8,7 @@ import {
   type BlingOrderWithDetails,
   type PubsubProcessingLog,
 } from "../../shared/schema";
-import { eq, and, isNull, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, isNull, desc, gte, lte, sql, ilike } from "drizzle-orm";
 
 /**
  * Interface para filtros de busca de pedidos
@@ -17,6 +17,7 @@ export interface OrderFilters {
   accountId?: string;
   userId?: string;
   contactId?: string;
+  contactName?: string;
   sellerId?: string;
   storeId?: string;
   startDate?: string;
@@ -91,13 +92,19 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.userId, filters.userId));
     }
 
+
     if (filters.contactId) {
       conditions.push(eq(blingOrders.contactId, filters.contactId));
+    }
+
+    if (filters.contactName) {
+      conditions.push(ilike(blingOrders.contactName, `%${filters.contactName}%`));
     }
 
     if (filters.sellerId) {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
     }
+
 
     if (filters.storeId) {
       conditions.push(eq(blingOrders.storeId, filters.storeId));
@@ -148,9 +155,14 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.contactId, filters.contactId));
     }
 
+    if (filters.contactName) {
+      conditions.push(ilike(blingOrders.contactName, `%${filters.contactName}%`));
+    }
+
     if (filters.sellerId) {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
     }
+
 
     if (filters.storeId) {
       conditions.push(eq(blingOrders.storeId, filters.storeId));
@@ -322,6 +334,63 @@ export class BlingOrdersRepository {
       )
       .orderBy(desc(sql`sum(${blingOrderItems.quantity})`))
       .limit(limit);
+  }
+
+  /**
+   * Lista vendedores disponíveis com contagem de pedidos
+   */
+  async getAvailableSellers() {
+    return await db
+      .select({
+        sellerId: blingOrders.sellerId,
+        sellerName: blingOrders.sellerName,
+        orderCount: sql<number>`count(*)`,
+      })
+      .from(blingOrders)
+      .where(
+        and(
+          isNull(blingOrders.deletedAt),
+          sql`${blingOrders.sellerId} IS NOT NULL`
+        )
+      )
+      .groupBy(blingOrders.sellerId, blingOrders.sellerName)
+      .orderBy(desc(sql`count(*)`));
+  }
+
+  /**
+   * Lista lojas disponíveis com contagem de pedidos
+   */
+  async getAvailableStores() {
+    return await db
+      .select({
+        storeId: blingOrders.storeId,
+        orderCount: sql<number>`count(*)`,
+      })
+      .from(blingOrders)
+      .where(isNull(blingOrders.deletedAt))
+      .groupBy(blingOrders.storeId)
+      .orderBy(desc(sql`count(*)`));
+  }
+
+  /**
+   * Lista situações disponíveis com contagem de pedidos
+   */
+  async getAvailableSituations() {
+    return await db
+      .select({
+        situationId: blingOrders.situationId,
+        situationValue: blingOrders.situationValue,
+        orderCount: sql<number>`count(*)`,
+      })
+      .from(blingOrders)
+      .where(
+        and(
+          isNull(blingOrders.deletedAt),
+          sql`${blingOrders.situationId} IS NOT NULL`
+        )
+      )
+      .groupBy(blingOrders.situationId, blingOrders.situationValue)
+      .orderBy(desc(sql`count(*)`));
   }
 }
 
