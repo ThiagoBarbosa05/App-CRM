@@ -110,6 +110,16 @@ export function exportCompaniesToExcel(companies: any[], users: any[] = []) {
 }
 
 /**
+ * Função auxiliar para formatar datas sem problema de timezone
+ */
+function formatDateForExcel(dateStr: string): string {
+  if (!dateStr) return '';
+  // Adiciona horário do meio-dia para evitar problemas de timezone
+  const date = new Date(dateStr + 'T12:00:00');
+  return date.toLocaleDateString('pt-BR');
+}
+
+/**
  * Exporta pedidos do Bling para Excel com dados completos
  */
 export function exportBlingOrdersToExcel(orders: BlingOrder[]) {
@@ -118,7 +128,7 @@ export function exportBlingOrdersToExcel(orders: BlingOrder[]) {
     const ordersData = orders.map(order => ({
       'Número do Pedido': order.orderNumber || '',
       'ID Bling': order.blingOrderId || '',
-      'Data da Venda': order.saleDate ? new Date(order.saleDate).toLocaleDateString('pt-BR') : '',
+      'Data da Venda': formatDateForExcel(order.saleDate),
       'Cliente': order.contactName || '',
       'CPF/CNPJ': order.contactDocument || '',
       'Tipo': order.contactType || '',
@@ -128,8 +138,8 @@ export function exportBlingOrdersToExcel(orders: BlingOrder[]) {
       'Valor Total': parseFloat(order.totalValue || '0'),
       'Observações': order.observations || '',
       'Obs. Internas': order.internalObservations || '',
-      'Data Saída': order.departureDate ? new Date(order.departureDate).toLocaleDateString('pt-BR') : '',
-      'Previsão Entrega': order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR') : '',
+      'Data Saída': formatDateForExcel(order.departureDate || ''),
+      'Previsão Entrega': formatDateForExcel(order.expectedDeliveryDate || ''),
     }));
 
     // Criar workbook com múltiplas abas
@@ -194,7 +204,7 @@ export function exportBlingOrdersToExcel(orders: BlingOrder[]) {
         order.installments.forEach(installment => {
           installmentsData.push({
             'Número do Pedido': order.orderNumber,
-            'Vencimento': installment.dueDate ? new Date(installment.dueDate).toLocaleDateString('pt-BR') : '',
+            'Vencimento': formatDateForExcel(installment.dueDate),
             'Valor': parseFloat(installment.value || '0'),
             'Observações': installment.observations || '',
           });

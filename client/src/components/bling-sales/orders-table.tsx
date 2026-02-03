@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import type { BlingOrder } from "@/hooks/use-bling-orders";
 import { EyeIcon, InboxIcon } from "lucide-react";
 import { useState } from "react";
@@ -176,7 +176,7 @@ export function OrdersTable({
                     {order.orderNumber}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {format(new Date(order.saleDate), "dd/MM/yyyy")}
+                    {format(parseISO(order.saleDate + 'T12:00:00'), "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell className="text-sm font-medium">{order.contactName || "Não informado"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{order.sellerName || "-"}</TableCell>

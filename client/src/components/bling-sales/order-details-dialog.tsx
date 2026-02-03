@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useBlingOrderById } from "@/hooks/use-bling-orders";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 
@@ -34,7 +34,8 @@ function formatCurrency(value: number): string {
 
 function formatDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr);
+    // Adiciona horário do meio-dia para evitar problemas de timezone
+    const date = parseISO(dateStr + 'T12:00:00');
     return format(date, "dd/MM/yyyy", { locale: ptBR });
   } catch {
     return dateStr;
