@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import type { BlingOrder } from '@/hooks/use-bling-orders';
 
 export interface ExportData {
   [key: string]: any;
@@ -105,5 +106,130 @@ export function exportCompaniesToExcel(companies: any[], users: any[] = []) {
   } catch (error) {
     console.error('Erro ao exportar empresas:', error);
     throw error;
+  }
+}
+
+/**
+ * Exporta pedidos do Bling para Excel com dados completos
+ */
+export function exportBlingOrdersToExcel(orders: BlingOrder[]) {
+  try {
+    // Formatar dados principais dos pedidos
+    const ordersData = orders.map(order => ({
+      'Número do Pedido': order.orderNumber || '',
+      'ID Bling': order.blingOrderId || '',
+      'Data da Venda': order.saleDate ? new Date(order.saleDate).toLocaleDateString('pt-BR') : '',
+      'Cliente': order.contactName || '',
+      'CPF/CNPJ': order.contactDocument || '',
+      'Tipo': order.contactType || '',
+      'Vendedor': order.sellerName || 'Sem vendedor',
+      'Loja': order.storeId || '',
+      'Situação': order.situationName || order.situationValue || order.situationId || '',
+      'Valor Total': parseFloat(order.totalValue || '0'),
+      'Observações': order.observations || '',
+      'Obs. Internas': order.internalObservations || '',
+      'Data Saída': order.departureDate ? new Date(order.departureDate).toLocaleDateString('pt-BR') : '',
+      'Previsão Entrega': order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR') : '',
+    }));
+
+    // Criar workbook com múltiplas abas
+    const workbook = XLSX.utils.book_new();
+
+    // Aba 1: Pedidos
+    const ordersSheet = XLSX.utils.json_to_sheet(ordersData);
+    ordersSheet['!cols'] = [
+      { wch: 15 }, // Número do Pedido
+      { wch: 20 }, // ID Bling
+      { wch: 12 }, // Data da Venda
+      { wch: 30 }, // Cliente
+      { wch: 18 }, // CPF/CNPJ
+      { wch: 10 }, // Tipo
+      { wch: 25 }, // Vendedor
+      { wch: 10 }, // Loja
+      { wch: 20 }, // Situação
+      { wch: 15 }, // Valor Total
+      { wch: 40 }, // Observações
+      { wch: 40 }, // Obs. Internas
+      { wch: 12 }, // Data Saída
+      { wch: 15 }, // Previsão Entrega
+    ];
+    XLSX.utils.book_append_sheet(workbook, ordersSheet, 'Pedidos');
+
+    // Aba 2: Itens (se houver pedidos com itens)
+    const itemsData: any[] = [];
+    orders.forEach(order => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          itemsData.push({
+            'Número do Pedido': order.orderNumber,
+            'Código do Produto': item.productCode || '',
+            'Descrição': item.description || '',
+            'Quantidade': parseFloat(item.quantity || '0'),
+            'Valor Unitário': parseFloat(item.value || '0'),
+            'Desconto': parseFloat(item.discount || '0'),
+            'Total Item': parseFloat(item.quantity || '0') * parseFloat(item.value || '0'),
+          });
+        });
+      }
+    });
+
+    if (itemsData.length > 0) {
+      const itemsSheet = XLSX.utils.json_to_sheet(itemsData);
+      itemsSheet['!cols'] = [
+        { wch: 15 }, // Número do Pedido
+        { wch: 20 }, // Código do Produto
+        { wch: 50 }, // Descrição
+        { wch: 12 }, // Quantidade
+        { wch: 15 }, // Valor Unitário
+        { wch: 12 }, // Desconto
+        { wch: 15 }, // Total Item
+      ];
+      XLSX.utils.book_append_sheet(workbook, itemsSheet, 'Itens');
+    }
+
+    // Aba 3: Parcelas (se houver pedidos com parcelas)
+    const installmentsData: any[] = [];
+    orders.forEach(order => {
+      if (order.installments && order.installments.length > 0) {
+        order.installments.forEach(installment => {
+          installmentsData.push({
+            'Número do Pedido': order.orderNumber,
+            'Vencimento': installment.dueDate ? new Date(installment.dueDate).toLocaleDateString('pt-BR') : '',
+            'Valor': parseFloat(installment.value || '0'),
+            'Observações': installment.observations || '',
+          });
+        });
+      }
+    });
+
+    if (installmentsData.length > 0) {
+      const installmentsSheet = XLSX.utils.json_to_sheet(installmentsData);
+      installmentsSheet['!cols'] = [
+        { wch: 15 }, // Número do Pedido
+        { wch: 12 }, // Vencimento
+        { wch: 15 }, // Valor
+        { wch: 40 }, // Observações
+      ];
+      XLSX.utils.book_append_sheet(workbook, installmentsSheet, 'Parcelas');
+    }
+
+    // Gerar e fazer download
+    const excelBuffer = XLSX.write(workbook, { 
+      bookType: 'xlsx', 
+      type: 'array',
+      compression: true
+    });
+
+    const blob = new Blob([excelBuffer], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const filename = `vendas-bling_${new Date().toISOString().split('T')[0]}.xlsx`;
+    saveAs(blob, filename);
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao exportar pedidos Bling:', error);
+    throw new Error('Falha ao exportar pedidos para Excel');
   }
 }

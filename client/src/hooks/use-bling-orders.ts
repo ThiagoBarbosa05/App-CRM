@@ -6,15 +6,23 @@ export interface BlingOrder {
   id: number;
   blingOrderId: string;
   orderNumber: string;
+  storeOrderNumber?: string;
   saleDate: string;
+  departureDate?: string;
+  expectedDeliveryDate?: string;
   totalValue: string;
   situationId: string;
   situationName?: string;
+  situationValue?: string;
   storeId?: string;
   contactId?: string;
   contactName?: string;
+  contactType?: string;
+  contactDocument?: string;
   sellerId?: string;
   sellerName?: string;
+  observations?: string;
+  internalObservations?: string;
   paymentMethod?: string;
   logisticService?: string;
   items?: BlingOrderItem[];
@@ -29,6 +37,7 @@ export interface BlingOrderItem {
   description: string;
   quantity: string;
   value: string; // unit price
+  discount?: string;
 }
 
 export interface BlingOrderInstallment {
@@ -36,7 +45,7 @@ export interface BlingOrderInstallment {
   orderId: number;
   dueDate: string;
   value: string;
-  obs?: string;
+  observations?: string;
 }
 
 export interface SalesStatistics {
@@ -71,6 +80,9 @@ interface OrderFilters {
   situationId?: string;
   startDate?: string;
   endDate?: string;
+  minValue?: number;
+  maxValue?: number;
+  paymentMethodId?: string;
   includeDeleted?: boolean;
   limit?: number;
   offset?: number;
@@ -94,8 +106,40 @@ export interface SituationOption {
   orderCount: number;
 }
 
+export interface PaymentMethodOption {
+  paymentMethodId: string | null;
+  paymentMethodName: string | null;
+  orderCount: number;
+}
+
+export interface SalesEvolutionPoint {
+  date: string;
+  totalOrders: number;
+  totalValue: number;
+}
+
+export interface SalesComparison {
+  current: SalesStatistics;
+  previous: SalesStatistics;
+  changes: {
+    ordersChange: number;
+    valueChange: number;
+    averageChange: number;
+  };
+}
+
 // Fetch functions
-async function fetchOrders(filters: OrderFilters) {
+interface OrdersResponse {
+  data: BlingOrder[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+async function fetchOrders(filters: OrderFilters): Promise<OrdersResponse> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -108,7 +152,10 @@ async function fetchOrders(filters: OrderFilters) {
     throw new Error("Falha ao buscar pedidos");
   }
   const result = await response.json();
-  return result.data as BlingOrder[];
+  return {
+    data: result.data as BlingOrder[],
+    pagination: result.pagination,
+  };
 }
 
 async function fetchSalesStatistics(
@@ -179,7 +226,37 @@ export function useBlingOrders(filters: OrderFilters) {
   return useQuery({
     queryKey: ["bling-orders", filters],
     queryFn: () => fetchOrders(filters),
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching new
+    enabled: !!filters.startDate && !!filters.endDate, // Only fetch if dates are provided
+  });
+}
+
+/**
+ * Hook para buscar TODOS os pedidos de uma vez (para exportação)
+ * Usa endpoint dedicado que retorna pedidos com itens e parcelas
+ */
+export function useBlingOrdersForExport(filters: Omit<OrderFilters, 'limit' | 'offset'>, enabled: boolean = false) {
+  return useQuery({
+    queryKey: ["bling-orders-export", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, String(value));
+        }
+      });
+      // Buscar sem limite de paginação
+      params.append('limit', '10000'); // Limite alto para pegar todos
+      params.append('offset', '0');
+
+      const response = await fetch(`/api/bling-orders/export?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("Falha ao buscar pedidos para exportação");
+      }
+      const result = await response.json();
+      return result.data as BlingOrder[];
+    },
+    enabled: enabled && !!filters.startDate && !!filters.endDate,
+    staleTime: 0, // Não cachear (dados podem mudar)
   });
 }
 
@@ -191,6 +268,7 @@ export function useSalesStatistics(
   return useQuery({
     queryKey: ["bling-sales-stats", startDate, endDate, accountId],
     queryFn: () => fetchSalesStatistics(startDate, endDate, accountId),
+    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -203,6 +281,7 @@ export function useTopSellers(
   return useQuery({
     queryKey: ["bling-top-sellers", startDate, endDate, limit],
     queryFn: () => fetchTopSellers(startDate, endDate, limit),
+    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -215,6 +294,7 @@ export function useTopProducts(
   return useQuery({
     queryKey: ["bling-top-products", startDate, endDate, limit],
     queryFn: () => fetchTopProducts(startDate, endDate, limit),
+    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -264,5 +344,67 @@ export function useAvailableSituations() {
       return result.data as SituationOption[];
     },
     staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+export function useAvailablePaymentMethods() {
+  return useQuery({
+    queryKey: ["bling-payment-methods"],
+    queryFn: async () => {
+      const response = await fetch("/api/bling-orders/filters/payment-methods");
+      if (!response.ok) throw new Error("Falha ao buscar formas de pagamento");
+      const result = await response.json();
+      return result.data as PaymentMethodOption[];
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+// Hook for sales evolution (temporal chart data)
+export function useSalesEvolution(
+  startDate: string,
+  endDate: string,
+  groupBy: 'day' | 'week' | 'month' = 'day',
+  accountId?: string
+) {
+  return useQuery({
+    queryKey: ["bling-sales-evolution", startDate, endDate, groupBy, accountId],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate, groupBy });
+      if (accountId) params.append("accountId", accountId);
+
+      const response = await fetch(
+        `/api/bling-orders/statistics/sales-evolution?${params.toString()}`
+      );
+      if (!response.ok) throw new Error("Falha ao buscar evolução de vendas");
+      const result = await response.json();
+      return result.data as SalesEvolutionPoint[];
+    },
+    enabled: !!startDate && !!endDate,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Hook for sales comparison with previous period
+export function useSalesComparison(
+  startDate: string,
+  endDate: string,
+  accountId?: string
+) {
+  return useQuery({
+    queryKey: ["bling-sales-comparison", startDate, endDate, accountId],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate });
+      if (accountId) params.append("accountId", accountId);
+
+      const response = await fetch(
+        `/api/bling-orders/statistics/sales-comparison?${params.toString()}`
+      );
+      if (!response.ok) throw new Error("Falha ao buscar comparação de vendas");
+      const result = await response.json();
+      return result.data as SalesComparison;
+    },
+    enabled: !!startDate && !!endDate,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

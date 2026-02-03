@@ -30,6 +30,7 @@ interface OrdersTableProps {
   page: number;
   onPageChange: (page: number) => void;
   hasMore: boolean;
+  totalOrders?: number;
 }
 
 // Helper to get badge color based on status text (since we don't have IDs mapping handy for all)
@@ -64,6 +65,7 @@ export function OrdersTable({
   page,
   onPageChange,
   hasMore,
+  totalOrders = 0,
 }: OrdersTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -144,9 +146,26 @@ export function OrdersTable({
                   colSpan={7}
                   className="h-64 text-center text-muted-foreground"
                 >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <InboxIcon className="h-8 w-8 text-muted-foreground/50" />
-                    <p>Nenhum pedido encontrado com os filtros selecionados.</p>
+                  <div className="flex flex-col items-center justify-center gap-3 py-8">
+                    <div className="rounded-full bg-muted p-4">
+                      <InboxIcon className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-lg font-medium text-foreground">
+                        Nenhum pedido encontrado
+                      </p>
+                      <p className="text-sm">
+                        Não há pedidos que correspondam aos filtros selecionados.
+                      </p>
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                      <p>💡 Dicas:</p>
+                      <ul className="list-disc list-inside text-left">
+                        <li>Tente ajustar o período de datas</li>
+                        <li>Remova alguns filtros para ampliar a busca</li>
+                        <li>Verifique se os filtros estão configurados corretamente</li>
+                      </ul>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
@@ -186,8 +205,15 @@ export function OrdersTable({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-            Mostrando {orders.length} pedidos
+        <div className="text-sm text-muted-foreground space-y-1">
+          <div>
+            Mostrando {orders.length} pedido{orders.length !== 1 ? "s" : ""} (Página {page})
+          </div>
+          {totalOrders > 0 && (
+            <div className="font-medium">
+              Total de {totalOrders} pedido{totalOrders !== 1 ? "s" : ""} encontrado{totalOrders !== 1 ? "s" : ""}
+            </div>
+          )}
         </div>
         <Pagination>
           <PaginationContent>

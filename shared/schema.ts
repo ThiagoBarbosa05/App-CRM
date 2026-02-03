@@ -2105,6 +2105,9 @@ export const blingOrders = pgTable(
     situationId: text("situation_id"),
     situationValue: text("situation_value"),
 
+    paymentMethodId: text("payment_method_id"),
+    paymentMethodName: text("payment_method_name"),
+
     observations: text("observations"),
     internalObservations: text("internal_observations"),
 
@@ -2127,6 +2130,16 @@ export const blingOrders = pgTable(
     index("bling_orders_contact_idx").on(table.contactId),
     index("bling_orders_sale_date_idx").on(table.saleDate),
     index("bling_orders_deleted_idx").on(table.deletedAt),
+    // Performance indices for filters and aggregations
+    index("bling_orders_seller_idx").on(table.sellerId),
+    index("bling_orders_store_idx").on(table.storeId),
+    index("bling_orders_situation_idx").on(table.situationId),
+    index("bling_orders_payment_method_idx").on(table.paymentMethodId),
+    index("bling_orders_total_value_idx").on(table.totalValue),
+    // Composite index for common query pattern (date range + filters)
+    index("bling_orders_date_deleted_idx").on(table.saleDate, table.deletedAt),
+    // Index for contact name search (case-insensitive)
+    index("bling_orders_contact_name_idx").on(sql`LOWER(${table.contactName})`),
   ]
 );
 

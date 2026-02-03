@@ -4,6 +4,7 @@ import {
   type OrderFilters,
 } from "../repositories/bling-orders.repository";
 import { z } from "zod";
+import { cache, cacheKeys, cacheTTL } from "../lib/redis";
 
 /**
  * Schema de validação para query params de listagem
@@ -16,6 +17,9 @@ const listOrdersQuerySchema = z.object({
   sellerId: z.string().optional(),
   storeId: z.string().optional(),
   situationId: z.string().optional(),
+  minValue: z.coerce.number().min(0).optional(),
+  maxValue: z.coerce.number().min(0).optional(),
+  paymentMethodId: z.string().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD").optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD").optional(),
   includeDeleted: z
@@ -33,6 +37,15 @@ const listOrdersQuerySchema = z.object({
     return true;
   },
   { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+).refine(
+  (data) => {
+    // Validar que se ambos os valores forem fornecidos, minValue <= maxValue
+    if (data.minValue !== undefined && data.maxValue !== undefined) {
+      return data.minValue <= data.maxValue;
+    }
+    return true;
+  },
+  { message: "Valor mínimo deve ser menor ou igual ao valor máximo", path: ["minValue"] }
 );
 
 /**
@@ -63,6 +76,9 @@ export class BlingOrdersController {
         sellerId: query.sellerId,
         storeId: query.storeId,
         situationId: query.situationId,
+        minValue: query.minValue?.toString(),
+        maxValue: query.maxValue?.toString(),
+        paymentMethodId: query.paymentMethodId,
         startDate: query.startDate,
         endDate: query.endDate,
         includeDeleted: query.includeDeleted,
@@ -159,15 +175,32 @@ export class BlingOrdersController {
 
       const query = schema.parse(req.query);
 
+      // Check cache first
+      const cacheKey = cacheKeys.salesStatistics(query.startDate, query.endDate, query.accountId);
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const stats = await blingOrdersRepository.getSalesStatistics(
         query.startDate,
         query.endDate,
         query.accountId
       );
 
+      // Store in cache
+      await cache.set(cacheKey, stats, cacheTTL.statistics);
+
       return res.json({
         success: true,
         data: stats,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -207,15 +240,32 @@ export class BlingOrdersController {
 
       const query = schema.parse(req.query);
 
+      // Check cache
+      const cacheKey = cacheKeys.topSellers(query.startDate, query.endDate, query.limit);
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const topSellers = await blingOrdersRepository.getTopSellers(
         query.startDate,
         query.endDate,
         query.limit
       );
 
+      // Store in cache
+      await cache.set(cacheKey, topSellers, cacheTTL.statistics);
+
       return res.json({
         success: true,
         data: topSellers,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -255,15 +305,32 @@ export class BlingOrdersController {
 
       const query = schema.parse(req.query);
 
+      // Check cache
+      const cacheKey = cacheKeys.topProducts(query.startDate, query.endDate, query.limit);
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const topProducts = await blingOrdersRepository.getTopProducts(
         query.startDate,
         query.endDate,
         query.limit
       );
 
+      // Store in cache
+      await cache.set(cacheKey, topProducts, cacheTTL.statistics);
+
       return res.json({
         success: true,
         data: topProducts,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -292,11 +359,28 @@ export class BlingOrdersController {
    */
   async getAvailableSellers(req: Request, res: Response) {
     try {
+      // Check cache
+      const cacheKey = cacheKeys.availableSellers();
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const sellers = await blingOrdersRepository.getAvailableSellers();
+
+      // Store in cache
+      await cache.set(cacheKey, sellers, cacheTTL.filters);
 
       return res.json({
         success: true,
         data: sellers,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -317,11 +401,28 @@ export class BlingOrdersController {
    */
   async getAvailableStores(req: Request, res: Response) {
     try {
+      // Check cache
+      const cacheKey = cacheKeys.availableStores();
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const stores = await blingOrdersRepository.getAvailableStores();
+
+      // Store in cache
+      await cache.set(cacheKey, stores, cacheTTL.filters);
 
       return res.json({
         success: true,
         data: stores,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -342,11 +443,28 @@ export class BlingOrdersController {
    */
   async getAvailableSituations(req: Request, res: Response) {
     try {
+      // Check cache
+      const cacheKey = cacheKeys.availableSituations();
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
       const situations = await blingOrdersRepository.getAvailableSituations();
+
+      // Store in cache
+      await cache.set(cacheKey, situations, cacheTTL.filters);
 
       return res.json({
         success: true,
         data: situations,
+        cached: false,
       });
     } catch (error) {
       console.error(
@@ -357,6 +475,285 @@ export class BlingOrdersController {
       return res.status(500).json({
         success: false,
         error: "Erro ao buscar situações",
+      });
+    }
+  }
+
+  /**
+   * Retorna lista de formas de pagamento disponíveis
+   * GET /api/bling-orders/filters/payment-methods
+   */
+  async getAvailablePaymentMethods(req: Request, res: Response) {
+    try {
+      // Check cache
+      const cacheKey = cacheKeys.availablePaymentMethods();
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
+      const paymentMethods = await blingOrdersRepository.getAvailablePaymentMethods();
+
+      // Store in cache
+      await cache.set(cacheKey, paymentMethods, cacheTTL.filters);
+
+      return res.json({
+        success: true,
+        data: paymentMethods,
+        cached: false,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar formas de pagamento:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar formas de pagamento",
+      });
+    }
+  }
+
+  /**
+   * Exporta pedidos com detalhes completos (itens e parcelas)
+   * GET /api/bling-orders/export
+   */
+  async exportOrders(req: Request, res: Response) {
+    try {
+      const query = listOrdersQuerySchema.parse(req.query);
+
+      const filters: OrderFilters = {
+        accountId: query.accountId,
+        userId: query.userId,
+        contactId: query.contactId,
+        contactName: query.contactName,
+        sellerId: query.sellerId,
+        storeId: query.storeId,
+        situationId: query.situationId,
+        minValue: query.minValue?.toString(),
+        maxValue: query.maxValue?.toString(),
+        paymentMethodId: query.paymentMethodId,
+        startDate: query.startDate,
+        endDate: query.endDate,
+        includeDeleted: query.includeDeleted,
+      };
+
+      // Buscar pedidos com limite alto
+      const orders = await blingOrdersRepository.findMany(filters, query.limit, query.offset);
+
+      // Buscar itens e parcelas para cada pedido
+      const ordersWithDetails = await Promise.all(
+        orders.map(async (order) => {
+          const [items, installments] = await Promise.all([
+            blingOrdersRepository.findOrderItems(order.id),
+            blingOrdersRepository.findOrderInstallments(order.id),
+          ]);
+
+          return {
+            ...order,
+            items,
+            installments,
+          };
+        })
+      );
+
+      return res.json({
+        success: true,
+        data: ordersWithDetails,
+      });
+    } catch (error) {
+      console.error("[BlingOrdersController] Erro ao exportar pedidos:", error);
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao exportar pedidos",
+      });
+    }
+  }
+
+  /**
+   * Retorna evolução temporal de vendas
+   * GET /api/bling-orders/statistics/sales-evolution
+   */
+  async getSalesEvolution(req: Request, res: Response) {
+    try {
+      const schema = z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD"),
+        groupBy: z.enum(['day', 'week', 'month']).optional().default('day'),
+        accountId: z.string().optional(),
+      }).refine(
+        (data) => new Date(data.startDate) <= new Date(data.endDate),
+        { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+      );
+
+      const query = schema.parse(req.query);
+
+      // Check cache
+      const cacheKey = cacheKeys.salesEvolution(query.startDate, query.endDate, query.groupBy, query.accountId);
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Fetch from database
+      const evolution = await blingOrdersRepository.getSalesEvolution(
+        query.startDate,
+        query.endDate,
+        query.groupBy,
+        query.accountId
+      );
+
+      // Store in cache
+      await cache.set(cacheKey, evolution, cacheTTL.evolution);
+
+      return res.json({
+        success: true,
+        data: evolution,
+        cached: false,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar evolução de vendas:",
+        error
+      );
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar evolução de vendas",
+      });
+    }
+  }
+
+  /**
+   * Retorna estatísticas comparadas com período anterior
+   * GET /api/bling-orders/statistics/sales-comparison
+   */
+  async getSalesComparison(req: Request, res: Response) {
+    try {
+      const schema = z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inicial deve estar no formato YYYY-MM-DD"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data final deve estar no formato YYYY-MM-DD"),
+        accountId: z.string().optional(),
+      }).refine(
+        (data) => new Date(data.startDate) <= new Date(data.endDate),
+        { message: "Data inicial deve ser anterior ou igual à data final", path: ["startDate"] }
+      );
+
+      const query = schema.parse(req.query);
+
+      // Check cache
+      const cacheKey = cacheKeys.salesComparison(query.startDate, query.endDate, query.accountId);
+      const cachedData = await cache.get(cacheKey);
+      
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      // Calcular período anterior com mesma duração
+      const startDate = new Date(query.startDate);
+      const endDate = new Date(query.endDate);
+      const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const previousStartDate = new Date(startDate);
+      previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
+      const previousEndDate = new Date(endDate);
+      previousEndDate.setDate(previousEndDate.getDate() - daysDiff);
+
+      // Buscar estatísticas de ambos os períodos
+      const [currentStats, previousStats] = await Promise.all([
+        blingOrdersRepository.getSalesStatistics(
+          query.startDate,
+          query.endDate,
+          query.accountId
+        ),
+        blingOrdersRepository.getSalesStatistics(
+          previousStartDate.toISOString().split('T')[0],
+          previousEndDate.toISOString().split('T')[0],
+          query.accountId
+        ),
+      ]);
+
+      // Calcular variações percentuais
+      const ordersChange = previousStats.totalOrders > 0
+        ? ((currentStats.totalOrders - previousStats.totalOrders) / previousStats.totalOrders) * 100
+        : 0;
+      
+      const valueChange = previousStats.totalValue > 0
+        ? ((currentStats.totalValue - previousStats.totalValue) / previousStats.totalValue) * 100
+        : 0;
+
+      const averageChange = previousStats.averageValue > 0
+        ? ((currentStats.averageValue - previousStats.averageValue) / previousStats.averageValue) * 100
+        : 0;
+
+      const result = {
+        current: currentStats,
+        previous: previousStats,
+        changes: {
+          ordersChange: Math.round(ordersChange * 100) / 100,
+          valueChange: Math.round(valueChange * 100) / 100,
+          averageChange: Math.round(averageChange * 100) / 100,
+        },
+      };
+
+      // Store in cache
+      await cache.set(cacheKey, result, cacheTTL.statistics);
+
+      return res.json({
+        success: true,
+        data: result,
+        cached: false,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar comparação de vendas:",
+        error
+      );
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar comparação de vendas",
       });
     }
   }

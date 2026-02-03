@@ -24,6 +24,7 @@ import {
   useAvailableSellers,
   useAvailableStores,
   useAvailableSituations,
+  useAvailablePaymentMethods,
 } from "@/hooks/use-bling-orders";
 
 interface OrdersFiltersProps {
@@ -42,6 +43,15 @@ interface OrdersFiltersProps {
   situationId?: string;
   onSituationIdChange: (id: string | undefined) => void;
 
+  minValue?: number;
+  onMinValueChange: (value: number | undefined) => void;
+
+  maxValue?: number;
+  onMaxValueChange: (value: number | undefined) => void;
+
+  paymentMethodId?: string;
+  onPaymentMethodIdChange: (id: string | undefined) => void;
+
   isLoading?: boolean;
 }
 
@@ -56,14 +66,21 @@ export function OrdersFilters({
   onStoreIdChange,
   situationId,
   onSituationIdChange,
+  minValue,
+  onMinValueChange,
+  maxValue,
+  onMaxValueChange,
+  paymentMethodId,
+  onPaymentMethodIdChange,
   isLoading,
 }: OrdersFiltersProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Fetch filter options
-  const { data: sellers } = useAvailableSellers();
-  const { data: stores } = useAvailableStores();
-  const { data: situations } = useAvailableSituations();
+  const { data: sellers, isLoading: isSellersLoading } = useAvailableSellers();
+  const { data: stores, isLoading: isStoresLoading } = useAvailableStores();
+  const { data: situations, isLoading: isSituationsLoading } = useAvailableSituations();
+  const { data: paymentMethods, isLoading: isPaymentMethodsLoading } = useAvailablePaymentMethods();
 
   const handleClearFilters = () => {
     // Default to last 90 days
@@ -79,13 +96,19 @@ export function OrdersFilters({
     onSellerIdChange(undefined);
     onStoreIdChange(undefined);
     onSituationIdChange(undefined);
+    onMinValueChange(undefined);
+    onMaxValueChange(undefined);
+    onPaymentMethodIdChange(undefined);
   };
 
   const hasActiveFilters =
     contactName ||
     sellerId ||
     storeId ||
-    situationId;
+    situationId ||
+    minValue !== undefined ||
+    maxValue !== undefined ||
+    paymentMethodId;
 
   return (
     <Card className="border-none shadow-none bg-muted/40 md:bg-background md:border md:shadow-sm">
@@ -109,7 +132,7 @@ export function OrdersFilters({
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8">
           {/* Date Picker */}
           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
@@ -169,19 +192,19 @@ export function OrdersFilters({
             onValueChange={(value) =>
               onSellerIdChange(value === "all" ? undefined : value)
             }
-            disabled={isLoading}
+            disabled={isLoading || isSellersLoading}
           >
             <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todos os Vendedores" />
+              <SelectValue placeholder={isSellersLoading ? "Carregando..." : "Todos os Vendedores"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Vendedores</SelectItem>
               {sellers?.map((seller) => (
                 <SelectItem
-                  key={seller.sellerId || "unknown"}
-                  value={seller.sellerId || "unknown"}
+                  key={seller.sellerId || "no-seller"}
+                  value={seller.sellerId || "no-seller"}
                 >
-                  {seller.sellerName || "Sem nome"} ({seller.orderCount})
+                  {seller.sellerName || "Sem vendedor"} ({seller.orderCount})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -193,10 +216,10 @@ export function OrdersFilters({
             onValueChange={(value) =>
               onStoreIdChange(value === "all" ? undefined : value)
             }
-            disabled={isLoading}
+            disabled={isLoading || isStoresLoading}
           >
             <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todas as Lojas" />
+              <SelectValue placeholder={isStoresLoading ? "Carregando..." : "Todas as Lojas"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as Lojas</SelectItem>
@@ -214,19 +237,83 @@ export function OrdersFilters({
             onValueChange={(value) =>
               onSituationIdChange(value === "all" ? undefined : value)
             }
-            disabled={isLoading}
+            disabled={isLoading || isSituationsLoading}
           >
             <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder="Todas as Situações" />
+              <SelectValue placeholder={isSituationsLoading ? "Carregando..." : "Todas as Situações"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as Situações</SelectItem>
               {situations?.map((situation) => (
                 <SelectItem
-                  key={situation.situationId || "unknown"}
-                  value={situation.situationId || "unknown"}
+                  key={situation.situationId || "no-situation"}
+                  value={situation.situationId || "no-situation"}
                 >
                   {situation.situationValue || "Sem status"} ({situation.orderCount})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Min Value Input */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              R$
+            </span>
+            <Input
+              type="number"
+              placeholder="Valor mínimo"
+              value={minValue ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                onMinValueChange(value ? parseFloat(value) : undefined);
+              }}
+              className="w-full pl-10 bg-background"
+              disabled={isLoading}
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          {/* Max Value Input */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              R$
+            </span>
+            <Input
+              type="number"
+              placeholder="Valor máximo"
+              value={maxValue ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                onMaxValueChange(value ? parseFloat(value) : undefined);
+              }}
+              className="w-full pl-10 bg-background"
+              disabled={isLoading}
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          {/* Payment Method Select */}
+          <Select
+            value={paymentMethodId || "all"}
+            onValueChange={(value) =>
+              onPaymentMethodIdChange(value === "all" ? undefined : value)
+            }
+            disabled={isLoading || isPaymentMethodsLoading}
+          >
+            <SelectTrigger className="w-full bg-background">
+              <SelectValue placeholder={isPaymentMethodsLoading ? "Carregando..." : "Todas as Formas"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Formas</SelectItem>
+              {paymentMethods?.map((method) => (
+                <SelectItem
+                  key={method.paymentMethodId || "no-method"}
+                  value={method.paymentMethodId || "no-method"}
+                >
+                  {method.paymentMethodName || "Sem forma de pagamento"} ({method.orderCount})
                 </SelectItem>
               ))}
             </SelectContent>

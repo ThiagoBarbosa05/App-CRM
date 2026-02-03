@@ -23,6 +23,9 @@ export interface OrderFilters {
   startDate?: string;
   endDate?: string;
   situationId?: string;
+  minValue?: string;
+  maxValue?: string;
+  paymentMethodId?: string;
   includeDeleted?: boolean;
 }
 
@@ -114,6 +117,18 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.situationId, filters.situationId));
     }
 
+    if (filters.minValue) {
+      conditions.push(gte(blingOrders.totalValue, filters.minValue));
+    }
+
+    if (filters.maxValue) {
+      conditions.push(lte(blingOrders.totalValue, filters.maxValue));
+    }
+
+    if (filters.paymentMethodId) {
+      conditions.push(eq(blingOrders.paymentMethodId, filters.paymentMethodId));
+    }
+
     if (filters.startDate) {
       conditions.push(gte(blingOrders.saleDate, filters.startDate));
     }
@@ -170,6 +185,18 @@ export class BlingOrdersRepository {
 
     if (filters.situationId) {
       conditions.push(eq(blingOrders.situationId, filters.situationId));
+    }
+
+    if (filters.minValue) {
+      conditions.push(gte(blingOrders.totalValue, filters.minValue));
+    }
+
+    if (filters.maxValue) {
+      conditions.push(lte(blingOrders.totalValue, filters.maxValue));
+    }
+
+    if (filters.paymentMethodId) {
+      conditions.push(eq(blingOrders.paymentMethodId, filters.paymentMethodId));
     }
 
     if (filters.startDate) {
@@ -391,6 +418,80 @@ export class BlingOrdersRepository {
       )
       .groupBy(blingOrders.situationId, blingOrders.situationValue)
       .orderBy(desc(sql`count(*)`));
+  }
+
+  /**
+   * Lista formas de pagamento disponíveis com contagem de pedidos
+   */
+  async getAvailablePaymentMethods() {
+    return await db
+      .select({
+        paymentMethodId: blingOrders.paymentMethodId,
+        paymentMethodName: blingOrders.paymentMethodName,
+        orderCount: sql<number>`count(*)`,
+      })
+      .from(blingOrders)
+      .where(
+        and(
+          isNull(blingOrders.deletedAt),
+          sql`${blingOrders.paymentMethodId} IS NOT NULL`
+        )
+      )
+      .groupBy(blingOrders.paymentMethodId, blingOrders.paymentMethodName)
+      .orderBy(desc(sql`count(*)`));
+  }
+
+  /**
+   * Busca evolução temporal de vendas (por dia, semana ou mês)
+   * groupBy: 'day' | 'week' | 'month'
+   */
+  async getSalesEvolution(
+    startDate: string,
+    endDate: string,
+    groupBy: 'day' | 'week' | 'month' = 'day',
+    accountId?: string
+  ) {
+    const conditions = [
+      gte(blingOrders.saleDate, startDate),
+      lte(blingOrders.saleDate, endDate),
+      isNull(blingOrders.deletedAt),
+    ];
+
+    if (accountId) {
+      conditions.push(eq(blingOrders.accountId, accountId));
+    }
+
+    // Define SQL para agrupamento baseado no tipo
+    let dateGroupSql;
+    switch (groupBy) {
+      case 'week':
+        dateGroupSql = sql<string>`date_trunc('week', ${blingOrders.saleDate}::timestamp)::date`;
+        break;
+      case 'month':
+        dateGroupSql = sql<string>`date_trunc('month', ${blingOrders.saleDate}::timestamp)::date`;
+        break;
+      case 'day':
+      default:
+        dateGroupSql = sql<string>`${blingOrders.saleDate}`;
+        break;
+    }
+
+    const result = await db
+      .select({
+        date: dateGroupSql,
+        totalOrders: sql<number>`count(*)`,
+        totalValue: sql<string>`sum(${blingOrders.totalValue})`,
+      })
+      .from(blingOrders)
+      .where(and(...conditions))
+      .groupBy(dateGroupSql)
+      .orderBy(dateGroupSql);
+
+    return result.map((row) => ({
+      date: row.date,
+      totalOrders: Number(row.totalOrders),
+      totalValue: parseFloat(row.totalValue || "0"),
+    }));
   }
 }
 

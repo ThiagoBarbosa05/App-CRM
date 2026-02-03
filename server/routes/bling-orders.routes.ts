@@ -105,6 +105,58 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bling-orders/filters/payment-methods
+ * @desc    Lista formas de pagamento disponíveis com contagem de pedidos
+ * @access  Private
+ */
+router.get(
+  "/filters/payment-methods",
+  blingOrdersController.getAvailablePaymentMethods.bind(blingOrdersController)
+);
+
+/**
+ * @route   GET /api/bling-orders/export
+ * @desc    Exporta pedidos com detalhes completos (itens e parcelas)
+ * @query   Mesmos parâmetros de /api/bling-orders
+ * @access  Private
+ */
+router.get(
+  "/export",
+  blingOrdersController.exportOrders.bind(blingOrdersController)
+);
+
+/**
+ * @route   GET /api/bling-orders/statistics/sales-evolution
+ * @desc    Retorna evolução temporal de vendas (por dia, semana ou mês)
+ * @query   {
+ *   startDate: string,   // YYYY-MM-DD (obrigatório)
+ *   endDate: string,     // YYYY-MM-DD (obrigatório)
+ *   groupBy?: 'day' | 'week' | 'month',  // default: 'day'
+ *   accountId?: string
+ * }
+ * @access  Private
+ */
+router.get(
+  "/statistics/sales-evolution",
+  blingOrdersController.getSalesEvolution.bind(blingOrdersController)
+);
+
+/**
+ * @route   GET /api/bling-orders/statistics/sales-comparison
+ * @desc    Retorna estatísticas comparadas com período anterior
+ * @query   {
+ *   startDate: string,   // YYYY-MM-DD (obrigatório)
+ *   endDate: string,     // YYYY-MM-DD (obrigatório)
+ *   accountId?: string
+ * }
+ * @access  Private
+ */
+router.get(
+  "/statistics/sales-comparison",
+  blingOrdersController.getSalesComparison.bind(blingOrdersController)
+);
+
+/**
  * @route   GET /api/bling-orders/:blingOrderId
  * @desc    Busca um pedido específico por ID do Bling
  * @params  blingOrderId: number

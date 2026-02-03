@@ -201,7 +201,7 @@ export function OrderDetailsDialog({
                                 parseFloat(installment.value || "0")
                               )}
                             </TableCell>
-                            <TableCell>{installment.obs || "-"}</TableCell>
+                            <TableCell>{installment.observations || "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

@@ -10,19 +10,52 @@ import {
   DollarSign,
   Package,
   TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SalesStatisticsCardsProps {
   totalOrders?: number;
   totalValue?: number;
   averageValue?: number;
+  ordersChange?: number;
+  valueChange?: number;
+  averageChange?: number;
   isLoading: boolean;
+}
+
+function ChangeIndicator({ change }: { change?: number }) {
+  if (change === undefined || change === 0) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        <span>Sem mudança</span>
+      </div>
+    );
+  }
+
+  const isPositive = change > 0;
+  const Icon = isPositive ? TrendingUp : TrendingDown;
+  const colorClass = isPositive ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500";
+
+  return (
+    <div className={cn("flex items-center gap-1 text-xs font-medium", colorClass)}>
+      <Icon className="h-3 w-3" />
+      <span>
+        {isPositive ? "+" : ""}{change.toFixed(1)}% vs período anterior
+      </span>
+    </div>
+  );
 }
 
 export function SalesStatisticsCards({
   totalOrders = 0,
   totalValue = 0,
   averageValue = 0,
+  ordersChange,
+  valueChange,
+  averageChange,
   isLoading,
 }: SalesStatisticsCardsProps) {
   if (isLoading) {
@@ -55,9 +88,9 @@ export function SalesStatisticsCards({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{totalOrders}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pedidos realizados no período
-          </p>
+          <div className="mt-1">
+            <ChangeIndicator change={ordersChange} />
+          </div>
         </CardContent>
       </Card>
 
@@ -72,9 +105,9 @@ export function SalesStatisticsCards({
           <div className="text-2xl font-bold text-green-600 dark:text-green-500">
             {formatCurrency(totalValue)}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Receita bruta no período
-          </p>
+          <div className="mt-1">
+            <ChangeIndicator change={valueChange} />
+          </div>
         </CardContent>
       </Card>
 
@@ -89,9 +122,9 @@ export function SalesStatisticsCards({
           <div className="text-2xl font-bold">
             {formatCurrency(averageValue)}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Valor médio por pedido
-          </p>
+          <div className="mt-1">
+            <ChangeIndicator change={averageChange} />
+          </div>
         </CardContent>
       </Card>
     </div>
