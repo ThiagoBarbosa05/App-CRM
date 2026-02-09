@@ -77,7 +77,7 @@ export class ClientsService {
           userRole,
           filters,
           page,
-          pageSize
+          pageSize,
         ),
         this.clientsRepository.getClientsCount(userId, userRole, filters),
       ]);
@@ -166,7 +166,7 @@ export class ClientsService {
   async getClientsWithoutRecentContact(
     userId?: string,
     userRole?: string,
-    days: number = 1
+    days: number = 1,
   ): Promise<any[]> {
     // Validação de entrada
     if (days < 1 || days > 365) {
@@ -179,14 +179,14 @@ export class ClientsService {
         await this.clientsRepository.getClientsWithoutRecentContact(
           userId,
           userRole,
-          days
+          days,
         );
 
       return clients;
     } catch (error) {
       console.error(
         "Erro no ClientsService.getClientsWithoutRecentContact:",
-        error
+        error,
       );
       throw new Error("Erro ao buscar clientes sem contato recente");
     }
@@ -199,7 +199,7 @@ export class ClientsService {
     // Validação de permissão
     if (userRole !== "admin" && userRole !== "administrador") {
       throw new Error(
-        "Acesso negado. Apenas administradores podem exportar todos os dados."
+        "Acesso negado. Apenas administradores podem exportar todos os dados.",
       );
     }
 
@@ -225,7 +225,7 @@ export class ClientsService {
       const processedData = this.processClientData(
         clientData,
         userId,
-        userRole
+        userRole,
       );
 
       // Validar dados usando o schema Zod
@@ -235,12 +235,12 @@ export class ClientsService {
       const confirmationCode = generateConfirmationCode();
 
       // Primeiro, criar o contato no Umbler
-      const umblerContact = await syncContact({
-        phoneNumber: formatPhoneToDigits(validatedData.phone),
-        name: validatedData.name,
-        email: validatedData.email || undefined,
-        organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
-      });
+      // const umblerContact = await syncContact({
+      //   phoneNumber: formatPhoneToDigits(validatedData.phone),
+      //   name: validatedData.name,
+      //   email: validatedData.email || undefined,
+      //   organizationId: process.env.UMBLER_ORGANIZATION_ID || "",
+      // });
 
       // if (!umblerContact) {
       //   throw new Error(
@@ -330,11 +330,9 @@ export class ClientsService {
         confirmationCode: confirmationCode,
       };
 
-      const client = await this.clientsRepository.createClient(
-        clientDataToInsert
-      );
+      const client =
+        await this.clientsRepository.createClient(clientDataToInsert);
 
-      console.log("Cliente criado:", client.id);
       // console.log("Tags recebidas:", externalTagIds);
 
       // ============================================================
@@ -392,9 +390,8 @@ export class ClientsService {
 
       return {
         ...client,
-        requiresConfirmation: true,
-        message:
-          "Cliente criado com sucesso! Um código de confirmação foi enviado para o Umbler. Consulte as notas do contato no Umbler para obter o código.",
+        requiresConfirmation: false,
+        message: "Cliente criado com sucesso!",
       };
     } catch (error) {
       console.error("Erro no ClientsService.createClient:", error);
@@ -407,7 +404,7 @@ export class ClientsService {
       // Re-throw erros de banco (telefone duplicado, etc.)
       if (error && error.toString().includes("clients_phone_unique")) {
         throw new Error(
-          "Este número de telefone já está cadastrado para outro cliente."
+          "Este número de telefone já está cadastrado para outro cliente.",
         );
       }
 
@@ -431,7 +428,7 @@ export class ClientsService {
       const processedData = this.processUpdateClientData(
         updateData,
         userId,
-        userRole
+        userRole,
       );
 
       // Validar dados usando o schema Zod (partial para permitir atualizações parciais)
@@ -440,7 +437,7 @@ export class ClientsService {
       // Atualizar cliente através do repositório
       const client = await this.clientsRepository.updateClient(
         clientId,
-        validatedData
+        validatedData,
       );
 
       // Verificar se o cliente foi encontrado
@@ -536,7 +533,7 @@ export class ClientsService {
       // Re-throw erros de banco (telefone duplicado, etc.)
       if (error && error.toString().includes("clients_phone_unique")) {
         throw new Error(
-          "Este número de telefone já está cadastrado para outro cliente."
+          "Este número de telefone já está cadastrado para outro cliente.",
         );
       }
 
@@ -549,7 +546,7 @@ export class ClientsService {
    */
   async confirmClient(
     clientId: string,
-    confirmationCode: string
+    confirmationCode: string,
   ): Promise<any> {
     // Validação básica
     if (!clientId || typeof clientId !== "string") {
@@ -576,14 +573,14 @@ export class ClientsService {
       // Verificar se o código foi enviado
       if (!client.confirmationCode) {
         throw new Error(
-          "Código de confirmação não foi gerado para este cliente"
+          "Código de confirmação não foi gerado para este cliente",
         );
       }
 
       // Validar código comparando com o código armazenado no banco
       if (confirmationCode.trim() !== client.confirmationCode.trim()) {
         throw new Error(
-          "Código de confirmação inválido. Verifique o código e tente novamente"
+          "Código de confirmação inválido. Verifique o código e tente novamente",
         );
       }
 
@@ -592,7 +589,7 @@ export class ClientsService {
         clientId,
         {
           status: "confirmed",
-        }
+        },
       );
 
       return {
@@ -616,7 +613,7 @@ export class ClientsService {
   private processClientData(
     clientData: any,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): any {
     // Converter strings vazias em null para campos opcionais
     let processedData = {
@@ -643,7 +640,7 @@ export class ClientsService {
   private processUpdateClientData(
     updateData: any,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): any {
     // Converter strings vazias em null para campos opcionais (sem defaults para atualização)
     let processedData = {
@@ -710,7 +707,7 @@ export class ClientsService {
 
       // Verifica se todos os IDs são válidos
       const invalidIds = clientIds.filter(
-        (id) => !id || typeof id !== "string"
+        (id) => !id || typeof id !== "string",
       );
       if (invalidIds.length > 0) {
         throw new Error("IDs de clientes inválidos encontrados");
