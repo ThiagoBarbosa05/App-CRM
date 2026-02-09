@@ -18,7 +18,7 @@ import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
 import { OrdersFilters } from "@/components/bling-sales/orders-filters";
 import { OrdersTable } from "@/components/bling-sales/orders-table";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { Download, HandCoins, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function BlingSalesPage() {
@@ -169,25 +169,42 @@ export default function BlingSalesPage() {
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Vendas Bling</h2>
-        <Button 
-          onClick={handleExport} 
-          disabled={isExporting || isFetchingExport || !formattedStartDate || !formattedEndDate}
-          className="gap-2"
-        >
-          {isExporting || isFetchingExport ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Exportando...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" />
-              Exportar Excel
-            </>
-          )}
-        </Button>
+      <div className="flex items-center justify-between space-y-2 w-full">
+        <div className="bg-white dark:bg-slate-950 dark:border-slate-700 dark:border border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm w-full">
+          <div className="flex items-center gap-2 flex-wrap justify-between">
+            <div className="flex items-center gap-4">
+              <HandCoins className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  Vendas
+                </h2>
+                <p className="text-gray-600 dark:text-slate-400 mt-1">
+                  Acompahe as vendas do Bling ERP
+                </p>
+                <p className="text-2xl text-red-500 animate-pulse font-bold" >Essa Página ainda está em desenvolvimento !</p>
+
+              </div>
+            </div>
+            <Button 
+              onClick={handleExport} 
+              disabled={isExporting || isFetchingExport || !formattedStartDate || !formattedEndDate}
+              className="gap-2"
+            >
+              {isExporting || isFetchingExport ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Exportar Excel
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+       
       </div>
 
       <OrdersFilters

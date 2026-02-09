@@ -279,7 +279,7 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
               }
             >
               <ShoppingCart className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Vendas</span>
+              <span className="mobile-text">Vendas (BETA)</span>
             </button>
           </Link>
         )} 
