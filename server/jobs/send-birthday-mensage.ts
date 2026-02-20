@@ -619,6 +619,15 @@ async function createChatForClient(
     });
 
     if (chatResponse && chatResponse.id) {
+      // Validar se o chat retornado pertence ao canal configurado na automação
+      if (chatResponse.channel?.id && chatResponse.channel.id !== channelId) {
+        console.error(
+          `[Birthday Job] ⚠️ CANAL INCORRETO - Chat ${chatResponse.id} retornado no canal ${chatResponse.channel.id}, mas esperado canal ${channelId}. Abortando envio.`
+        );
+        throw new Error(
+          `Chat retornado pertence ao canal ${chatResponse.channel.id}, mas a automação exige o canal ${channelId}`
+        );
+      }
       return chatResponse.id;
     }
 
