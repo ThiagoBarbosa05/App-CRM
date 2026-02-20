@@ -3,6 +3,7 @@ import { AppSidebar } from "./sidebar";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,8 +48,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 bg-gray-50 dark:bg-slate-900 overflow-y-auto p-5 lg:p-6">
-          {children}
+        <main className="flex-1 bg-gray-50 dark:bg-slate-900 overflow-y-auto p-5 lg:p-6 relative">
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="h-full"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

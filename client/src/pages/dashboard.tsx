@@ -186,7 +186,7 @@ export default function Dashboard() {
 
           {/* Cards de Estatísticas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-l-4 border-l-blue-500 dark:border-l-blue-400">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-l-4 border-l-blue-500 dark:border-l-blue-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
                 <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   Meus Clientes
@@ -205,7 +205,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-l-4 border-l-green-500 dark:border-l-green-400">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-l-4 border-l-green-500 dark:border-l-green-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
                 <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   Negócios Ativos
@@ -224,7 +224,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30 border-l-4 border-l-yellow-500 dark:border-l-yellow-400">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30 border-l-4 border-l-yellow-500 dark:border-l-yellow-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
                 <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   Dívidas Pendentes
@@ -251,7 +251,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 border-l-4 border-l-red-500 dark:border-l-red-400">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-2 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 border-l-4 border-l-red-500 dark:border-l-red-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-6 pt-6">
                 <CardTitle className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   Dívidas Vencidas
