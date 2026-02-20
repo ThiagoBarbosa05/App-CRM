@@ -32,6 +32,33 @@ interface AppSidebarProps {
   onCloseSidebar: (value: boolean) => void;
 }
 
+type NavItem = {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  roles?: string[];
+  hideForRoles?: string[];
+};
+
+const navItems: NavItem[] = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/clientes", icon: Users, label: "Clientes" },
+  { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
+  { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
+  { href: "/empresas", icon: Building2, label: "Empresas" },
+  { href: "/products", icon: Wine, label: "Produtos" },
+  { href: "/funil", icon: GitBranch, label: "Funil de Vendas", roles: ["admin", "vendedor"] },
+  { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
+  { href: "/metas", icon: Target, label: "Metas" },
+  { href: "/relatorios", icon: BarChart3, label: "Relatórios", hideForRoles: ["vendedor"] },
+  { href: "/vendas", icon: ShoppingCart, label: "Vendas (BETA)", roles: ["admin", "gerente"] },
+  { href: "/assistente-ia", icon: Sparkles, label: "IA Assistente" },
+  { href: "/treinamentos", icon: Video, label: "Treinamentos" },
+  { href: "/admin-metas", icon: Shield, label: "Admin Metas", roles: ["admin", "gerente"] },
+  { href: "/cashback", icon: Gift, label: "Cashback" },
+  { href: "/configuracoes", icon: Settings, label: "Configurações", hideForRoles: ["vendedor"] },
+];
+
 export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
@@ -79,310 +106,34 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
 
       {/* Navigation */}
       <nav className="flex flex-col gap-1 mt-5">
-        <Link href="/dashboard">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/dashboard"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/dashboard" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <LayoutDashboard className="size-4 mr-3" />
-            <span className="mobile-text">Dashboard</span>
-          </button>
-        </Link>
-        <Link href="/clientes">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/clientes"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/clientes" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <Users className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Clientes</span>
-          </button>
-        </Link>
-        <Link href="/umbler/contacts">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/umbler/contacts"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/umbler/contacts"
-                ? { backgroundColor: "#9334ea" }
-                : {}
-            }
-          >
-            <Users className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Umbler Contatos</span>
-          </button>
-        </Link>
-        <Link href="/acompanhamento">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/acompanhamento"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/acompanhamento"
-                ? { backgroundColor: "#9334ea" }
-                : {}
-            }
-          >
-            <ClipboardList className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Acompanhamento</span>
-          </button>
-        </Link>
+        {navItems.map((item) => {
+          if (item.roles && (!user || !item.roles.includes(user.role))) return null;
+          if (item.hideForRoles && user && item.hideForRoles.includes(user.role)) return null;
 
-        <Link href="/empresas">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/empresas"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/empresas" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <Building2 className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Empresas</span>
-          </button>
-        </Link>
+          const isActive = location === item.href || (location.startsWith(`${item.href}/`));
 
-        <Link href="/products">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/products"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/products" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <Wine className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Produtos</span>
-          </button>
-        </Link>
-
-        {(user?.role === "admin" || user?.role === "vendedor") && (
-          <Link href="/funil">
-            <button
-              onClick={closeMobileMenu}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/funil"
-                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-              )}
-              style={
-                location === "/funil" ? { backgroundColor: "#9334ea" } : {}
-              }
-            >
-              <GitBranch className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Funil de Vendas</span>
-            </button>
-          </Link>
-        )}
-
-        <Link href="/calendario">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/calendario"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/calendario" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <CalendarDays className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Aniversários</span>
-          </button>
-        </Link>
-
-        <Link href="/metas">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/metas"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={location === "/metas" ? { backgroundColor: "#9334ea" } : {}}
-          >
-            <Target className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Metas</span>
-          </button>
-        </Link>
-
-        {user?.role !== "vendedor" && (
-          <Link href="/relatorios">
-            <button
-              onClick={closeMobileMenu}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/relatorios"
-                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-              )}
-              style={
-                location === "/relatorios" ? { backgroundColor: "#9334ea" } : {}
-              }
-            >
-              <BarChart3 className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Relatórios</span>
-            </button>
-          </Link>
-        )}
-
-        {(user?.role === "admin" || user?.role === "gerente") && (
-          <Link href="/vendas">
-            <button
-              onClick={closeMobileMenu}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/vendas"
-                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
-              )}
-              style={
-                location === "/vendas"
-                  ? { backgroundColor: "#9334ea" }
-                  : {}
-              }
-            >
-              <ShoppingCart className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Vendas (BETA)</span>
-            </button>
-          </Link>
-        )} 
-
-        <Link href="/assistente-ia">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/assistente-ia"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/assistente-ia"
-                ? { backgroundColor: "#9334ea" }
-                : {}
-            }
-          >
-            <Sparkles className="mr-3 h-4 w-4" />
-            <span className="mobile-text">IA Assistente</span>
-          </button>
-        </Link>
-
-        <Link href="/treinamentos">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/treinamentos"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/treinamentos" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <Video className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Treinamentos</span>
-          </button>
-        </Link>
-
-        {(user?.role === "admin" || user?.role === "gerente") && (
-          <Link href="/admin-metas">
-            <button
-              onClick={closeMobileMenu}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/admin-metas"
-                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-              )}
-              style={
-                location === "/admin-metas"
-                  ? { backgroundColor: "#9334ea" }
-                  : {}
-              }
-            >
-              <Shield className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Admin Metas</span>
-            </button>
-          </Link>
-        )}
-
-        <Link href="/cashback">
-          <button
-            onClick={closeMobileMenu}
-            className={cn(
-              "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-              location === "/cashback"
-                ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-            )}
-            style={
-              location === "/cashback" ? { backgroundColor: "#9334ea" } : {}
-            }
-          >
-            <Gift className="mr-3 h-4 w-4" />
-            <span className="mobile-text">Cashback</span>
-          </button>
-        </Link>
-
-        {user?.role !== "vendedor" && (
-          <Link href="/configuracoes">
-            <button
-              onClick={closeMobileMenu}
-              className={cn(
-                "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-200 mobile-button",
-                location === "/configuracoes"
-                  ? "text-white shadow-md shadow-purple-600/20 dark:shadow-purple-900/40"
-                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100",
-              )}
-              style={
-                location === "/configuracoes"
-                  ? { backgroundColor: "#9334ea" }
-                  : {}
-              }
-            >
-              <Settings className="mr-3 h-4 w-4" />
-              <span className="mobile-text">Configurações</span>
-            </button>
-          </Link>
-        )}
+          return (
+            <Link key={item.href} href={item.href}>
+              <button
+                onClick={closeMobileMenu}
+                className={cn(
+                  "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-300 mobile-button group",
+                  isActive
+                    ? "text-white bg-gradient-to-r from-purple-600 to-indigo-600 shadow-md shadow-purple-600/30 dark:shadow-purple-900/40"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 hover:translate-x-1"
+                )}
+              >
+                <item.icon 
+                  className={cn(
+                    "mr-3 h-5 w-5 shrink-0 transition-transform duration-300",
+                    !isActive && "group-hover:scale-110 group-hover:text-purple-600 dark:group-hover:text-purple-400"
+                  )} 
+                />
+                <span className="mobile-text">{item.label}</span>
+              </button>
+            </Link>
+          );
+        })}
       </nav>
       <Separator className="mt-5 bg-slate-200 dark:bg-slate-800" />
 

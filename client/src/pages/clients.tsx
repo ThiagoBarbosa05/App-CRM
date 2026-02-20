@@ -8,24 +8,13 @@ import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
-import {
-  Plus,
-  Search,
-  Download,
-  Upload,
-  Loader2,
-  Briefcase,
-  Users,
-} from "lucide-react";
+import { Plus, Search, Download, Upload, Loader2, Briefcase, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-
-// Definição de tipo para cliente para melhorar a segurança de tipo.
-interface Client {
-  id: string;
-  [key: string]: any; // Permite outras propriedades não estritamente tipadas por enquanto.
-}
+import { ClientsHeader } from "@/components/clients/clients-header";
+import { ClientsActions } from "@/components/clients/clients-actions";
+import { type Client } from "@shared/schema";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -174,114 +163,23 @@ export default function Clients() {
   return (
     <div className="bg-gray-50 dark:bg-slate-900">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="bg-white dark:bg-slate-950 border-b dark:border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
-          <div className="flex items-center gap-2 flex-wrap justify-between">
-            <div className="flex items-center gap-4">
-              <Users className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-                    Clientes
-                  </h2>
-                  {totalItems > 0 && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                      {totalItems} {totalItems === 1 ? "cliente" : "clientes"}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-600 dark:text-slate-400 mt-1">
-                  Gerencie seus clientes e informações de contato
-                </p>
-              </div>
-            </div>
+        <ClientsHeader
+          totalItems={totalItems}
+          onImportClick={() => setIsImportModalOpen(true)}
+          onNewClientClick={() => setIsClientModalOpen(true)}
+        />
 
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setIsImportModalOpen(true)}
-                className="text-wine-600 dark:text-purple-400 border-wine-600 dark:border-purple-600 hover:bg-wine-50 dark:hover:bg-purple-900/30"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Importar
-              </Button>
-              <Button
-                onClick={() => setIsClientModalOpen(true)}
-                className="bg-primary hover:bg-primary-dark dark:bg-purple-600 dark:hover:bg-purple-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Cliente
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-2">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Buscar clientes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-full"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <ClientFilters
-                currentFilters={clientFilters}
-                onFiltersChange={handleFiltersChange}
-              />
-              <div className="flex items-center gap-2">
-                {selectedClients.length > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                      {selectedClients.length} selecionados
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearSelection}
-                      className="h-6 w-6 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                    >
-                      ×
-                    </Button>
-                  </div>
-                )}
-                {selectedClients.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsBulkDealModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white border-blue-600 dark:border-blue-700"
-                    data-testid="button-bulk-deals"
-                  >
-                    <Briefcase className="h-4 w-4 mr-2" />
-                    Criar Negócios em Lote ({selectedClients.length})
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => setIsExportModalOpen(true)}
-                  className="w-full"
-                  disabled={
-                    isExportModalOpen &&
-                    selectedClients.length === 0 &&
-                    isFetchingAllForExport
-                  }
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {isFetchingAllForExport && selectedClients.length === 0
-                    ? "Preparando..."
-                    : selectedClients.length > 0
-                      ? `Exportar ${selectedClients.length} Selecionados`
-                      : "Exportar Todos"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ClientsActions
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          clientFilters={clientFilters}
+          onFiltersChange={handleFiltersChange}
+          selectedCount={selectedClients.length}
+          onClearSelection={clearSelection}
+          onBulkDealClick={() => setIsBulkDealModalOpen(true)}
+          onExportClick={() => setIsExportModalOpen(true)}
+          isExporting={isExportModalOpen && selectedClients.length === 0 && isFetchingAllForExport}
+        />
 
         {/* Clients Table */}
         <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
