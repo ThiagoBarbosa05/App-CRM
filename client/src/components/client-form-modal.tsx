@@ -333,492 +333,538 @@ export default function ClientFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold text-gray-900">
-              {client ? "Editar Cliente" : "Novo Cliente"}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Nome Completo *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Digite o nome completo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+      <DialogContent className="w-full max-w-3xl overflow-hidden p-0 bg-slate-50 dark:bg-slate-950 flex flex-col max-h-[90vh]">
+        <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-5 shrink-0 relative z-10 shadow-sm">
+          <DialogHeader className="space-y-0">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-blue-100/80 to-indigo-100/80 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl shadow-sm border border-blue-200/40 dark:border-blue-800/40">
+                {client ? (
+                  <Tag className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <Tag className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 )}
-              />
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+                  {client ? "Editar Cliente" : "Novo Cliente"}
+                </DialogTitle>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {client
+                    ? "Atualize as informações do cliente abaixo."
+                    : "Preencha as informações para cadastrar um novo cliente."}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
 
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Celular *</FormLabel>
-                    <FormControl>
-                      <InputMask
-                        mask="(99) 99999-9999"
-                        placeholder="(11) 99999-9999"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div className="overflow-y-auto overflow-x-hidden p-6 gap-6 relative flex flex-col h-full scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+          <Form {...form}>
+            <form id="client-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Seção 1: Dados Pessoais */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 dark:bg-blue-600"></div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <span className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-md">
+                    👤
+                  </span> 
+                  Dados Pessoais
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Nome Completo *</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-blue-500" placeholder="Digite o nome completo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="fixedPhone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone Fixo</FormLabel>
-                    <FormControl>
-                      <InputMask
-                        mask="(99) 9999-9999"
-                        placeholder="(11) 1234-5678"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="cpf"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">CPF</FormLabel>
+                        <FormControl>
+                          <InputMask
+                            mask="999.999.999-99"
+                            placeholder="000.000.000-00"
+                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-blue-500"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="cpf"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CPF</FormLabel>
-                    <FormControl>
-                      <InputMask
-                        mask="999.999.999-99"
-                        placeholder="000.000.000-00"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="birthday"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Data de Aniversário</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-blue-500" type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="email@exemplo.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Seção 2: Contatos */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 dark:bg-emerald-600"></div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <span className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-md">
+                    📞
+                  </span> 
+                  Contato
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Celular WhatsApp *</FormLabel>
+                        <FormControl>
+                          <InputMask
+                            mask="(99) 99999-9999"
+                            placeholder="(11) 99999-9999"
+                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-emerald-500 font-medium"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="birthday"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data de Aniversário</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="fixedPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Telefone Fixo</FormLabel>
+                        <FormControl>
+                          <InputMask
+                            mask="(99) 9999-9999"
+                            placeholder="(11) 1234-5678"
+                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-emerald-500"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              {/* Campo responsável - selecionável para admin e gerente, informativo para outros */}
-              {user?.role === "admin" || user?.role === "gerente" ? (
-                <FormField
-                  control={form.control}
-                  name="responsavelId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Responsável *</FormLabel>
-                      <FormControl>
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">E-mail</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-emerald-500"
+                            type="email"
+                            placeholder="email@exemplo.com"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Seção 3: Endereço */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 dark:bg-amber-600"></div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <span className="p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-md">
+                    📍
+                  </span> 
+                  Endereço
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                  <FormField
+                    control={form.control}
+                    name="cep"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2 lg:col-span-1">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">CEP</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <InputMask
+                              mask="99999-999"
+                              placeholder="00000-000"
+                              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-amber-500"
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                const cep = e.target.value;
+                                if (cep && cep.length === 9) {
+                                  lookupCep(cep);
+                                }
+                              }}
+                            />
+                            {isLoadingCep && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-500"></div>
+                              </div>
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2 lg:col-span-2">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Logradouro (Rua, Av.)</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: Rua das Flores" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Número</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="123" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="neighborhood"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Bairro</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: Centro" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Cidade</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: São Paulo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Estado</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o responsável" />
+                            <SelectTrigger className="dark:bg-slate-950 focus:ring-amber-500">
+                              <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {(users as any[]).length === 0 ? (
-                              <div className="p-2 text-sm text-gray-500 text-center">
-                                Nenhum usuário encontrado.
-                              </div>
-                            ) : (
-                              (users as any[]).map((user: any) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  {user.name} -{" "}
-                                  {user.role === "admin"
-                                    ? "Administrador"
-                                    : user.role === "gerente"
-                                      ? "Gerente"
-                                      : user.role === "vendedor"
-                                        ? "Vendedor"
-                                        : "Usuário"}
+                            <div className="max-h-[200px] overflow-y-auto">
+                              {brazilianStates.map((state) => (
+                                <SelectItem key={state.value} value={state.value}>
+                                  {state.label}
                                 </SelectItem>
-                              ))
-                            )}
+                              ))}
+                            </div>
                           </SelectContent>
                         </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Responsável
-                  </label>
-                  <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background">
-                    <span className="text-muted-foreground">
-                      {user?.name || "Usuário atual"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Clientes são automaticamente atribuídos a você como
-                    responsável
-                  </p>
-                </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="categoria"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoria *</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a categoria" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(categories as any[]).length === 0 ? (
-                            <div className="p-2 text-sm text-gray-500 text-center">
-                              Nenhuma categoria encontrada. Crie categorias na
-                              página Configurações.
-                            </div>
-                          ) : (
-                            (categories as any[]).map((category: any) => (
-                              <SelectItem
-                                key={category.id}
-                                value={category.name}
-                              >
-                                {category.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="origem"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Origem *</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a origem" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(origins as any[]).length === 0 ? (
-                            <div className="p-2 text-sm text-gray-500 text-center">
-                              Nenhuma origem encontrada. Crie origens na página
-                              Configurações.
-                            </div>
-                          ) : (
-                            (origins as any[]).map((origin: any) => (
-                              <SelectItem key={origin.id} value={origin.name}>
-                                {origin.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="markers"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Marcadores</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={(value) => {
-                          // Para permitir múltiplos marcadores, vamos apenas adicionar ao array
-                          const currentMarkers = field.value || [];
-                          if (!currentMarkers.includes(value)) {
-                            field.onChange([...currentMarkers, value]);
-                          }
-                        }}
-                        value=""
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione marcadores..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {markers.filter(
-                            (marker: any) => marker.type === "marcador",
-                          ).length === 0 ? (
-                            <div className="p-2 text-sm text-gray-500 text-center">
-                              Nenhum marcador encontrado. Crie marcadores na
-                              página Configurações.
-                            </div>
-                          ) : (
-                            markers
-                              .filter(
-                                (marker: any) => marker.type === "marcador",
-                              )
-                              .map((marker: any) => (
-                                <SelectItem key={marker.id} value={marker.name}>
-                                  {marker.name}
-                                </SelectItem>
-                              ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    {/* Mostrar marcadores selecionados */}
-                    {field.value && field.value.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {field.value.map((marker: string, index: number) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="flex items-center gap-1"
-                          >
-                            {marker}
-                            <X
-                              className="h-3 w-3 cursor-pointer"
-                              onClick={() => {
-                                const newMarkers = field.value.filter(
-                                  (m: string) => m !== marker,
-                                );
-                                field.onChange(newMarkers);
-                              }}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  />
+                </div>
+              </div>
 
-              {/* <FormField
-                control={form.control}
-                name="externalTagIds"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Tags do Umbler</FormLabel>
-                    <FormControl>
-                      <TagSelector
-                        selectedTags={field.value || []}
-                        onTagsChange={field.onChange}
-                        placeholder="Selecione tags para associar ao cliente..."
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Tags ajudam a organizar e segmentar seus clientes no
-                      Umbler
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              /> */}
+              {/* Seção 4: Comercial e CRM */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 dark:bg-purple-600"></div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <span className="p-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-md">
+                    💼
+                  </span> 
+                  Gestão Comercial
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormField
+                    control={form.control}
+                    name="categoria"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Categoria *</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
+                                <SelectValue placeholder="Selecione a categoria" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(categories as any[]).length === 0 ? (
+                                <div className="p-2 text-sm text-gray-500 text-center">
+                                  Nenhuma categoria encontrada.
+                                </div>
+                              ) : (
+                                (categories as any[]).map((category: any) => (
+                                  <SelectItem
+                                    key={category.id}
+                                    value={category.name}
+                                  >
+                                    {category.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="cep"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CEP</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <InputMask
-                          mask="99999-999"
-                          placeholder="00000-000"
-                          {...field}
-                          onBlur={(e) => {
-                            field.onBlur();
-                            const cep = e.target.value;
-                            if (cep && cep.length === 9) {
-                              // CEP with mask has 9 characters
-                              lookupCep(cep);
-                            }
-                          }}
-                        />
-                        {isLoadingCep && (
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                  <FormField
+                    control={form.control}
+                    name="origem"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Origem Principal *</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
+                                <SelectValue placeholder="Selecione a origem" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(origins as any[]).length === 0 ? (
+                                <div className="p-2 text-sm text-gray-500 text-center">
+                                  Nenhuma origem encontrada.
+                                </div>
+                              ) : (
+                                (origins as any[]).map((origin: any) => (
+                                  <SelectItem key={origin.id} value={origin.name}>
+                                    {origin.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {user?.role === "admin" || user?.role === "gerente" ? (
+                    <FormField
+                      control={form.control}
+                      name="responsavelId"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className="text-slate-700 dark:text-slate-300">Responsável Atribuído *</FormLabel>
+                          <FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
+                                  <SelectValue placeholder="Selecione o vendedor responsável" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {(users as any[]).length === 0 ? (
+                                  <div className="p-2 text-sm text-gray-500 text-center">
+                                    Nenhum usuário encontrado.
+                                  </div>
+                                ) : (
+                                  (users as any[]).map((u: any) => (
+                                    <SelectItem key={u.id} value={u.id}>
+                                      {u.name} -{" "}
+                                      {u.role === "admin"
+                                        ? "Administrador"
+                                        : u.role === "gerente"
+                                          ? "Gerente"
+                                          : "Vendedor"}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium leading-none text-slate-700 dark:text-slate-300">
+                        Responsável
+                      </label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-3 py-2 text-sm">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          {user?.name || "Você (Autosselecionado)"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-500">
+                        Como vendedor, este cliente será automaticamente atribuído à sua carteira.
+                      </p>
+                    </div>
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="markers"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Marcadores Adicionais (Tags)</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={(value) => {
+                              const currentMarkers = field.value || [];
+                              if (!currentMarkers.includes(value)) {
+                                field.onChange([...currentMarkers, value]);
+                              }
+                            }}
+                            value=""
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
+                                <SelectValue placeholder="Selecione marcadores..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {markers.filter(
+                                (m: any) => m.type === "marcador",
+                              ).length === 0 ? (
+                                <div className="p-2 text-sm text-gray-500 text-center">
+                                  Nenhum marcador disponível.
+                                </div>
+                              ) : (
+                                markers
+                                  .filter(
+                                    (m: any) => m.type === "marcador",
+                                  )
+                                  .map((m: any) => (
+                                    <SelectItem key={m.id} value={m.name}>
+                                      {m.name}
+                                    </SelectItem>
+                                  ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        {field.value && field.value.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
+                            {field.value.map((marker: string, index: number) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="flex items-center gap-1.5 px-2.5 py-1 text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50 transition-colors"
+                              >
+                                {marker}
+                                <X
+                                  className="h-3.5 w-3.5 cursor-pointer opacity-70 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newMarkers = field.value.filter(
+                                      (m: string) => m !== marker,
+                                    );
+                                    field.onChange(newMarkers);
+                                  }}
+                                />
+                              </Badge>
+                            ))}
                           </div>
                         )}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                    <p className="text-xs dark:text-slate-400 text-muted-foreground">
-                      O endereço será preenchido automaticamente ao digitar o
-                      CEP
-                    </p>
-                  </FormItem>
-                )}
-              />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </form>
+          </Form>
+        </div>
 
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Logradouro</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Rua, avenida, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="neighborhood"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bairro</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Centro" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <FormControl>
-                      <Input placeholder="São Paulo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {brazilianStates.map((state) => (
-                          <SelectItem key={state.value} value={state.value}>
-                            {state.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 ">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className=""
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? "Salvando..."
-                  : client
-                    ? "Atualizar Cliente"
-                    : "Salvar Cliente"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+        {/* Footer pegajoso para os botões */}
+        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md px-6 py-4 shrink-0 flex items-center justify-end gap-3 rounded-b-lg">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium px-4"
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            form="client-form"
+            disabled={isSubmitting}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 font-medium transition-colors"
+          >
+            {isSubmitting ? (
+              <span className="flex items-center gap-2">
+                <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
+                Salvando...
+              </span>
+            ) : client ? (
+              "Atualizar Cliente"
+            ) : (
+              "Cadastrar Cliente"
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
