@@ -10,6 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarIcon,
+  DollarSign,
+  User,
+  Hash,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -34,6 +38,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { cn } from "../lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SaleHistoryItem {
   id: string;
@@ -97,18 +102,13 @@ export function SalesHistory() {
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Debounce da pesquisa
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(filters.search);
     }, 500);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [filters.search]);
 
-  // Reset da página quando filtros mudam
   useEffect(() => {
     if (filters.page > 1) {
       setFilters((prev) => ({ ...prev, page: 1 }));
@@ -123,7 +123,6 @@ export function SalesHistory() {
     filters.sortOrder,
   ]);
 
-  // Query para buscar histórico de vendas
   const {
     data: salesData,
     isLoading,
@@ -144,40 +143,19 @@ export function SalesHistory() {
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
-
-      if (debouncedSearch.trim()) {
-        params.append("search", debouncedSearch.trim());
-      }
-      if (filters.startDate) {
-        params.append(
-          "startDate",
-          filters.startDate.toISOString().split("T")[0]
-        );
-      }
-      if (filters.endDate) {
-        params.append("endDate", filters.endDate.toISOString().split("T")[0]);
-      }
-      if (filters.minAmount) {
-        params.append("minAmount", filters.minAmount);
-      }
-      if (filters.maxAmount) {
-        params.append("maxAmount", filters.maxAmount);
-      }
+      if (debouncedSearch.trim()) params.append("search", debouncedSearch.trim());
+      if (filters.startDate) params.append("startDate", filters.startDate.toISOString().split("T")[0]);
+      if (filters.endDate) params.append("endDate", filters.endDate.toISOString().split("T")[0]);
+      if (filters.minAmount) params.append("minAmount", filters.minAmount);
+      if (filters.maxAmount) params.append("maxAmount", filters.maxAmount);
       params.append("sortBy", filters.sortBy);
       params.append("sortOrder", filters.sortOrder);
       params.append("offset", ((filters.page - 1) * filters.limit).toString());
       params.append("limit", filters.limit.toString());
 
-      console.log("Fetching sales history with params:", params.toString());
       const response = await fetch(`/api/sales-history?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error(
-          `Erro ao buscar histórico de vendas: ${response.statusText}`
-        );
-      }
-      const data = await response.json();
-      console.log("Sales history response:", data);
-      return data;
+      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+      return response.json();
     },
   });
 
@@ -190,178 +168,41 @@ export function SalesHistory() {
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: ptBR });
-  };
-
-  const handleSort = (column: SalesHistoryFilters["sortBy"]) => {
-    setFilters((prev) => ({
-      ...prev,
-      sortBy: column,
-      sortOrder:
-        prev.sortBy === column && prev.sortOrder === "asc" ? "desc" : "asc",
-      page: 1,
-    }));
-  };
-
-  const getSortIcon = (column: SalesHistoryFilters["sortBy"]) => {
-    if (filters.sortBy !== column) return null;
-    return filters.sortOrder === "asc" ? (
-      <SortAsc className="w-4 h-4 ml-1" />
-    ) : (
-      <SortDesc className="w-4 h-4 ml-1" />
-    );
+    return format(new Date(dateString), "dd MMM, yyyy • HH:mm", { locale: ptBR });
   };
 
   const sales = salesData?.data?.sales || [];
   const pagination = salesData?.data?.pagination;
-  const statistics = salesData?.data?.statistics;
-
-  // Debug: Log the data structure
-  if (salesData) {
-    console.log("Sales data structure:", {
-      success: salesData.success,
-      salesCount: sales.length,
-      pagination,
-      statistics,
-    });
-  }
 
   return (
-    <div className="space-y-6">
-      {/* Estatísticas */}
-      {/* {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          {[
-            {
-              title: "Total de Vendas",
-              color: "bg-blue-100 dark:bg-blue-900/30",
-            },
-            {
-              title: "Valor Bruto Total",
-              color: "bg-slate-100 dark:bg-slate-800",
-            },
-            {
-              title: "Valor Líquido Total",
-              color: "bg-slate-100 dark:bg-slate-800",
-            },
-            {
-              title: "Cashback Utilizado",
-              color: "bg-orange-100 dark:bg-orange-900/30",
-            },
-            {
-              title: "Cashback Gerado",
-              color: "bg-emerald-100 dark:bg-emerald-900/30",
-            },
-          ].map((stat, i) => (
-            <Card
-              key={i}
-              className="border-slate-200 dark:border-slate-800 animate-pulse"
-            >
-              <CardHeader className="pb-3">
-                <Skeleton className="h-4 w-24 bg-slate-200 dark:bg-slate-700" />
-              </CardHeader>
-              <CardContent className="pb-3">
-                <Skeleton className={`h-8 w-20 ${stat.color} rounded`} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : statistics ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Total de Vendas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {statistics.totalSales}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Valor Bruto Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(statistics.totalGrossValue)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Valor Líquido Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(statistics.totalNetValue)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Cashback Utilizado
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {formatCurrency(statistics.totalCashbackUsed)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Cashback Gerado
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {formatCurrency(statistics.totalCashbackGenerated)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null} */}
-
-      {/* Filtros */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
-            <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+    <div className="space-y-8">
+      {/* Filtros Premium */}
+      <Card className="border-0 shadow-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl overflow-hidden rounded-[2rem]">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
+        <CardHeader className="relative border-b border-slate-100 dark:border-slate-800/50 px-8 py-6">
+          <CardTitle className="flex items-center gap-3 text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white">
+            <div className="p-2 bg-blue-500/10 rounded-xl">
+              <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
             Filtros de Pesquisa
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Linha 1: Pesquisa e Ordenação */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <CardContent className="relative p-8 space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
               <Input
-                placeholder="Pesquisar por cliente, CPF, telefone, vendedor ou nota fiscal..."
+                placeholder="Pesquisar por cliente, CPF, vendedor ou nota..."
                 value={filters.search}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, search: e.target.value }))
-                }
-                className="pl-10 border-slate-200 dark:border-slate-800 focus:border-blue-400 dark:focus:border-blue-600 focus:ring-blue-400/10"
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="pl-12 h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-blue-500/5 transition-all text-base"
               />
             </div>
             <Select
               value={`${filters.sortBy}-${filters.sortOrder}`}
               onValueChange={(value) => {
                 const [sortBy, sortOrder] = value.split("-");
-                setFilters((prev) => ({
+                setFilters(prev => ({
                   ...prev,
                   sortBy: sortBy as SalesHistoryFilters["sortBy"],
                   sortOrder: sortOrder as "asc" | "desc",
@@ -369,165 +210,79 @@ export function SalesHistory() {
                 }));
               }}
             >
-              <SelectTrigger className="border-slate-200 dark:border-slate-800">
+              <SelectTrigger className="h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl px-6 font-bold text-slate-700 dark:text-slate-200">
                 <SelectValue placeholder="Ordenar por..." />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="createdAt-desc">
-                  Data (Mais recente)
-                </SelectItem>
-                <SelectItem value="createdAt-asc">
-                  Data (Mais antiga)
-                </SelectItem>
-                <SelectItem value="grossValue-desc">
-                  Valor Bruto (Maior)
-                </SelectItem>
-                <SelectItem value="grossValue-asc">
-                  Valor Bruto (Menor)
-                </SelectItem>
-                <SelectItem value="netValue-desc">
-                  Valor Líquido (Maior)
-                </SelectItem>
-                <SelectItem value="netValue-asc">
-                  Valor Líquido (Menor)
-                </SelectItem>
+              <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl">
+                <SelectItem value="createdAt-desc">Mais recentes primeiro</SelectItem>
+                <SelectItem value="createdAt-asc">Mais antigos primeiro</SelectItem>
+                <SelectItem value="grossValue-desc">Maior valor bruto</SelectItem>
+                <SelectItem value="netValue-desc">Maior valor líquido</SelectItem>
                 <SelectItem value="clientName-asc">Cliente (A-Z)</SelectItem>
-                <SelectItem value="clientName-desc">Cliente (Z-A)</SelectItem>
-                <SelectItem value="sellerName-asc">Vendedor (A-Z)</SelectItem>
-                <SelectItem value="sellerName-desc">Vendedor (Z-A)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Linha 2: Data e Valores */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">
-                Data Inicial
-              </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800",
-                      !filters.startDate && "text-slate-500 dark:text-slate-400"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                    {filters.startDate
-                      ? format(filters.startDate, "dd/MM/yyyy", {
-                          locale: ptBR,
-                        })
-                      : "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filters.startDate}
-                    onSelect={(date) =>
-                      setFilters((prev) => ({ ...prev, startDate: date }))
-                    }
-                    locale={ptBR}
+          <div className="grid gap-6 md:grid-cols-4">
+            {[
+              { label: "De", date: filters.startDate, setter: (d: any) => setFilters(p => ({ ...p, startDate: d })) },
+              { label: "Até", date: filters.endDate, setter: (d: any) => setFilters(p => ({ ...p, endDate: d })) }
+            ].map((picker, i) => (
+              <div key={i} className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{picker.label}</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full h-12 justify-start text-left font-bold border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800",
+                        !picker.date && "text-slate-400"
+                      )}
+                    >
+                      <CalendarIcon className="mr-3 h-4 w-4 text-blue-500" />
+                      {picker.date ? format(picker.date, "dd/MM/yyyy") : "Data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-2xl border-slate-200 dark:border-slate-800 shadow-2xl" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={picker.date}
+                      onSelect={picker.setter}
+                      locale={ptBR}
+                      className="rounded-2xl"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ))}
+
+            {[
+              { label: "Mínimo (R$)", value: filters.minAmount, setter: (v: string) => setFilters(p => ({ ...p, minAmount: v })) },
+              { label: "Máximo (R$)", value: filters.maxAmount, setter: (v: string) => setFilters(p => ({ ...p, maxAmount: v })) }
+            ].map((input, i) => (
+              <div key={i} className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{input.label}</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                  <Input
+                    type="number"
+                    placeholder="0,00"
+                    value={input.value}
+                    onChange={(e) => input.setter(e.target.value)}
+                    className="h-12 pl-8 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-emerald-500/5 font-bold"
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">
-                Data Final
-              </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800",
-                      !filters.endDate && "text-slate-500 dark:text-slate-400"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                    {filters.endDate
-                      ? format(filters.endDate, "dd/MM/yyyy", { locale: ptBR })
-                      : "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filters.endDate}
-                    onSelect={(date) =>
-                      setFilters((prev) => ({ ...prev, endDate: date }))
-                    }
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">
-                Valor Mínimo
-              </label>
-              <Input
-                type="number"
-                placeholder="0,00"
-                step="0.01"
-                min="0"
-                value={filters.minAmount}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, minAmount: e.target.value }))
-                }
-                className="border-slate-200 dark:border-slate-800 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-emerald-400/10"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block text-slate-700 dark:text-slate-300">
-                Valor Máximo
-              </label>
-              <Input
-                type="number"
-                placeholder="0,00"
-                step="0.01"
-                min="0"
-                value={filters.maxAmount}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, maxAmount: e.target.value }))
-                }
-                className="border-slate-200 dark:border-slate-800 focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-emerald-400/10"
-              />
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Botão Limpar Filtros */}
-          <div className="flex justify-end gap-2">
-            {/* <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  const response = await fetch("/api/sales-history?limit=5");
-                  const data = await response.json();
-                  console.log("Test API response:", data);
-                  alert(
-                    `API Test: ${data.success ? "Success" : "Failed"} - ${
-                      data.data?.sales?.length || 0
-                    } sales found`
-                  );
-                } catch (error) {
-                  console.error("Test API error:", error);
-                  alert("API Test Failed: " + error);
-                }
-              }}
-            >
-              Testar API
-            </Button> */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFilters({
+          <div className="flex justify-between items-center pt-2">
+             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+               {salesData?.data?.pagination?.totalItems || 0} registros encontrados
+             </div>
+             <Button
+                variant="ghost"
+                onClick={() => setFilters({
                   search: "",
                   startDate: undefined,
                   endDate: undefined,
@@ -537,311 +292,143 @@ export function SalesHistory() {
                   sortOrder: "desc",
                   page: 1,
                   limit: 10,
-                });
-              }}
-              className="border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-            >
-              Limpar Filtros
-            </Button>
+                })}
+                className="text-blue-600 dark:text-blue-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl"
+              >
+                Limpar Todos os Filtros
+              </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela de Vendas */}
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-slate-900 dark:text-slate-100">
-              Histórico de Vendas
-            </CardTitle>
-            {pagination && (
-              <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                <span className="font-semibold">{pagination.totalItems}</span>{" "}
-                vendas encontradas
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isError && (
-            <div className="text-red-600 p-4 text-center">
-              <p>Erro ao carregar histórico de vendas: {error?.message}</p>
-              <p className="text-sm mt-2">
-                Verifique o console para mais detalhes
-              </p>
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="space-y-6">
-              {/* Loading Header */}
-              <div className="flex justify-between items-center">
-                <Skeleton className="h-6 w-32 bg-slate-200 dark:bg-slate-700" />
-                <Skeleton className="h-4 w-24 bg-blue-100 dark:bg-blue-900/30" />
-              </div>
-
-              {/* Loading Table */}
-              <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-lg">
-                {/* Table Header Loading */}
-                <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                  <div className="grid grid-cols-9 gap-4 p-4">
-                    {[
-                      "Data",
-                      "Cliente",
-                      "CPF",
-                      "Telefone",
-                      "Nota Fiscal",
-                      "Valor Bruto",
-                      "Valor Líquido",
-                      "Cashback",
-                      "Vendedor",
-                    ].map((header, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-16 bg-slate-300 dark:bg-slate-600" />
-                        {i < 4 && (
-                          <Skeleton className="h-3 w-3 bg-slate-200 dark:bg-slate-700" />
-                        )}
-                      </div>
-                    ))}
+      {/* Tabela de Vendas Premium */}
+      <Card className="border-0 shadow-2xl bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden">
+        <Table>
+          <TableHeader className="bg-slate-50 dark:bg-slate-950/50">
+            <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800">
+              <TableHead className="py-6 px-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Data & Hora</TableHead>
+              <TableHead className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</TableHead>
+              <TableHead className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">NF</TableHead>
+              <TableHead className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Bruto</TableHead>
+              <TableHead className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Cashback Utilizado</TableHead>
+              <TableHead className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Líquido</TableHead>
+              <TableHead className="py-6 px-8 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Cashback Gerado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i} className="border-slate-100 dark:border-slate-800">
+                  <TableCell className="p-8"><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell className="p-4"><Skeleton className="h-4 w-48" /></TableCell>
+                  <TableCell className="p-4 text-center"><Skeleton className="h-6 w-12 mx-auto rounded-full" /></TableCell>
+                  <TableCell className="p-4"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="p-4"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="p-4"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="p-8"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                </TableRow>
+              ))
+            ) : sales.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                     <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-full">
+                       <Search className="w-12 h-12 text-slate-300" />
+                     </div>
+                     <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Nenhuma venda encontrada</p>
                   </div>
-                </div>
-
-                {/* Table Rows Loading */}
-                <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="grid grid-cols-9 gap-4 p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
-                    >
-                      {/* Data */}
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-20 bg-slate-200 dark:bg-slate-700" />
-                        <Skeleton className="h-3 w-16 bg-slate-100 dark:bg-slate-800" />
+                </TableCell>
+              </TableRow>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {sales.map((sale, index) => (
+                  <motion.tr
+                    key={sale.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="group border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                  >
+                    <TableCell className="py-6 px-8 font-bold text-slate-500 text-xs">
+                      {formatDate(sale.createdAt)}
+                    </TableCell>
+                    <TableCell className="py-6 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm leading-tight">{sale.clientName}</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sale.clientCpf}</span>
+                          <span className="h-1 w-1 rounded-full bg-slate-200" />
+                          <span className="text-[10px] font-bold text-blue-500/70 uppercase tracking-widest">{sale.sellerName}</span>
+                        </div>
                       </div>
-
-                      {/* Cliente */}
-                      <Skeleton className="h-4 w-24 bg-slate-200 dark:bg-slate-700" />
-
-                      {/* CPF */}
-                      <Skeleton className="h-4 w-20 bg-slate-100 dark:bg-slate-800" />
-
-                      {/* Telefone */}
-                      <Skeleton className="h-4 w-18 bg-slate-100 dark:bg-slate-800" />
-
-                      {/* Nota Fiscal */}
-                      <Skeleton className="h-6 w-16 bg-purple-100 dark:bg-purple-900/30 rounded-full" />
-
-                      {/* Valor Bruto */}
-                      <Skeleton className="h-4 w-20 bg-emerald-100 dark:bg-emerald-900/30" />
-
-                      {/* Valor Líquido */}
-                      <Skeleton className="h-4 w-20 bg-slate-200 dark:bg-slate-700" />
-
-                      {/* Cashback */}
-                      <div className="space-y-1">
-                        {i % 3 === 0 && (
-                          <Skeleton className="h-3 w-16 bg-orange-100 dark:bg-orange-900/30" />
-                        )}
-                        {i % 2 === 0 && (
-                          <Skeleton className="h-3 w-18 bg-emerald-100 dark:bg-emerald-900/30" />
-                        )}
-                      </div>
-
-                      {/* Vendedor */}
-                      <Skeleton className="h-4 w-20 bg-blue-100 dark:bg-blue-900/30" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Loading Pagination */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
-                <Skeleton className="h-4 w-32 bg-slate-200 dark:bg-slate-700" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                  <Skeleton className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("createdAt")}
-                    >
-                      <div className="flex items-center font-semibold text-slate-700 dark:text-slate-300">
-                        Data
-                        {getSortIcon("createdAt")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("clientName")}
-                    >
-                      <div className="flex items-center font-semibold text-slate-700 dark:text-slate-300">
-                        Cliente
-                        {getSortIcon("clientName")}
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                      CPF
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                      Telefone
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                      Nota Fiscal
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("grossValue")}
-                    >
-                      <div className="flex items-center font-semibold text-slate-700 dark:text-slate-300">
-                        Valor Bruto
-                        {getSortIcon("grossValue")}
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("netValue")}
-                    >
-                      <div className="flex items-center font-semibold text-slate-700 dark:text-slate-300">
-                        Valor Líquido
-                        {getSortIcon("netValue")}
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 dark:text-slate-300">
-                      Cashback
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("sellerName")}
-                    >
-                      <div className="flex items-center font-semibold text-slate-700 dark:text-slate-300">
-                        Vendedor
-                        {getSortIcon("sellerName")}
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sales.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        Nenhuma venda encontrada com os filtros aplicados.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sales.map((sale) => (
-                      <TableRow
-                        key={sale.id}
-                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
-                      >
-                        <TableCell className="font-medium text-slate-900 dark:text-slate-100">
-                          {formatDate(sale.createdAt)}
-                        </TableCell>
-                        <TableCell className="font-semibold text-slate-900 dark:text-slate-100">
-                          {sale.clientName}
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                          {sale.clientCpf}
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                          {sale.clientPhone}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                          >
-                            {sale.invoice}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-bold text-emerald-600 dark:text-emerald-400">
-                          {formatCurrency(sale.grossValue)}
-                        </TableCell>
-                        <TableCell className="font-bold text-slate-900 dark:text-slate-100">
-                          {formatCurrency(sale.netValue)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 text-xs">
-                            {parseFloat(sale.cashbackUsed) > 0 && (
-                              <div className="text-orange-600 dark:text-orange-400 font-semibold">
-                                Usado: {formatCurrency(sale.cashbackUsed)}
-                              </div>
-                            )}
-                            {parseFloat(sale.cashbackGenerated) > 0 && (
-                              <div className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                                Gerado: {formatCurrency(sale.cashbackGenerated)}
-                              </div>
-                            )}
+                    </TableCell>
+                    <TableCell className="py-6 px-4 text-center">
+                      <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px] px-3 py-1 rounded-lg">
+                        {sale.invoice}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-6 px-4 text-right font-bold text-slate-600 dark:text-slate-400 tabular-nums">
+                      {formatCurrency(sale.grossValue)}
+                    </TableCell>
+                    <TableCell className="py-6 px-4 text-right tabular-nums">
+                      {parseFloat(sale.cashbackUsed) > 0 ? (
+                        <div className="flex flex-col items-end">
+                          <span className="font-black text-orange-600 dark:text-orange-400 text-sm">-{formatCurrency(sale.cashbackUsed)}</span>
+                          <span className="text-[9px] font-black uppercase text-orange-400 tracking-tighter mt-0.5">Cashback Redimido</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-700">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-6 px-4 text-right tabular-nums">
+                      <span className="font-black text-slate-900 dark:text-white text-base">
+                        {formatCurrency(sale.netValue)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-6 px-8 text-right tabular-nums">
+                       <div className="flex flex-col items-end">
+                          <div className="bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1 rounded-xl">
+                            <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">+{formatCurrency(sale.cashbackGenerated)}</span>
                           </div>
-                        </TableCell>
-                        <TableCell className="font-medium text-blue-600 dark:text-blue-400">
-                          {sale.sellerName}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                          <span className="text-[9px] font-black uppercase text-emerald-500 tracking-tighter mt-1 mr-1">Novo Acúmulo</span>
+                       </div>
+                    </TableCell>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
+            )}
+          </TableBody>
+        </Table>
 
-          {/* Paginação */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                Página{" "}
-                <span className="font-semibold text-blue-600 dark:text-blue-400">
-                  {pagination.currentPage}
-                </span>{" "}
-                de{" "}
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  {pagination.totalPages}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      page: Math.max(1, prev.page - 1),
-                    }))
-                  }
-                  disabled={pagination.currentPage === 1}
-                  className="border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      page: Math.min(pagination.totalPages, prev.page + 1),
-                    }))
-                  }
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
-                >
-                  Próxima
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+        {/* Paginação Premium */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="px-8 py-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex items-center justify-between">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-400">
+              Página <span className="text-slate-900 dark:text-white">{pagination.currentPage}</span> de {pagination.totalPages}
             </div>
-          )}
-        </CardContent>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
+                disabled={pagination.currentPage === 1}
+                className="h-10 px-6 rounded-xl border-slate-200 dark:border-slate-800 disabled:opacity-30 font-black uppercase tracking-widest text-[10px]"
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters(p => ({ ...p, page: Math.min(pagination.totalPages, p.page + 1) }))}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="h-10 px-6 rounded-xl border-slate-200 dark:border-slate-800 disabled:opacity-30 font-black uppercase tracking-widest text-[10px]"
+              >
+                Próxima
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

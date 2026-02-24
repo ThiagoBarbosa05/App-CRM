@@ -47,12 +47,12 @@ export function TopSellersChart({ data, isLoading }: TopSellersChartProps) {
   return (
     <Card className="col-span-1 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader>
-        <CardTitle>Top Vendedores</CardTitle>
+        <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-500">Top Vendedores</CardTitle>
         <CardDescription>Ranking por valor de vendas</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0 sm:p-6 pb-6">
         {chartData.length > 0 ? (
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full pr-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}

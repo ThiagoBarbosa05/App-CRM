@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, FilterX, Search, SlidersHorizontal } from "lucide-react";
+import { CalendarIcon, FilterX, Search, SlidersHorizontal, Briefcase, Store, Activity, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import {
@@ -26,6 +26,7 @@ import {
   useAvailableSituations,
   useAvailablePaymentMethods,
 } from "@/hooks/use-bling-orders";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface OrdersFiltersProps {
   dateRange: DateRange | undefined;
@@ -83,15 +84,11 @@ export function OrdersFilters({
   const { data: paymentMethods, isLoading: isPaymentMethodsLoading } = useAvailablePaymentMethods();
 
   const handleClearFilters = () => {
-    // Default to last 90 days
     const today = new Date();
     const last90Days = new Date();
     last90Days.setDate(today.getDate() - 90);
 
-    onDateRangeChange({
-      from: last90Days,
-      to: today,
-    });
+    onDateRangeChange({ from: last90Days, to: today });
     onContactNameChange("");
     onSellerIdChange(undefined);
     onStoreIdChange(undefined);
@@ -111,216 +108,205 @@ export function OrdersFilters({
     paymentMethodId;
 
   return (
-    <Card className="border-none shadow-none bg-muted/40 md:bg-background md:border md:shadow-sm">
-      <CardContent className="p-0 md:p-4 space-y-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>Filtros</span>
+    <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+      <CardContent className="p-5 sm:p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-xl text-blue-600 dark:text-blue-400">
+              <SlidersHorizontal className="h-4 w-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+              Filtros Avançados
+            </h3>
           </div>
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearFilters}
-              className="h-8 px-2 lg:px-3 text-muted-foreground hover:text-foreground"
-              disabled={isLoading}
-            >
-              <FilterX className="mr-2 h-4 w-4" />
-              Limpar filtros
-            </Button>
-          )}
+          
+          <AnimatePresence>
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-9 px-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl font-bold transition-all"
+                  disabled={isLoading}
+                >
+                  <FilterX className="mr-2 h-4 w-4" />
+                  Limpar todos
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Date Picker */}
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal bg-background",
-                  !dateRange && "text-muted-foreground"
-                )}
-                disabled={isLoading}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "dd/MM/yyyy")} -{" "}
-                      {format(dateRange.to, "dd/MM/yyyy")}
-                    </>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Período</label>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-bold h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 transition-all hover:border-blue-400 dark:hover:border-blue-500",
+                    !dateRange && "text-slate-400"
+                  )}
+                  disabled={isLoading}
+                >
+                  <CalendarIcon className="mr-3 h-4 w-4 text-blue-500" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <span className="truncate">
+                        {format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}
+                      </span>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yy")
+                    )
                   ) : (
-                    format(dateRange.from, "dd/MM/yyyy")
-                  )
-                ) : (
-                  <span>Selecione um período</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={(range) => {
-                  onDateRangeChange(range);
-                }}
-                numberOfMonths={2}
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
+                    <span>Selecione um período</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-2xl shadow-2xl border-slate-200 dark:border-slate-800" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={(range) => onDateRangeChange(range)}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  className="rounded-2xl"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
           {/* Client Name Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar cliente..."
-              value={contactName || ""}
-              onChange={(e) => onContactNameChange(e.target.value)}
-              className="w-full pl-9 bg-background"
-              disabled={isLoading}
-            />
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Cliente</label>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Nome ou CPF/CNPJ..."
+                value={contactName || ""}
+                onChange={(e) => onContactNameChange(e.target.value)}
+                className="w-full pl-11 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-medium focus-visible:ring-blue-500"
+                disabled={isLoading}
+              />
+            </div>
           </div>
 
           {/* Seller Select */}
-          <Select
-            value={sellerId || "all"}
-            onValueChange={(value) =>
-              onSellerIdChange(value === "all" ? undefined : value)
-            }
-            disabled={isLoading || isSellersLoading}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder={isSellersLoading ? "Carregando..." : "Todos os Vendedores"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Vendedores</SelectItem>
-              {sellers?.map((seller) => (
-                <SelectItem
-                  key={seller.sellerId || "no-seller"}
-                  value={seller.sellerId || "no-seller"}
-                >
-                  {seller.sellerName || "Sem vendedor"} ({seller.orderCount})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Vendedor"
+            icon={<Briefcase className="h-4 w-4 text-emerald-500" />}
+            value={sellerId}
+            onValueChange={onSellerIdChange}
+            options={sellers?.map(s => ({ value: s.sellerId, label: s.sellerName, count: s.orderCount }))}
+            placeholder="Todos os Vendedores"
+            isLoading={isSellersLoading || isLoading}
+          />
 
           {/* Store Select */}
-          <Select
-            value={storeId || "all"}
-            onValueChange={(value) =>
-              onStoreIdChange(value === "all" ? undefined : value)
-            }
-            disabled={isLoading || isStoresLoading}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder={isStoresLoading ? "Carregando..." : "Todas as Lojas"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Lojas</SelectItem>
-              {stores?.map((store) => (
-                <SelectItem key={store.storeId} value={store.storeId}>
-                  Loja {store.storeId} ({store.orderCount})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Loja"
+            icon={<Store className="h-4 w-4 text-indigo-500" />}
+            value={storeId}
+            onValueChange={onStoreIdChange}
+            options={stores?.map(s => ({ value: s.storeId, label: `Loja ${s.storeId}`, count: s.orderCount }))}
+            placeholder="Todas as Lojas"
+            isLoading={isStoresLoading || isLoading}
+          />
 
           {/* Situation Select */}
-          <Select
-            value={situationId || "all"}
-            onValueChange={(value) =>
-              onSituationIdChange(value === "all" ? undefined : value)
-            }
-            disabled={isLoading || isSituationsLoading}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder={isSituationsLoading ? "Carregando..." : "Todas as Situações"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Situações</SelectItem>
-              {situations?.map((situation) => (
-                <SelectItem
-                  key={situation.situationId || "no-situation"}
-                  value={situation.situationId || "no-situation"}
-                >
-                  {situation.situationValue || "Sem status"} ({situation.orderCount})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Min Value Input */}
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-              R$
-            </span>
-            <Input
-              type="number"
-              placeholder="Valor mínimo"
-              value={minValue ?? ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                onMinValueChange(value ? parseFloat(value) : undefined);
-              }}
-              className="w-full pl-10 bg-background"
-              disabled={isLoading}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          {/* Max Value Input */}
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-              R$
-            </span>
-            <Input
-              type="number"
-              placeholder="Valor máximo"
-              value={maxValue ?? ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                onMaxValueChange(value ? parseFloat(value) : undefined);
-              }}
-              className="w-full pl-10 bg-background"
-              disabled={isLoading}
-              min="0"
-              step="0.01"
-            />
-          </div>
+          <FilterSelect
+            label="Situação"
+            icon={<Activity className="h-4 w-4 text-amber-500" />}
+            value={situationId}
+            onValueChange={onSituationIdChange}
+            options={situations?.map(s => ({ value: s.situationId, label: s.situationValue, count: s.orderCount }))}
+            placeholder="Todas as Situações"
+            isLoading={isSituationsLoading || isLoading}
+          />
 
           {/* Payment Method Select */}
-          <Select
-            value={paymentMethodId || "all"}
-            onValueChange={(value) =>
-              onPaymentMethodIdChange(value === "all" ? undefined : value)
-            }
-            disabled={isLoading || isPaymentMethodsLoading}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue placeholder={isPaymentMethodsLoading ? "Carregando..." : "Todas as Formas"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Formas</SelectItem>
-              {paymentMethods?.map((method) => (
-                <SelectItem
-                  key={method.paymentMethodId || "no-method"}
-                  value={method.paymentMethodId || "no-method"}
-                >
-                  {method.paymentMethodName || "Sem forma de pagamento"} ({method.orderCount})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Pagamento"
+            icon={<CreditCard className="h-4 w-4 text-rose-500" />}
+            value={paymentMethodId}
+            onValueChange={onPaymentMethodIdChange}
+            options={paymentMethods?.map(p => ({ value: p.paymentMethodId, label: p.paymentMethodName, count: p.orderCount }))}
+            placeholder="Todas as Formas"
+            isLoading={isPaymentMethodsLoading || isLoading}
+          />
+
+          {/* Range de Valor */}
+          <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Range de Valor (R$)</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">DE</span>
+                <Input
+                  type="number"
+                  placeholder="0,00"
+                  value={minValue ?? ""}
+                  onChange={(e) => onMinValueChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">ATÉ</span>
+                <Input
+                  type="number"
+                  placeholder="∞"
+                  value={maxValue ?? ""}
+                  onChange={(e) => onMaxValueChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
+function FilterSelect({ label, icon, value, onValueChange, options, placeholder, isLoading }: any) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">{label}</label>
+      <Select
+        value={value || "all"}
+        onValueChange={(val) => onValueChange(val === "all" ? undefined : val)}
+        disabled={isLoading}
+      >
+        <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
+          <div className="flex items-center gap-3">
+            {icon}
+            <SelectValue placeholder={isLoading ? "Carregando..." : placeholder} />
+          </div>
+        </SelectTrigger>
+        <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+          <SelectItem value="all" className="rounded-xl font-bold">{placeholder}</SelectItem>
+          {options?.map((opt: any) => (
+            <SelectItem key={opt.value || "no-val"} value={opt.value || "no-val"} className="rounded-xl">
+              <div className="flex items-center justify-between w-full min-w-[150px]">
+                <span className="font-medium">{opt.label || "Não definido"}</span>
+                <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-[10px] font-black text-slate-500 ml-2">
+                  {opt.count}
+                </span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

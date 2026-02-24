@@ -15,14 +15,15 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import type { BlingOrder } from "@/hooks/use-bling-orders";
-import { EyeIcon, InboxIcon } from "lucide-react";
+import { EyeIcon, InboxIcon, History, User, CreditCard, Hash } from "lucide-react";
 import { useState } from "react";
 import { OrderDetailsDialog } from "./order-details-dialog";
+import { motion, AnimatePresence } from "framer-motion";
+import { ptBR } from "date-fns/locale";
 
 interface OrdersTableProps {
   orders: BlingOrder[];
@@ -33,30 +34,32 @@ interface OrdersTableProps {
   totalOrders?: number;
 }
 
-// Helper to get badge color based on status text (since we don't have IDs mapping handy for all)
-// This is a heuristic approach. Ideal would be to map specific IDs.
-function getStatusVariant(statusName: string | undefined): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
-  if (!statusName) return "outline";
+function getStatusStyles(statusName: string | undefined) {
+  if (!statusName) return { bg: "bg-slate-100", text: "text-slate-600", dot: "bg-slate-400" };
   
   const status = statusName.toLowerCase();
   
-  if (status.includes("cancelado")) return "destructive";
-  if (status.includes("atendido") || status.includes("verificado") || status.includes("concluído")) return "success"; // 'success' requires custom badge or standard 'default' with class
-  if (status.includes("pendente") || status.includes("em aberto")) return "warning"; // 'warning' requires custom badge or standard 'secondary'
+  if (status.includes("cancelado")) 
+    return { bg: "bg-rose-50 dark:bg-rose-900/20", text: "text-rose-600 dark:text-rose-400", dot: "bg-rose-500" };
   
-  return "secondary";
+  if (status.includes("atendido") || status.includes("verificado") || status.includes("concluído")) 
+    return { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500" };
+  
+  if (status.includes("pendente") || status.includes("em aberto") || status.includes("processamento")) 
+    return { bg: "bg-amber-50 dark:bg-amber-900/20", text: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500" };
+  
+  return { bg: "bg-blue-50 dark:bg-blue-900/20", text: "text-blue-600 dark:text-blue-400", dot: "bg-blue-500" };
 }
 
-// Custom Badge component wrapper if needed, or just use Badge with className
 function StatusBadge({ name }: { name: string }) {
-  const variant = getStatusVariant(name);
-  let className = "";
+  const styles = getStatusStyles(name);
   
-  if (variant === "success") className = "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60 border-transparent";
-  if (variant === "warning") className = "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:hover:bg-yellow-900/60 border-transparent";
-  if (variant === "destructive") className = "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60 border-transparent";
-  
-  return <Badge variant={variant === "success" || variant === "warning" || variant === "destructive" ? "outline" : variant} className={className}>{name}</Badge>;
+  return (
+    <div className={`inline-flex items-center gap-1.5 ${styles.bg} ${styles.text} px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider`}>
+      <div className={`h-1.5 w-1.5 rounded-full ${styles.dot} animate-pulse`} />
+      {name}
+    </div>
+  );
 }
 
 export function OrdersTable({
@@ -78,162 +81,150 @@ export function OrdersTable({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="rounded-md border shadow-sm bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="ml-auto h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+          <div className="h-[400px] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-10 w-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+              <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Carregando pedidos...</span>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border shadow-sm bg-card overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="font-semibold text-foreground">Número</TableHead>
-              <TableHead className="font-semibold text-foreground">Data</TableHead>
-              <TableHead className="font-semibold text-foreground">Cliente</TableHead>
-              <TableHead className="font-semibold text-foreground">Vendedor</TableHead>
-              <TableHead className="font-semibold text-foreground">Situação</TableHead>
-              <TableHead className="text-right font-semibold text-foreground">Valor</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+    <div className="space-y-6 max-w-full">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[800px] lg:min-w-full">
+            <TableHeader>
+              <TableRow className="border-b border-slate-50 dark:border-slate-800 hover:bg-transparent">
+              <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
+                <div className="flex items-center gap-2"><Hash className="h-3 w-3" /> Nº Pedido</div>
+              </TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
+                <div className="flex items-center gap-2"><History className="h-3 w-3" /> Data Venda</div>
+              </TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
+                <div className="flex items-center gap-2"><User className="h-3 w-3" /> Cliente / Vendedor</div>
+              </TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">Situação</TableHead>
+              <TableHead className="text-right font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
+                <div className="flex items-center justify-end gap-2"><CreditCard className="h-3 w-3" /> Valor Total</div>
+              </TableHead>
+              <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="h-64 text-center text-muted-foreground"
-                >
-                  <div className="flex flex-col items-center justify-center gap-3 py-8">
-                    <div className="rounded-full bg-muted p-4">
-                      <InboxIcon className="h-10 w-10 text-muted-foreground" />
+            <AnimatePresence mode="popLayout">
+              {orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-72 text-center">
+                    <div className="flex flex-col items-center justify-center gap-4 py-8">
+                      <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 border border-dashed border-slate-200 dark:border-slate-700">
+                        <InboxIcon className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                          Vazio por aqui
+                        </p>
+                        <p className="text-xs font-medium text-slate-500">
+                          Não encontramos pedidos com os filtros aplicados.
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-lg font-medium text-foreground">
-                        Nenhum pedido encontrado
-                      </p>
-                      <p className="text-sm">
-                        Não há pedidos que correspondam aos filtros selecionados.
-                      </p>
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground space-y-1">
-                      <p>💡 Dicas:</p>
-                      <ul className="list-disc list-inside text-left">
-                        <li>Tente ajustar o período de datas</li>
-                        <li>Remova alguns filtros para ampliar a busca</li>
-                        <li>Verifique se os filtros estão configurados corretamente</li>
-                      </ul>
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              orders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium font-mono text-xs">
-                    {order.orderNumber}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {format(parseISO(order.saleDate + 'T12:00:00'), "dd/MM/yyyy")}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">{order.contactName || "Não informado"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{order.sellerName || "-"}</TableCell>
-                  <TableCell>
-                    <StatusBadge name={order.situationName || order.situationId || "-"} />
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(parseFloat(order.totalValue))}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
-                      onClick={() => handleViewDetails(order.blingOrderId)}
-                      title="Ver detalhes"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+              ) : (
+                orders.map((order, index) => (
+                  <motion.tr
+                    key={order.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="group border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all cursor-default"
+                  >
+                    <TableCell className="py-4">
+                      <div className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block font-mono text-[11px] font-black text-slate-600 dark:text-slate-300">
+                        #{order.orderNumber}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs font-bold text-slate-500">
+                      {format(parseISO(order.saleDate + 'T12:00:00'), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-black text-slate-900 dark:text-white truncate max-w-[200px]">
+                          {order.contactName || "Anônimo"}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-tighter">
+                          Rep: {order.sellerName || "Não vinculado"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge name={order.situationName || order.situationId || "DEFININDO"} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="text-base font-black text-slate-900 dark:text-white">
+                        {formatCurrency(parseFloat(order.totalValue))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-9 w-9 p-0 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 hover:scale-110 transition-all rounded-xl border-none"
+                          onClick={() => handleViewDetails(order.blingOrderId)}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </motion.tr>
+                ))
+              )}
+            </AnimatePresence>
           </TableBody>
         </Table>
       </div>
+    </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground space-y-1">
-          <div>
-            Mostrando {orders.length} pedido{orders.length !== 1 ? "s" : ""} (Página {page})
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+        <div className="flex items-center gap-4">
+          <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Exibindo <span className="text-slate-900 dark:text-white">{orders.length}</span>
+              {totalOrders > 0 && <span> de <span className="text-blue-500">{totalOrders}</span></span>}
+            </p>
           </div>
-          {totalOrders > 0 && (
-            <div className="font-medium">
-              Total de {totalOrders} pedido{totalOrders !== 1 ? "s" : ""} encontrado{totalOrders !== 1 ? "s" : ""}
-            </div>
-          )}
         </div>
+
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="gap-2">
             <PaginationItem>
               <PaginationPrevious
                 onClick={() => onPageChange(Math.max(1, page - 1))}
-                className={
-                  page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"
-                }
+                className={cn(
+                  "h-10 px-4 rounded-xl font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all",
+                  page === 1 ? "opacity-30 pointer-events-none" : "hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm"
+                )}
               />
             </PaginationItem>
-            <PaginationItem>
-              <PaginationLink isActive>{page}</PaginationLink>
-            </PaginationItem>
+            
+            <div className="bg-blue-600 text-white h-10 w-10 flex items-center justify-center rounded-xl font-black shadow-lg shadow-blue-500/30">
+              {page}
+            </div>
+
             <PaginationItem>
               <PaginationNext
                 onClick={() => onPageChange(page + 1)}
-                className={
-                  !hasMore ? "pointer-events-none opacity-50" : "cursor-pointer"
-                }
+                className={cn(
+                  "h-10 px-4 rounded-xl font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all",
+                  !hasMore ? "opacity-30 pointer-events-none" : "hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm"
+                )}
               />
             </PaginationItem>
           </PaginationContent>
@@ -251,4 +242,3 @@ export function OrdersTable({
     </div>
   );
 }
-

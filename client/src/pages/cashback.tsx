@@ -31,6 +31,8 @@ import { ExpiringCashbacks } from "@/components/expiring-cashbacks";
 import { CashbackBalancesList } from "@/components/cashback-balances-list";
 import { CashbackTransactionsList } from "@/components/cashback-transactions-list";
 import { CashbackUsageList } from "@/components/cashback-usage-list";
+import { CashbackHeader } from "@/components/cashback/cashback-header";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Interfaces
 interface Client {
@@ -86,7 +88,7 @@ const formatCurrency = (value: string | number) => {
 };
 
 export default function Cashback() {
-  const [activeTab, setActiveTab] = useState("cashback");
+  const [activeTab, setActiveTab] = useState("overview");
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [usageModalOpen, setUsageModalOpen] = useState(false);
   const [deletingBalance, setDeletingBalance] = useState<any>(null);
@@ -549,88 +551,48 @@ export default function Cashback() {
   // Isso elimina a necessidade de múltiplos cálculos no frontend
 
   return (
-    <div className="flex">
-      <div className="flex-1 overflow-auto">
-        <div className="  space-y-6">
-          <div className="bg-white dark:bg-slate-950 dark:border dark:border-slate-700 border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-2 flex-wrap justify-between">
-              <div className="flex items-center gap-4">
-                <Gift className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    Sistema de Cashback
-                  </h2>
-                  <p className="text-gray-600 mt-1 dark:text-gray-400">
-                    Gerencie programa de cashback e recompensas para clientes
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+    <>
+      <div className="p-4 lg:p-10 bg-slate-50 dark:bg-[#020617] min-h-screen">
+      <div className="max-w-[1600px] mx-auto space-y-10">
+        <CashbackHeader />
 
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700 h-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
+          <TabsList className="flex items-center justify-start gap-4 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar">
+            {[
+              { id: "overview", label: "Visão Geral", icon: Gift, color: "blue" },
+              { id: "sales", label: "Vendas", icon: DollarSign, color: "emerald" },
+              { id: "balances", label: "Saldos", icon: Wallet, color: "purple" },
+              { id: "transactions", label: "Transações", icon: History, color: "amber" },
+              { id: "usage", label: "Resgates", icon: Percent, color: "rose" },
+              { id: "reports", label: "Relatórios", icon: Calculator, color: "indigo" },
+            ].map((tab) => (
               <TabsTrigger
-                value="overview"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                key={tab.id}
+                value={tab.id}
+                className={`group flex items-center gap-3 px-6 py-4 rounded-2xl border border-transparent transition-all duration-300
+                  data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 
+                  data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-800 
+                  data-[state=active]:shadow-lg dark:data-[state=active]:shadow-blue-500/5 
+                  hover:bg-white/50 dark:hover:bg-white/5`}
               >
-                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-md p-1.5 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 group-data-[state=active]:bg-blue-200 dark:group-data-[state=active]:bg-blue-800/40 transition-colors">
-                  <Gift className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-800 group-data-[state=active]:bg-blue-500/10 transition-colors`}>
+                  <tab.icon className={`h-4 w-4 text-slate-500 group-data-[state=active]:text-blue-500`} />
                 </div>
-                <span className="hidden sm:inline truncate">Visão Geral</span>
-                <span className="sm:hidden truncate">Visão</span>
+                <span className="text-sm font-bold tracking-tight text-slate-500 group-data-[state=active]:text-slate-900 dark:group-data-[state=active]:text-white">
+                  {tab.label}
+                </span>
               </TabsTrigger>
-              <TabsTrigger
-                value="sales"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-              >
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-md p-1.5 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 group-data-[state=active]:bg-emerald-200 dark:group-data-[state=active]:bg-emerald-800/40 transition-colors">
-                  <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="hidden sm:inline truncate">Vendas</span>
-                <span className="sm:hidden truncate">Vendas</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="balances"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-              >
-                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-md p-1.5 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40 group-data-[state=active]:bg-purple-200 dark:group-data-[state=active]:bg-purple-800/40 transition-colors">
-                  <Wallet className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <span className="hidden sm:inline truncate">Saldos</span>
-                <span className="sm:hidden truncate">Saldos</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="transactions"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-              >
-                <div className="bg-amber-100 dark:bg-amber-900/30 rounded-md p-1.5 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/40 group-data-[state=active]:bg-amber-200 dark:group-data-[state=active]:bg-amber-800/40 transition-colors">
-                  <History className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <span className="hidden sm:inline truncate">Transações</span>
-                <span className="sm:hidden truncate">Trans.</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="usage"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-rose-700 dark:data-[state=active]:text-rose-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-rose-600 dark:hover:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-              >
-                <div className="bg-rose-100 dark:bg-rose-900/30 rounded-md p-1.5 group-hover:bg-rose-200 dark:group-hover:bg-rose-800/40 group-data-[state=active]:bg-rose-200 dark:group-data-[state=active]:bg-rose-800/40 transition-colors">
-                  <Percent className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                </div>
-                <span className="hidden sm:inline truncate">Resgates</span>
-                <span className="sm:hidden truncate">Resg.</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="reports"
-                className="group flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-600 dark:text-gray-400 data-[state=active]:text-indigo-700 dark:data-[state=active]:text-indigo-300 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-lg hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700/50"
-              >
-                <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-md p-1.5 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40 group-data-[state=active]:bg-indigo-200 dark:group-data-[state=active]:bg-indigo-800/40 transition-colors">
-                  <Calculator className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <span className="hidden sm:inline truncate">Relatórios</span>
-                <span className="sm:hidden truncate">Relat.</span>
-              </TabsTrigger>
-            </TabsList>
+            ))}
+          </TabsList>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
 
             <TabsContent value="overview" className="space-y-6">
               <CashbackStatsCards
@@ -678,8 +640,9 @@ export default function Cashback() {
             <TabsContent value="reports" className="space-y-6">
               <CashbackReports />
             </TabsContent>
-          </Tabs>
-        </div>
+            </motion.div>
+          </AnimatePresence>
+        </Tabs>
       </div>
 
       <CashbackUsageModal
@@ -730,6 +693,7 @@ export default function Cashback() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </>
   );
 }

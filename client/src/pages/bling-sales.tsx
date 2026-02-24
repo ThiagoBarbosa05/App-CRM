@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 import {
@@ -11,15 +11,16 @@ import {
 } from "@/hooks/use-bling-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportBlingOrdersToExcel } from "@/lib/excel-export";
+import { useToast } from "@/hooks/use-toast";
+
+// Components
+import { BlingSalesHeader } from "@/components/bling-sales/bling-sales-header";
 import { SalesStatisticsCards } from "@/components/bling-sales/sales-statistics-cards";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopSellersChart } from "@/components/bling-sales/top-sellers-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
 import { OrdersFilters } from "@/components/bling-sales/orders-filters";
 import { OrdersTable } from "@/components/bling-sales/orders-table";
-import { Button } from "@/components/ui/button";
-import { Download, HandCoins, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
 export default function BlingSalesPage() {
   const { toast } = useToast();
@@ -27,7 +28,7 @@ export default function BlingSalesPage() {
   const pageSize = 20;
   const [isExporting, setIsExporting] = useState(false);
 
-  // Default to last 90 days to show data by default
+  // Default to last 90 days
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().setDate(new Date().getDate() - 90)),
     to: new Date(),
@@ -35,7 +36,7 @@ export default function BlingSalesPage() {
 
   // Advanced filters
   const [contactName, setContactName] = useState("");
-  const debouncedContactName = useDebounce(contactName, 500); // Debounce search
+  const debouncedContactName = useDebounce(contactName, 500);
   const [sellerId, setSellerId] = useState<string | undefined>();
   const [storeId, setStoreId] = useState<string | undefined>();
   const [situationId, setSituationId] = useState<string | undefined>();
@@ -43,54 +44,32 @@ export default function BlingSalesPage() {
   const [maxValue, setMaxValue] = useState<number | undefined>();
   const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>();
 
-  const formattedStartDate = dateRange?.from
-    ? format(dateRange.from, "yyyy-MM-dd")
-    : "";
-  const formattedEndDate = dateRange?.to
-    ? format(dateRange.to, "yyyy-MM-dd")
-    : formattedStartDate; // Fallback to start date if end date is missing
+  const formattedStartDate = useMemo(() => 
+    dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "", 
+  [dateRange?.from]);
 
-  // Calculate the appropriate groupBy based on date range
-  const calculateGroupBy = (): 'day' | 'week' | 'month' => {
+  const formattedEndDate = useMemo(() => 
+    dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : formattedStartDate,
+  [dateRange?.to, formattedStartDate]);
+
+  const groupBy = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return 'day';
     const days = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
     if (days > 90) return 'month';
     if (days > 30) return 'week';
     return 'day';
-  };
+  }, [dateRange]);
 
-  // Fetch Sales Comparison (includes current and previous period stats)
-  const { data: salesComparison, isLoading: isStatsLoading } = useSalesComparison(
-    formattedStartDate,
-    formattedEndDate
-  );
+  // Queries
+  const { data: salesComparison, isLoading: isStatsLoading } = useSalesComparison(formattedStartDate, formattedEndDate);
+  const { data: salesEvolution, isLoading: isEvolutionLoading } = useSalesEvolution(formattedStartDate, formattedEndDate, groupBy);
+  const { data: topSellers, isLoading: isTopSellersLoading } = useTopSellers(formattedStartDate, formattedEndDate, 5);
+  const { data: topProducts, isLoading: isTopProductsLoading } = useTopProducts(formattedStartDate, formattedEndDate, 5);
 
-  // Fetch Sales Evolution for chart
-  const { data: salesEvolution, isLoading: isEvolutionLoading } = useSalesEvolution(
-    formattedStartDate,
-    formattedEndDate,
-    calculateGroupBy()
-  );
-
-  // Fetch Top Sellers
-  const { data: topSellers, isLoading: isTopSellersLoading } = useTopSellers(
-    formattedStartDate,
-    formattedEndDate,
-    5
-  );
-
-  // Fetch Top Products
-  const { data: topProducts, isLoading: isTopProductsLoading } = useTopProducts(
-    formattedStartDate,
-    formattedEndDate,
-    5
-  );
-
-  // Fetch Orders with all filters
   const { data: ordersResponse, isLoading: isOrdersLoading } = useBlingOrders({
     startDate: formattedStartDate,
     endDate: formattedEndDate,
-    contactName: debouncedContactName || undefined, // Use debounced value
+    contactName: debouncedContactName || undefined,
     sellerId,
     storeId,
     situationId,
@@ -106,148 +85,63 @@ export default function BlingSalesPage() {
   const hasMore = pagination?.hasMore || false;
   const totalOrders = pagination?.total || 0;
 
-  // Reset page when filters change
-  const handleFilterChange = () => {
-    setPage(1);
-  };
+  const handleFilterChange = () => setPage(1);
 
-  // Hook para exportação (só busca quando necessário)
-  const {
-    data: exportData,
-    refetch: refetchExport,
-    isFetching: isFetchingExport,
-  } = useBlingOrdersForExport(
-    {
-      startDate: formattedStartDate,
-      endDate: formattedEndDate,
-      contactName: debouncedContactName || undefined,
-      sellerId,
-      storeId,
-      situationId,
-      minValue,
-      maxValue,
-      paymentMethodId,
-    },
-    false // Não buscar automaticamente
-  );
+  // Export Hook
+  const { refetch: refetchExport, isFetching: isFetchingExport } = useBlingOrdersForExport({
+    startDate: formattedStartDate,
+    endDate: formattedEndDate,
+    contactName: debouncedContactName || undefined,
+    sellerId,
+    storeId,
+    situationId,
+    minValue,
+    maxValue,
+    paymentMethodId,
+  }, false);
 
-  // Função para exportar
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      
-      // Buscar dados
       const result = await refetchExport();
-      
       if (!result.data || result.data.length === 0) {
-        toast({
-          title: "Nenhum dado para exportar",
-          description: "Não há pedidos com os filtros selecionados.",
-          variant: "destructive",
-        });
+        toast({ title: "Nenhum dado", description: "Não há pedidos com os filtros selecionados.", variant: "destructive" });
         return;
       }
-
-      // Exportar para Excel
       exportBlingOrdersToExcel(result.data);
-      
-      toast({
-        title: "Exportação concluída!",
-        description: `${result.data.length} pedido(s) exportado(s) com sucesso.`,
-      });
-    } catch (error) {
-      console.error("Erro ao exportar:", error);
-      toast({
-        title: "Erro ao exportar",
-        description: "Ocorreu um erro ao gerar o arquivo Excel. Tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Sucesso!", description: `${result.data.length} pedido(s) exportado(s).` });
+    } catch {
+      toast({ title: "Erro na exportação", variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
   };
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2 w-full">
-        <div className="bg-white dark:bg-slate-950 dark:border-slate-700 dark:border border-b border-gray-200 px-6 py-4 rounded-lg shadow-sm w-full">
-          <div className="flex items-center gap-2 flex-wrap justify-between">
-            <div className="flex items-center gap-4">
-              <HandCoins className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  Vendas
-                </h2>
-                <p className="text-gray-600 dark:text-slate-400 mt-1">
-                  Acompahe as vendas do Bling ERP
-                </p>
-                <p className="text-2xl text-red-500 animate-pulse font-bold" >Essa Página ainda está em desenvolvimento !</p>
-
-              </div>
-            </div>
-            <Button 
-              onClick={handleExport} 
-              disabled={isExporting || isFetchingExport || !formattedStartDate || !formattedEndDate}
-              className="gap-2"
-            >
-              {isExporting || isFetchingExport ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Exportando...
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4" />
-                  Exportar Excel
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-       
-      </div>
+    <div className="max-w-full overflow-x-hidden space-y-8 pb-10">
+      <BlingSalesHeader 
+        onExport={handleExport} 
+        isExporting={isExporting || isFetchingExport}
+        disabled={!formattedStartDate || !formattedEndDate}
+      />
 
       <OrdersFilters
         dateRange={dateRange}
-        onDateRangeChange={(range) => {
-          setDateRange(range);
-          handleFilterChange();
-        }}
+        onDateRangeChange={(range) => { setDateRange(range); handleFilterChange(); }}
         contactName={contactName}
-        onContactNameChange={(name) => {
-          setContactName(name);
-          handleFilterChange();
-        }}
+        onContactNameChange={(name) => { setContactName(name); handleFilterChange(); }}
         sellerId={sellerId}
-        onSellerIdChange={(id) => {
-          setSellerId(id);
-          handleFilterChange();
-        }}
+        onSellerIdChange={(id) => { setSellerId(id); handleFilterChange(); }}
         storeId={storeId}
-        onStoreIdChange={(id) => {
-          setStoreId(id);
-          handleFilterChange();
-        }}
+        onStoreIdChange={(id) => { setStoreId(id); handleFilterChange(); }}
         situationId={situationId}
-        onSituationIdChange={(id) => {
-          setSituationId(id);
-          handleFilterChange();
-        }}
+        onSituationIdChange={(id) => { setSituationId(id); handleFilterChange(); }}
         minValue={minValue}
-        onMinValueChange={(value) => {
-          setMinValue(value);
-          handleFilterChange();
-        }}
+        onMinValueChange={(val) => { setMinValue(val); handleFilterChange(); }}
         maxValue={maxValue}
-        onMaxValueChange={(value) => {
-          setMaxValue(value);
-          handleFilterChange();
-        }}
+        onMaxValueChange={(val) => { setMaxValue(val); handleFilterChange(); }}
         paymentMethodId={paymentMethodId}
-        onPaymentMethodIdChange={(id) => {
-          setPaymentMethodId(id);
-          handleFilterChange();
-        }}
+        onPaymentMethodIdChange={(id) => { setPaymentMethodId(id); handleFilterChange(); }}
         isLoading={isOrdersLoading}
       />
 
@@ -261,21 +155,18 @@ export default function BlingSalesPage() {
         isLoading={isStatsLoading}
       />
 
-      <SalesEvolutionChart
-        data={salesEvolution}
-        isLoading={isEvolutionLoading}
-        groupBy={calculateGroupBy()}
-      />
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-        <TopSellersChart
-          data={topSellers}
-          isLoading={isTopSellersLoading}
-        />
-        <TopProductsChart
-          data={topProducts}
-          isLoading={isTopProductsLoading}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <SalesEvolutionChart
+            data={salesEvolution}
+            isLoading={isEvolutionLoading}
+            groupBy={groupBy}
+          />
+        </div>
+        <div className="space-y-8">
+          <TopSellersChart data={topSellers} isLoading={isTopSellersLoading} />
+          <TopProductsChart data={topProducts} isLoading={isTopProductsLoading} />
+        </div>
       </div>
 
       <OrdersTable

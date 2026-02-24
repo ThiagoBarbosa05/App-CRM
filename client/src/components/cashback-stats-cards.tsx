@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface CashbackStatistics {
   totalCashback: number;
@@ -24,6 +25,7 @@ const StatCard: React.FC<{
   icon: React.ComponentType<{ className?: string }>;
   isLoading: boolean;
   skeletonWidth?: string;
+  index: number;
   themeColor: "emerald" | "blue" | "purple";
 }> = ({
   title,
@@ -32,79 +34,70 @@ const StatCard: React.FC<{
   icon: Icon,
   isLoading,
   skeletonWidth = "w-24",
+  index,
   themeColor,
 }) => {
   const themeClasses = {
     emerald: {
-      card: "bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-900/10",
-      title: "text-emerald-800 dark:text-emerald-200",
-      iconContainer:
-        "bg-emerald-100 dark:bg-emerald-900/30 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40",
-      icon: "text-emerald-600 dark:text-emerald-400",
-      description: "text-emerald-600/70 dark:text-emerald-400/70",
-      skeleton: "bg-emerald-200 dark:bg-emerald-800/30",
-      skeletonSecondary: "bg-emerald-100 dark:bg-emerald-800/20",
+      card: "shadow-emerald-500/5 hover:shadow-emerald-500/10",
+      gradient: "from-emerald-500/10 to-teal-500/5 dark:from-emerald-500/20 dark:to-teal-500/10",
+      iconContainer: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 dark:bg-emerald-500/20",
+      border: "border-emerald-100/50 dark:border-emerald-800/30",
     },
     blue: {
-      card: "bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10",
-      title: "text-blue-800 dark:text-blue-200",
-      iconContainer:
-        "bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40",
-      icon: "text-blue-600 dark:text-blue-400",
-      description: "text-blue-600/70 dark:text-blue-400/70",
-      skeleton: "bg-blue-200 dark:bg-blue-800/30",
-      skeletonSecondary: "bg-blue-100 dark:bg-blue-800/20",
+      card: "shadow-blue-500/5 hover:shadow-blue-500/10",
+      gradient: "from-blue-500/10 to-indigo-500/5 dark:from-blue-500/20 dark:to-indigo-500/10",
+      iconContainer: "bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/20",
+      border: "border-blue-100/50 dark:border-blue-800/30",
     },
     purple: {
-      card: "bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-900 dark:to-purple-900/10",
-      title: "text-purple-800 dark:text-purple-200",
-      iconContainer:
-        "bg-purple-100 dark:bg-purple-900/30 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/40",
-      icon: "text-purple-600 dark:text-purple-400",
-      description: "text-purple-600/70 dark:text-purple-400/70",
-      skeleton: "bg-purple-200 dark:bg-purple-800/30",
-      skeletonSecondary: "bg-purple-100 dark:bg-purple-800/20",
+      card: "shadow-purple-500/5 hover:shadow-purple-500/10",
+      gradient: "from-purple-500/10 to-fuchsia-500/5 dark:from-purple-500/20 dark:to-fuchsia-500/10",
+      iconContainer: "bg-purple-500/10 text-purple-600 dark:text-purple-400 dark:bg-purple-500/20",
+      border: "border-purple-100/50 dark:border-purple-800/30",
     },
   };
 
   const theme = themeClasses[themeColor];
 
   return (
-    <Card
-      className={`group hover:shadow-lg transition-all duration-300 border-0 shadow-md ${theme.card}`}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className={`text-sm font-semibold ${theme.title}`}>
-          {title}
-        </CardTitle>
-        <div
-          className={`${theme.iconContainer} rounded-lg p-2 transition-colors`}
-        >
-          <Icon className={`h-4 w-4 ${theme.icon}`} />
-        </div>
-      </CardHeader>
-      <CardContent className="pb-4">
-        {isLoading ? (
-          <div className="animate-pulse">
-            <div
-              className={`h-8 ${theme.skeleton} rounded ${skeletonWidth} mb-1`}
-            ></div>
-            <div
-              className={`h-3 ${theme.skeletonSecondary} rounded w-3/4`}
-            ></div>
+      <Card
+        className={`group relative overflow-hidden transition-all duration-300 border shadow-xl bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl ${theme.border} ${theme.card} hover:-translate-y-1`}
+      >
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+        
+        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-sm font-bold tracking-tight text-slate-500 dark:text-slate-400 uppercase">
+            {title}
+          </CardTitle>
+          <div className={`rounded-xl p-2.5 ${theme.iconContainer} transition-transform duration-300 group-hover:scale-110`}>
+            <Icon className="h-5 w-5" />
           </div>
-        ) : (
-          <>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              {value}
+        </CardHeader>
+        <CardContent className="relative pb-6">
+          {isLoading ? (
+            <div className="space-y-2 animate-pulse">
+              <div className={`h-8 bg-slate-200 dark:bg-slate-800 rounded ${skeletonWidth}`}></div>
+              <div className="h-3 bg-slate-100 dark:bg-slate-900 rounded w-3/4"></div>
             </div>
-            <p className={`text-xs font-medium ${theme.description}`}>
-              {description}
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                {value}
+              </div>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors uppercase tracking-widest">
+                {description}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -118,34 +111,36 @@ export const CashbackStatsCards: React.FC<CashbackStatsCardsProps> = ({
   const averageRate = statistics?.averageRate ?? 0;
 
   return (
-    <div className="grid grid-cols-1 mt-5 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
       <StatCard
+        index={0}
         title="Total em Cashback"
         value={formatCurrency(totalCashback)}
-        description="Total distribuído em cashback"
+        description="Distribuído aos clientes"
         icon={DollarSign}
         isLoading={isLoading}
-        skeletonWidth="w-24"
+        skeletonWidth="w-32"
         themeColor="emerald"
       />
 
       <StatCard
+        index={1}
         title="Clientes Ativos"
         value={activeClients}
-        description="Com saldo de cashback"
+        description="Com saldo pendente"
         icon={Users}
         isLoading={isLoading}
-        skeletonWidth="w-16"
+        skeletonWidth="w-20"
         themeColor="blue"
       />
 
       <StatCard
+        index={2}
         title="Taxa Média"
         value={`${averageRate.toFixed(1)}%`}
-        description="Taxa de cashback média"
+        description="De retorno operacional"
         icon={TrendingUp}
         isLoading={isLoading}
-        skeletonWidth="w-20"
         themeColor="purple"
       />
     </div>

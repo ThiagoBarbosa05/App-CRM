@@ -123,8 +123,9 @@ export function SalesEvolutionChart({
           Acompanhe o desempenho de vendas ao longo do tempo
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+      <CardContent className="p-0 sm:p-6">
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
@@ -184,7 +185,8 @@ export function SalesEvolutionChart({
             />
           </LineChart>
         </ResponsiveContainer>
-      </CardContent>
+      </div>
+    </CardContent>
     </Card>
   );
 }

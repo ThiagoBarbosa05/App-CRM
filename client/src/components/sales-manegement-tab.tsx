@@ -1,6 +1,9 @@
 import {
+  ArrowRight,
   Bot,
+  CalendarIcon,
   DollarSign,
+  Hash,
   Info,
   Loader2,
   MessageSquareMore,
@@ -10,7 +13,9 @@ import {
   RefreshCcw,
   Search,
   Trash2,
+  User,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { AlertDialogHeader } from "./ui/alert-dialog";
@@ -535,65 +540,79 @@ export function SalesManagementTab({
   };
 
   return (
-    <div className="space-y-6 mt-5">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            Vendas
+    <div className="space-y-10 mt-8">
+      {/* Header Section Premium */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">
+            Gestão de <span className="text-blue-600 dark:text-blue-400">Vendas</span>
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-            Gerencie vendas e cashback automaticamente
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2">
+            Registre e acompanhe o histórico de transações da loja.
           </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 font-semibold">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button className="h-14 px-8 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1 active:scale-95">
+              <Plus className="h-5 w-5 mr-3" />
               Nova Venda
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
-            <AlertDialogHeader>
-              <DialogTitle>Registrar Nova Venda</DialogTitle>
-            </AlertDialogHeader>
+          <DialogContent className="max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-slate-100 dark:border-slate-800 rounded-[2.5rem] shadow-2xl p-0 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 pointer-events-none" />
+            
+            <CardHeader className="relative px-10 py-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-500/10 rounded-2xl p-3 text-blue-600">
+                  <Receipt className="h-6 w-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    Registrar <span className="text-blue-600 dark:text-blue-400">Nova Venda</span>
+                  </DialogTitle>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Preencha os dados abaixo para computar o cashback.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="client" className="text-sm font-medium">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="client" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Cliente *
                   </Label>
                   <div className="space-y-3">
                     {!saleForm.clientId && (
                       <>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <div className="relative group">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                           <Input
                             placeholder="Buscar por nome, CPF ou telefone..."
                             value={clientSearchQuery}
                             onChange={(e) =>
                               setClientSearchQuery(e.target.value)
                             }
-                            className="pl-10 h-11"
+                            className="pl-12 h-12 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-blue-500/5 font-bold transition-all"
                           />
                         </div>
                         {clientSearchQuery.trim() && clients.length > 0 && (
-                          <div className="border rounded-lg max-h-48 overflow-y-auto shadow-sm">
+                          <div className="absolute z-50 w-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
                             {clients.map((client) => (
                               <div
                                 key={client.id}
-                                className="p-4 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 transition-colors"
+                                className="p-4 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors"
                                 onClick={() => {
                                   handleClientChange(client.id);
                                 }}
                               >
-                                <div className="flex flex-col space-y-1">
-                                  <span className="font-medium text-gray-900">
+                                <div className="flex flex-col">
+                                  <span className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm">
                                     {client.name}
                                   </span>
-                                  <span className="text-sm text-gray-500">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                     {client.cpf} • {client.phone}
                                   </span>
                                 </div>
@@ -602,44 +621,56 @@ export function SalesManagementTab({
                           </div>
                         )}
                         {clientSearchQuery.trim() && clients.length === 0 && (
-                          <div className="border rounded-lg p-6 text-center text-sm text-gray-500 bg-gray-50">
-                            <div className="flex flex-col items-center space-y-3">
-                              <Search className="h-8 w-8 text-gray-300" />
-                              <span>Nenhum cliente encontrado</span>
+                          <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="flex flex-col items-center space-y-4">
+                              <Search className="h-8 w-8 text-slate-300" />
+                              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nenhum cliente encontrado</span>
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setIsClientModalOpen(true)}
-                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                className="h-10 px-6 rounded-xl border-blue-200 text-blue-600 font-black uppercase tracking-widest text-[10px] hover:bg-blue-50"
                               >
                                 <Plus className="h-4 w-4 mr-2" />
-                                Cadastrar Cliente
+                                Cadastrar Novo
                               </Button>
                             </div>
                           </div>
                         )}
+                        <Button
+                          type="button"
+                          variant="link"
+                          onClick={() => setIsClientModalOpen(true)}
+                          className="p-0 h-auto text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700"
+                        >
+                          + Novo Cadastro
+                        </Button>
                       </>
                     )}
                     {saleForm.clientId && selectedClientName && (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2 sm:space-y-0">
-                        <div className="text-sm text-gray-700 space-y-1">
-                          <div>
-                            <strong>Cliente selecionado:</strong>{" "}
-                            {selectedClientName}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-5 bg-blue-500/5 border border-blue-500/10 rounded-2xl space-y-3 sm:space-y-0"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="bg-blue-500/10 p-2.5 rounded-xl">
+                            <User className="h-5 w-5 text-blue-600" />
                           </div>
-                          {selectedClientBalance > 0 && (
-                            <div className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                              Saldo disponível:{" "}
-                              <span className="font-bold">
-                                {formatCurrency(selectedClientBalance)}
-                              </span>
-                            </div>
-                          )}
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Cliente Selecionado</p>
+                            <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm leading-none mt-1">{selectedClientName}</p>
+                            {selectedClientBalance > 0 && (
+                              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">
+                                Saldo: {formatCurrency(selectedClientBalance)}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => {
                             setSelectedClient(null);
@@ -648,29 +679,32 @@ export function SalesManagementTab({
                             setSelectedClientBalance(0);
                             setSaleForm((prev) => ({ ...prev, clientId: "" }));
                           }}
-                          className="shrink-0"
+                          className="h-9 w-9 p-0 rounded-full hover:bg-red-500/10 hover:text-red-500"
                         >
-                          Alterar
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                      </motion.div>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-sm font-medium">
+                <div className="space-y-3">
+                  <Label htmlFor="date" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Data da Venda *
                   </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={saleForm.date}
-                    onChange={(e) =>
-                      setSaleForm((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                    className="h-11"
-                    required
-                  />
+                  <div className="relative group">
+                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                    <Input
+                      id="date"
+                      type="date"
+                      value={saleForm.date}
+                      onChange={(e) =>
+                        setSaleForm((prev) => ({ ...prev, date: e.target.value }))
+                      }
+                      className="pl-12 h-12 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-blue-500/5 font-bold transition-all"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -778,196 +812,166 @@ export function SalesManagementTab({
                 </Card>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="grossValue" className="text-sm font-medium">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label htmlFor="grossValue" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Valor Bruto da Venda *
                   </Label>
-                  <Input
-                    id="grossValue"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={saleForm.grossValue}
-                    onChange={(e) =>
-                      setSaleForm((prev) => ({
-                        ...prev,
-                        grossValue: e.target.value,
-                      }))
-                    }
-                    className="h-11 text-lg font-medium"
-                    required
-                  />
+                  <div className="relative group">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <Input
+                      id="grossValue"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={saleForm.grossValue}
+                      onChange={(e) =>
+                        setSaleForm((prev) => ({
+                          ...prev,
+                          grossValue: e.target.value,
+                        }))
+                      }
+                      className="pl-12 h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-emerald-500/5 font-black text-xl transition-all"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="invoiceNumber"
-                    className="text-sm font-medium"
-                  >
+                <div className="space-y-3">
+                  <Label htmlFor="invoiceNumber" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Número da Nota Fiscal
                   </Label>
-                  <Input
-                    id="invoiceNumber"
-                    type="text"
-                    placeholder="Ex: 123456"
-                    value={saleForm.invoiceNumber}
-                    onChange={(e) =>
-                      setSaleForm((prev) => ({
-                        ...prev,
-                        invoiceNumber: e.target.value,
-                      }))
-                    }
-                    className="h-11"
-                  />
+                  <div className="relative group">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                    <Input
+                      id="invoiceNumber"
+                      type="text"
+                      placeholder="Ex: 123456"
+                      value={saleForm.invoiceNumber}
+                      onChange={(e) =>
+                        setSaleForm((prev) => ({
+                          ...prev,
+                          invoiceNumber: e.target.value,
+                        }))
+                      }
+                      className="pl-12 h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-blue-500/5 font-bold transition-all"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Cashback Option */}
+              {/* Cashback Option Polished */}
               {saleForm.clientId && selectedClientBalance > 0 && (
-                <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      id="useCashback"
-                      checked={useCashback}
-                      onChange={(e) => setUseCashback(e.target.checked)}
-                      className="h-5 w-5 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded mt-0.5"
-                    />
-                    <div className="flex-1 space-y-1">
-                      <Label
-                        htmlFor="useCashback"
-                        className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 cursor-pointer"
-                      >
-                        Usar saldo de cashback disponível (
-                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-6 rounded-[2rem] border transition-all duration-300 ${
+                    useCashback
+                      ? "bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5"
+                      : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-2xl transition-colors ${
+                        useCashback ? "bg-emerald-500/20 text-emerald-600" : "bg-slate-200 dark:bg-slate-800 text-slate-400"
+                      }`}>
+                        <Percent className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${
+                          useCashback ? "text-emerald-600" : "text-slate-400"
+                        }`}>Cashback Disponível</p>
+                        <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">
                           {formatCurrency(selectedClientBalance)}
-                        </span>
-                        )
-                      </Label>
-                      <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                        {useCashback
-                          ? "O cashback será aplicado automaticamente na venda"
-                          : "O cashback não será usado nesta venda"}
-                      </p>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                       <span className={`text-[10px] font-black uppercase tracking-widest ${
+                         useCashback ? "text-emerald-600" : "text-slate-400"
+                       }`}>{useCashback ? "Aplicado" : "Não usar"}</span>
+                       <button
+                         type="button"
+                         onClick={() => setUseCashback(!useCashback)}
+                         className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${
+                           useCashback ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-800"
+                         }`}
+                       >
+                         <span
+                           className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                             useCashback ? "translate-x-7" : "translate-x-1"
+                           }`}
+                         />
+                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium">
-                  Observações da Venda
+              <div className="space-y-3">
+                <Label htmlFor="notes" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  Observações da Transação
                 </Label>
                 <Input
                   id="notes"
                   type="text"
-                  placeholder="Adicione observações sobre a venda..."
+                  placeholder="Detalhes adicionais sobre a venda..."
                   value={saleForm.notes}
                   onChange={(e) =>
                     setSaleForm((prev) => ({ ...prev, notes: e.target.value }))
                   }
-                  className="h-11"
+                  className="h-12 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-4 focus:ring-blue-500/5 transition-all"
                 />
               </div>
 
-              {/* Sale Summary */}
-              {saleForm.clientId && (
-                <Card className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 border-slate-200 dark:border-slate-800">
-                  <CardHeader>
-                    <CardTitle className="text-base text-slate-800 dark:text-slate-200">
-                      Resumo da Venda
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Saldo de Cashback Disponível:
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className="text-sm font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
-                        >
-                          {formatCurrency(selectedClientBalance)}
-                        </Badge>
-                        {selectedClientBalance > 0 && (
-                          <Badge
-                            variant={useCashback ? "default" : "outline"}
-                            className={cn(
-                              "text-xs font-medium",
-                              useCashback
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700"
-                                : "bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
-                            )}
-                          >
-                            {useCashback ? "Será usado" : "Não será usado"}
-                          </Badge>
-                        )}
-                      </div>
+              {/* Sale Summary Premium */}
+              {saleForm.clientId && saleForm.grossValue && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-slate-50/50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 space-y-5 shadow-inner"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Subtotal</span>
+                    <span className="font-bold text-slate-600 dark:text-slate-400 tabular-nums">{formatCurrency(parseFloat(saleForm.grossValue))}</span>
+                  </div>
+                  
+                  {useCashback && previewValues().cashbackUsed > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Cashback Utilizado</span>
+                      <span className="font-black text-emerald-600 tabular-nums">-{formatCurrency(previewValues().cashbackUsed)}</span>
                     </div>
+                  )}
 
-                    {saleForm.grossValue && (
-                      <div className="space-y-3 pt-3 border-t border-gray-200">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Valor Bruto:
-                          </span>
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">
-                            {formatCurrency(parseFloat(saleForm.grossValue))}
-                          </span>
-                        </div>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800 my-1" />
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Total Líquido</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">
+                      {formatCurrency(previewValues().netValue)}
+                    </span>
+                  </div>
 
-                        <div
-                          className={cn(
-                            "flex justify-between items-center",
-                            useCashback && previewValues().cashbackUsed > 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-gray-500 dark:text-gray-400"
-                          )}
-                        >
-                          <span className="text-sm">Cashback Aplicado:</span>
-                          <span className="font-semibold">
-                            {useCashback && previewValues().cashbackUsed > 0
-                              ? `-${formatCurrency(
-                                  previewValues().cashbackUsed
-                                )}`
-                              : formatCurrency(0)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center py-2 border-t border-slate-200 dark:border-slate-700">
-                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                            Valor Líquido a Pagar:
-                          </span>
-                          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                            {formatCurrency(previewValues().netValue)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
-                          <span className="text-sm font-medium">
-                            Novo Cashback Gerado (
-                            <span className="font-semibold text-blue-700 dark:text-blue-300">
-                              {previewValues().actualRate?.toFixed(1) || 0}%
-                            </span>
-                            ):
-                          </span>
-                          <span className="font-bold text-blue-700 dark:text-blue-300">
-                            +{formatCurrency(previewValues().cashbackGenerated)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  <div className="bg-blue-500/10 px-5 py-4 rounded-2xl flex items-center justify-between border border-blue-500/10">
+                    <div className="flex items-center gap-3">
+                       <ArrowRight className="h-5 w-5 text-blue-600" />
+                       <div>
+                         <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Recompensa</p>
+                         <p className="text-[10px] font-bold text-blue-500/70 uppercase">Taxa: {previewValues().actualRate?.toFixed(1)}%</p>
+                       </div>
+                    </div>
+                    <span className="text-xl font-black text-blue-600 tabular-nums">+{formatCurrency(previewValues().cashbackGenerated)}</span>
+                  </div>
+                </motion.div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => {
                     setIsDialogOpen(false);
                     setClientSearchQuery("");
@@ -985,24 +989,21 @@ export function SalesManagementTab({
                     setSelectedClientBalance(0);
                     setClients([]);
                   }}
-                  className="flex-1 sm:flex-none h-11"
+                  className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-600 transition-all"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
                   disabled={loading || !isUmblerReady}
-                  className="flex-1 sm:flex-none h-11 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 font-semibold"
+                  className="flex-1 h-14 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1 active:scale-95"
                 >
                   {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      <span className="font-medium">Registrando...</span>
-                    </>
+                    <Loader2 className="h-6 w-6 animate-spin" />
                   ) : (
                     <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      <span className="font-semibold">Registrar Venda</span>
+                      <Plus className="h-5 w-5 mr-3" />
+                      Registrar Venda
                     </>
                   )}
                 </Button>
