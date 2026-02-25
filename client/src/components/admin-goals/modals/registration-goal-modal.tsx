@@ -16,19 +16,17 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const clientRegistrationGoalSchema = z.object({
-  userId: z.string().min(1, "Usuário é obrigatório"),
-  targetQuantity: z
-    .string()
-    .min(1, "Quantidade é obrigatória")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
-  month: z.string().min(1, "Mês é obrigatório"),
-  year: z.string().min(1, "Ano é obrigatório"),
+  userId: z.string().min(1, "Vendedor é obrigatório"),
+  targetQuantity: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(1, "Mínimo 1"),
+  month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
+  year: z.coerce.number().min(2000, "Ano inválido"),
 });
 
-type ClientRegistrationGoalFormData = z.infer<typeof clientRegistrationGoalSchema>;
+type ClientRegistrationGoalFormData = z.infer<
+  typeof clientRegistrationGoalSchema
+>;
 
 interface ClientRegistrationGoalModalProps {
   open: boolean;
@@ -62,15 +60,15 @@ export function ClientRegistrationGoalModal({
   useEffect(() => {
     if (editingGoal) {
       setValue("userId", editingGoal.userId);
-      setValue("targetQuantity", editingGoal.targetQuantity.toString());
-      setValue("month", editingGoal.month.toString());
-      setValue("year", editingGoal.year.toString());
+      setValue("targetQuantity", editingGoal.targetQuantity);
+      setValue("month", editingGoal.month);
+      setValue("year", editingGoal.year);
     } else {
       reset({
         userId: "",
-        targetQuantity: "",
-        month: selectedMonth.toString(),
-        year: selectedYear.toString(),
+        targetQuantity: 0,
+        month: selectedMonth,
+        year: selectedYear,
       });
     }
   }, [editingGoal, open, reset, setValue, selectedMonth, selectedYear]);
@@ -78,12 +76,20 @@ export function ClientRegistrationGoalModal({
   const mutation = useMutation({
     mutationFn: async (data: ClientRegistrationGoalFormData) => {
       if (editingGoal) {
-        return apiRequest("PATCH", `/api/client-registration-goals/${editingGoal.id}`, data);
+        return apiRequest(
+          "PUT",
+          `/api/client-registration-goals/${editingGoal.id}`,
+          data
+        );
       }
       return apiRequest("POST", "/api/client-registration-goals", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+        ],
+      });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
         description: "Meta de cadastros salva com sucesso.",
@@ -105,7 +111,10 @@ export function ClientRegistrationGoalModal({
   };
 
   const currentDate = new Date();
-  const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
+  const years = Array.from(
+    { length: 5 },
+    (_, i) => currentDate.getFullYear() - 2 + i
+  );
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
@@ -123,7 +132,9 @@ export function ClientRegistrationGoalModal({
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Vendedor</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Vendedor
+            </Label>
             <select
               {...register("userId")}
               className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all disabled:opacity-50"
@@ -136,10 +147,17 @@ export function ClientRegistrationGoalModal({
                 </option>
               ))}
             </select>
+            {errors.userId && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.userId.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Quantidade Meta</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Quantidade Meta
+            </Label>
             <Input
               type="number"
               min="1"
@@ -147,11 +165,18 @@ export function ClientRegistrationGoalModal({
               {...register("targetQuantity")}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
+            {errors.targetQuantity && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.targetQuantity.message}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mês</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Mês
+              </Label>
               <select
                 {...register("month")}
                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all disabled:opacity-50"
@@ -159,22 +184,38 @@ export function ClientRegistrationGoalModal({
               >
                 {months.map((m) => (
                   <option key={m} value={m}>
-                    {new Date(0, m - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                    {new Date(0, m - 1).toLocaleDateString("pt-BR", {
+                      month: "long",
+                    })}
                   </option>
                 ))}
               </select>
+              {errors.month && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.month.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ano</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Ano
+              </Label>
               <select
                 {...register("year")}
                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all disabled:opacity-50"
                 disabled={!!editingGoal}
               >
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
                 ))}
               </select>
+              {errors.year && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.year.message}
+                </p>
+              )}
             </div>
           </div>
 

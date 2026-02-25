@@ -14,37 +14,31 @@ import { Label } from "@/components/ui/label";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrencyInput, parseCurrency } from "@/lib/utils";
 
 const weeklyResultSchema = z.object({
   goalId: z.string().min(1, "Meta é obrigatória"),
-  week: z
-    .string()
-    .min(1, "Semana é obrigatória")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
+  week: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(1, "Mínimo 1")
+    .max(5, "Máximo 5"),
   salesAchieved: z
     .string()
     .min(1, "Vendas atingidas é obrigatória")
     .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo"
+      (val) => !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo"
     ),
   ticketAchieved: z
     .string()
     .min(1, "Ticket atingido é obrigatório")
     .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo"
+      (val) => !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo"
     ),
-  itemsAchieved: z
-    .string()
-    .min(1, "Itens atingidos é obrigatório")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
+  itemsAchieved: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(0, "Mínimo 0"),
 });
 
 type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
@@ -80,19 +74,29 @@ export function WeeklyResultModal({
     if (selectedGoal) {
       reset({
         goalId: selectedGoal.id,
-        week: "",
-        salesAchieved: "",
-        ticketAchieved: "",
-        itemsAchieved: "1",
+        week: 1,
+        salesAchieved: "0,00",
+        ticketAchieved: "0,00",
+        itemsAchieved: 0,
       });
     }
   }, [selectedGoal, open, reset]);
 
   const resultMutation = useMutation({
-    mutationFn: (data: WeeklyResultFormData) =>
-      apiRequest("POST", "/api/weekly-results", data),
+    mutationFn: (data: WeeklyResultFormData) => {
+      const payload = {
+        ...data,
+        salesAchieved: parseCurrency(data.salesAchieved),
+        ticketAchieved: parseCurrency(data.ticketAchieved),
+      };
+      return apiRequest("POST", "/api/weekly-results", payload);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
+      });
       toast({
         title: "Resultado salvo",
         description: "O resultado semanal foi registrado com sucesso.",
@@ -122,13 +126,19 @@ export function WeeklyResultModal({
             Desempenho Semanal
           </DialogTitle>
           <p className="text-emerald-100/80 text-sm font-medium mt-1 relative z-10 text-balance">
-            Registre os resultados atingidos pelo vendedor <span className="text-white font-black">{selectedGoal?.userName}</span> nesta semana.
+            Registre os resultados atingidos pelo vendedor{" "}
+            <span className="text-white font-black">
+              {selectedGoal?.userName}
+            </span>{" "}
+            nesta semana.
           </p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Número da Semana</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Número da Semana
+            </Label>
             <Input
               type="number"
               min="1"
@@ -137,41 +147,69 @@ export function WeeklyResultModal({
               {...register("week")}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
-            {errors.week && <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">{errors.week.message}</p>}
+            {errors.week && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.week.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Vendas Atingidas (R$)</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Vendas Atingidas (R$)
+            </Label>
             <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
+              placeholder="0,00"
               {...register("salesAchieved")}
+              onChange={(e) => {
+                const formatted = formatCurrencyInput(e.target.value);
+                setValue("salesAchieved", formatted, { shouldValidate: true });
+              }}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
-            {errors.salesAchieved && <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">{errors.salesAchieved.message}</p>}
+            {errors.salesAchieved && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.salesAchieved.message}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ticket Médio (R$)</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Ticket Médio (R$)
+              </Label>
               <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
+                placeholder="0,00"
                 {...register("ticketAchieved")}
+                onChange={(e) => {
+                  const formatted = formatCurrencyInput(e.target.value);
+                  setValue("ticketAchieved", formatted, { shouldValidate: true });
+                }}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
               />
+              {errors.ticketAchieved && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.ticketAchieved.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Itens/Venda</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Itens/Venda
+              </Label>
               <Input
                 type="number"
-                min="1"
-                placeholder="1"
+                min="0"
+                placeholder="0"
                 {...register("itemsAchieved")}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
               />
+              {errors.itemsAchieved && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.itemsAchieved.message}
+                </p>
+              )}
             </div>
           </div>
 

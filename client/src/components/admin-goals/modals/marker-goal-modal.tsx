@@ -23,17 +23,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const markerGoalSchema = z.object({
-  userId: z.string().min(1, "Usuário é obrigatório"),
+  userId: z.string().min(1, "Vendedor é obrigatório"),
   markerName: z.string().min(1, "Nome do marcador é obrigatório"),
-  targetQuantity: z
-    .string()
-    .min(1, "Quantidade é obrigatória")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
-  month: z.string().min(1, "Mês é obrigatório"),
-  year: z.string().min(1, "Ano é obrigatório"),
+  targetQuantity: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(1, "Mínimo 1"),
+  month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
+  year: z.coerce.number().min(2000, "Ano inválido"),
 });
 
 type MarkerGoalFormData = z.infer<typeof markerGoalSchema>;
@@ -74,16 +70,16 @@ export function MarkerGoalModal({
     if (editingGoal) {
       setValue("userId", editingGoal.userId);
       setValue("markerName", editingGoal.markerName);
-      setValue("targetQuantity", editingGoal.targetQuantity.toString());
-      setValue("month", editingGoal.month.toString());
-      setValue("year", editingGoal.year.toString());
+      setValue("targetQuantity", editingGoal.targetQuantity);
+      setValue("month", editingGoal.month);
+      setValue("year", editingGoal.year);
     } else {
       reset({
         userId: "",
         markerName: "",
-        targetQuantity: "",
-        month: selectedMonth.toString(),
-        year: selectedYear.toString(),
+        targetQuantity: 0,
+        month: selectedMonth,
+        year: selectedYear,
       });
     }
   }, [editingGoal, open, reset, setValue, selectedMonth, selectedYear]);
@@ -91,12 +87,14 @@ export function MarkerGoalModal({
   const mutation = useMutation({
     mutationFn: async (data: MarkerGoalFormData) => {
       if (editingGoal) {
-        return apiRequest("PATCH", `/api/marker-goals/${editingGoal.id}`, data);
+        return apiRequest("PUT", `/api/marker-goals/${editingGoal.id}`, data);
       }
       return apiRequest("POST", "/api/marker-goals", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/marker-goals/${selectedMonth}/${selectedYear}`],
+      });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
         description: "Meta de marcador salva com sucesso.",
@@ -118,7 +116,10 @@ export function MarkerGoalModal({
   };
 
   const currentDate = new Date();
-  const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
+  const years = Array.from(
+    { length: 5 },
+    (_, i) => currentDate.getFullYear() - 2 + i
+  );
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
@@ -136,7 +137,9 @@ export function MarkerGoalModal({
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Vendedor</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Vendedor
+            </Label>
             <select
               {...register("userId")}
               className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all disabled:opacity-50"
@@ -149,10 +152,17 @@ export function MarkerGoalModal({
                 </option>
               ))}
             </select>
+            {errors.userId && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.userId.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Marcador (Tag)</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Marcador (Tag)
+            </Label>
             <Controller
               name="markerName"
               control={control}
@@ -163,10 +173,19 @@ export function MarkerGoalModal({
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
                     {availableMarkers.map((marker) => (
-                      <SelectItem key={marker.id} value={marker.name} className="focus:bg-amber-50 dark:focus:bg-amber-900/20 rounded-lg py-3">
+                      <SelectItem
+                        key={marker.id}
+                        value={marker.name}
+                        className="focus:bg-amber-50 dark:focus:bg-amber-900/20 rounded-lg py-3"
+                      >
                         <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: marker.color }} />
-                          <span className="font-bold text-sm tracking-tight">{marker.name}</span>
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: marker.color }}
+                          />
+                          <span className="font-bold text-sm tracking-tight">
+                            {marker.name}
+                          </span>
                         </div>
                       </SelectItem>
                     ))}
@@ -174,10 +193,17 @@ export function MarkerGoalModal({
                 </Select>
               )}
             />
+            {errors.markerName && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.markerName.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Quantidade Meta</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Quantidade Meta
+            </Label>
             <Input
               type="number"
               min="1"
@@ -185,11 +211,18 @@ export function MarkerGoalModal({
               {...register("targetQuantity")}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
+            {errors.targetQuantity && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.targetQuantity.message}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mês</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Mês
+              </Label>
               <select
                 {...register("month")}
                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all disabled:opacity-50"
@@ -197,22 +230,38 @@ export function MarkerGoalModal({
               >
                 {months.map((m) => (
                   <option key={m} value={m}>
-                    {new Date(0, m - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                    {new Date(0, m - 1).toLocaleDateString("pt-BR", {
+                      month: "long",
+                    })}
                   </option>
                 ))}
               </select>
+              {errors.month && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.month.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ano</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Ano
+              </Label>
               <select
                 {...register("year")}
                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all disabled:opacity-50"
                 disabled={!!editingGoal}
               >
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
                 ))}
               </select>
+              {errors.year && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.year.message}
+                </p>
+              )}
             </div>
           </div>
 

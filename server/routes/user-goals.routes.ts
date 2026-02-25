@@ -55,6 +55,7 @@ userGoalsRouter.post("/", postUserGoalsController);
  * @access Private
  */
 userGoalsRouter.put("/:id", putUserGoalsController);
+userGoalsRouter.patch("/:id", putUserGoalsController);
 
 /**
  * @route DELETE /api/user-goals/:id

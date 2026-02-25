@@ -3670,58 +3670,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
 3667:   });
 3668:   */
 
-  app.post("/api/telemarketing-goals", async (req, res) => {
-    try {
-      const validatedData = insertTelemarketingGoalSchema.parse(req.body);
-      const goal = await storage.createTelemarketingGoal(validatedData);
-      res.status(201).json(goal);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro ao criar meta de telemarketing:", error);
-      res.status(500).json({ message: "Erro ao criar meta de telemarketing" });
-    }
-  });
+  /* MIGRADO: Rota POST Telemarketing Goals - ver telemarketing-goals.routes.ts
+3673:   app.post("/api/telemarketing-goals", async (req, res) => {
+3674:     try {
+3675:       const validatedData = insertTelemarketingGoalSchema.parse(req.body);
+3676:       const goal = await storage.createTelemarketingGoal(validatedData);
+3677:       res.status(201).json(goal);
+3678:     } catch (error) {
+3679:       if (error instanceof z.ZodError) {
+3680:         const validationError = fromZodError(error);
+3681:         return res.status(400).json({ message: validationError.toString() });
+3682:       }
+3683:       console.error("Erro ao criar meta de telemarketing:", error);
+3684:       res.status(500).json({ message: "Erro ao criar meta de telemarketing" });
+3685:     }
+3686:   });
+3687:   */
 
-  app.put("/api/telemarketing-goals/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const validatedData = insertTelemarketingGoalSchema
-        .partial()
-        .parse(req.body);
-      const goal = await storage.updateTelemarketingGoal(id, validatedData);
-      res.json(goal);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ message: validationError.toString() });
-      }
-      console.error("Erro ao atualizar meta de telemarketing:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao atualizar meta de telemarketing" });
-    }
-  });
+  /* MIGRADO: Rota PUT Telemarketing Goals - ver telemarketing-goals.routes.ts
+3688:   app.put("/api/telemarketing-goals/:id", async (req, res) => {
+3689:     try {
+3690:       const { id } = req.params;
+3691:       const validatedData = insertTelemarketingGoalSchema
+3692:         .partial()
+3693:         .parse(req.body);
+3694:       const goal = await storage.updateTelemarketingGoal(id, validatedData);
+3695:       res.json(goal);
+3696:     } catch (error) {
+3697:       if (error instanceof z.ZodError) {
+3698:         const validationError = fromZodError(error);
+3699:         return res.status(400).json({ message: validationError.toString() });
+3700:       }
+3701:       console.error("Erro ao atualizar meta de telemarketing:", error);
+3702:       res
+3703:         .status(500)
+3704:         .json({ message: "Erro ao atualizar meta de telemarketing" });
+3705:     }
+3706:   });
+3707:   */
 
-  app.delete("/api/telemarketing-goals/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteTelemarketingGoal(id);
-      if (success === false) {
-        return res
-          .status(404)
-          .json({ message: "Meta de telemarketing não encontrada" });
-      }
-      res.json({ message: "Meta de telemarketing excluída com sucesso" });
-    } catch (error) {
-      console.error("Erro ao excluir meta de telemarketing:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao excluir meta de telemarketing" });
-    }
-  });
+  /* MIGRADO: Rota DELETE Telemarketing Goals - ver telemarketing-goals.routes.ts
+3708:   app.delete("/api/telemarketing-goals/:id", async (req, res) => {
+3709:     try {
+3710:       const { id } = req.params;
+3711:       const success = await storage.deleteTelemarketingGoal(id);
+3712:       if (success === false) {
+3713:         return res
+3714:           .status(404)
+3715:           .json({ message: "Meta de telemarketing não encontrada" });
+3716:       }
+3717:       res.json({ message: "Meta de telemarketing excluída com sucesso" });
+3718:     } catch (error) {
+3719:       console.error("Erro ao excluir meta de telemarketing:", error);
+3720:       res
+3721:         .status(500)
+3722:         .json({ message: "Erro ao excluir meta de telemarketing" });
+3723:     }
+3724:   });
+3725:   */
 
   // Telemarketing statistics route
   app.get("/api/telemarketing-stats/:month/:year", async (req, res) => {
@@ -3794,7 +3800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/client-registration-goals/:id", async (req, res) => {
+  const updateClientRegistrationGoalHandler = async (req: any, res: any) => {
     try {
       const { id } = req.params;
       const validatedData = insertClientRegistrationGoalSchema
@@ -3813,7 +3819,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao atualizar meta de cadastros:", error);
       res.status(500).json({ message: "Erro ao atualizar meta de cadastros" });
     }
-  });
+  };
+  app.put("/api/client-registration-goals/:id", updateClientRegistrationGoalHandler);
+  app.patch("/api/client-registration-goals/:id", updateClientRegistrationGoalHandler);
 
   app.delete("/api/client-registration-goals/:id", async (req, res) => {
     try {
@@ -3895,7 +3903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/marker-goals/:id", async (req, res) => {
+  const updateMarkerGoalHandler = async (req: any, res: any) => {
     try {
       const { id } = req.params;
       const validatedData = insertMarkerGoalSchema.partial().parse(req.body);
@@ -3909,7 +3917,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao atualizar meta de marcadores:", error);
       res.status(500).json({ message: "Erro ao atualizar meta de marcadores" });
     }
-  });
+  };
+  app.put("/api/marker-goals/:id", updateMarkerGoalHandler);
+  app.patch("/api/marker-goals/:id", updateMarkerGoalHandler);
 
   app.delete("/api/marker-goals/:id", async (req, res) => {
     try {
@@ -3991,7 +4001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/interaction-goals/:id", async (req, res) => {
+  const updateInteractionGoalHandler = async (req: any, res: any) => {
     try {
       const { id } = req.params;
       const validatedData = insertInteractionGoalSchema
@@ -4007,7 +4017,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Erro ao atualizar meta de interações:", error);
       res.status(500).json({ message: "Erro ao atualizar meta de interações" });
     }
-  });
+  };
+  app.put("/api/interaction-goals/:id", updateInteractionGoalHandler);
+  app.patch("/api/interaction-goals/:id", updateInteractionGoalHandler);
 
   app.delete("/api/interaction-goals/:id", async (req, res) => {
     try {

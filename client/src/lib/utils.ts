@@ -46,11 +46,44 @@ export function formatDate(dateString: string): string {
   });
 }
 
-export function formatCurrency(value: number): string {
-  return value.toLocaleString("pt-BR", {
+export function formatCurrency(value: number | string): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "R$ 0,00";
+  return num.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
+}
+
+export function parseCurrency(value: string): string {
+  // Remove R$, spaces, and dots (thousands separator)
+  // Replace comma (decimal separator) with dot
+  const cleaned = value.replace(/[R$\s.]/g, "").replace(",", ".");
+  return cleaned;
+}
+
+export function formatCurrencyInput(value: string | number): string {
+  if (value === undefined || value === null || value === "") return "";
+
+  // Convert to string and keep only digits
+  let cleanValue = value.toString().replace(/\D/g, "");
+
+  // If empty or only zeros, return "0,00"
+  if (!cleanValue || parseInt(cleanValue) === 0) return "0,00";
+
+  // Pad with leading zeros if needed
+  while (cleanValue.length < 3) {
+    cleanValue = "0" + cleanValue;
+  }
+
+  // Insert decimal comma before the last two digits
+  const integerPart = cleanValue.slice(0, -2);
+  const decimalPart = cleanValue.slice(-2);
+
+  // Format integer part with thousands separator
+  const formattedInteger = Number(integerPart).toLocaleString("pt-BR");
+
+  return `${formattedInteger},${decimalPart}`;
 }
 
 export function formatEventDate(dateString: string): string {

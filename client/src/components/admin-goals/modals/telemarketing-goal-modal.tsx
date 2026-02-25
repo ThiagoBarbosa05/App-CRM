@@ -16,17 +16,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const telemarketingGoalSchema = z.object({
-  userId: z.string().min(1, "Usuário é obrigatório"),
+  userId: z.string().min(1, "Vendedor é obrigatório"),
   targetResult: z.string().min(1, "Resultado esperado é obrigatória"),
-  targetQuantity: z
-    .string()
-    .min(1, "Quantidade é obrigatória")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
-  month: z.string().min(1, "Mês é obrigatório"),
-  year: z.string().min(1, "Ano é obrigatório"),
+  targetQuantity: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(1, "Mínimo 1"),
+  month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
+  year: z.coerce.number().min(2000, "Ano inválido"),
 });
 
 type TelemarketingGoalFormData = z.infer<typeof telemarketingGoalSchema>;
@@ -64,16 +60,16 @@ export function TelemarketingGoalModal({
     if (editingGoal) {
       setValue("userId", editingGoal.userId);
       setValue("targetResult", editingGoal.targetResult);
-      setValue("targetQuantity", editingGoal.targetQuantity.toString());
-      setValue("month", editingGoal.month.toString());
-      setValue("year", editingGoal.year.toString());
+      setValue("targetQuantity", editingGoal.targetQuantity);
+      setValue("month", editingGoal.month);
+      setValue("year", editingGoal.year);
     } else {
       reset({
         userId: "",
         targetResult: "",
-        targetQuantity: "",
-        month: selectedMonth.toString(),
-        year: selectedYear.toString(),
+        targetQuantity: 0,
+        month: selectedMonth,
+        year: selectedYear,
       });
     }
   }, [editingGoal, open, reset, setValue, selectedMonth, selectedYear]);
@@ -81,12 +77,18 @@ export function TelemarketingGoalModal({
   const mutation = useMutation({
     mutationFn: async (data: TelemarketingGoalFormData) => {
       if (editingGoal) {
-        return apiRequest("PATCH", `/api/telemarketing-goals/${editingGoal.id}`, data);
+        return apiRequest(
+          "PUT",
+          `/api/telemarketing-goals/${editingGoal.id}`,
+          data
+        );
       }
       return apiRequest("POST", "/api/telemarketing-goals", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
+      });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
         description: "Meta de telemarketing salva com sucesso.",
@@ -133,12 +135,17 @@ export function TelemarketingGoalModal({
               disabled={!!editingGoal}
             >
               <option value="">Selecione um usuário</option>
-              {users.map((u) => (
+              {users.map((u: any) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
               ))}
             </select>
+            {errors.userId && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.userId.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -155,6 +162,11 @@ export function TelemarketingGoalModal({
               <option value="EM OCUPADO">EM OCUPADO</option>
               <option value="OUTROS">OUTROS</option>
             </select>
+            {errors.targetResult && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.targetResult.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -166,6 +178,11 @@ export function TelemarketingGoalModal({
               {...register("targetQuantity")}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
+            {errors.targetQuantity && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.targetQuantity.message}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -182,6 +199,11 @@ export function TelemarketingGoalModal({
                   </option>
                 ))}
               </select>
+              {errors.month && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.month.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ano</Label>
@@ -194,6 +216,11 @@ export function TelemarketingGoalModal({
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
+              {errors.year && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.year.message}
+                </p>
+              )}
             </div>
           </div>
 

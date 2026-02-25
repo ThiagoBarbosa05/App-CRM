@@ -14,32 +14,29 @@ import { Label } from "@/components/ui/label";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrencyInput, parseCurrency } from "@/lib/utils";
 
 const goalSchema = z.object({
-  userId: z.string().min(1, "Usuário é obrigatório"),
+  userId: z.string().min(1, "Vendedor é obrigatório"),
   salesGoal: z
     .string()
     .min(1, "Meta de vendas é obrigatória")
     .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo"
+      (val) => !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo"
     ),
   averageTicket: z
     .string()
     .min(1, "Ticket médio é obrigatório")
     .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 0,
-      "Valor deve ser um número positivo"
+      (val) => !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo"
     ),
-  itemsPerSale: z
-    .string()
-    .min(1, "Itens por venda é obrigatório")
-    .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 1,
-      "Deve ser pelo menos 1"
-    ),
-  month: z.string().min(1, "Mês é obrigatório"),
-  year: z.string().min(1, "Ano é obrigatório"),
+  itemsPerSale: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(1, "Mínimo de 1 item"),
+  month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
+  year: z.coerce.number().min(2000, "Ano inválido"),
 });
 
 type GoalFormData = z.infer<typeof goalSchema>;
@@ -78,35 +75,48 @@ export function SalesGoalModal({
   useEffect(() => {
     if (editingGoal) {
       setValue("userId", editingGoal.userId);
-      setValue("salesGoal", editingGoal.salesGoal.toString());
-      setValue("averageTicket", editingGoal.averageTicket.toString());
-      setValue("itemsPerSale", editingGoal.itemsPerSale.toString());
-      setValue("month", editingGoal.month.toString());
-      setValue("year", editingGoal.year.toString());
+      setValue("salesGoal", formatCurrencyInput(editingGoal.salesGoal));
+      setValue("averageTicket", formatCurrencyInput(editingGoal.averageTicket));
+      setValue("itemsPerSale", editingGoal.itemsPerSale);
+      setValue("month", editingGoal.month);
+      setValue("year", editingGoal.year);
     } else {
       reset({
         userId: "",
-        salesGoal: "",
-        averageTicket: "",
-        itemsPerSale: "1",
-        month: selectedMonth.toString(),
-        year: selectedYear.toString(),
+        salesGoal: "0,00",
+        averageTicket: "0,00",
+        itemsPerSale: 1,
+        month: selectedMonth,
+        year: selectedYear,
       });
     }
   }, [editingGoal, open, reset, setValue, selectedMonth, selectedYear]);
 
   const goalMutation = useMutation({
     mutationFn: async (data: GoalFormData) => {
+      // Garantir que os dados numéricos sejam enviados corretamente sem formatação
+      const payload = {
+        ...data,
+        salesGoal: parseCurrency(data.salesGoal),
+        averageTicket: parseCurrency(data.averageTicket),
+      };
+
       if (editingGoal) {
-        return apiRequest("PATCH", `/api/user-goals/${editingGoal.id}`, data);
+        return apiRequest("PUT", `/api/user-goals/${editingGoal.id}`, payload);
       }
-      return apiRequest("POST", "/api/user-goals", data);
+      return apiRequest("POST", "/api/user-goals", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`] });
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
+      });
       toast({
         title: editingGoal ? "Meta atualizada" : "Meta criada",
-        description: `A meta foi ${editingGoal ? "atualizada" : "criada"} com sucesso.`,
+        description: `A meta foi ${
+          editingGoal ? "atualizada" : "criada"
+        } com sucesso.`,
       });
       onOpenChange(false);
       reset();
@@ -171,22 +181,38 @@ export function SalesGoalModal({
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Meta Vendas (R$)</Label>
               <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
+                placeholder="0,00"
                 {...register("salesGoal")}
+                onChange={(e) => {
+                  const formatted = formatCurrencyInput(e.target.value);
+                  setValue("salesGoal", formatted, { shouldValidate: true });
+                }}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
               />
+              {errors.salesGoal && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.salesGoal.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ticket Médio (R$)</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Ticket Médio (R$)
+              </Label>
               <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
+                placeholder="0,00"
                 {...register("averageTicket")}
+                onChange={(e) => {
+                  const formatted = formatCurrencyInput(e.target.value);
+                  setValue("averageTicket", formatted, { shouldValidate: true });
+                }}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
               />
+              {errors.averageTicket && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.averageTicket.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -199,6 +225,11 @@ export function SalesGoalModal({
               {...register("itemsPerSale")}
               className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
             />
+            {errors.itemsPerSale && (
+              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                {errors.itemsPerSale.message}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -215,18 +246,32 @@ export function SalesGoalModal({
                   </option>
                 ))}
               </select>
+              {errors.month && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.month.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ano</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Ano
+              </Label>
               <select
                 {...register("year")}
                 className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50"
                 disabled={!!editingGoal}
               >
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
                 ))}
               </select>
+              {errors.year && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.year.message}
+                </p>
+              )}
             </div>
           </div>
 

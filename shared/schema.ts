@@ -1220,41 +1220,85 @@ export const insertEmailCampaignRecipientSchema = createInsertSchema(
   createdAt: true,
 });
 
-export const insertUserGoalSchema = createInsertSchema(userGoals).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertUserGoalSchema = createInsertSchema(userGoals)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    salesGoal: z
+      .union([z.string(), z.number()])
+      .transform((val) => val.toString())
+      .default("0.00"),
+    averageTicket: z
+      .union([z.string(), z.number()])
+      .transform((val) => val.toString())
+      .default("0.00"),
+    itemsPerSale: z.coerce.number().default(1),
+    month: z.coerce.number(),
+    year: z.coerce.number(),
+  });
 
-export const insertWeeklyResultSchema = createInsertSchema(weeklyResults).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertWeeklyResultSchema = createInsertSchema(weeklyResults)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    salesAchieved: z
+      .union([z.string(), z.number()])
+      .transform((val) => val.toString())
+      .default("0.00"),
+    ticketAchieved: z
+      .union([z.string(), z.number()])
+      .transform((val) => val.toString())
+      .default("0.00"),
+    week: z.coerce.number(),
+    itemsAchieved: z.coerce.number().default(0),
+  });
 
 export const insertTelemarketingGoalSchema = createInsertSchema(
   telemarketingGoals
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    targetQuantity: z.coerce.number().min(1),
+    month: z.coerce.number().min(1).max(12),
+    year: z.coerce.number().min(2000),
+  });
 
 export const insertTelemarketingWeeklyResultSchema = createInsertSchema(
   telemarketingWeeklyResults
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    quantityAchieved: z.coerce.number().min(0),
+    week: z.coerce.number().min(1).max(5),
+  });
 
 export const insertClientRegistrationGoalSchema = createInsertSchema(
   clientRegistrationGoals
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    targetQuantity: z.coerce.number().min(1),
+    month: z.coerce.number().min(1).max(12),
+    year: z.coerce.number().min(2000),
+  });
 
 export const insertTrainingAttachment = createInsertSchema(
   trainingAttachments
@@ -1265,41 +1309,68 @@ export const insertTrainingAttachment = createInsertSchema(
 
 export const insertClientRegistrationWeeklyResultSchema = createInsertSchema(
   clientRegistrationWeeklyResults
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    quantityAchieved: z.coerce.number().min(0),
+    week: z.coerce.number().min(1).max(5),
+  });
 
-export const insertMarkerGoalSchema = createInsertSchema(markerGoals).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertMarkerGoalSchema = createInsertSchema(markerGoals)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    targetQuantity: z.coerce.number().min(1),
+    month: z.coerce.number().min(1).max(12),
+    year: z.coerce.number().min(2000),
+  });
 
 export const insertMarkerWeeklyResultSchema = createInsertSchema(
   markerWeeklyResults
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    quantityAchieved: z.coerce.number().min(0),
+    week: z.coerce.number().min(1).max(5),
+  });
 
 export const insertInteractionGoalSchema = createInsertSchema(
   interactionGoals
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    targetQuantity: z.coerce.number().min(1),
+    month: z.coerce.number().min(1).max(12),
+    year: z.coerce.number().min(2000),
+  });
 
 export const insertInteractionWeeklyResultSchema = createInsertSchema(
   interactionWeeklyResults
-).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    quantityAchieved: z.coerce.number().min(0),
+    week: z.coerce.number().min(1).max(5),
+  });
 
 export const insertCompanyProductSchema = createInsertSchema(
   companyProducts

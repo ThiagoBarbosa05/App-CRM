@@ -12,10 +12,13 @@ export async function putUserGoalsController(req: Request, res: Response) {
     return res.json(goal);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const validationError = fromZodError(error);
+      const validationError = fromZodError(error, {
+        prefix: null,
+        includePath: false,
+      });
       return res.status(400).json({ message: validationError.toString() });
     }
     console.error("Erro ao atualizar meta:", error);
-    return res.status(500).json({ message: "Erro ao atualizar meta" });
+    return res.status(500).json({ message: "Ocorreu um erro ao processar sua solicitação" });
   }
 }

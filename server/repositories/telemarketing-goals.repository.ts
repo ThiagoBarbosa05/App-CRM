@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { telemarketingGoals, users } from "@shared/schema";
+import { telemarketingGoals, users, type InsertTelemarketingGoal, type TelemarketingGoal } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export class TelemarketingGoalsRepository {
@@ -61,6 +61,33 @@ export class TelemarketingGoalsRepository {
     return await query
       .where(and(...conditions))
       .orderBy(desc(telemarketingGoals.createdAt));
+  }
+
+  async create(insertGoal: InsertTelemarketingGoal): Promise<TelemarketingGoal> {
+    const [goal] = await db
+      .insert(telemarketingGoals)
+      .values(insertGoal)
+      .returning();
+    return goal;
+  }
+
+  async update(
+    id: string,
+    updateData: Partial<InsertTelemarketingGoal>
+  ): Promise<TelemarketingGoal | undefined> {
+    const [goal] = await db
+      .update(telemarketingGoals)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(telemarketingGoals.id, id))
+      .returning();
+    return goal || undefined;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await db
+      .delete(telemarketingGoals)
+      .where(eq(telemarketingGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 
