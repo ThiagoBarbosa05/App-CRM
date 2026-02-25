@@ -26,6 +26,7 @@ import userGoalsRouter, {
 } from "./user-goals.routes";
 import blingRouter from "./bling-orders.routes";
 import { messageJobsLogsRouter } from "./message-jobs-logs.routes";
+import { telemarketingGoalsRouter } from "./telemarketing-goals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -62,6 +63,7 @@ apiRouter.use("/user-goals-with-results", userGoalsWithResultsRouter);
 apiRouter.use("/user-registration-stats", userRegistrationStatsRouter);
 apiRouter.use("/weekly-results", weeklyResultsRouter);
 apiRouter.use("/message-jobs-logs", messageJobsLogsRouter);
+apiRouter.use("/telemarketing-goals", telemarketingGoalsRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);

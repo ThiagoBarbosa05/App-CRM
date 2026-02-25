@@ -3624,47 +3624,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   */
 
   // Telemarketing Goals routes
-  app.get("/api/telemarketing-goals", async (req, res) => {
-    try {
-      const userId =
-        (req.query.userId as string) || (req.headers["x-user-id"] as string);
-      const userRole =
-        (req.query.userRole as string) ||
-        (req.headers["x-user-role"] as string);
+  /* MIGRADO: Rotas para Telemarketing Goals - ver telemarketing-goals.routes.ts
+3627:   app.get("/api/telemarketing-goals", async (req, res) => {
+3628:     try {
+3629:       const userId =
+3630:         (req.query.userId as string) || (req.headers["x-user-id"] as string);
+3631:       const userRole =
+3632:         (req.query.userRole as string) ||
+3633:         (req.headers["x-user-role"] as string);
+3634: 
+3635:       const goals = await storage.getTelemarketingGoals(userId, userRole);
+3636:       res.json(goals);
+3637:     } catch (error) {
+3638:       console.error("Erro ao buscar metas de telemarketing:", error);
+3639:       res
+3640:         .status(500)
+3641:         .json({ message: "Erro ao buscar metas de telemarketing" });
+3642:     }
+3643:   });
+3644:   */
 
-      const goals = await storage.getTelemarketingGoals(userId, userRole);
-      res.json(goals);
-    } catch (error) {
-      console.error("Erro ao buscar metas de telemarketing:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar metas de telemarketing" });
-    }
-  });
-
-  app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
-    try {
-      const { month, year } = req.params;
-      const userId =
-        (req.query.userId as string) || (req.headers["x-user-id"] as string);
-      const userRole =
-        (req.query.userRole as string) ||
-        (req.headers["x-user-role"] as string);
-
-      const goals = await storage.getTelemarketingGoalsByMonthYear(
-        Number(month),
-        Number(year),
-        userId,
-        userRole,
-      );
-      res.json(goals);
-    } catch (error) {
-      console.error("Erro ao buscar metas de telemarketing:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar metas de telemarketing" });
-    }
-  });
+  /* MIGRADO: Rotas para Telemarketing Goals - ver telemarketing-goals.routes.ts
+3645:   app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
+3646:     try {
+3647:       const { month, year } = req.params;
+3648:       const userId =
+3649:         (req.query.userId as string) || (req.headers["x-user-id"] as string);
+3650:       const userRole =
+3651:         (req.query.userRole as string) ||
+3652:         (req.headers["x-user-role"] as string);
+3653: 
+3654:       const goals = await storage.getTelemarketingGoalsByMonthYear(
+3655:         Number(month),
+3656:         Number(year),
+3657:         userId,
+3658:         userRole,
+3659:       );
+3660:       res.json(goals);
+3661:     } catch (error) {
+3662:       console.error("Erro ao buscar metas de telemarketing:", error);
+3663:       res
+3664:         .status(500)
+3665:         .json({ message: "Erro ao buscar metas de telemarketing" });
+3666:     }
+3667:   });
+3668:   */
 
   app.post("/api/telemarketing-goals", async (req, res) => {
     try {
