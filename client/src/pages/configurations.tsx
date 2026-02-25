@@ -41,6 +41,8 @@ import { Separator } from "@/components/ui/separator";
 import { AutomationManagement } from "@/components/automation-management";
 import { DealQuestionsManagement } from "@/components/deal-questions-management";
 import UmblerSyncManagement from "@/components/umbler-sync-management";
+import { ConfigurationsHeader } from "@/components/configurations/configurations-header";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -48,73 +50,59 @@ export default function Configurations() {
   // Verificar se o usuário é administrador
   if (!user || user.role !== "admin") {
     return (
-      <div className="flex h-screen bg-gray-50 dark:bg-slate-800">
-        <div className="flex-1 overflow-auto">
-          <div className="p-6 flex items-center justify-center h-full">
-            <Card className="w-full max-w-md">
-              <CardHeader className="text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
-                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-200" />
-                </div>
-                <CardTitle className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                  Acesso Restrito
-                </CardTitle>
-                <CardDescription className="text-gray-600 dark:text-slate-400">
-                  Esta página é restrita apenas para administradores
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Você não possui permissão para acessar as configurações do
-                  sistema. Entre em contato com um administrador se precisar
-                  fazer alterações.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-lg"
+        >
+          <Card className="border-0 shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-orange-500/5 pointer-events-none" />
+            <CardHeader className="relative text-center pt-12 pb-6">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-red-500/10 text-red-600 shadow-inner">
+                <AlertTriangle className="h-10 w-10" />
+              </div>
+              <CardTitle className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Acesso <span className="text-red-600">Restrito</span>
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400 font-medium text-lg mt-2">
+                Área exclusiva para administradores.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="relative text-center pb-12 px-10">
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                Você não possui permissão para acessar o núcleo de configurações do sistema. 
+                Por favor, entre em contato com a equipe de suporte ou um administrador master para solicitar acesso.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex-1 flex flex-col overflow-auto">
-        <div className="flex-1 flex flex-col">
-          <div className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 px-6 py-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-2 flex-wrap justify-between">
-              <div className="flex items-center gap-4">
-                <Settings className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-                    Configurações
-                  </h2>
-                  <p className="text-gray-600 dark:text-slate-400 mt-1">
-                    Gerencie as configurações do sistema
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* <div className="flex items-center gap-3 mb-6">
-            <Settings className="h-8 w-8 text-wine-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Configurações
-              </h1>
-              <p className="text-gray-600">
-                Gerencie as configurações do sistema
-              </p>
-            </div>
-          </div> */}
+  const [activeTab, setActiveTab] = useState("users");
 
-          <Tabs defaultValue="users" className="space-y-6 mt-6">
-            <div className="relative">
-              <TabsList className="w-full h-auto p-1 bg-white dark:bg-slate-900/50 shadow-sm rounded-lg border border-gray-200 dark:border-slate-700">
-                <div className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-12 gap-1">
+  return (
+    <div className="flex-1 flex flex-col p-4 lg:p-10 space-y-10">
+      <ConfigurationsHeader />
+
+      <Tabs 
+        value={activeTab} 
+        onValueChange={setActiveTab} 
+        className="space-y-8"
+      >
+        <div className="relative">
+          <div className="absolute inset-0 bg-slate-900/5 dark:bg-white/5 rounded-3xl blur-xl -z-10" />
+          <TabsList className="h-auto w-full p-2 bg-slate-100/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-700/60 shadow-inner">
+            <div className="flex flex-wrap items-center justify-center gap-2 w-full p-1">
                   <TabsTrigger
                     value="users"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar usuários do sistema"
                   >
                     <Users className="size-4 " />
@@ -123,7 +111,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="categories"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar categorias"
                   >
                     <Tags className="size-4" />
@@ -132,7 +123,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="markers"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar marcadores"
                   >
                     <Bookmark className="size-4" />
@@ -141,7 +135,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="origins"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar origens"
                   >
                     <Tag className="size-4" />
@@ -150,7 +147,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="sectors"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar setores"
                   >
                     <LayoutPanelTop className="size-4" />
@@ -159,7 +159,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="events"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar eventos"
                   >
                     <CalendarIcon className="size-4" />
@@ -168,7 +171,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="learning-images"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar treinamentos"
                   >
                     <GraduationCap className="size-4" />
@@ -177,7 +183,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="cashback"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Configurações de cashback"
                   >
                     <CircleDollarSign className="size-4" />
@@ -186,7 +195,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="debts"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar dívidas de clientes"
                   >
                     <BookMarked className="size-4" />
@@ -195,7 +207,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="export"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Exportar dados do sistema"
                   >
                     <Download className="size-4" />
@@ -204,7 +219,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="automation"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Configurações de automação"
                   >
                     <Bot className="size-4" />
@@ -213,7 +231,10 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="deal-questions"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar perguntas dos deals"
                   >
                     <HelpCircle className="size-4" />
@@ -222,15 +243,29 @@ export default function Configurations() {
 
                   <TabsTrigger
                     value="umbler-sync"
-                    className="flex flex-col items-center font-medium justify-center gap-1.5 p-3 min-h-[60px] data-[state=active]:bg-primary/25 data-[state=active]:shadow-sm data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-300 data-[state=active]:border data-[state=active]:border-gray-200 dark:data-[state=active]:border-slate-600 hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 text-slate-700 dark:text-slate-300"
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar sincronização com Umbler"
                   >
                     <RefreshCcw className="size-4" />
                     <span className="text-xs font-medium ">Umbler Sync</span>
                   </TabsTrigger>
-                </div>
-              </TabsList>
-            </div>
+        </div>
+      </TabsList>
+    </div>
+
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={activeTab}
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -20, opacity: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="relative"
+      >
+        <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 blur-3xl rounded-[3rem] -z-10" />
 
             <TabsContent value="users">
               <UsersManagement />
@@ -283,9 +318,9 @@ export default function Configurations() {
             <TabsContent value="umbler-sync">
               <UmblerSyncManagement />
             </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    </div>
-  );
+      </motion.div>
+    </AnimatePresence>
+  </Tabs>
+</div>
+);
 }
