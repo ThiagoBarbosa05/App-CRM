@@ -41,7 +41,7 @@ router.get("/", blingOrdersController.listOrders.bind(blingOrdersController));
  */
 router.get(
   "/statistics/sales",
-  blingOrdersController.getSalesStatistics.bind(blingOrdersController)
+  blingOrdersController.getSalesStatistics.bind(blingOrdersController),
 );
 
 /**
@@ -56,7 +56,7 @@ router.get(
  */
 router.get(
   "/statistics/top-sellers",
-  blingOrdersController.getTopSellers.bind(blingOrdersController)
+  blingOrdersController.getTopSellers.bind(blingOrdersController),
 );
 
 /**
@@ -71,7 +71,7 @@ router.get(
  */
 router.get(
   "/statistics/top-products",
-  blingOrdersController.getTopProducts.bind(blingOrdersController)
+  blingOrdersController.getTopProducts.bind(blingOrdersController),
 );
 
 /**
@@ -81,7 +81,7 @@ router.get(
  */
 router.get(
   "/filters/sellers",
-  blingOrdersController.getAvailableSellers.bind(blingOrdersController)
+  blingOrdersController.getAvailableSellers.bind(blingOrdersController),
 );
 
 /**
@@ -91,7 +91,7 @@ router.get(
  */
 router.get(
   "/filters/stores",
-  blingOrdersController.getAvailableStores.bind(blingOrdersController)
+  blingOrdersController.getAvailableStores.bind(blingOrdersController),
 );
 
 /**
@@ -101,7 +101,7 @@ router.get(
  */
 router.get(
   "/filters/situations",
-  blingOrdersController.getAvailableSituations.bind(blingOrdersController)
+  blingOrdersController.getAvailableSituations.bind(blingOrdersController),
 );
 
 /**
@@ -111,7 +111,7 @@ router.get(
  */
 router.get(
   "/filters/payment-methods",
-  blingOrdersController.getAvailablePaymentMethods.bind(blingOrdersController)
+  blingOrdersController.getAvailablePaymentMethods.bind(blingOrdersController),
 );
 
 /**
@@ -122,7 +122,7 @@ router.get(
  */
 router.get(
   "/export",
-  blingOrdersController.exportOrders.bind(blingOrdersController)
+  blingOrdersController.exportOrders.bind(blingOrdersController),
 );
 
 /**
@@ -138,7 +138,7 @@ router.get(
  */
 router.get(
   "/statistics/sales-evolution",
-  blingOrdersController.getSalesEvolution.bind(blingOrdersController)
+  blingOrdersController.getSalesEvolution.bind(blingOrdersController),
 );
 
 /**
@@ -153,7 +153,31 @@ router.get(
  */
 router.get(
   "/statistics/sales-comparison",
-  blingOrdersController.getSalesComparison.bind(blingOrdersController)
+  blingOrdersController.getSalesComparison.bind(blingOrdersController),
+);
+
+/**
+ * @route   GET /api/bling-orders/statistics/cashback
+ * @desc    Retorna estatísticas de cashback vinculadas a pedidos no período
+ * @query   {
+ *   startDate: string,   // YYYY-MM-DD (obrigatório)
+ *   endDate: string,     // YYYY-MM-DD (obrigatório)
+ * }
+ * @access  Private
+ */
+router.get(
+  "/statistics/cashback",
+  blingOrdersController.getCashbackStatistics.bind(blingOrdersController),
+);
+
+/**
+ * @route   GET /api/bling-orders/:blingOrderId/cashback
+ * @desc    Retorna transações de cashback de um pedido específico
+ * @access  Private
+ */
+router.get(
+  "/:blingOrderId/cashback",
+  blingOrdersController.getOrderCashback.bind(blingOrdersController),
 );
 
 /**
@@ -164,8 +188,7 @@ router.get(
  */
 router.get(
   "/:blingOrderId",
-  blingOrdersController.getOrderById.bind(blingOrdersController)
+  blingOrdersController.getOrderById.bind(blingOrdersController),
 );
-
 
 export default router;

@@ -8,6 +8,7 @@ import {
   useTopSellers,
   useBlingOrdersForExport,
   useSalesEvolution,
+  useCashbackStatistics,
 } from "@/hooks/use-bling-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportBlingOrdersToExcel } from "@/lib/excel-export";
@@ -16,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 // Components
 import { BlingSalesHeader } from "@/components/bling-sales/bling-sales-header";
 import { SalesStatisticsCards } from "@/components/bling-sales/sales-statistics-cards";
+import { CashbackStatisticsCards } from "@/components/bling-sales/cashback-statistics-cards";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopSellersChart } from "@/components/bling-sales/top-sellers-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
@@ -44,31 +46,58 @@ export default function BlingSalesPage() {
   const [maxValue, setMaxValue] = useState<number | undefined>();
   const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>();
 
-  const formattedStartDate = useMemo(() => 
-    dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "", 
-  [dateRange?.from]);
+  const formattedStartDate = useMemo(
+    () => (dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : ""),
+    [dateRange?.from],
+  );
 
-  const formattedEndDate = useMemo(() => 
-    dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : formattedStartDate,
-  [dateRange?.to, formattedStartDate]);
+  const formattedEndDate = useMemo(
+    () =>
+      dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : formattedStartDate,
+    [dateRange?.to, formattedStartDate],
+  );
 
   const groupBy = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) return 'day';
-    const days = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-    if (days > 90) return 'month';
-    if (days > 30) return 'week';
-    return 'day';
+    if (!dateRange?.from || !dateRange?.to) return "day";
+    const days = Math.ceil(
+      (dateRange.to.getTime() - dateRange.from.getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (days > 90) return "month";
+    if (days > 30) return "week";
+    return "day";
   }, [dateRange]);
 
   // Queries
-  const { data: salesComparison, isLoading: isStatsLoading } = useSalesComparison(formattedStartDate, formattedEndDate);
-  const { data: salesEvolution, isLoading: isEvolutionLoading } = useSalesEvolution(formattedStartDate, formattedEndDate, groupBy);
-  const { data: topSellers, isLoading: isTopSellersLoading } = useTopSellers(formattedStartDate, formattedEndDate, 5);
-  const { data: topProducts, isLoading: isTopProductsLoading } = useTopProducts(formattedStartDate, formattedEndDate, 5);
+  const { data: salesComparison, isLoading: isStatsLoading } =
+    useSalesComparison(formattedStartDate, formattedEndDate, undefined, "F");
+  const { data: salesEvolution, isLoading: isEvolutionLoading } =
+    useSalesEvolution(
+      formattedStartDate,
+      formattedEndDate,
+      groupBy,
+      undefined,
+      "F",
+    );
+  const { data: topSellers, isLoading: isTopSellersLoading } = useTopSellers(
+    formattedStartDate,
+    formattedEndDate,
+    5,
+    "F",
+  );
+  const { data: topProducts, isLoading: isTopProductsLoading } = useTopProducts(
+    formattedStartDate,
+    formattedEndDate,
+    5,
+    "F",
+  );
+  const { data: cashbackStats, isLoading: isCashbackStatsLoading } =
+    useCashbackStatistics(formattedStartDate, formattedEndDate);
 
   const { data: ordersResponse, isLoading: isOrdersLoading } = useBlingOrders({
     startDate: formattedStartDate,
     endDate: formattedEndDate,
+    contactType: "F",
     contactName: debouncedContactName || undefined,
     sellerId,
     storeId,
@@ -88,28 +117,40 @@ export default function BlingSalesPage() {
   const handleFilterChange = () => setPage(1);
 
   // Export Hook
-  const { refetch: refetchExport, isFetching: isFetchingExport } = useBlingOrdersForExport({
-    startDate: formattedStartDate,
-    endDate: formattedEndDate,
-    contactName: debouncedContactName || undefined,
-    sellerId,
-    storeId,
-    situationId,
-    minValue,
-    maxValue,
-    paymentMethodId,
-  }, false);
+  const { refetch: refetchExport, isFetching: isFetchingExport } =
+    useBlingOrdersForExport(
+      {
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
+        contactType: "F",
+        contactName: debouncedContactName || undefined,
+        sellerId,
+        storeId,
+        situationId,
+        minValue,
+        maxValue,
+        paymentMethodId,
+      },
+      false,
+    );
 
   const handleExport = async () => {
     try {
       setIsExporting(true);
       const result = await refetchExport();
       if (!result.data || result.data.length === 0) {
-        toast({ title: "Nenhum dado", description: "Não há pedidos com os filtros selecionados.", variant: "destructive" });
+        toast({
+          title: "Nenhum dado",
+          description: "Não há pedidos com os filtros selecionados.",
+          variant: "destructive",
+        });
         return;
       }
       exportBlingOrdersToExcel(result.data);
-      toast({ title: "Sucesso!", description: `${result.data.length} pedido(s) exportado(s).` });
+      toast({
+        title: "Sucesso!",
+        description: `${result.data.length} pedido(s) exportado(s).`,
+      });
     } catch {
       toast({ title: "Erro na exportação", variant: "destructive" });
     } finally {
@@ -119,29 +160,53 @@ export default function BlingSalesPage() {
 
   return (
     <div className="max-w-full overflow-x-hidden space-y-8 pb-10">
-      <BlingSalesHeader 
-        onExport={handleExport} 
+      <BlingSalesHeader
+        onExport={handleExport}
         isExporting={isExporting || isFetchingExport}
         disabled={!formattedStartDate || !formattedEndDate}
       />
 
       <OrdersFilters
         dateRange={dateRange}
-        onDateRangeChange={(range) => { setDateRange(range); handleFilterChange(); }}
+        onDateRangeChange={(range) => {
+          setDateRange(range);
+          handleFilterChange();
+        }}
         contactName={contactName}
-        onContactNameChange={(name) => { setContactName(name); handleFilterChange(); }}
+        onContactNameChange={(name) => {
+          setContactName(name);
+          handleFilterChange();
+        }}
         sellerId={sellerId}
-        onSellerIdChange={(id) => { setSellerId(id); handleFilterChange(); }}
+        onSellerIdChange={(id) => {
+          setSellerId(id);
+          handleFilterChange();
+        }}
         storeId={storeId}
-        onStoreIdChange={(id) => { setStoreId(id); handleFilterChange(); }}
+        onStoreIdChange={(id) => {
+          setStoreId(id);
+          handleFilterChange();
+        }}
         situationId={situationId}
-        onSituationIdChange={(id) => { setSituationId(id); handleFilterChange(); }}
+        onSituationIdChange={(id) => {
+          setSituationId(id);
+          handleFilterChange();
+        }}
         minValue={minValue}
-        onMinValueChange={(val) => { setMinValue(val); handleFilterChange(); }}
+        onMinValueChange={(val) => {
+          setMinValue(val);
+          handleFilterChange();
+        }}
         maxValue={maxValue}
-        onMaxValueChange={(val) => { setMaxValue(val); handleFilterChange(); }}
+        onMaxValueChange={(val) => {
+          setMaxValue(val);
+          handleFilterChange();
+        }}
         paymentMethodId={paymentMethodId}
-        onPaymentMethodIdChange={(id) => { setPaymentMethodId(id); handleFilterChange(); }}
+        onPaymentMethodIdChange={(id) => {
+          setPaymentMethodId(id);
+          handleFilterChange();
+        }}
         isLoading={isOrdersLoading}
       />
 
@@ -155,6 +220,20 @@ export default function BlingSalesPage() {
         isLoading={isStatsLoading}
       />
 
+      {/* Seção de monitoramento de cashback e vínculos com o app */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
+            Cashback & Clientes Vinculados
+          </h2>
+          <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+        </div>
+        <CashbackStatisticsCards
+          data={cashbackStats}
+          isLoading={isCashbackStatsLoading}
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <SalesEvolutionChart
@@ -165,7 +244,10 @@ export default function BlingSalesPage() {
         </div>
         <div className="space-y-8">
           <TopSellersChart data={topSellers} isLoading={isTopSellersLoading} />
-          <TopProductsChart data={topProducts} isLoading={isTopProductsLoading} />
+          <TopProductsChart
+            data={topProducts}
+            isLoading={isTopProductsLoading}
+          />
         </div>
       </div>
 

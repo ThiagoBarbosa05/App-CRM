@@ -25,6 +25,10 @@ export interface BlingOrder {
   internalObservations?: string;
   paymentMethod?: string;
   logisticService?: string;
+  // Campos de integração com app (PF via Pub/Sub)
+  appClientId?: string | null;
+  contactPhone?: string | null;
+  contactCellphone?: string | null;
   items?: BlingOrderItem[];
   installments?: BlingOrderInstallment[];
 }
@@ -75,6 +79,7 @@ interface OrderFilters {
   userId?: string;
   contactId?: string;
   contactName?: string;
+  contactType?: string;
   sellerId?: string;
   storeId?: string;
   situationId?: string;
@@ -128,6 +133,28 @@ export interface SalesComparison {
   };
 }
 
+export interface CashbackStatistics {
+  totalPFOrders: number;
+  linkedOrders: number;
+  unlinkedOrders: number;
+  totalCashbackGenerated: number;
+  cashbackTransactionCount: number;
+}
+
+export interface OrderCashbackTransaction {
+  id: string;
+  clientId: string;
+  cashbackAmount: string;
+  cashbackRate: string;
+  purchaseAmount: string;
+  status: string;
+  invoiceNumber: string | null;
+  saleDate: string | null;
+  expiresAt: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 // Fetch functions
 interface OrdersResponse {
   data: BlingOrder[];
@@ -161,13 +188,15 @@ async function fetchOrders(filters: OrderFilters): Promise<OrdersResponse> {
 async function fetchSalesStatistics(
   startDate: string,
   endDate: string,
-  accountId?: string
+  accountId?: string,
+  contactType?: string,
 ) {
   const params = new URLSearchParams({ startDate, endDate });
   if (accountId) params.append("accountId", accountId);
+  if (contactType) params.append("contactType", contactType);
 
   const response = await fetch(
-    `/api/bling-orders/statistics/sales?${params.toString()}`
+    `/api/bling-orders/statistics/sales?${params.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Falha ao buscar estatísticas de vendas");
@@ -179,13 +208,15 @@ async function fetchSalesStatistics(
 async function fetchTopSellers(
   startDate: string,
   endDate: string,
-  limit?: number
+  limit?: number,
+  contactType?: string,
 ) {
   const params = new URLSearchParams({ startDate, endDate });
   if (limit) params.append("limit", String(limit));
+  if (contactType) params.append("contactType", contactType);
 
   const response = await fetch(
-    `/api/bling-orders/statistics/top-sellers?${params.toString()}`
+    `/api/bling-orders/statistics/top-sellers?${params.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Falha ao buscar top vendedores");
@@ -197,13 +228,15 @@ async function fetchTopSellers(
 async function fetchTopProducts(
   startDate: string,
   endDate: string,
-  limit?: number
+  limit?: number,
+  contactType?: string,
 ) {
   const params = new URLSearchParams({ startDate, endDate });
   if (limit) params.append("limit", String(limit));
+  if (contactType) params.append("contactType", contactType);
 
   const response = await fetch(
-    `/api/bling-orders/statistics/top-products?${params.toString()}`
+    `/api/bling-orders/statistics/top-products?${params.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Falha ao buscar top produtos");
@@ -234,7 +267,10 @@ export function useBlingOrders(filters: OrderFilters) {
  * Hook para buscar TODOS os pedidos de uma vez (para exportação)
  * Usa endpoint dedicado que retorna pedidos com itens e parcelas
  */
-export function useBlingOrdersForExport(filters: Omit<OrderFilters, 'limit' | 'offset'>, enabled: boolean = false) {
+export function useBlingOrdersForExport(
+  filters: Omit<OrderFilters, "limit" | "offset">,
+  enabled: boolean = false,
+) {
   return useQuery({
     queryKey: ["bling-orders-export", filters],
     queryFn: async () => {
@@ -245,10 +281,12 @@ export function useBlingOrdersForExport(filters: Omit<OrderFilters, 'limit' | 'o
         }
       });
       // Buscar sem limite de paginação
-      params.append('limit', '10000'); // Limite alto para pegar todos
-      params.append('offset', '0');
+      params.append("limit", "10000"); // Limite alto para pegar todos
+      params.append("offset", "0");
 
-      const response = await fetch(`/api/bling-orders/export?${params.toString()}`);
+      const response = await fetch(
+        `/api/bling-orders/export?${params.toString()}`,
+      );
       if (!response.ok) {
         throw new Error("Falha ao buscar pedidos para exportação");
       }
@@ -263,39 +301,43 @@ export function useBlingOrdersForExport(filters: Omit<OrderFilters, 'limit' | 'o
 export function useSalesStatistics(
   startDate: string,
   endDate: string,
-  accountId?: string
+  accountId?: string,
+  contactType?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-sales-stats", startDate, endDate, accountId],
-    queryFn: () => fetchSalesStatistics(startDate, endDate, accountId),
-    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: ["bling-sales-stats", startDate, endDate, accountId, contactType],
+    queryFn: () =>
+      fetchSalesStatistics(startDate, endDate, accountId, contactType),
+    enabled: !!startDate && !!endDate,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useTopSellers(
   startDate: string,
   endDate: string,
-  limit?: number
+  limit?: number,
+  contactType?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-top-sellers", startDate, endDate, limit],
-    queryFn: () => fetchTopSellers(startDate, endDate, limit),
-    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    queryKey: ["bling-top-sellers", startDate, endDate, limit, contactType],
+    queryFn: () => fetchTopSellers(startDate, endDate, limit, contactType),
+    enabled: !!startDate && !!endDate,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
 export function useTopProducts(
   startDate: string,
   endDate: string,
-  limit?: number
+  limit?: number,
+  contactType?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-top-products", startDate, endDate, limit],
-    queryFn: () => fetchTopProducts(startDate, endDate, limit),
-    enabled: !!startDate && !!endDate, // Only fetch if dates are provided
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    queryKey: ["bling-top-products", startDate, endDate, limit, contactType],
+    queryFn: () => fetchTopProducts(startDate, endDate, limit, contactType),
+    enabled: !!startDate && !!endDate,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
@@ -364,47 +406,119 @@ export function useAvailablePaymentMethods() {
 export function useSalesEvolution(
   startDate: string,
   endDate: string,
-  groupBy: 'day' | 'week' | 'month' = 'day',
-  accountId?: string
+  groupBy: "day" | "week" | "month" = "day",
+  accountId?: string,
+  contactType?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-sales-evolution", startDate, endDate, groupBy, accountId],
+    queryKey: [
+      "bling-sales-evolution",
+      startDate,
+      endDate,
+      groupBy,
+      accountId,
+      contactType,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate, groupBy });
       if (accountId) params.append("accountId", accountId);
+      if (contactType) params.append("contactType", contactType);
 
       const response = await fetch(
-        `/api/bling-orders/statistics/sales-evolution?${params.toString()}`
+        `/api/bling-orders/statistics/sales-evolution?${params.toString()}`,
       );
       if (!response.ok) throw new Error("Falha ao buscar evolução de vendas");
       const result = await response.json();
       return result.data as SalesEvolutionPoint[];
     },
     enabled: !!startDate && !!endDate,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   });
+}
+
+export interface CashbackStatistics {
+  totalPFOrders: number;
+  linkedOrders: number;
+  unlinkedOrders: number;
+  totalCashbackGenerated: number;
+  cashbackTransactionCount: number;
+}
+
+export interface OrderCashbackTransaction {
+  id: string;
+  clientId: string;
+  cashbackAmount: string;
+  cashbackRate: string;
+  purchaseAmount: string;
+  status: string;
+  invoiceNumber: string | null;
+  saleDate: string | null;
+  expiresAt: string;
+  notes: string | null;
+  createdAt: string;
 }
 
 // Hook for sales comparison with previous period
 export function useSalesComparison(
   startDate: string,
   endDate: string,
-  accountId?: string
+  accountId?: string,
+  contactType?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-sales-comparison", startDate, endDate, accountId],
+    queryKey: [
+      "bling-sales-comparison",
+      startDate,
+      endDate,
+      accountId,
+      contactType,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate });
       if (accountId) params.append("accountId", accountId);
+      if (contactType) params.append("contactType", contactType);
 
       const response = await fetch(
-        `/api/bling-orders/statistics/sales-comparison?${params.toString()}`
+        `/api/bling-orders/statistics/sales-comparison?${params.toString()}`,
       );
       if (!response.ok) throw new Error("Falha ao buscar comparação de vendas");
       const result = await response.json();
       return result.data as SalesComparison;
     },
     enabled: !!startDate && !!endDate,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCashbackStatistics(startDate: string, endDate: string) {
+  return useQuery({
+    queryKey: ["bling-cashback-stats", startDate, endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate });
+      const response = await fetch(
+        `/api/bling-orders/statistics/cashback?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Falha ao buscar estatísticas de cashback");
+      const result = await response.json();
+      return result.data as CashbackStatistics;
+    },
+    enabled: !!startDate && !!endDate,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useOrderCashback(blingOrderId: string | null) {
+  return useQuery({
+    queryKey: ["bling-order-cashback", blingOrderId],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/bling-orders/${blingOrderId}/cashback`,
+      );
+      if (!response.ok) throw new Error("Falha ao buscar cashback do pedido");
+      const result = await response.json();
+      return result.data as OrderCashbackTransaction[];
+    },
+    enabled: !!blingOrderId,
   });
 }

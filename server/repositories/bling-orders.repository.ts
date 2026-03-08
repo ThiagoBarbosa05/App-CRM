@@ -4,11 +4,14 @@ import {
   blingOrderItems,
   blingOrderInstallments,
   pubsubProcessingLogs,
+  cashbackTransactions,
+  clients,
   type BlingOrder,
   type BlingOrderWithDetails,
   type PubsubProcessingLog,
+  type CashbackTransaction,
 } from "../../shared/schema";
-import { eq, and, isNull, desc, gte, lte, sql, ilike } from "drizzle-orm";
+import { eq, and, isNull, desc, gte, lte, sql, ilike, ne } from "drizzle-orm";
 
 /**
  * Interface para filtros de busca de pedidos
@@ -18,6 +21,7 @@ export interface OrderFilters {
   userId?: string;
   contactId?: string;
   contactName?: string;
+  contactType?: string;
   sellerId?: string;
   storeId?: string;
   startDate?: string;
@@ -41,13 +45,13 @@ export class BlingOrdersRepository {
    */
   async findByBlingId(
     blingOrderId: string,
-    includeDeleted = false
+    includeDeleted = false,
   ): Promise<BlingOrderWithDetails | null> {
     const conditions = includeDeleted
       ? eq(blingOrders.blingOrderId, blingOrderId)
       : and(
           eq(blingOrders.blingOrderId, blingOrderId),
-          isNull(blingOrders.deletedAt)
+          isNull(blingOrders.deletedAt),
         );
 
     const [order] = await db
@@ -83,7 +87,7 @@ export class BlingOrdersRepository {
   async findMany(
     filters: OrderFilters,
     limit = 50,
-    offset = 0
+    offset = 0,
   ): Promise<BlingOrder[]> {
     const conditions = [];
 
@@ -95,19 +99,23 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.userId, filters.userId));
     }
 
-
     if (filters.contactId) {
       conditions.push(eq(blingOrders.contactId, filters.contactId));
     }
 
     if (filters.contactName) {
-      conditions.push(ilike(blingOrders.contactName, `%${filters.contactName}%`));
+      conditions.push(
+        ilike(blingOrders.contactName, `%${filters.contactName}%`),
+      );
+    }
+
+    if (filters.contactType) {
+      conditions.push(eq(blingOrders.contactType, filters.contactType));
     }
 
     if (filters.sellerId) {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
     }
-
 
     if (filters.storeId) {
       conditions.push(eq(blingOrders.storeId, filters.storeId));
@@ -171,13 +179,18 @@ export class BlingOrdersRepository {
     }
 
     if (filters.contactName) {
-      conditions.push(ilike(blingOrders.contactName, `%${filters.contactName}%`));
+      conditions.push(
+        ilike(blingOrders.contactName, `%${filters.contactName}%`),
+      );
+    }
+
+    if (filters.contactType) {
+      conditions.push(eq(blingOrders.contactType, filters.contactType));
     }
 
     if (filters.sellerId) {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
     }
-
 
     if (filters.storeId) {
       conditions.push(eq(blingOrders.storeId, filters.storeId));
@@ -246,7 +259,7 @@ export class BlingOrdersRepository {
    */
   async findProcessingLogsByStatus(
     status: "processing" | "success" | "failed" | "retrying",
-    limit = 100
+    limit = 100,
   ): Promise<PubsubProcessingLog[]> {
     return await db
       .select()
@@ -266,8 +279,8 @@ export class BlingOrdersRepository {
       .where(
         and(
           eq(pubsubProcessingLogs.status, "failed"),
-          sql`${pubsubProcessingLogs.attempts} < ${maxAttempts}`
-        )
+          sql`${pubsubProcessingLogs.attempts} < ${maxAttempts}`,
+        ),
       )
       .orderBy(desc(pubsubProcessingLogs.createdAt))
       .limit(limit);
@@ -279,7 +292,8 @@ export class BlingOrdersRepository {
   async getSalesStatistics(
     startDate: string,
     endDate: string,
-    accountId?: string
+    accountId?: string,
+    contactType?: string,
   ) {
     const conditions = [
       gte(blingOrders.saleDate, startDate),
@@ -289,6 +303,10 @@ export class BlingOrdersRepository {
 
     if (accountId) {
       conditions.push(eq(blingOrders.accountId, accountId));
+    }
+
+    if (contactType) {
+      conditions.push(eq(blingOrders.contactType, contactType));
     }
 
     const result = await db
@@ -310,7 +328,19 @@ export class BlingOrdersRepository {
   /**
    * Busca top vendedores por valor de vendas
    */
-  async getTopSellers(startDate: string, endDate: string, limit = 10) {
+  async getTopSellers(
+    startDate: string,
+    endDate: string,
+    limit = 10,
+    contactType?: string,
+  ) {
+    const conditions = [
+      gte(blingOrders.saleDate, startDate),
+      lte(blingOrders.saleDate, endDate),
+      isNull(blingOrders.deletedAt),
+      sql`${blingOrders.sellerId} IS NOT NULL`,
+    ];
+    if (contactType) conditions.push(eq(blingOrders.contactType, contactType));
     return await db
       .select({
         sellerId: blingOrders.sellerId,
@@ -319,14 +349,7 @@ export class BlingOrdersRepository {
         totalValue: sql<string>`sum(${blingOrders.totalValue})`,
       })
       .from(blingOrders)
-      .where(
-        and(
-          gte(blingOrders.saleDate, startDate),
-          lte(blingOrders.saleDate, endDate),
-          isNull(blingOrders.deletedAt),
-          sql`${blingOrders.sellerId} IS NOT NULL`
-        )
-      )
+      .where(and(...conditions))
       .groupBy(blingOrders.sellerId, blingOrders.sellerName)
       .orderBy(desc(sql`sum(${blingOrders.totalValue})`))
       .limit(limit);
@@ -335,7 +358,18 @@ export class BlingOrdersRepository {
   /**
    * Busca produtos mais vendidos
    */
-  async getTopProducts(startDate: string, endDate: string, limit = 10) {
+  async getTopProducts(
+    startDate: string,
+    endDate: string,
+    limit = 10,
+    contactType?: string,
+  ) {
+    const conditions = [
+      gte(blingOrders.saleDate, startDate),
+      lte(blingOrders.saleDate, endDate),
+      isNull(blingOrders.deletedAt),
+    ];
+    if (contactType) conditions.push(eq(blingOrders.contactType, contactType));
     return await db
       .select({
         productId: blingOrderItems.productId,
@@ -347,17 +381,11 @@ export class BlingOrdersRepository {
       })
       .from(blingOrderItems)
       .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-      .where(
-        and(
-          gte(blingOrders.saleDate, startDate),
-          lte(blingOrders.saleDate, endDate),
-          isNull(blingOrders.deletedAt)
-        )
-      )
+      .where(and(...conditions))
       .groupBy(
         blingOrderItems.productId,
         blingOrderItems.productCode,
-        blingOrderItems.description
+        blingOrderItems.description,
       )
       .orderBy(desc(sql`sum(${blingOrderItems.quantity})`))
       .limit(limit);
@@ -377,8 +405,8 @@ export class BlingOrdersRepository {
       .where(
         and(
           isNull(blingOrders.deletedAt),
-          sql`${blingOrders.sellerId} IS NOT NULL`
-        )
+          sql`${blingOrders.sellerId} IS NOT NULL`,
+        ),
       )
       .groupBy(blingOrders.sellerId, blingOrders.sellerName)
       .orderBy(desc(sql`count(*)`));
@@ -413,8 +441,8 @@ export class BlingOrdersRepository {
       .where(
         and(
           isNull(blingOrders.deletedAt),
-          sql`${blingOrders.situationId} IS NOT NULL`
-        )
+          sql`${blingOrders.situationId} IS NOT NULL`,
+        ),
       )
       .groupBy(blingOrders.situationId, blingOrders.situationValue)
       .orderBy(desc(sql`count(*)`));
@@ -434,8 +462,8 @@ export class BlingOrdersRepository {
       .where(
         and(
           isNull(blingOrders.deletedAt),
-          sql`${blingOrders.paymentMethodId} IS NOT NULL`
-        )
+          sql`${blingOrders.paymentMethodId} IS NOT NULL`,
+        ),
       )
       .groupBy(blingOrders.paymentMethodId, blingOrders.paymentMethodName)
       .orderBy(desc(sql`count(*)`));
@@ -448,8 +476,9 @@ export class BlingOrdersRepository {
   async getSalesEvolution(
     startDate: string,
     endDate: string,
-    groupBy: 'day' | 'week' | 'month' = 'day',
-    accountId?: string
+    groupBy: "day" | "week" | "month" = "day",
+    accountId?: string,
+    contactType?: string,
   ) {
     const conditions = [
       gte(blingOrders.saleDate, startDate),
@@ -461,16 +490,20 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.accountId, accountId));
     }
 
+    if (contactType) {
+      conditions.push(eq(blingOrders.contactType, contactType));
+    }
+
     // Define SQL para agrupamento baseado no tipo
     let dateGroupSql;
     switch (groupBy) {
-      case 'week':
+      case "week":
         dateGroupSql = sql<string>`date_trunc('week', ${blingOrders.saleDate}::timestamp)::date`;
         break;
-      case 'month':
+      case "month":
         dateGroupSql = sql<string>`date_trunc('month', ${blingOrders.saleDate}::timestamp)::date`;
         break;
-      case 'day':
+      case "day":
       default:
         dateGroupSql = sql<string>`${blingOrders.saleDate}`;
         break;
@@ -492,6 +525,74 @@ export class BlingOrdersRepository {
       totalOrders: Number(row.totalOrders),
       totalValue: parseFloat(row.totalValue || "0"),
     }));
+  }
+
+  /**
+   * Retorna estatísticas de cashback vinculadas a pedidos no período
+   */
+  async getCashbackStatistics(startDate: string, endDate: string) {
+    const dateConditions = [
+      gte(blingOrders.saleDate, startDate),
+      lte(blingOrders.saleDate, endDate),
+      isNull(blingOrders.deletedAt),
+    ];
+
+    // Contagem de pedidos PF: total e vinculados ao app
+    const [pfStats] = await db
+      .select({
+        totalPFOrders: sql<number>`count(*) FILTER (WHERE ${blingOrders.contactType} = 'F')`,
+        linkedOrders: sql<number>`count(*) FILTER (WHERE ${blingOrders.contactType} = 'F' AND ${blingOrders.appClientId} IS NOT NULL)`,
+      })
+      .from(blingOrders)
+      .where(and(...dateConditions));
+
+    // Total de cashback gerado (não cancelado) vinculado a pedidos do período
+    const [cashbackStats] = await db
+      .select({
+        totalCashback: sql<string>`COALESCE(sum(${cashbackTransactions.cashbackAmount}), 0)`,
+        cashbackCount: sql<number>`count(*)`,
+      })
+      .from(cashbackTransactions)
+      .innerJoin(
+        blingOrders,
+        and(
+          eq(cashbackTransactions.invoiceNumber, blingOrders.orderNumber),
+          gte(blingOrders.saleDate, startDate),
+          lte(blingOrders.saleDate, endDate),
+          isNull(blingOrders.deletedAt),
+        ),
+      )
+      .where(ne(cashbackTransactions.status, "cancelled"));
+
+    const totalPFOrders = Number(pfStats?.totalPFOrders || 0);
+    const linkedOrders = Number(pfStats?.linkedOrders || 0);
+
+    return {
+      totalPFOrders,
+      linkedOrders,
+      unlinkedOrders: totalPFOrders - linkedOrders,
+      totalCashbackGenerated: parseFloat(cashbackStats?.totalCashback || "0"),
+      cashbackTransactionCount: Number(cashbackStats?.cashbackCount || 0),
+    };
+  }
+
+  /**
+   * Busca transações de cashback para um pedido específico pelo número do pedido
+   */
+  async getCashbackForOrder(
+    orderNumber: string,
+  ): Promise<CashbackTransaction[]> {
+    return await db
+      .select()
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.invoiceNumber, orderNumber),
+          ne(cashbackTransactions.status, "cancelled"),
+        ),
+      )
+      .orderBy(desc(cashbackTransactions.createdAt))
+      .limit(5);
   }
 }
 

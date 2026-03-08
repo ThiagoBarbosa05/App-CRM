@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 /**
  * Redis client configuration
- * 
+ *
  * This client is used for caching frequently accessed data
  * to improve performance and reduce database load.
  */
@@ -21,7 +21,7 @@ export function getRedisClient(): Redis | null {
 
   // Check if Redis URL is configured
   const redisUrl = process.env.REDIS_URL;
-  
+
   if (!redisUrl) {
     console.warn("[Redis] REDIS_URL not configured. Caching disabled.");
     return null;
@@ -148,32 +148,61 @@ export const cache = {
  * Cache key generators for Bling orders
  */
 export const cacheKeys = {
-  salesStatistics: (startDate: string, endDate: string, accountId?: string) =>
-    `bling:stats:sales:${startDate}:${endDate}:${accountId || "all"}`,
-  
-  salesComparison: (startDate: string, endDate: string, accountId?: string) =>
-    `bling:stats:comparison:${startDate}:${endDate}:${accountId || "all"}`,
-  
-  salesEvolution: (startDate: string, endDate: string, groupBy: string, accountId?: string) =>
-    `bling:stats:evolution:${startDate}:${endDate}:${groupBy}:${accountId || "all"}`,
-  
-  topSellers: (startDate: string, endDate: string, limit: number) =>
-    `bling:stats:top-sellers:${startDate}:${endDate}:${limit}`,
-  
-  topProducts: (startDate: string, endDate: string, limit: number) =>
-    `bling:stats:top-products:${startDate}:${endDate}:${limit}`,
-  
+  salesStatistics: (
+    startDate: string,
+    endDate: string,
+    accountId?: string,
+    contactType?: string,
+  ) =>
+    `bling:stats:sales:${startDate}:${endDate}:${accountId || "all"}:${contactType || "all"}`,
+
+  salesComparison: (
+    startDate: string,
+    endDate: string,
+    accountId?: string,
+    contactType?: string,
+  ) =>
+    `bling:stats:comparison:${startDate}:${endDate}:${accountId || "all"}:${contactType || "all"}`,
+
+  salesEvolution: (
+    startDate: string,
+    endDate: string,
+    groupBy: string,
+    accountId?: string,
+    contactType?: string,
+  ) =>
+    `bling:stats:evolution:${startDate}:${endDate}:${groupBy}:${accountId || "all"}:${contactType || "all"}`,
+
+  topSellers: (
+    startDate: string,
+    endDate: string,
+    limit: number,
+    contactType?: string,
+  ) =>
+    `bling:stats:top-sellers:${startDate}:${endDate}:${limit}:${contactType || "all"}`,
+
+  topProducts: (
+    startDate: string,
+    endDate: string,
+    limit: number,
+    contactType?: string,
+  ) =>
+    `bling:stats:top-products:${startDate}:${endDate}:${limit}:${contactType || "all"}`,
+
   availableSellers: () => `bling:filters:sellers`,
-  
+
   availableStores: () => `bling:filters:stores`,
-  
+
   availableSituations: () => `bling:filters:situations`,
-  
+
   availablePaymentMethods: () => `bling:filters:payment-methods`,
+
+  cashbackStatistics: (startDate: string, endDate: string) =>
+    `bling:stats:cashback:${startDate}:${endDate}`,
 
   // Pattern to invalidate all stats caches
   allStats: () => `bling:stats:*`,
-  
+
   // Pattern to invalidate all filter caches
   allFilters: () => `bling:filters:*`,
 };
