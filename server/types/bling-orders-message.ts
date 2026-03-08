@@ -162,6 +162,19 @@ export interface Seller {
 }
 
 /**
+ * Endereço do contato
+ */
+export interface ContactAddress {
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  municipio?: string;
+  uf?: string;
+  cep?: string;
+}
+
+/**
  * Dados do cliente/contato
  */
 export interface Contact {
@@ -175,9 +188,26 @@ export interface Contact {
    */
   nome: string | null;
 
-  tipo?: "F" | "J" | null;
+  /** "F" = Pessoa Física, "J" = Pessoa Jurídica, "E" = Estrangeiro */
+  tipo?: "F" | "J" | "E" | null;
 
+  /** CPF ou CNPJ */
   documento?: string | null;
+
+  /** E-mail do contato */
+  email?: string | null;
+
+  /** Telefone fixo */
+  telefone?: string | null;
+
+  /** Telefone celular */
+  celular?: string | null;
+
+  /** Nome fantasia (para PJ) */
+  fantasia?: string | null;
+
+  /** Endereço principal */
+  endereco?: ContactAddress | null;
 }
 
 /**
@@ -312,7 +342,7 @@ export interface PubSubMessageAttributes {
  * Type guard para verificar se a mensagem é válida
  */
 export function isBlingControlMessage(
-  data: any
+  data: any,
 ): data is BlingControlPubSubMessage {
   console.log("Validating BlingControlPubSubMessage:", data);
 

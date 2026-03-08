@@ -3,16 +3,23 @@ import {
   blingOrders,
   blingOrderItems,
   blingOrderInstallments,
+  clients,
+  sales,
+  cashbackTransactions,
+  cashbackSettings,
   type InsertBlingOrder,
   type InsertBlingOrderItem,
   type InsertBlingOrderInstallment,
   type BlingOrderWithDetails,
+  type Client,
+  type CashbackSetting,
 } from "../../shared/schema";
 import type {
   BlingControlPubSubMessage,
   SalesOrder,
 } from "../types/bling-orders-message";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
+import { cashbackSettingsService } from "./cashback-settings.service";
 
 /**
  * Interface para parâmetros de criação de pedido
@@ -93,6 +100,8 @@ export class BlingOrdersService {
         accountName: metadata.accountName || null,
         companyId: metadata.companyId,
         eventId: metadata.eventId,
+        contactPhone: order.contato.telefone || null,
+        contactCellphone: order.contato.celular || null,
         rawOrderData: JSON.stringify(order),
       };
 
@@ -147,6 +156,21 @@ export class BlingOrdersService {
           installments: createdInstallments,
         };
       });
+
+      // Pós-processamento: vincula cliente PF, cashback e venda (nunca propaga erros)
+      try {
+        await this.postProcessOrder({
+          action: "create",
+          order,
+          userId: metadata.userId,
+          blingOrdersDbId: result.id,
+        });
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro inesperado no pós-processamento (create):",
+          error,
+        );
+      }
 
       return result;
     } catch (error) {
@@ -208,6 +232,8 @@ export class BlingOrdersService {
         situationValue: order.situacao?.valor || null,
         observations: order.observacoes || null,
         internalObservations: order.observacoesInternas || null,
+        contactPhone: order.contato.telefone || null,
+        contactCellphone: order.contato.celular || null,
         rawOrderData: JSON.stringify(order),
       };
 
@@ -273,6 +299,21 @@ export class BlingOrdersService {
           installments: createdInstallments,
         };
       });
+
+      // Pós-processamento: vincula cliente PF, cashback e venda (nunca propaga erros)
+      try {
+        await this.postProcessOrder({
+          action: "update",
+          order,
+          userId: metadata.userId,
+          blingOrdersDbId: result.id,
+        });
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro inesperado no pós-processamento (update):",
+          error,
+        );
+      }
 
       return result;
     } catch (error) {
@@ -442,6 +483,339 @@ export class BlingOrdersService {
       return !!order;
     } catch (error) {
       return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Métodos privados de pós-processamento (PF, cashback, venda)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Normaliza um telefone mantendo apenas dígitos.
+   */
+  private normalizePhone(phone: string): string {
+    return phone.replace(/\D/g, "");
+  }
+
+  /**
+   * Busca um cliente no app pelo celular ou telefone fixo do contato Bling.
+   * Normaliza ambos os lados (Bling e banco) para comparação apenas por dígitos.
+   * Retorna o primeiro cliente encontrado ou null.
+   */
+  private async findAppClientByPhone(
+    celular: string | null,
+    telefone: string | null,
+  ): Promise<Client | null> {
+    const conditions: ReturnType<typeof sql>[] = [];
+
+    const normalizedCelular = celular ? this.normalizePhone(celular) : null;
+    const normalizedTelefone = telefone ? this.normalizePhone(telefone) : null;
+
+    if (normalizedCelular) {
+      conditions.push(
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedCelular}`,
+        sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedCelular}`,
+      );
+    }
+    if (normalizedTelefone) {
+      conditions.push(
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedTelefone}`,
+        sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedTelefone}`,
+      );
+    }
+
+    if (conditions.length === 0) return null;
+
+    try {
+      const [found] = await db
+        .select()
+        .from(clients)
+        .where(or(...conditions))
+        .limit(1);
+      return found ?? null;
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao buscar cliente por telefone:",
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Busca a configuração de cashback ativa mais recente.
+   * Considera ativa quando isActive = 'true' E (validUntil IS NULL OU validUntil > agora).
+   */
+  private async getActiveCashbackSetting(): Promise<CashbackSetting | null> {
+    try {
+      const now = new Date();
+      const [setting] = await db
+        .select()
+        .from(cashbackSettings)
+        .where(
+          and(
+            eq(cashbackSettings.isActive, "true"),
+            or(
+              isNull(cashbackSettings.validUntil),
+              gt(cashbackSettings.validUntil, now),
+            ),
+          ),
+        )
+        .orderBy(desc(cashbackSettings.createdAt))
+        .limit(1);
+      return setting ?? null;
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao buscar configuração de cashback ativa:",
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Processa o cashback para um pedido de Pessoa Física com cliente encontrado.
+   * Em "update": cancela cashbacks anteriores deste cliente+pedido e recria.
+   * @returns Valor do cashback gerado (string decimal) ou "0" quando não aplicável.
+   */
+  private async processOrderCashback(params: {
+    action: "create" | "update";
+    appClientId: string;
+    order: SalesOrder;
+    userId: string;
+  }): Promise<string> {
+    const { action, appClientId, order, userId } = params;
+    const invoiceNumber = order.numero.toString();
+
+    // Em update: cancela cashbacks anteriores para este cliente+pedido
+    if (action === "update") {
+      try {
+        await db
+          .update(cashbackTransactions)
+          .set({ status: "cancelled" })
+          .where(
+            and(
+              eq(cashbackTransactions.clientId, appClientId),
+              eq(cashbackTransactions.invoiceNumber, invoiceNumber),
+              ne(cashbackTransactions.status, "cancelled"),
+            ),
+          );
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro ao cancelar cashbacks anteriores:",
+          error,
+        );
+      }
+    }
+
+    const setting = await this.getActiveCashbackSetting();
+    if (!setting) {
+      console.warn(
+        "[BlingOrdersService] Nenhuma configuração de cashback ativa. Pulando cashback do pedido",
+        order.numero,
+      );
+      return "0";
+    }
+
+    const minimumPurchase = parseFloat(setting.minimumPurchase ?? "0");
+    if (order.total < minimumPurchase) {
+      console.info(
+        `[BlingOrdersService] Pedido ${order.numero} (R$ ${order.total}) abaixo do mínimo de cashback (R$ ${minimumPurchase}). Pulando.`,
+      );
+      return "0";
+    }
+
+    const rate = parseFloat(setting.percentageRate);
+    let cashbackAmount = order.total * (rate / 100);
+
+    const maxCashback = setting.maximumCashback
+      ? parseFloat(setting.maximumCashback)
+      : null;
+    if (maxCashback !== null && cashbackAmount > maxCashback) {
+      cashbackAmount = maxCashback;
+    }
+
+    const saleDate = new Date(`${order.data}T00:00:00-03:00`);
+
+    try {
+      await cashbackSettingsService.createCashbackTransaction({
+        clientId: appClientId,
+        purchaseAmount: order.total.toString(),
+        cashbackAmount: cashbackAmount.toFixed(2),
+        cashbackRate: setting.percentageRate,
+        status: "approved",
+        settingId: setting.id,
+        invoiceNumber,
+        saleDate,
+        processedBy: userId,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao criar transação de cashback:",
+        error,
+      );
+      return "0";
+    }
+
+    return cashbackAmount.toFixed(2);
+  }
+
+  /**
+   * Registra ou atualiza a venda na tabela sales para um cliente do app.
+   * Em "update": busca pelo invoiceNumber + clientId; se não encontrar, cria.
+   */
+  private async processOrderSale(params: {
+    action: "create" | "update";
+    appClientId: string;
+    order: SalesOrder;
+    userId: string;
+    cashbackAmount: string;
+  }): Promise<void> {
+    const { action, appClientId, order, userId, cashbackAmount } = params;
+    const invoiceNumber = order.numero.toString();
+    const saleDate = new Date(`${order.data}T00:00:00-03:00`);
+    const grossValue = order.total.toString();
+
+    try {
+      if (action === "create") {
+        await db.insert(sales).values({
+          clientId: appClientId,
+          date: saleDate,
+          grossValue,
+          netValue: grossValue,
+          cashbackGenerated: cashbackAmount,
+          invoiceNumber,
+          userId: userId || null,
+        });
+      } else {
+        // Tenta encontrar venda existente pelo invoiceNumber + clientId
+        const [existingSale] = await db
+          .select()
+          .from(sales)
+          .where(
+            and(
+              eq(sales.clientId, appClientId),
+              eq(sales.invoiceNumber, invoiceNumber),
+            ),
+          )
+          .limit(1);
+
+        if (existingSale) {
+          await db
+            .update(sales)
+            .set({
+              date: saleDate,
+              grossValue,
+              netValue: grossValue,
+              cashbackGenerated: cashbackAmount,
+              updatedAt: new Date(),
+            })
+            .where(eq(sales.id, existingSale.id));
+        } else {
+          // Pode acontecer se o cliente só foi vinculado após o create; cria agora
+          await db.insert(sales).values({
+            clientId: appClientId,
+            date: saleDate,
+            grossValue,
+            netValue: grossValue,
+            cashbackGenerated: cashbackAmount,
+            invoiceNumber,
+            userId: userId || null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("[BlingOrdersService] Erro ao registrar venda:", error);
+    }
+  }
+
+  /**
+   * Pós-processamento após salvar o pedido no banco.
+   * - Apenas para Pessoa Física (tipo === "F")
+   * - Salva telefone/celular no registro de pedido
+   * - Busca cliente do app por telefone/celular normalizado
+   * - Vincula appClientId no pedido
+   * - Se cliente encontrado: processa cashback e registra venda
+   *
+   * Nunca propaga erros — falhas são apenas logadas para não comprometer
+   * o processamento principal do pedido.
+   */
+  private async postProcessOrder(params: {
+    action: "create" | "update";
+    order: SalesOrder;
+    userId: string;
+    blingOrdersDbId: string;
+  }): Promise<void> {
+    const { action, order, userId, blingOrdersDbId } = params;
+
+    // Somente Pessoa Física é elegível para vínculo com cliente do app
+    if (order.contato.tipo !== "F") {
+      return;
+    }
+
+    const celular = order.contato.celular ?? null;
+    const telefone = order.contato.telefone ?? null;
+
+    // Busca cliente no app (null se sem telefone ou não encontrado)
+    let appClient: Client | null = null;
+    if (celular || telefone) {
+      try {
+        appClient = await this.findAppClientByPhone(celular, telefone);
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro ao buscar cliente no app por telefone:",
+          error,
+        );
+      }
+    }
+
+    // Atualiza o pedido com telefone, celular e vínculo com cliente do app
+    try {
+      await db
+        .update(blingOrders)
+        .set({
+          contactPhone: telefone,
+          contactCellphone: celular,
+          appClientId: appClient?.id ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(blingOrders.id, blingOrdersDbId));
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao atualizar dados de contato no pedido:",
+        error,
+      );
+    }
+
+    // Sem cliente no app: sem cashback nem venda
+    if (!appClient) {
+      return;
+    }
+
+    // Processa cashback (cada step em try-catch isolado)
+    let cashbackAmount = "0";
+    try {
+      cashbackAmount = await this.processOrderCashback({
+        action,
+        appClientId: appClient.id,
+        order,
+        userId,
+      });
+    } catch (error) {
+      console.error("[BlingOrdersService] Erro ao processar cashback:", error);
+    }
+
+    // Registra venda
+    try {
+      await this.processOrderSale({
+        action,
+        appClientId: appClient.id,
+        order,
+        userId,
+        cashbackAmount,
+      });
+    } catch (error) {
+      console.error("[BlingOrdersService] Erro ao registrar venda:", error);
     }
   }
 }
