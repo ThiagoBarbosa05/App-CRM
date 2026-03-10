@@ -29,6 +29,11 @@ export interface BlingOrder {
   appClientId?: string | null;
   contactPhone?: string | null;
   contactCellphone?: string | null;
+  // Cashback gerado (enriquecido pelo controller)
+  cashbackAmount?: string | null;
+  cashbackRate?: string | null;
+  // Último evento Pub/Sub recebido
+  lastEventAction?: string | null;
   items?: BlingOrderItem[];
   installments?: BlingOrderInstallment[];
 }

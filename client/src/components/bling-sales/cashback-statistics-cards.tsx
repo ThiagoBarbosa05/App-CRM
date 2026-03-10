@@ -76,16 +76,33 @@ export function CashbackStatisticsCards({
       ? Math.round((data.linkedOrders / data.totalPFOrders) * 100)
       : 0;
 
+  const avgCashback =
+    data && data.cashbackTransactionCount > 0
+      ? data.totalCashbackGenerated / data.cashbackTransactionCount
+      : 0;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Cashback Gerado"
-        value={formatCurrency(data?.totalCashbackGenerated ?? 0)}
-        subtitle={`${data?.cashbackTransactionCount ?? 0} transação(ões) no período`}
-        icon={<Gift className="h-4 w-4" />}
-        colorClass="text-amber-600 dark:text-amber-400"
-        bgClass="bg-amber-50 dark:bg-amber-900/20"
-      />
+      {/* Card 1: Cashback gerado */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+        <div className="flex items-start justify-between mb-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Cashback Gerado
+          </p>
+          <div className="h-9 w-9 rounded-2xl flex items-center justify-center bg-amber-50 dark:bg-amber-900/20">
+            <Gift className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+        </div>
+        <p className="text-2xl font-black tracking-tight text-amber-600 dark:text-amber-400">
+          {formatCurrency(data?.totalCashbackGenerated ?? 0)}
+        </p>
+        <p className="text-[11px] font-medium text-slate-400 mt-1">
+          {data?.cashbackTransactionCount ?? 0} transação(ões) · média{" "}
+          {formatCurrency(avgCashback)}
+        </p>
+      </div>
+
+      {/* Card 2: Pedidos PF */}
       <StatCard
         title="Pedidos PF"
         value={String(data?.totalPFOrders ?? 0)}
@@ -94,14 +111,35 @@ export function CashbackStatisticsCards({
         colorClass="text-blue-600 dark:text-blue-400"
         bgClass="bg-blue-50 dark:bg-blue-900/20"
       />
-      <StatCard
-        title="Vinculados ao App"
-        value={`${data?.linkedOrders ?? 0} (${linkedPct}%)`}
-        subtitle="PF com cliente encontrado"
-        icon={<Link2 className="h-4 w-4" />}
-        colorClass="text-emerald-600 dark:text-emerald-400"
-        bgClass="bg-emerald-50 dark:bg-emerald-900/20"
-      />
+
+      {/* Card 3: Vinculados com barra de progresso */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+        <div className="flex items-start justify-between mb-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Vinculados ao App
+          </p>
+          <div className="h-9 w-9 rounded-2xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/20">
+            <Link2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+        </div>
+        <p className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
+          {data?.linkedOrders ?? 0}{" "}
+          <span className="text-base font-bold text-slate-400">
+            ({linkedPct}%)
+          </span>
+        </p>
+        <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+          <div
+            className="h-1.5 rounded-full bg-emerald-500 transition-all duration-700"
+            style={{ width: `${linkedPct}%` }}
+          />
+        </div>
+        <p className="text-[11px] font-medium text-slate-400 mt-1.5">
+          {data?.unlinkedOrders ?? 0} sem cliente no app
+        </p>
+      </div>
+
+      {/* Card 4: Sem vínculo */}
       <StatCard
         title="Sem Vínculo"
         value={String(data?.unlinkedOrders ?? 0)}

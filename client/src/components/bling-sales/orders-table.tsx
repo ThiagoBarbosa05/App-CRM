@@ -28,6 +28,7 @@ import {
   Hash,
   Link2,
   Link2Off,
+  Gift,
 } from "lucide-react";
 import { useState } from "react";
 import { OrderDetailsDialog } from "./order-details-dialog";
@@ -161,6 +162,11 @@ export function OrdersTable({
                 <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
                   Situação
                 </TableHead>
+                <TableHead className="font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-3 w-3" /> Cashback
+                  </div>
+                </TableHead>
                 <TableHead className="text-right font-black text-[10px] uppercase tracking-widest text-slate-400 py-4 h-auto">
                   <div className="flex items-center justify-end gap-2">
                     <CreditCard className="h-3 w-3" /> Valor Total
@@ -173,7 +179,7 @@ export function OrdersTable({
               <AnimatePresence mode="popLayout">
                 {orders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-72 text-center">
+                    <TableCell colSpan={8} className="h-72 text-center">
                       <div className="flex flex-col items-center justify-center gap-4 py-8">
                         <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 border border-dashed border-slate-200 dark:border-slate-700">
                           <InboxIcon className="h-10 w-10 text-slate-300 dark:text-slate-600" />
@@ -199,8 +205,24 @@ export function OrdersTable({
                       className="group border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all cursor-default"
                     >
                       <TableCell className="py-4">
-                        <div className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block font-mono text-[11px] font-black text-slate-600 dark:text-slate-300">
-                          #{order.orderNumber}
+                        <div className="flex flex-col gap-1">
+                          <div className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg inline-block font-mono text-[11px] font-black text-slate-600 dark:text-slate-300">
+                            #{order.orderNumber}
+                          </div>
+                          {order.lastEventAction && (
+                            <span
+                              className={cn(
+                                "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md w-fit",
+                                order.lastEventAction === "created"
+                                  ? "bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-400"
+                                  : order.lastEventAction === "updated"
+                                    ? "bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-400"
+                                    : "bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-400",
+                              )}
+                            >
+                              {order.lastEventAction}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs font-bold text-slate-500">
@@ -231,6 +253,25 @@ export function OrdersTable({
                               <Link2Off className="h-3 w-3" /> Sem vínculo
                             </div>
                           )
+                        ) : (
+                          <span className="text-[10px] text-slate-300 dark:text-slate-600">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {order.cashbackAmount &&
+                        parseFloat(order.cashbackAmount) > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                              {formatCurrency(parseFloat(order.cashbackAmount))}
+                            </span>
+                            {order.cashbackRate && (
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {parseFloat(order.cashbackRate).toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-[10px] text-slate-300 dark:text-slate-600">
                             —

@@ -5,6 +5,70 @@ import {
 } from "../repositories/bling-orders.repository";
 import { z } from "zod";
 import { cache, cacheKeys, cacheTTL } from "../lib/redis";
+import { db } from "../db";
+import { cashbackTransactions } from "../../shared/schema";
+import { and, ne, inArray } from "drizzle-orm";
+
+/**
+ * Enriquece uma lista de pedidos com o valor de cashback correspondente.
+ * Faz uma única query em lote para todos os valores, minimizando roundtrips.
+ */
+async function enrichWithCashback<T extends { orderNumber: string }>(
+  orders: T[],
+): Promise<
+  (T & { cashbackAmount: string | null; cashbackRate: string | null })[]
+> {
+  if (orders.length === 0) {
+    return orders.map((o) => ({
+      ...o,
+      cashbackAmount: null,
+      cashbackRate: null,
+    }));
+  }
+  try {
+    const orderNumbers = orders.map((o) => o.orderNumber);
+    const cashbacks = await db
+      .select({
+        invoiceNumber: cashbackTransactions.invoiceNumber,
+        cashbackAmount: cashbackTransactions.cashbackAmount,
+        cashbackRate: cashbackTransactions.cashbackRate,
+      })
+      .from(cashbackTransactions)
+      .where(
+        and(
+          inArray(cashbackTransactions.invoiceNumber, orderNumbers),
+          ne(cashbackTransactions.status, "cancelled"),
+        ),
+      );
+    const cashbackMap = new Map<
+      string,
+      { cashbackAmount: string; cashbackRate: string }
+    >();
+    cashbacks.forEach((c) => {
+      if (c.invoiceNumber) {
+        cashbackMap.set(c.invoiceNumber, {
+          cashbackAmount: c.cashbackAmount,
+          cashbackRate: c.cashbackRate,
+        });
+      }
+    });
+    return orders.map((o) => ({
+      ...o,
+      cashbackAmount: cashbackMap.get(o.orderNumber)?.cashbackAmount ?? null,
+      cashbackRate: cashbackMap.get(o.orderNumber)?.cashbackRate ?? null,
+    }));
+  } catch (error) {
+    console.error(
+      "[enrichWithCashback] Erro ao buscar cashback dos pedidos:",
+      error,
+    );
+    return orders.map((o) => ({
+      ...o,
+      cashbackAmount: null,
+      cashbackRate: null,
+    }));
+  }
+}
 
 /**
  * Schema de validação para query params de listagem
@@ -112,9 +176,11 @@ export class BlingOrdersController {
         blingOrdersRepository.count(filters),
       ]);
 
+      const enrichedOrders = await enrichWithCashback(orders);
+
       return res.json({
         success: true,
-        data: orders,
+        data: enrichedOrders,
         pagination: {
           total,
           limit: query.limit,
@@ -628,25 +694,36 @@ export class BlingOrdersController {
         query.offset,
       );
 
-      // Buscar itens e parcelas para cada pedido
-      const ordersWithDetails = await Promise.all(
-        orders.map(async (order) => {
-          const [items, installments] = await Promise.all([
-            blingOrdersRepository.findOrderItems(order.id),
-            blingOrdersRepository.findOrderInstallments(order.id),
-          ]);
+      // Buscar itens, parcelas e cashback para cada pedido
+      const [ordersWithDetails, enrichedOrders] = await Promise.all([
+        Promise.all(
+          orders.map(async (order) => {
+            const [items, installments] = await Promise.all([
+              blingOrdersRepository.findOrderItems(order.id),
+              blingOrdersRepository.findOrderInstallments(order.id),
+            ]);
+            return { ...order, items, installments };
+          }),
+        ),
+        enrichWithCashback(orders),
+      ]);
 
-          return {
-            ...order,
-            items,
-            installments,
-          };
-        }),
+      const cashbackIndex = new Map(
+        enrichedOrders.map((o) => [
+          o.orderNumber,
+          { cashbackAmount: o.cashbackAmount, cashbackRate: o.cashbackRate },
+        ]),
       );
+      const finalOrders = ordersWithDetails.map((o) => ({
+        ...o,
+        cashbackAmount:
+          cashbackIndex.get(o.orderNumber)?.cashbackAmount ?? null,
+        cashbackRate: cashbackIndex.get(o.orderNumber)?.cashbackRate ?? null,
+      }));
 
       return res.json({
         success: true,
-        data: ordersWithDetails,
+        data: finalOrders,
       });
     } catch (error) {
       console.error("[BlingOrdersController] Erro ao exportar pedidos:", error);
