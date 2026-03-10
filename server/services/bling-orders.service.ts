@@ -647,7 +647,9 @@ export class BlingOrdersService {
         settingId: setting.id,
         invoiceNumber,
         saleDate,
-        // processedBy: userId,
+        // processedBy é omitido intencionalmente: o userId aqui é do sistema
+        // Bling Control (externo) e não existe na tabela users do app.
+        processedBy: undefined,
       });
     } catch (error) {
       console.error(
