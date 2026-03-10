@@ -647,7 +647,7 @@ export class BlingOrdersService {
         settingId: setting.id,
         invoiceNumber,
         saleDate,
-        processedBy: userId,
+        // processedBy: userId,
       });
     } catch (error) {
       console.error(
