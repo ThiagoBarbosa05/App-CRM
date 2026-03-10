@@ -2213,6 +2213,11 @@ export const blingOrders = pgTable(
     // Vínculo com cliente do app (encontrado por telefone/celular, somente PF)
     appClientId: varchar("app_client_id").references(() => clients.id),
 
+    // Última ação recebida via Pub/Sub (created | updated | deleted)
+    lastEventAction: text("last_event_action", {
+      enum: ["created", "updated", "deleted"],
+    }),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     deletedAt: timestamp("deleted_at"),

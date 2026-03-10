@@ -20,6 +20,7 @@ import type {
 } from "../types/bling-orders-message";
 import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
 import { cashbackSettingsService } from "./cashback-settings.service";
+import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
 
 /**
  * Interface para parâmetros de criação de pedido
@@ -103,6 +104,7 @@ export class BlingOrdersService {
         contactPhone: order.contato.telefone || null,
         contactCellphone: order.contato.celular || null,
         rawOrderData: JSON.stringify(order),
+        lastEventAction: "created",
       };
 
       // Inicia transação para garantir consistência
@@ -235,6 +237,7 @@ export class BlingOrdersService {
         contactPhone: order.contato.telefone || null,
         contactCellphone: order.contato.celular || null,
         rawOrderData: JSON.stringify(order),
+        lastEventAction: "updated",
       };
 
       // Inicia transação para garantir consistência
@@ -358,8 +361,38 @@ export class BlingOrdersService {
         .set({
           deletedAt: new Date(),
           updatedAt: new Date(),
+          lastEventAction: "deleted",
         })
         .where(eq(blingOrders.id, existingOrder[0].id));
+
+      // Cancela cashback vinculado ao pedido excluído e atualiza saldo
+      const appClientId = existingOrder[0].appClientId;
+      if (appClientId) {
+        const invoiceNumber = order.numero.toString();
+        try {
+          await db
+            .update(cashbackTransactions)
+            .set({ status: "cancelled" })
+            .where(
+              and(
+                eq(cashbackTransactions.clientId, appClientId),
+                eq(cashbackTransactions.invoiceNumber, invoiceNumber),
+                ne(cashbackTransactions.status, "cancelled"),
+              ),
+            );
+          await cashbackSettingsRepository.updateClientCashbackBalance(
+            appClientId,
+          );
+          console.info(
+            `[BlingOrdersService] Cashback cancelado para pedido excluído ${order.numero} (cliente ${appClientId})`,
+          );
+        } catch (cashbackError) {
+          console.error(
+            "[BlingOrdersService] Erro ao cancelar cashback na exclusão do pedido:",
+            cashbackError,
+          );
+        }
+      }
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Erro ao deletar pedido do Bling: ${error.message}`);
@@ -655,8 +688,9 @@ export class BlingOrdersService {
 
     // Cancela sempre cashbacks não-cancelados para este cliente+pedido antes de criar
     // (idempotência: protege contra re-entrega Pub/Sub em create E handle de updates)
+    let hadActiveCashback = false;
     try {
-      await db
+      const cancelled = await db
         .update(cashbackTransactions)
         .set({ status: "cancelled" })
         .where(
@@ -665,7 +699,9 @@ export class BlingOrdersService {
             eq(cashbackTransactions.invoiceNumber, invoiceNumber),
             ne(cashbackTransactions.status, "cancelled"),
           ),
-        );
+        )
+        .returning({ id: cashbackTransactions.id });
+      hadActiveCashback = cancelled.length > 0;
     } catch (error) {
       console.error(
         "[BlingOrdersService] Erro ao cancelar cashbacks anteriores:",
@@ -679,6 +715,16 @@ export class BlingOrdersService {
         "[BlingOrdersService] Nenhuma configuração de cashback ativa. Pulando cashback do pedido",
         order.numero,
       );
+      if (hadActiveCashback) {
+        await cashbackSettingsRepository
+          .updateClientCashbackBalance(appClientId)
+          .catch((err) =>
+            console.error(
+              "[BlingOrdersService] Erro ao atualizar saldo após cancelamento:",
+              err,
+            ),
+          );
+      }
       return "0";
     }
 
@@ -687,6 +733,16 @@ export class BlingOrdersService {
       console.info(
         `[BlingOrdersService] Pedido ${order.numero} (R$ ${order.total}) abaixo do mínimo de cashback (R$ ${minimumPurchase}). Pulando.`,
       );
+      if (hadActiveCashback) {
+        await cashbackSettingsRepository
+          .updateClientCashbackBalance(appClientId)
+          .catch((err) =>
+            console.error(
+              "[BlingOrdersService] Erro ao atualizar saldo após cancelamento:",
+              err,
+            ),
+          );
+      }
       return "0";
     }
 
@@ -884,18 +940,6 @@ export class BlingOrdersService {
       console.error("[BlingOrdersService] Erro ao processar cashback:", error);
     }
 
-    // Registra venda
-    try {
-      await this.processOrderSale({
-        action,
-        appClientId: appClient.id,
-        order,
-        userId,
-        cashbackAmount,
-      });
-    } catch (error) {
-      console.error("[BlingOrdersService] Erro ao registrar venda:", error);
-    }
   }
 }
 
