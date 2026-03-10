@@ -12,6 +12,7 @@ import {
   index,
   check,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1572,36 +1573,51 @@ export const cashbackSettings = pgTable("cashback_settings", {
 });
 
 // Tabela de transações de cashback
-export const cashbackTransactions = pgTable("cashback_transactions", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  clientId: varchar("client_id")
-    .references(() => clients.id)
-    .notNull(),
-  dealId: varchar("deal_id").references(() => deals.id), // Relacionado a um negócio
-  purchaseAmount: decimal("purchase_amount", {
-    precision: 12,
-    scale: 2,
-  }).notNull(), // Valor da compra
-  cashbackAmount: decimal("cashback_amount", {
-    precision: 12,
-    scale: 2,
-  }).notNull(), // Valor do cashback
-  cashbackRate: decimal("cashback_rate", { precision: 5, scale: 2 }).notNull(), // % aplicada
-  status: text("status", { enum: ["pending", "approved", "paid", "cancelled"] })
-    .notNull()
-    .default("pending"),
-  settingId: varchar("setting_id").references(() => cashbackSettings.id), // Regra aplicada
-  notes: text("notes"),
-  invoiceNumber: text("invoice_number"), // Número da nota fiscal
-  saleDate: timestamp("sale_date"), // Data da venda
-  expiresAt: timestamp("expires_at").notNull(), // Data de validade do cashback (28 dias após criação)
-  processedBy: varchar("processed_by").references(() => users.id),
-  processedAt: timestamp("processed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const cashbackTransactions = pgTable(
+  "cashback_transactions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id")
+      .references(() => clients.id)
+      .notNull(),
+    dealId: varchar("deal_id").references(() => deals.id), // Relacionado a um negócio
+    purchaseAmount: decimal("purchase_amount", {
+      precision: 12,
+      scale: 2,
+    }).notNull(), // Valor da compra
+    cashbackAmount: decimal("cashback_amount", {
+      precision: 12,
+      scale: 2,
+    }).notNull(), // Valor do cashback
+    cashbackRate: decimal("cashback_rate", {
+      precision: 5,
+      scale: 2,
+    }).notNull(), // % aplicada
+    status: text("status", {
+      enum: ["pending", "approved", "paid", "cancelled"],
+    })
+      .notNull()
+      .default("pending"),
+    settingId: varchar("setting_id").references(() => cashbackSettings.id), // Regra aplicada
+    notes: text("notes"),
+    invoiceNumber: text("invoice_number"), // Número da nota fiscal
+    saleDate: timestamp("sale_date"), // Data da venda
+    expiresAt: timestamp("expires_at").notNull(), // Data de validade do cashback (28 dias após criação)
+    processedBy: varchar("processed_by").references(() => users.id),
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Garante idempotência: apenas 1 cashback ativo por (cliente, nota fiscal)
+    // status != 'cancelled' permite múltiplos registros cancelados (histórico de updates)
+    uniqueIndex("cashback_transactions_active_unique")
+      .on(table.clientId, table.invoiceNumber)
+      .where(sql`invoice_number IS NOT NULL AND status != 'cancelled'`),
+  ],
+);
 
 // Tabela de saldo de cashback dos clientes
 export const clientCashbackBalance = pgTable("client_cashback_balance", {

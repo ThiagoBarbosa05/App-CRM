@@ -578,6 +578,72 @@ export class BlingOrdersService {
    * Em "update": cancela cashbacks anteriores deste cliente+pedido e recria.
    * @returns Valor do cashback gerado (string decimal) ou "0" quando não aplicável.
    */
+  /**
+   * Cria um novo cliente no app a partir dos dados de um contato PF do Bling.
+   * Campos obrigatórios: name, phone, categoria="Bling", origem="Bling".
+   * Em caso de race condition (violação de unique em phone), refaz o lookup.
+   */
+  private async createAppClientFromBling(
+    order: SalesOrder,
+  ): Promise<Client | null> {
+    const celular = order.contato.celular ?? null;
+    const telefone = order.contato.telefone ?? null;
+    const phone = celular ?? telefone;
+
+    if (!phone) return null;
+
+    const normalizedPhone = this.normalizePhone(phone);
+    const documento = order.contato.documento ?? null;
+    const cpf =
+      documento && /^\d{11}$/.test(this.normalizePhone(documento))
+        ? this.normalizePhone(documento)
+        : null;
+
+    try {
+      const [created] = await db
+        .insert(clients)
+        .values({
+          name: order.contato.nome ?? "",
+          phone: normalizedPhone,
+          // Se o celular foi usado como phone, guarda o telefone fixo separado
+          ...(celular && telefone
+            ? { fixedPhone: this.normalizePhone(telefone) }
+            : {}),
+          ...(cpf ? { cpf } : {}),
+          categoria: "Bling",
+          origem: "Bling",
+          status: "pending",
+          markers: [],
+        })
+        .returning();
+
+      console.info(
+        `[BlingOrdersService] Cliente criado automaticamente via Bling: ${created.id} (${created.name})`,
+      );
+      return created;
+    } catch (error: unknown) {
+      // Violação de unique em phone → outra mensagem criou o cliente concorrentemente
+      const isUniqueViolation =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code: string }).code === "23505";
+
+      if (isUniqueViolation) {
+        console.warn(
+          "[BlingOrdersService] Race condition ao criar cliente — buscando existente pelo telefone",
+        );
+        return this.findAppClientByPhone(celular, telefone);
+      }
+
+      console.error(
+        "[BlingOrdersService] Erro ao criar cliente via Bling:",
+        error,
+      );
+      return null;
+    }
+  }
+
   private async processOrderCashback(params: {
     action: "create" | "update";
     appClientId: string;
@@ -587,25 +653,24 @@ export class BlingOrdersService {
     const { action, appClientId, order, userId } = params;
     const invoiceNumber = order.numero.toString();
 
-    // Em update: cancela cashbacks anteriores para este cliente+pedido
-    if (action === "update") {
-      try {
-        await db
-          .update(cashbackTransactions)
-          .set({ status: "cancelled" })
-          .where(
-            and(
-              eq(cashbackTransactions.clientId, appClientId),
-              eq(cashbackTransactions.invoiceNumber, invoiceNumber),
-              ne(cashbackTransactions.status, "cancelled"),
-            ),
-          );
-      } catch (error) {
-        console.error(
-          "[BlingOrdersService] Erro ao cancelar cashbacks anteriores:",
-          error,
+    // Cancela sempre cashbacks não-cancelados para este cliente+pedido antes de criar
+    // (idempotência: protege contra re-entrega Pub/Sub em create E handle de updates)
+    try {
+      await db
+        .update(cashbackTransactions)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(cashbackTransactions.clientId, appClientId),
+            eq(cashbackTransactions.invoiceNumber, invoiceNumber),
+            ne(cashbackTransactions.status, "cancelled"),
+          ),
         );
-      }
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao cancelar cashbacks anteriores:",
+        error,
+      );
     }
 
     const setting = await this.getActiveCashbackSetting();
@@ -766,6 +831,18 @@ export class BlingOrdersService {
       } catch (error) {
         console.error(
           "[BlingOrdersService] Erro ao buscar cliente no app por telefone:",
+          error,
+        );
+      }
+    }
+
+    // Se não encontrou, tenta criar automaticamente com os dados do Bling
+    if (!appClient && (celular || telefone)) {
+      try {
+        appClient = await this.createAppClientFromBling(order);
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro ao criar cliente automaticamente via Bling:",
           error,
         );
       }
