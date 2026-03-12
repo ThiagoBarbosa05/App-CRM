@@ -60,3 +60,7 @@ args = "npm run dev"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-23a3d0a6-8c69-4745-95d6-3dfc6a46a69d"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
