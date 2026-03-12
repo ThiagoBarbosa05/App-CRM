@@ -674,6 +674,37 @@ export class BlingOrdersRepository {
     return { cohorts, maxMonthOffset: maxOffset };
   }
 
+  async getTopClients(
+    startDate: string,
+    endDate: string,
+    limit = 20,
+    contactType?: string,
+  ) {
+    const conditions = [
+      gte(blingOrders.saleDate, startDate),
+      lte(blingOrders.saleDate, endDate),
+      isNull(blingOrders.deletedAt),
+      sql`${blingOrders.contactId} IS NOT NULL`,
+    ];
+    if (contactType) conditions.push(eq(blingOrders.contactType, contactType));
+
+    return await db
+      .select({
+        contactId: blingOrders.contactId,
+        contactName: blingOrders.contactName,
+        totalOrders: sql<number>`count(distinct ${blingOrders.id})`,
+        totalValue: sql<string>`sum(${blingOrders.totalValue})`,
+        avgValue: sql<string>`avg(${blingOrders.totalValue})`,
+        firstOrder: sql<string>`min(${blingOrders.saleDate})`,
+        lastOrder: sql<string>`max(${blingOrders.saleDate})`,
+      })
+      .from(blingOrders)
+      .where(and(...conditions))
+      .groupBy(blingOrders.contactId, blingOrders.contactName)
+      .orderBy(desc(sql`sum(${blingOrders.totalValue})`))
+      .limit(limit);
+  }
+
   async getCohortClients(
     startDate: string,
     endDate: string,

@@ -1147,6 +1147,45 @@ export class BlingOrdersController {
     }
   }
 
+  async getTopClients(req: Request, res: Response) {
+    try {
+      const schema = z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        limit: z.coerce.number().int().min(1).max(50).default(20),
+        contactType: z.string().optional(),
+      });
+
+      const query = schema.parse(req.query);
+
+      const clients = await blingOrdersRepository.getTopClients(
+        query.startDate,
+        query.endDate,
+        query.limit,
+        query.contactType,
+      );
+
+      return res.json({
+        success: true,
+        data: clients.map((c, i) => ({
+          rank: i + 1,
+          contactId: c.contactId,
+          contactName: c.contactName || "Cliente sem nome",
+          totalOrders: Number(c.totalOrders),
+          totalValue: Number(c.totalValue),
+          avgValue: Number(c.avgValue),
+          firstOrder: c.firstOrder,
+          lastOrder: c.lastOrder,
+        })),
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: "Parâmetros inválidos", details: error.errors });
+      }
+      return res.status(500).json({ success: false, error: "Erro ao buscar top clientes" });
+    }
+  }
+
   async getCohortClients(req: Request, res: Response) {
     try {
       const schema = z.object({

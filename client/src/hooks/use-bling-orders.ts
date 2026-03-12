@@ -346,6 +346,38 @@ export function useTopProducts(
   });
 }
 
+export interface TopClient {
+  rank: number;
+  contactId: string;
+  contactName: string;
+  totalOrders: number;
+  totalValue: number;
+  avgValue: number;
+  firstOrder: string;
+  lastOrder: string;
+}
+
+export function useTopClients(
+  startDate: string,
+  endDate: string,
+  limit = 20,
+  contactType?: string,
+) {
+  return useQuery({
+    queryKey: ["bling-top-clients", startDate, endDate, limit, contactType],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate, limit: String(limit) });
+      if (contactType) params.set("contactType", contactType);
+      const res = await fetch(`/api/bling-orders/statistics/top-clients?${params.toString()}`);
+      if (!res.ok) throw new Error("Falha ao buscar top clientes");
+      const json = await res.json();
+      return json.data as TopClient[];
+    },
+    enabled: !!startDate && !!endDate,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useBlingOrderById(blingOrderId: string | null) {
   return useQuery({
     queryKey: ["bling-order", blingOrderId],

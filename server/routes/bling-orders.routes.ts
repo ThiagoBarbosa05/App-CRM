@@ -185,6 +185,11 @@ router.get(
 );
 
 router.get(
+  "/statistics/top-clients",
+  blingOrdersController.getTopClients.bind(blingOrdersController),
+);
+
+router.get(
   "/statistics/cohort/clients",
   blingOrdersController.getCohortClients.bind(blingOrdersController),
 );
