@@ -1146,6 +1146,40 @@ export class BlingOrdersController {
       });
     }
   }
+
+  async getCohortClients(req: Request, res: Response) {
+    try {
+      const schema = z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        cohortMonth: z.string().regex(/^\d{4}-\d{2}$/),
+        monthOffset: z.coerce.number().int().min(0),
+      });
+
+      const query = schema.parse(req.query);
+
+      const clients = await blingOrdersRepository.getCohortClients(
+        query.startDate,
+        query.endDate,
+        query.cohortMonth,
+        query.monthOffset,
+      );
+
+      return res.json({ success: true, data: clients });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar clientes do cohort",
+      });
+    }
+  }
 }
 
 // Instância singleton do controller

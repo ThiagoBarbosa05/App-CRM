@@ -262,7 +262,12 @@ export default function BlingSalesPage() {
           </h2>
           <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
         </div>
-        <CohortAnalysisTable data={cohortData} isLoading={isCohortLoading} />
+        <CohortAnalysisTable
+          data={cohortData}
+          isLoading={isCohortLoading}
+          startDate={formattedStartDate}
+          endDate={formattedEndDate}
+        />
       </div>
 
       <OrdersTable

@@ -649,17 +649,19 @@ export class BlingOrdersRepository {
     const cohorts = Array.from(cohortMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([cohortMonth, data]) => {
-        const retention: (number | null)[] = [];
+        const retention: { percentage: number | null; count: number | null }[] = [];
         for (let i = 0; i <= maxOffset; i++) {
           const count = data.months.get(i);
           if (count !== undefined) {
-            retention.push(
-              data.cohortSize > 0
-                ? Math.round((count / data.cohortSize) * 10000) / 100
-                : 0,
-            );
+            retention.push({
+              percentage:
+                data.cohortSize > 0
+                  ? Math.round((count / data.cohortSize) * 10000) / 100
+                  : 0,
+              count,
+            });
           } else {
-            retention.push(null);
+            retention.push({ percentage: null, count: null });
           }
         }
         return {
@@ -670,6 +672,62 @@ export class BlingOrdersRepository {
       });
 
     return { cohorts, maxMonthOffset: maxOffset };
+  }
+
+  async getCohortClients(
+    startDate: string,
+    endDate: string,
+    cohortMonth: string,
+    monthOffset: number,
+  ) {
+    const result = await db.execute(sql`
+      WITH first_purchase AS (
+        SELECT
+          contact_id,
+          contact_name,
+          MIN(to_char(sale_date::timestamp, 'YYYY-MM')) AS cohort_month
+        FROM ${blingOrders}
+        WHERE deleted_at IS NULL
+          AND contact_id IS NOT NULL
+          AND sale_date >= ${startDate}
+          AND sale_date <= ${endDate}
+        GROUP BY contact_id, contact_name
+      ),
+      target_month AS (
+        SELECT
+          fp.contact_id,
+          fp.contact_name
+        FROM first_purchase fp
+        WHERE fp.cohort_month = ${cohortMonth}
+      ),
+      returning_clients AS (
+        SELECT DISTINCT
+          bo.contact_id,
+          bo.contact_name
+        FROM ${blingOrders} bo
+        JOIN first_purchase fp ON bo.contact_id = fp.contact_id
+        WHERE bo.deleted_at IS NULL
+          AND bo.contact_id IS NOT NULL
+          AND fp.cohort_month = ${cohortMonth}
+          AND (
+            (EXTRACT(YEAR FROM bo.sale_date::timestamp) - EXTRACT(YEAR FROM to_date(fp.cohort_month, 'YYYY-MM'))) * 12
+            + EXTRACT(MONTH FROM bo.sale_date::timestamp) - EXTRACT(MONTH FROM to_date(fp.cohort_month, 'YYYY-MM'))
+          )::int = ${monthOffset}
+      )
+      SELECT
+        tm.contact_id,
+        tm.contact_name,
+        CASE WHEN rc.contact_id IS NOT NULL THEN true ELSE false END AS retained
+      FROM target_month tm
+      LEFT JOIN returning_clients rc ON tm.contact_id = rc.contact_id
+      ORDER BY retained DESC, tm.contact_name
+    `);
+
+    return (result.rows as any[]).map((row) => ({
+      contactId: row.contact_id,
+      contactName: row.contact_name || "Cliente sem nome",
+      retained: row.retained,
+    }));
   }
 
   /**

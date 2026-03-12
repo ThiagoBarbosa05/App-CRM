@@ -513,13 +513,24 @@ export function useCashbackStatistics(startDate: string, endDate: string) {
   });
 }
 
+export interface CohortRetentionSlot {
+  percentage: number | null;
+  count: number | null;
+}
+
 export interface CohortData {
   cohorts: {
     cohortMonth: string;
     cohortSize: number;
-    retention: (number | null)[];
+    retention: CohortRetentionSlot[];
   }[];
   maxMonthOffset: number;
+}
+
+export interface CohortClient {
+  contactId: string;
+  contactName: string;
+  retained: boolean;
 }
 
 export function useCohortAnalysis(startDate: string, endDate: string) {
@@ -536,6 +547,33 @@ export function useCohortAnalysis(startDate: string, endDate: string) {
     },
     enabled: !!startDate && !!endDate,
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useCohortClients(
+  startDate: string,
+  endDate: string,
+  cohortMonth: string | null,
+  monthOffset: number | null,
+) {
+  return useQuery({
+    queryKey: ["bling-cohort-clients", startDate, endDate, cohortMonth, monthOffset],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+        cohortMonth: cohortMonth!,
+        monthOffset: String(monthOffset),
+      });
+      const response = await fetch(
+        `/api/bling-orders/statistics/cohort/clients?${params.toString()}`,
+      );
+      if (!response.ok) throw new Error("Falha ao buscar clientes do cohort");
+      const result = await response.json();
+      return result.data as CohortClient[];
+    },
+    enabled: !!startDate && !!endDate && cohortMonth !== null && monthOffset !== null,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

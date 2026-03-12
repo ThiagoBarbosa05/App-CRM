@@ -184,6 +184,11 @@ router.get(
   blingOrdersController.getCohortAnalysis.bind(blingOrdersController),
 );
 
+router.get(
+  "/statistics/cohort/clients",
+  blingOrdersController.getCohortClients.bind(blingOrdersController),
+);
+
 /**
  * @route   GET /api/bling-orders/:blingOrderId/cashback
  * @desc    Retorna transações de cashback de um pedido específico
