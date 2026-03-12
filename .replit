@@ -27,7 +27,20 @@ externalPort = 3001
 PORT = "5000"
 
 [workflows]
-runButton = "Start VinoCRM"
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Start VinoCRM"
+author = "agent"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[workflows.workflow]]
 name = "Project"
@@ -36,25 +49,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Start VinoCRM"
-author = 44961624
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
+args = "Start VinoCRM"
 
 [agent]
 
