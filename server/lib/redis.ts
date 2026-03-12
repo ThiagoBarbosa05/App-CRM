@@ -200,6 +200,9 @@ export const cacheKeys = {
   cashbackStatistics: (startDate: string, endDate: string) =>
     `bling:stats:cashback:${startDate}:${endDate}`,
 
+  cohortAnalysis: (startDate: string, endDate: string) =>
+    `bling:stats:cohort:${startDate}:${endDate}`,
+
   // Pattern to invalidate all stats caches
   allStats: () => `bling:stats:*`,
 

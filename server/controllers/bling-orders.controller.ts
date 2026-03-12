@@ -1072,6 +1072,80 @@ export class BlingOrdersController {
         .json({ success: false, error: "Erro ao buscar cashback do pedido" });
     }
   }
+  /**
+   * Retorna dados de análise de cohort (retenção de clientes)
+   * GET /api/bling-orders/statistics/cohort
+   */
+  async getCohortAnalysis(req: Request, res: Response) {
+    try {
+      const schema = z
+        .object({
+          startDate: z
+            .string()
+            .regex(
+              /^\d{4}-\d{2}-\d{2}$/,
+              "Data inicial deve estar no formato YYYY-MM-DD",
+            ),
+          endDate: z
+            .string()
+            .regex(
+              /^\d{4}-\d{2}-\d{2}$/,
+              "Data final deve estar no formato YYYY-MM-DD",
+            ),
+        })
+        .refine((data) => new Date(data.startDate) <= new Date(data.endDate), {
+          message: "Data inicial deve ser anterior ou igual à data final",
+          path: ["startDate"],
+        });
+
+      const query = schema.parse(req.query);
+
+      const cacheKey = cacheKeys.cohortAnalysis(
+        query.startDate,
+        query.endDate,
+      );
+      const cachedData = await cache.get(cacheKey);
+
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+        });
+      }
+
+      const cohortData = await blingOrdersRepository.getCohortAnalysis(
+        query.startDate,
+        query.endDate,
+      );
+
+      await cache.set(cacheKey, cohortData, cacheTTL.statistics);
+
+      return res.json({
+        success: true,
+        data: cohortData,
+        cached: false,
+      });
+    } catch (error) {
+      console.error(
+        "[BlingOrdersController] Erro ao buscar análise de cohort:",
+        error,
+      );
+
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: "Erro ao buscar análise de cohort",
+      });
+    }
+  }
 }
 
 // Instância singleton do controller

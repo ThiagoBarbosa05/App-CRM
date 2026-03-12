@@ -9,6 +9,7 @@ import {
   useBlingOrdersForExport,
   useSalesEvolution,
   useCashbackStatistics,
+  useCohortAnalysis,
 } from "@/hooks/use-bling-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportBlingOrdersToExcel } from "@/lib/excel-export";
@@ -23,6 +24,7 @@ import { TopSellersChart } from "@/components/bling-sales/top-sellers-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
 import { OrdersFilters } from "@/components/bling-sales/orders-filters";
 import { OrdersTable } from "@/components/bling-sales/orders-table";
+import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
 
 export default function BlingSalesPage() {
   const { toast } = useToast();
@@ -93,6 +95,8 @@ export default function BlingSalesPage() {
   );
   const { data: cashbackStats, isLoading: isCashbackStatsLoading } =
     useCashbackStatistics(formattedStartDate, formattedEndDate);
+  const { data: cohortData, isLoading: isCohortLoading } =
+    useCohortAnalysis(formattedStartDate, formattedEndDate);
 
   const { data: ordersResponse, isLoading: isOrdersLoading } = useBlingOrders({
     startDate: formattedStartDate,
@@ -249,6 +253,16 @@ export default function BlingSalesPage() {
             isLoading={isTopProductsLoading}
           />
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-1">
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
+            Análise de Cohort
+          </h2>
+          <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+        </div>
+        <CohortAnalysisTable data={cohortData} isLoading={isCohortLoading} />
       </div>
 
       <OrdersTable

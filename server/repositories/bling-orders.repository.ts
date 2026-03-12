@@ -577,6 +577,102 @@ export class BlingOrdersRepository {
   }
 
   /**
+   * Retorna dados de análise de cohort (retenção de clientes por mês de primeira compra)
+   */
+  async getCohortAnalysis(startDate: string, endDate: string) {
+    const result = await db.execute(sql`
+      WITH customer_orders AS (
+        SELECT
+          ${blingOrders.contactId},
+          ${blingOrders.saleDate},
+          to_char(${blingOrders.saleDate}::timestamp, 'YYYY-MM') AS order_month
+        FROM ${blingOrders}
+        WHERE ${blingOrders.deletedAt} IS NULL
+          AND ${blingOrders.contactId} IS NOT NULL
+          AND ${blingOrders.saleDate} >= ${startDate}
+          AND ${blingOrders.saleDate} <= ${endDate}
+      ),
+      first_purchase AS (
+        SELECT
+          contact_id,
+          MIN(order_month) AS cohort_month
+        FROM customer_orders
+        GROUP BY contact_id
+      ),
+      cohort_data AS (
+        SELECT
+          fp.cohort_month,
+          co.order_month,
+          (
+            (EXTRACT(YEAR FROM to_date(co.order_month, 'YYYY-MM')) - EXTRACT(YEAR FROM to_date(fp.cohort_month, 'YYYY-MM'))) * 12
+            + EXTRACT(MONTH FROM to_date(co.order_month, 'YYYY-MM')) - EXTRACT(MONTH FROM to_date(fp.cohort_month, 'YYYY-MM'))
+          )::int AS month_offset,
+          COUNT(DISTINCT co.contact_id) AS customer_count
+        FROM customer_orders co
+        JOIN first_purchase fp ON co.contact_id = fp.contact_id
+        GROUP BY fp.cohort_month, co.order_month
+      ),
+      cohort_sizes AS (
+        SELECT cohort_month, COUNT(DISTINCT contact_id) AS cohort_size
+        FROM first_purchase
+        GROUP BY cohort_month
+      )
+      SELECT
+        cd.cohort_month,
+        cs.cohort_size::int,
+        cd.month_offset,
+        cd.customer_count::int
+      FROM cohort_data cd
+      JOIN cohort_sizes cs ON cd.cohort_month = cs.cohort_month
+      ORDER BY cd.cohort_month, cd.month_offset
+    `);
+
+    const cohortMap = new Map<string, { cohortSize: number; months: Map<number, number> }>();
+
+    for (const row of result.rows as any[]) {
+      const cohortMonth = row.cohort_month as string;
+      const cohortSize = Number(row.cohort_size);
+      const monthOffset = Number(row.month_offset);
+      const customerCount = Number(row.customer_count);
+
+      if (!cohortMap.has(cohortMonth)) {
+        cohortMap.set(cohortMonth, { cohortSize, months: new Map() });
+      }
+      cohortMap.get(cohortMonth)!.months.set(monthOffset, customerCount);
+    }
+
+    const maxOffset = Math.max(
+      0,
+      ...Array.from(cohortMap.values()).flatMap((c) => Array.from(c.months.keys())),
+    );
+
+    const cohorts = Array.from(cohortMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cohortMonth, data]) => {
+        const retention: (number | null)[] = [];
+        for (let i = 0; i <= maxOffset; i++) {
+          const count = data.months.get(i);
+          if (count !== undefined) {
+            retention.push(
+              data.cohortSize > 0
+                ? Math.round((count / data.cohortSize) * 10000) / 100
+                : 0,
+            );
+          } else {
+            retention.push(null);
+          }
+        }
+        return {
+          cohortMonth,
+          cohortSize: data.cohortSize,
+          retention,
+        };
+      });
+
+    return { cohorts, maxMonthOffset: maxOffset };
+  }
+
+  /**
    * Busca transações de cashback para um pedido específico pelo número do pedido
    */
   async getCashbackForOrder(

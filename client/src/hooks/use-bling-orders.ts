@@ -513,6 +513,32 @@ export function useCashbackStatistics(startDate: string, endDate: string) {
   });
 }
 
+export interface CohortData {
+  cohorts: {
+    cohortMonth: string;
+    cohortSize: number;
+    retention: (number | null)[];
+  }[];
+  maxMonthOffset: number;
+}
+
+export function useCohortAnalysis(startDate: string, endDate: string) {
+  return useQuery({
+    queryKey: ["bling-cohort-analysis", startDate, endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate });
+      const response = await fetch(
+        `/api/bling-orders/statistics/cohort?${params.toString()}`,
+      );
+      if (!response.ok) throw new Error("Falha ao buscar análise de cohort");
+      const result = await response.json();
+      return result.data as CohortData;
+    },
+    enabled: !!startDate && !!endDate,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useOrderCashback(blingOrderId: string | null) {
   return useQuery({
     queryKey: ["bling-order-cashback", blingOrderId],

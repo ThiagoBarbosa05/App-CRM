@@ -171,6 +171,20 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bling-orders/statistics/cohort
+ * @desc    Retorna dados de análise de cohort (retenção de clientes por mês)
+ * @query   {
+ *   startDate: string,   // YYYY-MM-DD (obrigatório)
+ *   endDate: string,     // YYYY-MM-DD (obrigatório)
+ * }
+ * @access  Private
+ */
+router.get(
+  "/statistics/cohort",
+  blingOrdersController.getCohortAnalysis.bind(blingOrdersController),
+);
+
+/**
  * @route   GET /api/bling-orders/:blingOrderId/cashback
  * @desc    Retorna transações de cashback de um pedido específico
  * @access  Private
