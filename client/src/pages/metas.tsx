@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { WeeklyResultModal } from "@/components/admin-goals/modals/weekly-result-modal";
 
 // Components
 import { GoalsHeader } from "@/components/goals/goals-header";
@@ -12,11 +13,20 @@ import { ActivityGoalsSections } from "@/components/goals/activity-goals-section
 export default function Metas() {
   const { user } = useAuth();
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.getMonth() + 1,
+  );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [selectedGoalForResults, setSelectedGoalForResults] = useState<
+    any | null
+  >(null);
+
   // Queries
-  const { data: userGoals = [], isLoading: isUserGoalsLoading } = useQuery<any[]>({
+  const { data: userGoals = [], isLoading: isUserGoalsLoading } = useQuery<
+    any[]
+  >({
     queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
   });
 
@@ -33,11 +43,15 @@ export default function Metas() {
   });
 
   const { data: clientRegistrationGoals = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+    queryKey: [
+      `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+    ],
   });
 
   const { data: clientRegistrationStats = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-registration-stats/${selectedMonth}/${selectedYear}`],
+    queryKey: [
+      `/api/client-registration-stats/${selectedMonth}/${selectedYear}`,
+    ],
   });
 
   const { data: markerGoals = [] } = useQuery<any[]>({
@@ -64,7 +78,7 @@ export default function Metas() {
 
   const getTotalAchieved = (
     weeklyResults: any[],
-    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved"
+    field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
   ) => {
     if (!weeklyResults || !Array.isArray(weeklyResults)) return 0;
     return weeklyResults.reduce((sum, result) => {
@@ -94,27 +108,50 @@ export default function Metas() {
   };
 
   // Filter Logic
-  const isManager = user?.role === "admin" || user?.role === "gerente" || user?.role === "administrador";
+  const isManager =
+    user?.role === "admin" ||
+    user?.role === "gerente" ||
+    user?.role === "administrador";
 
-  const filteredGoals = useMemo(() => 
-    isManager ? userGoals : userGoals.filter((goal) => goal.userId === user?.id),
-  [userGoals, isManager, user?.id]);
+  const filteredGoals = useMemo(
+    () =>
+      isManager
+        ? userGoals
+        : userGoals.filter((goal) => goal.userId === user?.id),
+    [userGoals, isManager, user?.id],
+  );
 
-  const filteredTelemarketingGoals = useMemo(() => 
-    isManager ? telemarketingGoals : telemarketingGoals.filter((goal) => goal.userId === user?.id),
-  [telemarketingGoals, isManager, user?.id]);
+  const filteredTelemarketingGoals = useMemo(
+    () =>
+      isManager
+        ? telemarketingGoals
+        : telemarketingGoals.filter((goal) => goal.userId === user?.id),
+    [telemarketingGoals, isManager, user?.id],
+  );
 
-  const filteredClientRegistrationGoals = useMemo(() => 
-    isManager ? clientRegistrationGoals : clientRegistrationGoals.filter((goal) => goal.userId === user?.id),
-  [clientRegistrationGoals, isManager, user?.id]);
+  const filteredClientRegistrationGoals = useMemo(
+    () =>
+      isManager
+        ? clientRegistrationGoals
+        : clientRegistrationGoals.filter((goal) => goal.userId === user?.id),
+    [clientRegistrationGoals, isManager, user?.id],
+  );
 
-  const filteredMarkerGoals = useMemo(() => 
-    isManager ? markerGoals : markerGoals.filter((goal) => goal.userId === user?.id),
-  [markerGoals, isManager, user?.id]);
+  const filteredMarkerGoals = useMemo(
+    () =>
+      isManager
+        ? markerGoals
+        : markerGoals.filter((goal) => goal.userId === user?.id),
+    [markerGoals, isManager, user?.id],
+  );
 
-  const filteredInteractionGoals = useMemo(() => 
-    isManager ? interactionGoals : interactionGoals.filter((goal) => goal.userId === user?.id),
-  [interactionGoals, isManager, user?.id]);
+  const filteredInteractionGoals = useMemo(
+    () =>
+      isManager
+        ? interactionGoals
+        : interactionGoals.filter((goal) => goal.userId === user?.id),
+    [interactionGoals, isManager, user?.id],
+  );
 
   if (isUserGoalsLoading) {
     return (
@@ -122,7 +159,10 @@ export default function Metas() {
         <div className="h-24 bg-slate-100 dark:bg-slate-800 rounded-2xl w-full" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+            <div
+              key={i}
+              className="h-64 bg-slate-100 dark:bg-slate-800 rounded-2xl"
+            />
           ))}
         </div>
       </div>
@@ -144,7 +184,8 @@ export default function Metas() {
             <BarChart3 className="h-4 w-4" />
           </div>
           <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
-            Os resultados semanais são cadastrados pelos gerentes e administradores do sistema.
+            Os resultados semanais são cadastrados pelos gerentes e
+            administradores do sistema.
           </p>
         </div>
       )}
@@ -154,6 +195,19 @@ export default function Metas() {
         formatCurrency={formatCurrency}
         calculatePercentage={calculatePercentage}
         getTotalAchieved={getTotalAchieved}
+        isAdmin={isManager}
+        onAddResult={(goal) => {
+          setSelectedGoalForResults(goal);
+          setIsResultModalOpen(true);
+        }}
+      />
+
+      <WeeklyResultModal
+        open={isResultModalOpen}
+        onOpenChange={setIsResultModalOpen}
+        selectedGoal={selectedGoalForResults}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
       />
 
       <TelemarketingGoalsGrid
