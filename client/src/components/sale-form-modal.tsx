@@ -688,7 +688,10 @@ export default function SaleFormModal({
                         disabled={createChatMutation.isPending || !contactId}
                         onClick={() =>
                           createChatMutation.mutate(
-                            { contactId: contactId! },
+                            {
+                              contactId: contactId!,
+                              phone: selectedClient.phone,
+                            },
                             {
                               onSuccess: () => {
                                 queryClient.invalidateQueries({

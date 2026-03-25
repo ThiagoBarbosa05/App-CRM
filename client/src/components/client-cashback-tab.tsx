@@ -270,6 +270,7 @@ export function ClientCashbackTab({
                         onClick={() =>
                           createChatMutation.mutate({
                             contactId: contactId!,
+                            phone: client.phone,
                           })
                         }
                         size="sm"
@@ -396,6 +397,7 @@ export function ClientCashbackTab({
                               await startBotOnChatMutation.mutateAsync({
                                 botId: botCashback.result.id,
                                 chatId: contactChat.items[0].id,
+                                phone: client.phone,
                                 triggerName: "Início",
                               })
                             }

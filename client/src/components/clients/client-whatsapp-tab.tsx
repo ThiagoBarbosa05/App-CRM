@@ -186,6 +186,7 @@ export function ClientWhatsAppTab({
                                           startBotOnChatMutation.mutateAsync({
                                             botId: bot.id,
                                             chatId: contactChat.items[0].id,
+                                            phone: clientPhone,
                                             triggerName: "Boas vindas",
                                           })
                                         }
@@ -214,6 +215,7 @@ export function ClientWhatsAppTab({
                                           startBotOnChatMutation.mutateAsync({
                                             botId: bot.id,
                                             chatId: contactChat.items[0].id,
+                                            phone: clientPhone,
                                             triggerName: "Início",
                                           })
                                         }
@@ -270,6 +272,7 @@ export function ClientWhatsAppTab({
                           onClick={async () =>
                             createChatMutation.mutateAsync({
                               contactId: umblerContact?.id,
+                              phone: clientPhone,
                             })
                           }
                           className="bg-green-600 hover:bg-green-700 text-white shadow-sm"

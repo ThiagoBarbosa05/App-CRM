@@ -53,6 +53,17 @@ interface Client {
   email?: string;
 }
 
+interface UmblerChat {
+  id: string;
+  lastMessage?: {
+    content: string;
+  } | null;
+}
+
+interface UmblerChatList {
+  items: UmblerChat[];
+}
+
 // Busca contato Umbler por telefone
 export function useUmblerContact(phone?: string, enabled: boolean = true) {
   return useQuery({
@@ -163,9 +174,18 @@ export function useUmblerBotCashback(
 export function useCreateUmblerChat(userId?: string, userRole?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ contactId }: { contactId: string }) => {
+    mutationFn: async ({
+      contactId,
+      phone,
+    }: {
+      contactId: string;
+      phone: string;
+    }) => {
       if (!contactId) {
         throw new Error("Contact ID é obrigatório para criar o chat");
+      }
+      if (!phone) {
+        throw new Error("Telefone é obrigatório para atualizar o chat");
       }
 
       const response = await fetch(`/api/umbler/chats`, {
@@ -181,10 +201,28 @@ export function useCreateUmblerChat(userId?: string, userRole?: string) {
       return response.json();
     },
     onSuccess: (data, variables) => {
-      // Invalidar todas as queries de contactChat para garantir atualização
-      queryClient.invalidateQueries({ 
-        queryKey: ["contactChat"],
-        refetchType: "all"
+      const newChat = data?.newChat as UmblerChat | undefined;
+
+      if (newChat) {
+        queryClient.setQueryData<UmblerChatList>(
+          ["contactChat", variables.phone],
+          (old) => {
+            const currentItems = old?.items ?? [];
+            const hasChat = currentItems.some((chat) => chat.id === newChat.id);
+
+            if (hasChat) {
+              return old ?? { items: currentItems };
+            }
+
+            return {
+              items: [newChat, ...currentItems],
+            };
+          },
+        );
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: ["contactChat", variables.phone],
       });
       toast({
         title: "Chat criado com sucesso",
@@ -315,10 +353,12 @@ export function useStartUmblerBot(userId?: string, userRole?: string) {
       chatId,
       botId,
       triggerName,
+      phone,
     }: {
       chatId: string;
       botId: string;
       triggerName: string;
+      phone?: string;
     }) => {
       if (!chatId) {
         throw new Error("Chat ID é obrigatório para iniciar o bot");
@@ -344,7 +384,9 @@ export function useStartUmblerBot(userId?: string, userRole?: string) {
     },
     onSuccess: (response, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["contactChat", variables.chatId],
+        queryKey: variables.phone
+          ? ["contactChat", variables.phone]
+          : ["contactChat"],
       });
       toast({
         title: "Bot iniciado com sucesso",
@@ -563,7 +605,10 @@ export function useUmblerCashbackAutomation(
         if (!chatData.items || chatData.items.length === 0) {
           // Não há chat - criar um
           toast({ title: "Criando chat..." });
-          const newChatResult = await createChat.mutateAsync({ contactId });
+          const newChatResult = await createChat.mutateAsync({
+            contactId,
+            phone: client.phone,
+          });
           chatId = newChatResult.newChat.id;
         } else {
           chatId = chatData.items[0].id;
