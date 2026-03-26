@@ -64,6 +64,58 @@ interface UmblerChatList {
   items: UmblerChat[];
 }
 
+export type PendingUmblerChatStatus =
+  | "idle"
+  | "creating"
+  | "waiting_confirmation"
+  | "confirmed"
+  | "failed";
+
+export interface PendingUmblerChatCreation {
+  status: PendingUmblerChatStatus;
+  requestedAt: number | null;
+  lastKnownChatId: string | null;
+  attemptCount: number;
+}
+
+export const UMBLER_CHAT_CONFIRMATION_POLL_INTERVAL_MS = 3000;
+export const UMBLER_CHAT_CONFIRMATION_TIMEOUT_MS = 45000;
+
+const EMPTY_UMBLER_CHAT_LIST: UmblerChatList = {
+  items: [],
+};
+
+function getInitialPendingUmblerChatCreation(): PendingUmblerChatCreation {
+  return {
+    status: "idle",
+    requestedAt: null,
+    lastKnownChatId: null,
+    attemptCount: 0,
+  };
+}
+
+export function getPendingUmblerChatCreationQueryKey(phone?: string) {
+  return ["pendingUmblerChatCreation", phone] as const;
+}
+
+export function usePendingUmblerChatCreation(phone?: string) {
+  const queryClient = useQueryClient();
+
+  return useQuery<PendingUmblerChatCreation>({
+    queryKey: getPendingUmblerChatCreationQueryKey(phone),
+    queryFn: () =>
+      Promise.resolve(
+        queryClient.getQueryData<PendingUmblerChatCreation>(
+          getPendingUmblerChatCreationQueryKey(phone),
+        ) ?? getInitialPendingUmblerChatCreation(),
+      ),
+    enabled: !!phone,
+    initialData: getInitialPendingUmblerChatCreation,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: UMBLER_CHAT_CONFIRMATION_TIMEOUT_MS * 4,
+  });
+}
+
 // Busca contato Umbler por telefone
 export function useUmblerContact(phone?: string, enabled: boolean = true) {
   return useQuery({
@@ -83,6 +135,8 @@ export function useUmblerContactChats(
   userId?: string,
   enabled: boolean = true
 ) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ["contactChat", phone],
     queryFn: async () => {
@@ -94,10 +148,32 @@ export function useUmblerContactChats(
           },
         }
       );
-      if (!response.ok) throw new Error("Failed to fetch chat");
+
+      if (response.status === 404) {
+        return EMPTY_UMBLER_CHAT_LIST;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat");
+      }
+
       return response.json();
     },
     enabled: !!phone && !!userId && enabled,
+    placeholderData: EMPTY_UMBLER_CHAT_LIST,
+    refetchInterval: () => {
+      if (!phone) {
+        return false;
+      }
+
+      const pendingState = queryClient.getQueryData<PendingUmblerChatCreation>(
+        getPendingUmblerChatCreationQueryKey(phone),
+      );
+
+      return pendingState?.status === "waiting_confirmation"
+        ? UMBLER_CHAT_CONFIRMATION_POLL_INTERVAL_MS
+        : false;
+    },
   });
 }
 
@@ -197,39 +273,63 @@ export function useCreateUmblerChat(userId?: string, userRole?: string) {
         },
         body: JSON.stringify({ contactId, userId }),
       });
-      if (!response.ok) throw new Error("Failed to create chat");
+
+      if (!response.ok) {
+        let errorMessage = "Failed to create chat";
+
+        try {
+          const errorData = (await response.json()) as { message?: string };
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Ignora falha ao interpretar resposta de erro
+        }
+
+        throw new Error(errorMessage);
+      }
+
       return response.json();
+    },
+    onMutate: async (variables) => {
+      queryClient.setQueryData<PendingUmblerChatCreation>(
+        getPendingUmblerChatCreationQueryKey(variables.phone),
+        (current) => ({
+          ...(current ?? getInitialPendingUmblerChatCreation()),
+          status: "creating",
+          requestedAt: Date.now(),
+          lastKnownChatId: null,
+          attemptCount: (current?.attemptCount ?? 0) + 1,
+        }),
+      );
     },
     onSuccess: (data, variables) => {
       const newChat = data?.newChat as UmblerChat | undefined;
 
-      if (newChat) {
-        queryClient.setQueryData<UmblerChatList>(
-          ["contactChat", variables.phone],
-          (old) => {
-            const currentItems = old?.items ?? [];
-            const hasChat = currentItems.some((chat) => chat.id === newChat.id);
+      queryClient.setQueryData<PendingUmblerChatCreation>(
+        getPendingUmblerChatCreationQueryKey(variables.phone),
+        (current) => ({
+          ...(current ?? getInitialPendingUmblerChatCreation()),
+          status: "waiting_confirmation",
+          requestedAt: current?.requestedAt ?? Date.now(),
+          lastKnownChatId: newChat?.id ?? null,
+          attemptCount: current?.attemptCount ?? 1,
+        }),
+      );
 
-            if (hasChat) {
-              return old ?? { items: currentItems };
-            }
-
-            return {
-              items: [newChat, ...currentItems],
-            };
-          },
-        );
-      }
-
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: ["contactChat", variables.phone],
+        type: "active",
       });
       toast({
-        title: "Chat criado com sucesso",
-        description: "O chat foi criado no WhatsApp",
+        title: "Solicitação enviada",
+        description: "Aguardando confirmação do chat pelo Umbler.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error, variables) => {
+      queryClient.setQueryData<PendingUmblerChatCreation>(
+        getPendingUmblerChatCreationQueryKey(variables.phone),
+        getInitialPendingUmblerChatCreation(),
+      );
+
       toast({
         title: "Erro ao criar chat",
         description: error.message || "Não foi possível criar o chat",

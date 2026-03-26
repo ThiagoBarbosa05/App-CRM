@@ -666,7 +666,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactId,
       });
 
-      res.status(201).json({ message: "Chat criado com sucesso", newChat });
+      if (!newChat) {
+        return res.status(502).json({
+          message: "O Umbler não confirmou a solicitação de criação do chat",
+        });
+      }
+
+      res.status(201).json({
+        status: "requested",
+        message: "Solicitação de criação do chat enviada com sucesso",
+        contactId,
+        channelId: user.channelId,
+        newChat,
+      });
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       res.status(500).json({ message: "Erro ao enviar mensagem" });
