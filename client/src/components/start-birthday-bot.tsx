@@ -29,11 +29,11 @@ const LoadingIndicator = ({ text }: { text: string }) => (
 
 export function StartBirthdayBot({
   client,
-  isOpen,
+  open,
   onOpenChange,
 }: {
   client: Client;
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
   const { user } = useAuth();
@@ -46,7 +46,7 @@ export function StartBirthdayBot({
       if (!response.ok) throw new Error("Failed to fetch umbler contacts");
       return response.json();
     },
-    enabled: !!isOpen && !!client,
+    enabled: !!open && !!client,
   });
 
   const { data: contactChat, isLoading: isLoadingChats } = useQuery({
@@ -68,7 +68,7 @@ export function StartBirthdayBot({
 
       return await response.json();
     },
-    enabled: !!client?.phone && isOpen,
+    enabled: !!client?.phone && open,
   });
 
   const { data: bots, isLoading: isLoadingBots } =
@@ -86,7 +86,7 @@ export function StartBirthdayBot({
         }
         return response.json();
       },
-      enabled: !!isOpen && !!contactChat,
+      enabled: !!open && !!contactChat,
     });
 
   const syncCustomer = useMutation({
@@ -341,7 +341,7 @@ export function StartBirthdayBot({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center pt-4">
           <div className="mx-auto mb-2 bg-bordeaux-100 text-bordeaux-700 p-3 rounded-full">
