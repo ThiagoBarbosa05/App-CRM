@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import DealFormModal from "./deal-form-modal";
-import ClientDetailsCard from "./client-details-card";
 import ClientFormModal from "./client-form-modal";
 import DealDetailsModal from "./deal-details-modal";
 import CompanyDetailsModal from "./company-details-modal";
@@ -73,12 +73,7 @@ export default function FunnelKanbanBoard({
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<
-    DealWithClient["client"] | null
-  >(null);
-  const [editingClient, setEditingClient] = useState<
-    DealWithClient["client"] | null
-  >(null);
+  const [, navigate] = useLocation();
   const [selectedCompany, setSelectedCompany] = useState<
     DealWithClient["company"] | null
   >(null);
@@ -676,22 +671,6 @@ export default function FunnelKanbanBoard({
           funnelId={funnelId}
         />
       )}
-      <ClientDetailsCard
-        client={selectedClient || null}
-        open={!!selectedClient}
-        onOpenChange={(open) => !open && setSelectedClient(null)}
-        onEdit={(client) => {
-          setSelectedClient(null);
-          setEditingClient(client);
-        }}
-      />
-      {editingClient && (
-        <ClientFormModal
-          open={!!editingClient}
-          onOpenChange={(open) => !open && setEditingClient(null)}
-          client={editingClient}
-        />
-      )}
       <CompanyDetailsModal
         company={selectedCompany || null}
         isOpen={!!selectedCompany}
@@ -715,7 +694,7 @@ export default function FunnelKanbanBoard({
         }}
         onClientClick={(client) => {
           setSelectedDeal(null);
-          setSelectedClient(client);
+          if (client) navigate(`/clientes/${client.id}`);
         }}
         onCompanyClick={(company) => {
           setSelectedDeal(null);

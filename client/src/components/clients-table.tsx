@@ -8,8 +8,8 @@ import { User, Edit, Trash2, Eye, DollarSign } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import ClientFormModal from "./client-form-modal";
-import ClientDetailsCard from "./client-details-card";
 import SaleFormModal from "./sale-form-modal";
 import {
   AlertDialog,
@@ -35,9 +35,9 @@ export default function ClientsTable({
   filters,
 }: ClientsTableProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [saleClient, setSaleClient] = useState<Client | null>(null);
 
   const { user } = useAuth();
@@ -224,7 +224,7 @@ export default function ClientsTable({
                         </div>
                         <div className="ml-4">
                           <button
-                            onClick={() => setSelectedClient(client)}
+                            onClick={() => navigate(`/clientes/${client.id}`)}
                             className="text-sm font-medium text-wine-600 hover:text-wine-800 underline text-left"
                           >
                             {client.name}
@@ -331,9 +331,9 @@ export default function ClientsTable({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSelectedClient(client)}
+                        onClick={() => navigate(`/clientes/${client.id}`)}
                         className="text-blue-600 hover:text-blue-900 mr-2"
-                        title="Ver detalhes"
+                        title="Ver perfil completo"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -371,16 +371,6 @@ export default function ClientsTable({
           client={editingClient}
         />
       )}
-
-      <ClientDetailsCard
-        client={selectedClient}
-        open={!!selectedClient}
-        onOpenChange={(open) => !open && setSelectedClient(null)}
-        onEdit={(client) => {
-          setSelectedClient(null);
-          setEditingClient(client);
-        }}
-      />
 
       <SaleFormModal
         client={saleClient}

@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import { CreditCard, Calendar, TrendingUp } from "lucide-react";
-import ClientDetailsCard from "@/components/client-details-card";
 import EventsDashboard from "@/components/events-dashboard";
 
 import { ClientDebt, DashboardStats } from "@/types/dashboard";
@@ -15,7 +14,7 @@ import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-ta
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [, navigate] = useLocation();
 
   // Buscar estatísticas do dashboard
   const { data: stats } = useQuery<DashboardStats>({
@@ -197,7 +196,7 @@ export default function Dashboard() {
             >
               <DashboardDebtsTab 
                 pendingDebts={pendingDebts} 
-                setSelectedClient={setSelectedClient} 
+                setSelectedClient={(client) => navigate(`/clientes/${client.id}`)} 
               />
             </TabsContent>
 
@@ -207,7 +206,7 @@ export default function Dashboard() {
             >
               <DashboardBirthdaysTab 
                 upcomingBirthdays={upcomingBirthdays} 
-                setSelectedClient={setSelectedClient} 
+                setSelectedClient={(client) => navigate(`/clientes/${client.id}`)} 
               />
             </TabsContent>
 
@@ -230,11 +229,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <ClientDetailsCard
-        client={selectedClient}
-        open={!!selectedClient}
-        onOpenChange={(open) => !open && setSelectedClient(null)}
-      />
     </div>
   );
 }

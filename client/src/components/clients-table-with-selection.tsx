@@ -26,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
 import { formatDate } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
-import ClientDetailsModal from "./client-details-modal";
+import { useLocation } from "wouter";
 import SaleFormModal from "./sale-form-modal";
 import ConfirmClientModal from "./confirm-client-modal";
 import { type Client } from "@shared/schema";
@@ -61,7 +61,7 @@ export default function ClientsTableWithSelection({
 }: ClientsTableWithSelectionProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [, navigate] = useLocation();
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [confirmingClient, setConfirmingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -349,7 +349,7 @@ export default function ClientsTableWithSelection({
                     ) {
                       return;
                     }
-                    setViewingClient(client);
+                    navigate(`/clientes/${client.id}`);
                   }}
                 >
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
@@ -676,16 +676,6 @@ export default function ClientsTableWithSelection({
           client={editingClient}
         />
       )}
-
-      <ClientDetailsModal
-        client={viewingClient}
-        isOpen={!!viewingClient}
-        onClose={() => setViewingClient(null)}
-        onEdit={(client) => {
-          setViewingClient(null);
-          setEditingClient(client);
-        }}
-      />
 
       <SaleFormModal
         client={saleClient}

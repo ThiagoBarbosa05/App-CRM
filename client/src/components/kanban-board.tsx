@@ -6,8 +6,8 @@ import { DealWithClient } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import DealFormModal from "./deal-form-modal";
-import ClientDetailsCard from "./client-details-card";
 import ClientFormModal from "./client-form-modal";
 import {
   AlertDialog,
@@ -42,11 +42,10 @@ const stages = [
 
 export default function KanbanBoard() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [deletingDeal, setDeletingDeal] = useState<DealWithClient | null>(null);
   const [draggedDeal, setDraggedDeal] = useState<DealWithClient | null>(null);
-  const [selectedClient, setSelectedClient] = useState<DealWithClient['client'] | null>(null);
-  const [editingClient, setEditingClient] = useState<DealWithClient['client'] | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["/api/deals"],
@@ -196,7 +195,7 @@ export default function KanbanBoard() {
                       <p className="text-sm text-gray-600 mb-3">
                         {deal.client ? (
                           <>Cliente: <button 
-                            onClick={() => setSelectedClient(deal.client)}
+                            onClick={() => deal.client && navigate(`/clientes/${deal.client.id}`)}
                             className="text-wine-600 hover:text-wine-800 underline font-medium"
                           >
                             {deal.client.name}
@@ -258,25 +257,6 @@ export default function KanbanBoard() {
         />
       )}
 
-      {selectedClient && (
-        <ClientDetailsCard
-          client={selectedClient}
-          open={!!selectedClient}
-          onOpenChange={(open) => !open && setSelectedClient(null)}
-          onEdit={(client) => {
-            setSelectedClient(null);
-            setEditingClient(client);
-          }}
-        />
-      )}
-
-      {editingClient && (
-        <ClientFormModal
-          open={!!editingClient}
-          onOpenChange={(open) => !open && setEditingClient(null)}
-          client={editingClient}
-        />
-      )}
 
       <AlertDialog open={!!deletingDeal} onOpenChange={(open) => !open && setDeletingDeal(null)}>
         <AlertDialogContent>
