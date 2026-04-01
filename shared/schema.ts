@@ -38,6 +38,7 @@ export const users = pgTable("users", {
     .default("vendedor"),
   isActive: text("is_active").notNull().default("true"),
   blingVendedorId: text("bling_vendedor_id"),
+  blingVendedorName: text("bling_vendedor_name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

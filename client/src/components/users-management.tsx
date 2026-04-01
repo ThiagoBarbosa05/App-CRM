@@ -99,6 +99,7 @@ export default function UsersManagement() {
     queryKey: ["/api/users"],
   });
 
+
   const filteredUsers = useMemo(() => {
     if (!debouncedSearchTerm) return users;
     return (users || []).filter(
@@ -348,6 +349,15 @@ export default function UsersManagement() {
                               {user.serviceChannel.name}
                               {user.serviceChannel.phoneNumber &&
                                 ` - ${user.serviceChannel.phoneNumber}`}
+                            </span>
+                          </div>
+                        )}
+
+                        {user.blingVendedorId && (
+                          <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400 mb-1">
+                            <Store className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate font-medium">
+                              {user.blingVendedorName ?? user.blingVendedorId}
                             </span>
                           </div>
                         )}

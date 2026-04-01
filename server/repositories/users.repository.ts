@@ -31,6 +31,8 @@ export class UsersRepository {
           password: users.password,
           role: users.role,
           isActive: users.isActive,
+          blingVendedorId: users.blingVendedorId,
+          blingVendedorName: users.blingVendedorName,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           serviceChannel: {

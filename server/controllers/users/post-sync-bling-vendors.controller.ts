@@ -6,6 +6,7 @@ import { users } from "../../../shared/schema";
 interface VendorMapping {
   userId: string;
   blingVendedorId: string | null;
+  blingVendedorName: string | null;
 }
 
 export async function syncBlingVendorsController(req: Request, res: Response) {
@@ -23,7 +24,7 @@ export async function syncBlingVendorsController(req: Request, res: Response) {
     for (const mapping of mappings) {
       const result = await db
         .update(users)
-        .set({ blingVendedorId: mapping.blingVendedorId, updatedAt: new Date() })
+        .set({ blingVendedorId: mapping.blingVendedorId, blingVendedorName: mapping.blingVendedorName, updatedAt: new Date() })
         .where(eq(users.id, mapping.userId));
 
       if (result.rowCount && result.rowCount > 0) {

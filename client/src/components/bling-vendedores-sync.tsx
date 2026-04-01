@@ -55,10 +55,16 @@ export default function BlingVendedoresSync() {
   function handleSave() {
     if (!users) return;
 
-    const payload = users.map((u) => ({
-      userId: u.id,
-      blingVendedorId: mappings.get(u.id) ?? null,
-    }));
+    const payload = users.map((u) => {
+      const val = mappings.get(u.id) ?? null;
+      const effectiveId = val === "__none__" ? null : val;
+      const vendor = blingVendedores?.find((v) => String(v.id) === effectiveId);
+      return {
+        userId: u.id,
+        blingVendedorId: effectiveId,
+        blingVendedorName: effectiveId ? (vendor?.contato.nome ?? null) : null,
+      };
+    });
 
     syncMutation.mutate(payload);
   }
@@ -171,10 +177,10 @@ export default function BlingVendedoresSync() {
 
                   <TableCell className="min-w-[220px]">
                     <Select
-                      value={mappings.get(user.id) ?? ""}
+                      value={mappings.get(user.id) ?? "__none__"}
                       onValueChange={(value) =>
                         setMappings((prev) =>
-                          new Map(prev).set(user.id, value === "" ? null : value),
+                          new Map(prev).set(user.id, value === "__none__" ? null : value),
                         )
                       }
                       disabled={!blingVendedores || !!isNoBlingAccount}
@@ -183,7 +189,7 @@ export default function BlingVendedoresSync() {
                         <SelectValue placeholder="— Não vinculado —" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Não vinculado —</SelectItem>
+                        <SelectItem value="__none__">— Não vinculado —</SelectItem>
                         {blingVendedores?.map((v) => (
                           <SelectItem key={v.id} value={String(v.id)}>
                             {v.contato.nome}

@@ -32,7 +32,8 @@ interface LinkBlingVendorModalProps {
 }
 
 export function LinkBlingVendorModal({ user, open, onOpenChange }: LinkBlingVendorModalProps) {
-  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const UNLINKED = "__none__";
+  const [selectedVendorId, setSelectedVendorId] = useState<string>(UNLINKED);
 
   const { data: blingVendedores, isLoading, error } = useBlingVendedores();
   const syncMutation = useSyncBlingVendors();
@@ -43,13 +44,19 @@ export function LinkBlingVendorModal({ user, open, onOpenChange }: LinkBlingVend
   // Sincroniza o select com o valor salvo do usuário ao abrir
   useEffect(() => {
     if (open) {
-      setSelectedVendorId(user.blingVendedorId ?? "");
+      setSelectedVendorId(user.blingVendedorId ?? UNLINKED);
     }
   }, [open, user.blingVendedorId]);
 
   function handleSave() {
+    const isUnlinked = selectedVendorId === UNLINKED;
+    const selected = blingVendedores?.find((v) => String(v.id) === selectedVendorId);
     syncMutation.mutate(
-      [{ userId: user.id, blingVendedorId: selectedVendorId === "" ? null : selectedVendorId }],
+      [{
+        userId: user.id,
+        blingVendedorId: isUnlinked ? null : selectedVendorId,
+        blingVendedorName: isUnlinked ? null : (selected?.contato.nome ?? null),
+      }],
       { onSuccess: () => onOpenChange(false) },
     );
   }
@@ -89,7 +96,7 @@ export function LinkBlingVendorModal({ user, open, onOpenChange }: LinkBlingVend
               <SelectValue placeholder={isLoading ? "Carregando vendedores..." : "— Não vinculado —"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">— Não vinculado —</SelectItem>
+              <SelectItem value={UNLINKED}>— Não vinculado —</SelectItem>
               {blingVendedores?.map((v) => (
                 <SelectItem key={v.id} value={String(v.id)}>
                   {v.contato.nome}
