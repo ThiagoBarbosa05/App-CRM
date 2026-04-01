@@ -10,6 +10,7 @@ import { deleteClientsBulkController } from "../controllers/clients/delete-clien
 import { confirmClientController } from "../controllers/clients/confirm-client.controller";
 import { getClientInteractionsController } from "../controllers/clients/get-client-interactions.controller";
 import { getClientFunnelsController } from "../controllers/clients/get-client-funnels.controller";
+import { getClientByIdController } from "../controllers/clients/get-client-by-id.controller";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -69,6 +70,15 @@ clientsRouter.get("/without-contact", getClientsWithoutContactController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.get("/export-all", getClientsExportAllController);
+
+/**
+ * @route GET /api/clients/:id
+ * @description Busca um cliente específico por ID
+ * @access Private
+ * @urlParams {string} id - ID do cliente
+ * @returns {object} Cliente encontrado ou erro 404
+ */
+clientsRouter.get("/:id", getClientByIdController);
 
 /**
  * @route GET /api/clients/:clientId/interactions
@@ -186,6 +196,7 @@ clientsRouter.delete("/", deleteClientsBulkController);
 // - ✅ GET /clients/by-phone/:phone (MIGRADO)
 // - ✅ GET /clients/without-contact (MIGRADO)
 // - ✅ GET /clients/export-all (MIGRADO)
+// - ✅ GET /clients/:id (MIGRADO)
 // - ✅ POST /clients (MIGRADO)
 // - ✅ PUT /clients/:id (MIGRADO)
 // - ✅ DELETE /clients/:id (MIGRADO)

@@ -1,8 +1,11 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import type { TopClient } from "@/hooks/use-bling-orders";
-import { Crown, Medal, Award, TrendingUp } from "lucide-react";
+import { Crown, Medal, Award, TrendingUp, Loader2, ExternalLink } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -52,6 +55,48 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 export function TopClientsPanel({ data, isLoading }: TopClientsPanelProps) {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [loadingContactId, setLoadingContactId] = useState<string | null>(null);
+
+  const handleClientClick = async (client: TopClient) => {
+    if (loadingContactId) return;
+    setLoadingContactId(client.contactId);
+
+    try {
+      const params = new URLSearchParams({ search: client.contactName, pageSize: "5" });
+      const res = await fetch(`/api/clients?${params.toString()}`);
+      if (!res.ok) throw new Error("Erro na busca");
+
+      const json = await res.json();
+      const clients: Array<{ id: string; name: string }> = json.clients ?? json.data ?? json ?? [];
+
+      if (!Array.isArray(clients) || clients.length === 0) {
+        toast({
+          title: "Cliente não encontrado no CRM",
+          description: `"${client.contactName}" não possui cadastro vinculado no CRM.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const normalizedTarget = client.contactName.toLowerCase().trim();
+      const exactMatch = clients.find(
+        (c) => c.name.toLowerCase().trim() === normalizedTarget
+      );
+      const bestMatch = exactMatch ?? clients[0];
+      navigate(`/clientes/${bestMatch.id}`);
+    } catch {
+      toast({
+        title: "Erro ao buscar cliente",
+        description: "Não foi possível localizar o cliente no CRM.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingContactId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -98,7 +143,7 @@ export function TopClientsPanel({ data, isLoading }: TopClientsPanelProps) {
           Top 20 Clientes
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Clientes com maior volume de compras no período
+          Clique em um cliente para ver o perfil completo no CRM
         </p>
       </CardHeader>
       <CardContent className="p-0">
@@ -117,19 +162,29 @@ export function TopClientsPanel({ data, isLoading }: TopClientsPanelProps) {
             <tbody>
               {data.map((client) => {
                 const barWidth = Math.max(4, (client.totalValue / maxValue) * 100);
+                const isRowLoading = loadingContactId === client.contactId;
                 return (
                   <tr
                     key={client.contactId}
-                    className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
+                    onClick={() => handleClientClick(client)}
+                    className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer"
+                    title={`Ver perfil de ${client.contactName}`}
                   >
                     <td className="px-4 py-2.5">
-                      <RankBadge rank={client.rank} />
+                      {isRowLoading ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+                      ) : (
+                        <RankBadge rank={client.rank} />
+                      )}
                     </td>
                     <td className="px-3 py-2.5 min-w-[180px]">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[220px]" title={client.contactName}>
-                          {client.contactName}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[200px] group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" title={client.contactName}>
+                            {client.contactName}
+                          </span>
+                          <ExternalLink className="h-3 w-3 text-slate-300 group-hover:text-violet-400 transition-colors shrink-0 opacity-0 group-hover:opacity-100" />
+                        </div>
                         <div className="h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
