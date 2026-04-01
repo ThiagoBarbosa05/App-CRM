@@ -8,6 +8,7 @@ import { z } from "zod";
 import { updateUserController } from "server/controllers/users/put-user.controller";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
+import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -203,6 +204,28 @@ usersRouter.patch(
   validateParams(userParamsSchema),
   validateBody(toggleStatusBodySchema),
   toggleUserStatusController
+);
+
+const syncBlingVendorsSchema = z.object({
+  mappings: z
+    .array(
+      z.object({
+        userId: z.string().uuid(),
+        blingVendedorId: z.string().nullable(),
+      }),
+    )
+    .min(1, "É necessário ao menos um mapeamento"),
+});
+
+/**
+ * @route POST /api/users/sync-bling-vendors
+ * @description Salva o mapeamento entre usuários do app e vendedores do Bling
+ * @access Admin only
+ */
+usersRouter.post(
+  "/sync-bling-vendors",
+  validateBody(syncBlingVendorsSchema),
+  syncBlingVendorsController,
 );
 
 // TODO: Migrar outras rotas de users para este arquivo:

@@ -1,6 +1,7 @@
 import { Request, Router } from "express";
 import { z } from "zod";
 import { blingConnectionsService } from "../services/bling-connections.service";
+import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
 
 const router = Router();
 
@@ -102,6 +103,18 @@ router.post("/connect", async (req, res) => {
     const status = message.includes("administradores") ? 403 : message.includes("autenticado") ? 401 : 500;
     return res.status(status).json({ success: false, error: message });
   }
+});
+
+router.get("/vendors", async (req, res) => {
+  try {
+    getAdminUser(req);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro de autenticação";
+    const status = message.includes("administradores") ? 403 : 401;
+    return res.status(status).json({ success: false, error: message });
+  }
+
+  return getBlingVendorsController(req, res);
 });
 
 router.put("/:id", async (req, res) => {

@@ -45,6 +45,7 @@ import UmblerSyncManagement from "@/components/umbler-sync-management";
 import { ConfigurationsHeader } from "@/components/configurations/configurations-header";
 import { motion, AnimatePresence } from "framer-motion";
 import BlingAccountsManagement from "@/components/bling-accounts-management";
+import BlingVendedoresSync from "@/components/bling-vendedores-sync";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -259,6 +260,18 @@ export default function Configurations() {
                    </TabsTrigger>
 
                    <TabsTrigger
+                     value="bling-vendors-sync"
+                     className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                       data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
+                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
+                     title="Vincular vendedores ao Bling"
+                   >
+                     <Users className="size-4" />
+                     <span className="text-xs font-medium">Vendedores Bling</span>
+                   </TabsTrigger>
+
+                   <TabsTrigger
                      value="umbler-sync"
                      className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
                        data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
@@ -334,6 +347,10 @@ export default function Configurations() {
 
              <TabsContent value="bling-accounts">
                <BlingAccountsManagement />
+             </TabsContent>
+
+             <TabsContent value="bling-vendors-sync">
+               <BlingVendedoresSync />
              </TabsContent>
 
              <TabsContent value="umbler-sync">

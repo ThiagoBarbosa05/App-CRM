@@ -457,6 +457,22 @@ export class BlingConnectionsService {
     return candidates.length;
   }
 
+  async getFirstConnectedAccessToken(): Promise<string> {
+    const [connection] = await db
+      .select()
+      .from(blingConnections)
+      .where(eq(blingConnections.status, "connected"))
+      .limit(1);
+
+    if (!connection?.accessTokenEncrypted) {
+      throw new Error(
+        "Nenhuma conta Bling conectada encontrada. Configure e conecte uma conta Bling antes de sincronizar vendedores.",
+      );
+    }
+
+    return decryptToken(connection.accessTokenEncrypted);
+  }
+
   async markExpiredConnections() {
     const now = new Date();
     const expiringConnections = await db
