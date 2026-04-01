@@ -2,14 +2,21 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { products } from "../../shared/schema";
 import { decryptToken } from "../lib/token-crypto";
-import { getBlingProdutos, refreshBlingAccessToken } from "../integrations/bling";
+import { getBlingProdutos } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
 
 export type SyncProgressEvent =
   | { type: "start" }
-  | { type: "progress"; page: number; processed: number; linked: number; updated: number; skipped: number }
-  | { type: "done"; linked: number; updated: number; skipped: number }
+  | { type: "progress"; page: number; processed: number; linked: number; updated: number; created: number; skipped: number }
+  | { type: "done"; linked: number; updated: number; created: number; skipped: number }
   | { type: "error"; message: string };
+
+export interface ProductDefaults {
+  country: string;
+  volume: string;
+  type: string;
+  createdBy: string;
+}
 
 function normalizeTokens(name: string): string[] {
   return name
@@ -57,6 +64,7 @@ function findBestMatch(blingName: string, appProducts: AppProduct[]): AppProduct
 export async function syncBlingProducts(
   connectionId: string,
   userId: string,
+  defaults: ProductDefaults,
   onProgress: (event: SyncProgressEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -70,8 +78,8 @@ export async function syncBlingProducts(
     throw new Error("Conexao Bling nao esta conectada. Reconecte a conta antes de sincronizar.");
   }
 
-  if (!connection.accessTokenEncrypted || !connection.oauthClientId || !connection.oauthClientSecretEncrypted) {
-    throw new Error("Tokens ou credenciais da conexao Bling estao ausentes");
+  if (!connection.accessTokenEncrypted) {
+    throw new Error("Token de acesso da conexao Bling esta ausente");
   }
 
   let accessToken = decryptToken(connection.accessTokenEncrypted);
@@ -102,6 +110,7 @@ export async function syncBlingProducts(
   const LIMIT = 100;
   let linked = 0;
   let updated = 0;
+  let created = 0;
   let skipped = 0;
   let processed = 0;
 
@@ -136,17 +145,37 @@ export async function syncBlingProducts(
           linked++;
         }
       } else {
-        skipped++;
+        // No match — create a new product with the user-defined defaults
+        const [inserted] = await db
+          .insert(products)
+          .values({
+            name: blingProduct.nome,
+            country: defaults.country as "CHILE" | "ARGENTINA" | "URUGUAI" | "BRASIL" | "EUA" | "FRANÇA" | "ITÁLIA" | "PORTUGAL" | "ESPANHA" | "ALEMANHA" | "OUTROS",
+            volume: defaults.volume as "187ml" | "375ml" | "750ml" | "1500ml",
+            type: defaults.type as "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO",
+            negotiatedPrice: blingProduct.preco.toFixed(2),
+            createdBy: defaults.createdBy,
+            blingProductId: String(blingProduct.id),
+          })
+          .returning({ id: products.id, name: products.name });
+
+        // Add the new product to the in-memory list so duplicate Bling names don't create duplicates
+        if (inserted) {
+          appProducts.push({ id: inserted.id, name: inserted.name, tokens: normalizeTokens(inserted.name) });
+          rawProducts.push({ id: inserted.id, name: inserted.name, blingProductId: String(blingProduct.id) });
+        }
+
+        created++;
       }
 
       processed++;
     }
 
-    onProgress({ type: "progress", page, processed, linked, updated, skipped });
+    onProgress({ type: "progress", page, processed, linked, updated, created, skipped });
 
     if (blingProducts.length < LIMIT) break;
     page++;
   }
 
-  onProgress({ type: "done", linked, updated, skipped });
+  onProgress({ type: "done", linked, updated, created, skipped });
 }

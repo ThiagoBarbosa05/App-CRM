@@ -19,8 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle2, XCircle, RefreshCw, Link2 } from "lucide-react";
+import { CheckCircle2, XCircle, RefreshCw, Link2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const COUNTRIES = ["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"] as const;
+const VOLUMES = ["187ml", "375ml", "750ml", "1500ml"] as const;
+const TYPES = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as const;
 
 interface BlingConnection {
   id: string;
@@ -31,16 +35,17 @@ interface BlingConnection {
 
 type SyncProgressEvent =
   | { type: "start" }
-  | { type: "progress"; page: number; processed: number; linked: number; updated: number; skipped: number }
-  | { type: "done"; linked: number; updated: number; skipped: number }
+  | { type: "progress"; page: number; processed: number; linked: number; updated: number; created: number; skipped: number }
+  | { type: "done"; linked: number; updated: number; created: number; skipped: number }
   | { type: "error"; message: string };
 
-type Phase = "select" | "syncing" | "done" | "error";
+type Phase = "select" | "configure" | "syncing" | "done" | "error";
 
 interface SyncStats {
   processed: number;
   linked: number;
   updated: number;
+  created: number;
   skipped: number;
   page: number;
 }
@@ -55,7 +60,10 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
   const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>("select");
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
-  const [stats, setStats] = useState<SyncStats>({ processed: 0, linked: 0, updated: 0, skipped: 0, page: 0 });
+  const [defaultCountry, setDefaultCountry] = useState<string>("OUTROS");
+  const [defaultVolume, setDefaultVolume] = useState<string>("750ml");
+  const [defaultType, setDefaultType] = useState<string>("TINTO");
+  const [stats, setStats] = useState<SyncStats>({ processed: 0, linked: 0, updated: 0, created: 0, skipped: 0, page: 0 });
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [logs, setLogs] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -71,7 +79,8 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
         },
       });
       if (!res.ok) throw new Error("Falha ao carregar contas Bling");
-      return res.json() as Promise<BlingConnection[]>;
+      const body = await res.json() as { data: BlingConnection[] };
+      return body.data;
     },
     enabled: open && !!user,
   });
@@ -88,20 +97,24 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
 
     abortRef.current = new AbortController();
     setPhase("syncing");
-    setStats({ processed: 0, linked: 0, updated: 0, skipped: 0, page: 0 });
+    setStats({ processed: 0, linked: 0, updated: 0, created: 0, skipped: 0, page: 0 });
     setLogs([]);
 
+    const params = new URLSearchParams({
+      connectionId: selectedConnectionId,
+      defaultCountry,
+      defaultVolume,
+      defaultType,
+    });
+
     try {
-      const response = await fetch(
-        `/api/bling-products/sync?connectionId=${encodeURIComponent(selectedConnectionId)}`,
-        {
-          headers: {
-            "x-user-id": user.id,
-            "x-user-role": user.role,
-          },
-          signal: abortRef.current.signal,
+      const response = await fetch(`/api/bling-products/sync?${params.toString()}`, {
+        headers: {
+          "x-user-id": user.id,
+          "x-user-role": user.role,
         },
-      );
+        signal: abortRef.current.signal,
+      });
 
       if (!response.ok || !response.body) {
         throw new Error("Falha ao iniciar sincronizacao");
@@ -132,22 +145,27 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
               processed: event.processed,
               linked: event.linked,
               updated: event.updated,
+              created: event.created,
               skipped: event.skipped,
               page: event.page,
             });
             appendLog(
-              `Pagina ${event.page}: ${event.processed} processados | ${event.linked} vinculados | ${event.updated} atualizados | ${event.skipped} sem correspondencia`,
+              `Pag. ${event.page}: ${event.processed} processados | ${event.linked} vinculados | ${event.updated} atualizados | ${event.created} criados | ${event.skipped} sem correspondencia`,
             );
           } else if (event.type === "done") {
             setStats((prev) => ({
               ...prev,
               linked: event.linked,
               updated: event.updated,
+              created: event.created,
               skipped: event.skipped,
             }));
             setPhase("done");
             queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-            toast({ title: "Sincronizacao concluida", description: `${event.linked} vinculados, ${event.updated} atualizados.` });
+            toast({
+              title: "Sincronizacao concluida",
+              description: `${event.linked} vinculados, ${event.created} criados, ${event.updated} atualizados.`,
+            });
           } else if (event.type === "error") {
             setErrorMessage(event.message);
             setPhase("error");
@@ -160,7 +178,7 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
       setErrorMessage(msg);
       setPhase("error");
     }
-  }, [selectedConnectionId, user, appendLog, toast]);
+  }, [selectedConnectionId, defaultCountry, defaultVolume, defaultType, user, appendLog, toast]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -168,19 +186,24 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
   }, []);
 
   const handleClose = useCallback(() => {
-    if (phase === "syncing") {
-      abortRef.current?.abort();
-    }
+    if (phase === "syncing") abortRef.current?.abort();
     setPhase("select");
     setSelectedConnectionId("");
-    setStats({ processed: 0, linked: 0, updated: 0, skipped: 0, page: 0 });
+    setDefaultCountry("OUTROS");
+    setDefaultVolume("750ml");
+    setDefaultType("TINTO");
+    setStats({ processed: 0, linked: 0, updated: 0, created: 0, skipped: 0, page: 0 });
     setLogs([]);
     setErrorMessage("");
     onOpenChange(false);
   }, [phase, onOpenChange]);
 
-  const totalEstimated = stats.processed + stats.skipped;
-  const progressValue = totalEstimated > 0 ? Math.min(100, (stats.processed / (totalEstimated || 1)) * 100) : 0;
+  const statsCards = (s: SyncStats) => [
+    { label: "Vinculados", value: s.linked, color: "text-emerald-600 dark:text-emerald-400" },
+    { label: "Criados", value: s.created, color: "text-violet-600 dark:text-violet-400" },
+    { label: "Atualizados", value: s.updated, color: "text-blue-600 dark:text-blue-400" },
+    { label: "Sem match", value: s.skipped, color: "text-slate-500 dark:text-slate-400" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -225,19 +248,78 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
               )}
             </div>
 
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 p-3 text-sm text-amber-800 dark:text-amber-300">
-              A sincronização atualiza o preço de tabela dos produtos vinculados com o preço do Bling.
-            </div>
-
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={handleClose}>
                 Cancelar
               </Button>
               <Button
-                onClick={handleStart}
+                onClick={() => setPhase("configure")}
                 disabled={!selectedConnectionId || connectedAccounts.length === 0}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* CONFIGURE PHASE */}
+        {phase === "configure" && (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Defina os valores padrão para produtos do Bling que <span className="font-medium text-slate-800 dark:text-slate-200">não tiverem correspondência</span> no catálogo. Um novo produto será criado com esses valores.
+            </p>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">País de origem</label>
+                <Select value={defaultCountry} onValueChange={setDefaultCountry}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Volume</label>
+                <Select value={defaultVolume} onValueChange={setDefaultVolume}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VOLUMES.map((v) => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tipo</label>
+                <Select value={defaultType} onValueChange={setDefaultType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-between gap-2 pt-1">
+              <Button variant="outline" onClick={() => setPhase("select")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+              </Button>
+              <Button onClick={handleStart} className="bg-blue-600 hover:bg-blue-700 text-white">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Iniciar Sincronização
               </Button>
@@ -257,18 +339,14 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
                   {stats.processed} processados
                 </span>
               </div>
-              <Progress value={phase === "syncing" ? undefined : progressValue} className="h-2" />
+              <Progress className="h-2" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Vinculados", value: stats.linked, color: "text-emerald-600 dark:text-emerald-400" },
-                { label: "Atualizados", value: stats.updated, color: "text-blue-600 dark:text-blue-400" },
-                { label: "Sem match", value: stats.skipped, color: "text-slate-500 dark:text-slate-400" },
-              ].map((s) => (
-                <div key={s.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 text-center">
-                  <p className={cn("text-xl font-bold", s.color)}>{s.value}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {statsCards(stats).map((s) => (
+                <div key={s.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-2 text-center">
+                  <p className={cn("text-lg font-bold", s.color)}>{s.value}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -300,15 +378,11 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Vinculados", value: stats.linked, color: "text-emerald-600 dark:text-emerald-400" },
-                { label: "Atualizados", value: stats.updated, color: "text-blue-600 dark:text-blue-400" },
-                { label: "Sem match", value: stats.skipped, color: "text-slate-500 dark:text-slate-400" },
-              ].map((s) => (
-                <div key={s.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 text-center">
-                  <p className={cn("text-xl font-bold", s.color)}>{s.value}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+            <div className="grid grid-cols-4 gap-2">
+              {statsCards(stats).map((s) => (
+                <div key={s.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-2 text-center">
+                  <p className={cn("text-lg font-bold", s.color)}>{s.value}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{s.label}</p>
                 </div>
               ))}
             </div>
