@@ -14,6 +14,7 @@ import {
   Shield,
   UserCheck,
   Settings,
+  Store,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -47,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/utils";
 import { LinkChannelModal } from "./link-channel-modal";
+import { LinkBlingVendorModal } from "./link-bling-vendor-modal";
 
 // Estende o tipo User para incluir serviceChannel
 type UserWithChannel = UserType & {
@@ -75,6 +77,8 @@ export default function UsersManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [userToLinkChannel, setUserToLinkChannel] =
+    useState<UserWithChannel | null>(null);
+  const [userToLinkBlingVendor, setUserToLinkBlingVendor] =
     useState<UserWithChannel | null>(null);
   const { toast } = useToast();
 
@@ -374,6 +378,20 @@ export default function UsersManagement() {
 
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => setUserToLinkBlingVendor(user)}
+                        title={user.blingVendedorId ? `Vendedor Bling vinculado: ${user.blingVendedorId}` : "Vincular ao vendedor Bling"}
+                        className={user.blingVendedorId
+                          ? "bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+                        }
+                      >
+                        <Store className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Bling</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
                         variant="ghost"
                         onClick={() => handleToggleStatus(user)}
                         disabled={toggleUserStatusMutation.isPending}
@@ -503,6 +521,14 @@ export default function UsersManagement() {
           user={userToLinkChannel}
           open={!!userToLinkChannel}
           onOpenChange={(open) => !open && setUserToLinkChannel(null)}
+        />
+      )}
+
+      {userToLinkBlingVendor && (
+        <LinkBlingVendorModal
+          user={userToLinkBlingVendor}
+          open={!!userToLinkBlingVendor}
+          onOpenChange={(open) => !open && setUserToLinkBlingVendor(null)}
         />
       )}
 
