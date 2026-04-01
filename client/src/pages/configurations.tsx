@@ -25,6 +25,7 @@ import {
   Tags,
   Users,
   HelpCircle,
+  Link2,
   RefreshCcw,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
@@ -43,6 +44,7 @@ import { DealQuestionsManagement } from "@/components/deal-questions-management"
 import UmblerSyncManagement from "@/components/umbler-sync-management";
 import { ConfigurationsHeader } from "@/components/configurations/configurations-header";
 import { motion, AnimatePresence } from "framer-motion";
+import BlingAccountsManagement from "@/components/bling-accounts-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -82,7 +84,10 @@ export default function Configurations() {
     );
   }
 
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") || "users";
+  });
 
   return (
     <div className="flex-1 flex flex-col p-4 lg:p-10 space-y-10">
@@ -241,10 +246,22 @@ export default function Configurations() {
                     <span className="text-xs font-medium ">Questionário</span>
                   </TabsTrigger>
 
-                  <TabsTrigger
-                    value="umbler-sync"
-                    className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                   <TabsTrigger
+                     value="bling-accounts"
+                     className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
+                       data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
+                     title="Gerenciar contas Bling conectadas"
+                   >
+                     <Link2 className="size-4" />
+                     <span className="text-xs font-medium ">Contas Bling</span>
+                   </TabsTrigger>
+
+                   <TabsTrigger
+                     value="umbler-sync"
+                     className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
                       data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                     title="Gerenciar sincronização com Umbler"
@@ -311,13 +328,17 @@ export default function Configurations() {
               <AutomationManagement />
             </TabsContent>
 
-            <TabsContent value="deal-questions">
-              <DealQuestionsManagement />
-            </TabsContent>
+             <TabsContent value="deal-questions">
+               <DealQuestionsManagement />
+             </TabsContent>
 
-            <TabsContent value="umbler-sync">
-              <UmblerSyncManagement />
-            </TabsContent>
+             <TabsContent value="bling-accounts">
+               <BlingAccountsManagement />
+             </TabsContent>
+
+             <TabsContent value="umbler-sync">
+               <UmblerSyncManagement />
+             </TabsContent>
       </motion.div>
     </AnimatePresence>
   </Tabs>

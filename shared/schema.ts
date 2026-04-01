@@ -2164,6 +2164,71 @@ export interface EventWithDetails extends Event {
   attachments?: EventAttachment[];
 }
 
+// Tabelas de conexao OAuth com Bling
+export const blingConnections = pgTable(
+  "bling_connections",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .references(() => users.id)
+      .notNull(),
+    name: text("name").notNull(),
+    oauthClientId: text("oauth_client_id").notNull(),
+    oauthClientSecretEncrypted: text("oauth_client_secret_encrypted").notNull(),
+    status: text("status", {
+      enum: ["pending", "connected", "expired", "reauth_required", "revoked", "error"],
+    })
+      .notNull()
+      .default("pending"),
+    blingUserId: text("bling_user_id"),
+    blingLogin: text("bling_login"),
+    blingAccountId: text("bling_account_id"),
+    blingAccountName: text("bling_account_name"),
+    accessTokenEncrypted: text("access_token_encrypted"),
+    refreshTokenEncrypted: text("refresh_token_encrypted"),
+    tokenType: text("token_type"),
+    scope: text("scope"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    lastRefreshAt: timestamp("last_refresh_at"),
+    lastSyncAt: timestamp("last_sync_at"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bling_connections_user_idx").on(table.userId),
+    index("bling_connections_status_idx").on(table.status),
+    uniqueIndex("bling_connections_user_name_uidx").on(table.userId, table.name),
+  ],
+);
+
+export const blingOAuthStates = pgTable(
+  "bling_oauth_states",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    state: text("state").notNull().unique(),
+    userId: varchar("user_id")
+      .references(() => users.id)
+      .notNull(),
+    connectionId: varchar("connection_id")
+      .references(() => blingConnections.id)
+      .notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    consumedAt: timestamp("consumed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bling_oauth_states_user_idx").on(table.userId),
+    index("bling_oauth_states_expires_idx").on(table.expiresAt),
+  ],
+);
+
 // Tabela de pedidos do Bling Control
 export const blingOrders = pgTable(
   "bling_orders",
@@ -2354,6 +2419,37 @@ export const pubsubProcessingLogs = pgTable(
 );
 
 // Schemas de inserção
+export const insertBlingConnectionSchema = createInsertSchema(
+  blingConnections,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  oauthClientSecretEncrypted: true,
+  accessTokenEncrypted: true,
+  refreshTokenEncrypted: true,
+  lastRefreshAt: true,
+  lastSyncAt: true,
+  lastError: true,
+  blingUserId: true,
+  blingLogin: true,
+  blingAccountId: true,
+  blingAccountName: true,
+  accessTokenExpiresAt: true,
+  refreshTokenExpiresAt: true,
+  tokenType: true,
+  scope: true,
+  status: true,
+});
+
+export const insertBlingOAuthStateSchema = createInsertSchema(
+  blingOAuthStates,
+).omit({
+  id: true,
+  createdAt: true,
+  consumedAt: true,
+});
+
 export const insertBlingOrderSchema = createInsertSchema(blingOrders).omit({
   id: true,
   createdAt: true,
@@ -2383,6 +2479,10 @@ export const insertPubsubProcessingLogSchema = createInsertSchema(
 });
 
 // Tipos
+export type BlingConnection = typeof blingConnections.$inferSelect;
+export type InsertBlingConnection = z.infer<typeof insertBlingConnectionSchema>;
+export type BlingOAuthState = typeof blingOAuthStates.$inferSelect;
+export type InsertBlingOAuthState = z.infer<typeof insertBlingOAuthStateSchema>;
 export type BlingOrder = typeof blingOrders.$inferSelect;
 export type InsertBlingOrder = z.infer<typeof insertBlingOrderSchema>;
 export type BlingOrderItem = typeof blingOrderItems.$inferSelect;
@@ -2403,6 +2503,31 @@ export interface BlingOrderWithDetails extends BlingOrder {
 }
 
 // Relações
+export const blingConnectionsRelations = relations(
+  blingConnections,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [blingConnections.userId],
+      references: [users.id],
+    }),
+    oauthStates: many(blingOAuthStates),
+  }),
+);
+
+export const blingOAuthStatesRelations = relations(
+  blingOAuthStates,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [blingOAuthStates.userId],
+      references: [users.id],
+    }),
+    connection: one(blingConnections, {
+      fields: [blingOAuthStates.connectionId],
+      references: [blingConnections.id],
+    }),
+  }),
+);
+
 export const blingOrdersRelations = relations(blingOrders, ({ many }) => ({
   items: many(blingOrderItems),
   installments: many(blingOrderInstallments),
