@@ -88,40 +88,24 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
                 <Phone className="h-4 w-4 text-slate-600 dark:text-slate-300" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                   Telefone
                 </p>
                 <a
                   href={`tel:${client.phone}`}
-                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors"
+                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors truncate block"
                   title="Clique para ligar"
                 >
                   {formatPhone(client.phone)}
                 </a>
               </div>
             </div>
-
-            {client.email && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                  <Mail className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                    E-mail
-                  </p>
-                  <p className="font-semibold text-slate-900 dark:text-slate-200">
-                    {client.email}
-                  </p>
-                </div>
-              </div>
-            )}
 
             <div className="flex items-center gap-3">
               <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
@@ -137,22 +121,36 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               </div>
             </div>
 
-            {client.birthday && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                  <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                    Aniversário
-                  </p>
-                  <p className="font-semibold text-slate-900 dark:text-slate-200">
-                    {formatBirthday(client.birthday)}
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-300" />
               </div>
-            )}
+              <div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  Aniversário
+                </p>
+                <p className="font-semibold text-slate-900 dark:text-slate-200">
+                  {client.birthday ? formatBirthday(client.birthday) : "Não informado"}
+                </p>
+              </div>
+            </div>
           </div>
+
+          {client.email && (
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                <Mail className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  E-mail
+                </p>
+                <p className="font-semibold text-slate-900 dark:text-slate-200">
+                  {client.email}
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
