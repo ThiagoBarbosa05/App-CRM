@@ -212,6 +212,7 @@ const syncBlingVendorsSchema = z.object({
       z.object({
         userId: z.string().uuid(),
         blingVendedorId: z.string().nullable(),
+        blingVendedorName: z.string().nullable().optional(),
       }),
     )
     .min(1, "É necessário ao menos um mapeamento"),

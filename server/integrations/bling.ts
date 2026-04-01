@@ -57,6 +57,119 @@ async function fetchBlingApi(
   throw new Error("fetchBlingApi: loop de retry encerrado inesperadamente");
 }
 
+export interface BlingPedidoVendaItem {
+  id: number;
+  codigo: string;
+  unidade: string;
+  quantidade: number;
+  desconto: number;
+  valor: number;
+  aliquotaIPI: number;
+  descricao: string;
+  descricaoDetalhada: string;
+  produto: { id: number };
+  comissao: { base: number; aliquota: number; valor: number };
+  naturezaOperacao: { id: number };
+}
+
+export interface BlingPedidoVendaParcela {
+  id: number;
+  dataVencimento: string;
+  valor: number;
+  observacoes: string;
+  caut: string;
+  formaPagamento: { id: number };
+}
+
+export interface BlingPedidoVenda {
+  id: number;
+  numero: number;
+  numeroLoja: string | null;
+  data: string;
+  dataSaida: string | null;
+  dataPrevista: string | null;
+  totalProdutos: number;
+  total: number;
+  contato: {
+    id: number;
+    nome: string;
+    tipoPessoa: string;
+    numeroDocumento: string;
+  };
+  situacao: { id: number; valor: number };
+  loja: { id: number; unidadeNegocio: { id: number } };
+  numeroPedidoCompra: string | null;
+  outrasDespesas: number;
+  observacoes: string | null;
+  observacoesInternas: string | null;
+  desconto: { valor: number; unidade: string };
+  categoria: { id: number } | null;
+  notaFiscal: { id: number } | null;
+  tributacao: { totalICMS: number; totalIPI: number };
+  itens: BlingPedidoVendaItem[];
+  parcelas: BlingPedidoVendaParcela[];
+  transporte: {
+    fretePorConta: number;
+    frete: number;
+    quantidadeVolumes: number;
+    pesoBruto: number;
+    prazoEntrega: number;
+    contato: { id: number; nome: string } | null;
+    etiqueta: {
+      nome: string;
+      endereco: string;
+      numero: string;
+      complemento: string;
+      municipio: string;
+      uf: string;
+      cep: string;
+      bairro: string;
+      nomePais: string;
+    } | null;
+    volumes: Array<{ id: number; servico: string; codigoRastreamento: string }>;
+  };
+  vendedor: { id: number } | null;
+  intermediador: { cnpj: string; nomeUsuario: string } | null;
+  taxas: { taxaComissao: number; custoFrete: number; valorBase: number } | null;
+}
+
+/**
+ * Busca os detalhes de um pedido de venda pelo ID no Bling.
+ *
+ * Em caso de 401/403 (token expirado), chama `onTokenRefresh` para obter um
+ * novo access token e repete a requisição uma única vez.
+ *
+ * @param accessToken  - Token de acesso OAuth2 válido do Bling.
+ * @param pedidoId     - ID do pedido de venda no Bling.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingPedidoVenda(
+  accessToken: string,
+  pedidoId: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingPedidoVenda> {
+  let token = accessToken;
+
+  let response = await fetchBlingApi(token, `/pedidos/vendas/${pedidoId}`);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, `/pedidos/vendas/${pedidoId}`);
+  }
+
+  if (response.status === 404) {
+    throw new Error(`Pedido de venda ${pedidoId} nao encontrado no Bling`);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Falha ao buscar pedido de venda do Bling: ${errorText || response.statusText}`);
+  }
+
+  const body = (await response.json()) as { data: BlingPedidoVenda };
+  return body.data;
+}
+
 export interface BlingVendedor {
   id: number;
   descontoLimite: number;
