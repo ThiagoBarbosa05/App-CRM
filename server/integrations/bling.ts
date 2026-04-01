@@ -170,6 +170,64 @@ export async function getBlingPedidoVenda(
   return body.data;
 }
 
+export interface BlingProdutoEstoque {
+  saldoVirtualTotal: number;
+}
+
+export interface BlingProduto {
+  id: number;
+  idProdutoPai: number | null;
+  nome: string;
+  codigo: string;
+  preco: number;
+  precoCusto: number;
+  estoque: BlingProdutoEstoque;
+  tipo: string;
+  situacao: string;
+  formato: string;
+  descricaoCurta: string | null;
+  imagemURL: string | null;
+}
+
+/**
+ * Lista produtos cadastrados no Bling.
+ *
+ * Em caso de 401/403 (token expirado), chama `onTokenRefresh` para obter um
+ * novo access token e repete a requisição uma única vez.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param pagina         - Página de resultados (opcional).
+ * @param limite         - Quantidade de itens por página (opcional).
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingProdutos(
+  accessToken: string,
+  pagina?: number,
+  limite?: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingProduto[]> {
+  let token = accessToken;
+
+  const params: Record<string, string> = {};
+  if (pagina !== undefined) params.pagina = String(pagina);
+  if (limite !== undefined) params.limite = String(limite);
+
+  let response = await fetchBlingApi(token, "/produtos", params);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/produtos", params);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Falha ao buscar produtos do Bling: ${errorText || response.statusText}`);
+  }
+
+  const body = (await response.json()) as { data: BlingProduto[] };
+  return body.data;
+}
+
 export interface BlingVendedor {
   id: number;
   descontoLimite: number;

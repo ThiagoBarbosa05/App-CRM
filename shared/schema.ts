@@ -1892,6 +1892,7 @@ export const products = pgTable("products", {
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  blingProductId: text("bling_product_id"),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({

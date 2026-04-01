@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ProductFormModal } from "@/components/product-form-modal";
 import { ProductClientsModal } from "@/components/product-clients-modal";
 import ProductImportModal from "@/components/product-import-modal";
+import { BlingProductSyncModal } from "@/components/bling-product-sync-modal";
 import { queryClient } from "@/lib/queryClient";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -30,6 +31,7 @@ export default function Products() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isBlingModalOpen, setIsBlingModalOpen] = useState(false);
   const [selectedProductForClients, setSelectedProductForClients] =
     useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -204,6 +206,7 @@ export default function Products() {
         onImportClick={() => setIsImportModalOpen(true)}
         onExportClick={handleExportProducts}
         onNewProductClick={() => setIsProductModalOpen(true)}
+        onBlingSync={() => setIsBlingModalOpen(true)}
         isExportPending={false} // Product export is synchronous here
         productsCount={totalProducts}
       />
@@ -259,6 +262,11 @@ export default function Products() {
       <ProductImportModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
+      />
+
+      <BlingProductSyncModal
+        open={isBlingModalOpen}
+        onOpenChange={setIsBlingModalOpen}
       />
     </div>
   );

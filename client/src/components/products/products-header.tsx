@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Plus, Wine } from "lucide-react";
+import { Download, Upload, Plus, Wine, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ProductsHeaderProps {
   onImportClick: () => void;
   onExportClick: () => void;
   onNewProductClick: () => void;
+  onBlingSync: () => void;
   isExportPending: boolean;
   productsCount: number;
 }
@@ -14,6 +15,7 @@ export function ProductsHeader({
   onImportClick,
   onExportClick,
   onNewProductClick,
+  onBlingSync,
   isExportPending,
   productsCount,
 }: ProductsHeaderProps) {
@@ -38,6 +40,15 @@ export function ProductsHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBlingSync}
+            className="h-10 px-4 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-xl grow sm:grow-0"
+          >
+            <RefreshCw className="mr-2 h-4 w-4 text-slate-500" />
+            Sincronizar Bling
+          </Button>
           <Button
             variant="outline"
             size="sm"
