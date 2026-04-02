@@ -2421,6 +2421,68 @@ export const pubsubProcessingLogs = pgTable(
   ],
 );
 
+// Tabela de pedidos importados da plataforma Connect (via CSV)
+export const connectOrders = pgTable(
+  "connect_orders",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+
+    // Hash único para deduplicação de importações
+    importHash: text("import_hash").notNull().unique(),
+
+    // Dados da venda
+    saleDate: timestamp("sale_date").notNull(),
+    totalValue: numeric("total_value", { precision: 15, scale: 2 }).notNull(),
+
+    // Dados do cliente
+    contactName: text("contact_name"),
+    contactCpf: text("contact_cpf"),
+    contactBirthDate: text("contact_birth_date"),
+    contactCep: text("contact_cep"),
+    contactStreet: text("contact_street"),
+    contactNumber: text("contact_number"),
+    contactNeighborhood: text("contact_neighborhood"),
+    contactComplement: text("contact_complement"),
+    contactCity: text("contact_city"),
+    contactPhone: text("contact_phone"),
+    contactCellphone: text("contact_cellphone"),
+
+    // Vínculo com cliente do app (encontrado ou criado na importação)
+    appClientId: varchar("app_client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+    appClientStatus: text("app_client_status", {
+      enum: ["found", "created", "not_found"],
+    }),
+
+    // Dados do vendedor
+    sellerNameRaw: text("seller_name_raw"),
+    sellerId: varchar("seller_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    sellerMatchScore: real("seller_match_score"),
+
+    // Metadados de importação
+    sourceFile: text("source_file"),
+    importedAt: timestamp("imported_at").defaultNow().notNull(),
+    importedBy: varchar("imported_by")
+      .references(() => users.id, { onDelete: "set null" })
+      .notNull(),
+  },
+  (table) => [
+    index("connect_orders_sale_date_idx").on(table.saleDate),
+    index("connect_orders_seller_id_idx").on(table.sellerId),
+    index("connect_orders_imported_by_idx").on(table.importedBy),
+    index("connect_orders_contact_name_idx").on(table.contactName),
+    index("connect_orders_import_hash_idx").on(table.importHash),
+    index("connect_orders_app_client_id_idx").on(table.appClientId),
+  ],
+);
+
+export const insertConnectOrderSchema = createInsertSchema(connectOrders).omit({
+  importedAt: true,
+});
+
 // Schemas de inserção
 export const insertBlingConnectionSchema = createInsertSchema(
   blingConnections,

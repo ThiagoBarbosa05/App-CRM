@@ -9,6 +9,7 @@ import { updateUserController } from "server/controllers/users/put-user.controll
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
+import { getSellerSalesController } from "server/controllers/users/get-seller-sales.controller";
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -227,6 +228,17 @@ usersRouter.post(
   "/sync-bling-vendors",
   validateBody(syncBlingVendorsSchema),
   syncBlingVendorsController,
+);
+
+/**
+ * @route GET /api/users/:id/seller-sales
+ * @description Retorna histórico de vendas unificado (Bling + Connect) do vendedor
+ * @query startDate?, endDate?, source? (bling|connect|all), limit?, offset?
+ */
+usersRouter.get(
+  "/:id/seller-sales",
+  validateParams(userParamsSchema),
+  getSellerSalesController,
 );
 
 // TODO: Migrar outras rotas de users para este arquivo:

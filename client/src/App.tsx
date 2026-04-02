@@ -28,6 +28,7 @@ import CreateCampaignPage from "./pages/create-campaign-improved";
 import CampaignsDashboardPage from "./pages/campaigns-dashboard";
 import CampaignDetailsPage from "./pages/campaign-details";
 import BlingSalesPage from "./pages/bling-sales";
+import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -208,7 +209,15 @@ function Router() {
               <BlingSalesPage />
             </MainLayout>
           )}
-        /> 
+        />
+        <Route
+          path="/vendedores/:id"
+          component={() => (
+            <MainLayout>
+              <SellerPerformancePage />
+            </MainLayout>
+          )}
+        />
         <Route component={NotFound} />
       </Switch>
   );

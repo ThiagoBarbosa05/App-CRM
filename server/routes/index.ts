@@ -29,6 +29,7 @@ import { messageJobsLogsRouter } from "./message-jobs-logs.routes";
 import { telemarketingGoalsRouter } from "./telemarketing-goals.routes";
 import blingAccountsRouter from "./bling-accounts.routes";
 import blingProductsRouter from "./bling-products.routes";
+import connectOrdersRouter from "./connect-orders.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -68,6 +69,7 @@ apiRouter.use("/message-jobs-logs", messageJobsLogsRouter);
 apiRouter.use("/telemarketing-goals", telemarketingGoalsRouter);
 apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
+apiRouter.use("/connect-orders", connectOrdersRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);
