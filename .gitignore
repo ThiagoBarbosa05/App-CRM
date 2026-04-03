@@ -7,3 +7,4 @@ vite.config.ts.*
 .env
 bling-control-0f37ef3dad78.json
 server/index.ts
+*.sql
