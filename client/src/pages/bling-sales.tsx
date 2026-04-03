@@ -20,7 +20,6 @@ import { exportBlingOrdersToExcel } from "@/lib/excel-export";
 import { useToast } from "@/hooks/use-toast";
 
 // Bling components
-import { BlingSalesHeader } from "@/components/bling-sales/bling-sales-header";
 import { SalesStatisticsCards } from "@/components/bling-sales/sales-statistics-cards";
 import { CashbackStatisticsCards } from "@/components/bling-sales/cashback-statistics-cards";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
@@ -37,7 +36,7 @@ import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-im
 // UI
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload } from "lucide-react";
+import { Upload, Download, Loader2, HandCoins } from "lucide-react";
 
 export default function BlingSalesPage() {
   const { toast } = useToast();
@@ -184,23 +183,65 @@ export default function BlingSalesPage() {
   }));
 
   return (
-    <div className="max-w-full overflow-x-hidden space-y-6 pb-10">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <BlingSalesHeader
-            onExport={handleExport}
-            isExporting={isExporting || isFetchingExport}
-            disabled={!startDate || !endDate}
-          />
+    <div className="max-w-full overflow-x-hidden space-y-5 pb-12">
+      {/* Header + Importar CSV */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+          {/* Left: title */}
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex-shrink-0 shadow-inner">
+              <HandCoins className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+                Vendas Bling
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5 truncate">
+                Acompanhe e analise o desempenho comercial integrado ao Bling
+                ERP
+              </p>
+            </div>
+          </div>
+
+          {/* Right: badges + actions */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-xl px-3 py-1.5 flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                Em Desenvolvimento
+              </span>
+            </div>
+
+            <Button
+              onClick={handleExport}
+              disabled={
+                !startDate || !endDate || isExporting || isFetchingExport
+              }
+              className="gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-200 rounded-xl h-9 px-4 font-bold transition-all shadow-sm text-sm"
+            >
+              {isExporting || isFetchingExport ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Exportando…</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Exportar Excel</span>
+                </>
+              )}
+            </Button>
+
+            <Button
+              onClick={() => setConnectImportOpen(true)}
+              className="gap-2 bg-violet-600 hover:bg-violet-700 rounded-xl h-9 px-4 text-sm font-bold shrink-0"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Importar CSV
+            </Button>
+          </div>
         </div>
-        <Button
-          onClick={() => setConnectImportOpen(true)}
-          className="bg-violet-600 hover:bg-violet-700 gap-2 mt-1 shrink-0"
-        >
-          <Upload className="h-4 w-4" />
-          Importar CSV Connect
-        </Button>
       </div>
 
       <ConnectCsvImportModal
@@ -270,31 +311,31 @@ export default function BlingSalesPage() {
       />
 
       {/* Cashback & Clientes — Bling only */}
-      <div className="space-y-3">
-        <SectionHeader label="Cashback & Clientes Vinculados" blingOnly />
+      <section className="space-y-3">
+        <SectionLabel label="Cashback & Clientes Vinculados" blingOnly />
         <CashbackStatisticsCards
           data={cashbackStats}
           isLoading={isCashbackStatsLoading}
         />
-      </div>
+      </section>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="xl:col-span-2">
           <SalesEvolutionChart
             data={evolutionForChart}
             isLoading={isEvolutionLoading}
             groupBy={groupBy}
           />
         </div>
-        <div className="space-y-8">
+        <div className="flex flex-col gap-5">
           <TopSellersChart
             data={topSellersForChart}
             isLoading={isTopSellersLoading}
           />
           {/* Top Products — Bling only */}
           <div className="space-y-2">
-            <SectionHeader label="Top Produtos" blingOnly small />
+            <SectionLabel label="Top Produtos" blingOnly small />
             <TopProductsChart
               data={topProducts}
               isLoading={isTopProductsLoading}
@@ -304,21 +345,21 @@ export default function BlingSalesPage() {
       </div>
 
       {/* Top 20 Clientes — Bling only */}
-      <div className="space-y-3">
-        <SectionHeader label="Top 20 Clientes" blingOnly />
+      <section className="space-y-3">
+        <SectionLabel label="Top 20 Clientes" blingOnly />
         <TopClientsPanel data={topClients} isLoading={isTopClientsLoading} />
-      </div>
+      </section>
 
       {/* Cohort — Bling only */}
-      <div className="space-y-3">
-        <SectionHeader label="Análise de Cohort" blingOnly />
+      <section className="space-y-3">
+        <SectionLabel label="Análise de Cohort" blingOnly />
         <CohortAnalysisTable
           data={cohortData}
           isLoading={isCohortLoading}
           startDate={startDate}
           endDate={endDate}
         />
-      </div>
+      </section>
 
       {/* Unified orders table */}
       <UnifiedOrdersTable
@@ -333,8 +374,8 @@ export default function BlingSalesPage() {
   );
 }
 
-// ── Section header with optional "Somente Bling" badge ───────────────────────
-function SectionHeader({
+// ── Section label with optional "Somente Bling" badge ────────────────────────
+function SectionLabel({
   label,
   blingOnly = false,
   small = false,

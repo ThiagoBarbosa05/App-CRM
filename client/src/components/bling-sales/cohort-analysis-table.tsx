@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { CohortData } from "@/hooks/use-bling-orders";
 import { useCohortClients } from "@/hooks/use-bling-orders";
@@ -24,11 +28,13 @@ interface SelectedCell {
 }
 
 function getHeatmapColor(value: number | null): string {
-  if (value === null) return "bg-slate-50 dark:bg-slate-800/30 text-slate-300 dark:text-slate-600";
+  if (value === null)
+    return "bg-slate-50 dark:bg-slate-800/30 text-slate-300 dark:text-slate-600";
   if (value >= 80) return "bg-emerald-600 text-white";
   if (value >= 60) return "bg-emerald-500 text-white";
   if (value >= 40) return "bg-emerald-400 text-white";
-  if (value >= 25) return "bg-emerald-300 text-emerald-900 dark:text-emerald-950";
+  if (value >= 25)
+    return "bg-emerald-300 text-emerald-900 dark:text-emerald-950";
   if (value >= 15) return "bg-amber-300 text-amber-900 dark:text-amber-950";
   if (value >= 10) return "bg-amber-200 text-amber-800 dark:text-amber-900";
   if (value >= 5) return "bg-orange-200 text-orange-800 dark:text-orange-900";
@@ -76,7 +82,9 @@ function CohortClientsDialog({
           </DialogTitle>
           {selected && (
             <p className="text-sm text-muted-foreground">
-              {selected.count} de {Math.round(selected.count / (selected.percentage / 100))} clientes retidos ({selected.percentage}%)
+              {selected.count} de{" "}
+              {Math.round(selected.count / (selected.percentage / 100))}{" "}
+              clientes retidos ({selected.percentage}%)
             </p>
           )}
         </DialogHeader>
@@ -104,7 +112,10 @@ function CohortClientsDialog({
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex-1">
                         {client.contactName}
                       </span>
-                      <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700 dark:text-emerald-400">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] border-emerald-300 text-emerald-700 dark:text-emerald-400"
+                      >
                         retido
                       </Badge>
                     </div>
@@ -142,7 +153,12 @@ function CohortClientsDialog({
   );
 }
 
-export function CohortAnalysisTable({ data, isLoading, startDate, endDate }: CohortAnalysisTableProps) {
+export function CohortAnalysisTable({
+  data,
+  isLoading,
+  startDate,
+  endDate,
+}: CohortAnalysisTableProps) {
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -159,134 +175,160 @@ export function CohortAnalysisTable({ data, isLoading, startDate, endDate }: Coh
 
   if (isLoading) {
     return (
-      <Card className="shadow-sm">
-        <CardHeader>
-          <Skeleton className="h-6 w-[250px]" />
-          <Skeleton className="h-4 w-[350px] mt-2" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-[300px] w-full" />
-        </CardContent>
-      </Card>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-violet-50 dark:bg-violet-900/30 animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-4 w-40 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+            <div className="h-3 w-64 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="px-6 pb-6">
+          <Skeleton className="h-[300px] w-full rounded-2xl" />
+        </div>
+      </div>
     );
   }
 
   if (!data || data.cohorts.length === 0) {
     return (
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-violet-600" />
-            Análise de Cohort
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex h-[200px] items-center justify-center text-muted-foreground">
-            Nenhum dado de cohort disponível para o período selecionado
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           </div>
-        </CardContent>
-      </Card>
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            Análise de Cohort
+          </h3>
+        </div>
+        <div className="flex h-[200px] items-center justify-center text-slate-400 dark:text-slate-500 text-sm font-medium">
+          Nenhum dado de cohort disponível para o período selecionado
+        </div>
+      </div>
     );
   }
 
-  const monthHeaders = Array.from({ length: data.maxMonthOffset + 1 }, (_, i) => i);
+  const monthHeaders = Array.from(
+    { length: data.maxMonthOffset + 1 },
+    (_, i) => i,
+  );
 
   return (
     <>
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-violet-600" />
-            Análise de Cohort
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Retenção de clientes agrupados pelo mês da primeira compra. Clique em uma célula para ver os clientes.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 bg-white dark:bg-slate-900 text-left px-3 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 min-w-[120px]">
-                    Cohort
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
+            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Análise de Cohort
+            </h3>
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+              Retenção agrupada pelo mês da primeira compra · clique para
+              detalhes
+            </p>
+          </div>
+        </div>
+        <div className="overflow-x-auto px-4 pb-5">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 bg-white dark:bg-slate-900 text-left px-3 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 min-w-[110px]">
+                  Cohort
+                </th>
+                <th className="px-3 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-center min-w-[60px]">
+                  Clientes
+                </th>
+                {monthHeaders.map((month) => (
+                  <th
+                    key={month}
+                    className="px-2 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-center min-w-[72px]"
+                  >
+                    {month === 0 ? "Mês 0" : `Mês ${month}`}
                   </th>
-                  <th className="px-3 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-center min-w-[60px]">
-                    Clientes
-                  </th>
-                  {monthHeaders.map((month) => (
-                    <th
-                      key={month}
-                      className="px-2 py-2.5 font-black text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 text-center min-w-[80px]"
-                    >
-                      {month === 0 ? "Mês 0" : `Mês ${month}`}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.cohorts.map((cohort) => (
-                  <tr key={cohort.cohortMonth} className="border-b border-slate-50 dark:border-slate-800/50">
-                    <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-2 font-bold text-xs text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
-                      {formatCohortMonth(cohort.cohortMonth)}
-                    </td>
-                    <td className="px-3 py-2 text-center font-bold text-xs text-slate-600 dark:text-slate-400">
-                      {cohort.cohortSize}
-                    </td>
-                    {cohort.retention.map((slot, idx) => {
-                      const isClickable = slot.percentage !== null && slot.count !== null;
-                      return (
-                        <td key={idx} className="px-1 py-1.5 text-center">
-                          <div
-                            onClick={() =>
-                              handleCellClick(cohort.cohortMonth, idx, slot.percentage, slot.count)
-                            }
-                            className={`rounded-lg px-2 py-1.5 transition-all ${getHeatmapColor(slot.percentage)} ${
-                              isClickable
-                                ? "cursor-pointer hover:opacity-80 hover:scale-105 hover:shadow-sm"
-                                : "cursor-default"
-                            }`}
-                          >
-                            {slot.percentage !== null ? (
-                              <div className="flex flex-col items-center leading-tight">
-                                <span className="text-[11px] font-black">{slot.percentage}%</span>
-                                <span className="text-[9px] font-semibold opacity-80">({slot.count})</span>
-                              </div>
-                            ) : (
-                              <span className="text-[11px] font-black">—</span>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center gap-4 mt-4 px-3 pb-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escala:</span>
-            <div className="flex items-center gap-1.5">
-              {[
-                { color: "bg-rose-100", label: "<5%" },
-                { color: "bg-orange-200", label: "5%" },
-                { color: "bg-amber-200", label: "10%" },
-                { color: "bg-amber-300", label: "15%" },
-                { color: "bg-emerald-300", label: "25%" },
-                { color: "bg-emerald-400", label: "40%" },
-                { color: "bg-emerald-500", label: "60%" },
-                { color: "bg-emerald-600", label: "80%+" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded ${item.color}`} />
-                  <span className="text-[9px] text-slate-400 font-medium">{item.label}</span>
-                </div>
+              </tr>
+            </thead>
+            <tbody>
+              {data.cohorts.map((cohort) => (
+                <tr
+                  key={cohort.cohortMonth}
+                  className="border-b border-slate-50 dark:border-slate-800/50"
+                >
+                  <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-2 font-bold text-xs text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
+                    {formatCohortMonth(cohort.cohortMonth)}
+                  </td>
+                  <td className="px-3 py-2 text-center font-bold text-xs text-slate-600 dark:text-slate-400">
+                    {cohort.cohortSize}
+                  </td>
+                  {cohort.retention.map((slot, idx) => {
+                    const isClickable =
+                      slot.percentage !== null && slot.count !== null;
+                    return (
+                      <td key={idx} className="px-1 py-1.5 text-center">
+                        <div
+                          onClick={() =>
+                            handleCellClick(
+                              cohort.cohortMonth,
+                              idx,
+                              slot.percentage,
+                              slot.count,
+                            )
+                          }
+                          className={`rounded-lg px-2 py-1.5 transition-all ${getHeatmapColor(slot.percentage)} ${
+                            isClickable
+                              ? "cursor-pointer hover:opacity-80 hover:scale-105 hover:shadow-sm"
+                              : "cursor-default"
+                          }`}
+                        >
+                          {slot.percentage !== null ? (
+                            <div className="flex flex-col items-center leading-tight">
+                              <span className="text-[11px] font-black">
+                                {slot.percentage}%
+                              </span>
+                              <span className="text-[9px] font-semibold opacity-80">
+                                ({slot.count})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] font-black">—</span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
               ))}
-            </div>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 px-6 pb-5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Escala:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { color: "bg-rose-100", label: "<5%" },
+              { color: "bg-orange-200", label: "5%" },
+              { color: "bg-amber-200", label: "10%" },
+              { color: "bg-amber-300", label: "15%" },
+              { color: "bg-emerald-300", label: "25%" },
+              { color: "bg-emerald-400", label: "40%" },
+              { color: "bg-emerald-500", label: "60%" },
+              { color: "bg-emerald-600", label: "80%+" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-1">
+                <div className={`w-3 h-3 rounded ${item.color}`} />
+                <span className="text-[9px] text-slate-400 font-medium">
+                  {item.label}
+                </span>
+              </div>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <CohortClientsDialog
         open={dialogOpen}

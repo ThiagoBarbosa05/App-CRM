@@ -869,11 +869,7 @@ export class BlingOrdersService {
     userId: string;
     blingOrdersDbId: string;
   }): Promise<void> {
-    // TODO: pós-processamento desabilitado temporariamente para testes
-    // (cashback + vínculo de cliente). Remova este return quando finalizar os testes.
-    return;
-
-    const { action, order, userId, blingOrdersDbId } = params;
+    const { order, blingOrdersDbId } = params;
 
     // Somente Pessoa Física é elegível para vínculo com cliente do app
     if (order.contato.tipo !== "F") {
@@ -883,7 +879,7 @@ export class BlingOrdersService {
     const celular = order.contato.celular ?? null;
     const telefone = order.contato.telefone ?? null;
 
-    // Busca cliente no app (null se sem telefone ou não encontrado)
+    // Busca cliente no app pelo telefone/celular normalizado
     let appClient: Client | null = null;
     if (celular || telefone) {
       try {
@@ -896,7 +892,7 @@ export class BlingOrdersService {
       }
     }
 
-    // Se não encontrou, tenta criar automaticamente com os dados do Bling
+    // Se não encontrou, cria automaticamente com os dados do Bling
     if (!appClient && (celular || telefone)) {
       try {
         appClient = await this.createAppClientFromBling(order);
@@ -926,23 +922,16 @@ export class BlingOrdersService {
       );
     }
 
-    // Sem cliente no app: sem cashback nem venda
-    if (!appClient) {
-      return;
-    }
-
-    // Processa cashback (cada step em try-catch isolado)
-    let cashbackAmount = "0";
-    try {
-      cashbackAmount = await this.processOrderCashback({
-        action,
-        appClientId: appClient.id,
-        order,
-        userId,
-      });
-    } catch (error) {
-      console.error("[BlingOrdersService] Erro ao processar cashback:", error);
-    }
+    // TODO: cashback desabilitado temporariamente para testes.
+    // Para reativar, descomente o bloco abaixo e restaure `action`/`userId`
+    // no destructuring do params acima.
+    // if (appClient) {
+    //   try {
+    //     await this.processOrderCashback({ action, appClientId: appClient.id, order, userId });
+    //   } catch (error) {
+    //     console.error("[BlingOrdersService] Erro ao processar cashback:", error);
+    //   }
+    // }
   }
 }
 
