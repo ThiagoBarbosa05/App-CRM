@@ -5,13 +5,15 @@ import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
 // import "./jobs/umbler-sync-scheduler";
-import {
-  initializePubSubSubscriber,
-  shutdownPubSubSubscriber,
-} from "./jobs/pubsub-subscriber";
 
 const app = express();
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
@@ -78,27 +80,17 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-
-      // Inicializa o consumidor do Pub/Sub após o servidor estar rodando
-      initializePubSubSubscriber().catch((error) => {
-        console.error(
-          "[Server] Erro ao inicializar Pub/Sub subscriber:",
-          error,
-        );
-      });
     },
   );
 
   // Graceful shutdown handlers
-  process.on("SIGTERM", async () => {
+  process.on("SIGTERM", () => {
     log("SIGTERM recebido, encerrando gracefully...");
-    await shutdownPubSubSubscriber();
     process.exit(0);
   });
 
-  process.on("SIGINT", async () => {
+  process.on("SIGINT", () => {
     log("SIGINT recebido, encerrando gracefully...");
-    await shutdownPubSubSubscriber();
     process.exit(0);
   });
 })();

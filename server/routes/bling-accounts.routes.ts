@@ -1,7 +1,12 @@
 import { Request, Router } from "express";
 import { z } from "zod";
+import { db } from "../db";
+import { blingConnections } from "../../shared/schema";
+import { eq } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
+import { getBlingCompanyInfo } from "../integrations/bling";
+import { decryptToken } from "../lib/token-crypto";
 
 const router = Router();
 
@@ -39,7 +44,10 @@ function getAdminUser(req: Request): {
   return { userId, userRole };
 }
 
-function getCallbackRedirectUrl(status: "success" | "error", message: string): string {
+function getCallbackRedirectUrl(
+  status: "success" | "error",
+  message: string,
+): string {
   const frontendUrl = process.env.APP_URL || "http://localhost:5000";
   const url = new URL("/configuracoes", frontendUrl);
   url.searchParams.set("tab", "bling-accounts");
@@ -70,7 +78,8 @@ router.get("/", async (req, res) => {
 
     res.json({ success: true, data: connections });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao listar contas Bling";
+    const message =
+      error instanceof Error ? error.message : "Erro ao listar contas Bling";
     const status = message.includes("administradores") ? 403 : 401;
     res.status(status).json({ success: false, error: message });
   }
@@ -96,11 +105,24 @@ router.post("/connect", async (req, res) => {
     console.error("[BlingAccountsRouter] Erro ao iniciar conexao:", error);
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: "Dados invalidos", details: error.errors });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Dados invalidos",
+          details: error.errors,
+        });
     }
 
-    const message = error instanceof Error ? error.message : "Erro ao iniciar conexao com Bling";
-    const status = message.includes("administradores") ? 403 : message.includes("autenticado") ? 401 : 500;
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao iniciar conexao com Bling";
+    const status = message.includes("administradores")
+      ? 403
+      : message.includes("autenticado")
+        ? 401
+        : 500;
     return res.status(status).json({ success: false, error: message });
   }
 });
@@ -109,7 +131,8 @@ router.get("/vendors", async (req, res) => {
   try {
     getAdminUser(req);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro de autenticação";
+    const message =
+      error instanceof Error ? error.message : "Erro de autenticação";
     const status = message.includes("administradores") ? 403 : 401;
     return res.status(status).json({ success: false, error: message });
   }
@@ -137,10 +160,17 @@ router.put("/:id", async (req, res) => {
     console.error("[BlingAccountsRouter] Erro ao atualizar conta:", error);
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: "Dados invalidos", details: error.errors });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Dados invalidos",
+          details: error.errors,
+        });
     }
 
-    const message = error instanceof Error ? error.message : "Erro ao atualizar conta Bling";
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar conta Bling";
     return res.status(400).json({ success: false, error: message });
   }
 });
@@ -153,15 +183,28 @@ router.get("/callback", async (req, res) => {
 
   try {
     const query = querySchema.parse(req.query);
-    await blingConnectionsService.handleOAuthCallback({ code: query.code, state: query.state });
+    await blingConnectionsService.handleOAuthCallback({
+      code: query.code,
+      state: query.state,
+    });
 
     return res
       .status(200)
       .type("html")
-      .send(renderCallbackHtml(getCallbackRedirectUrl("success", "Conta Bling conectada com sucesso")));
+      .send(
+        renderCallbackHtml(
+          getCallbackRedirectUrl(
+            "success",
+            "Conta Bling conectada com sucesso",
+          ),
+        ),
+      );
   } catch (error) {
     console.error("[BlingAccountsRouter] Erro no callback OAuth:", error);
-    const message = error instanceof Error ? error.message : "Erro ao concluir autenticacao com Bling";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao concluir autenticacao com Bling";
     return res
       .status(200)
       .type("html")
@@ -172,11 +215,15 @@ router.get("/callback", async (req, res) => {
 router.post("/:id/refresh", async (req, res) => {
   try {
     const { userId } = getAdminUser(req);
-    const connection = await blingConnectionsService.refreshConnection(req.params.id, userId);
+    const connection = await blingConnectionsService.refreshConnection(
+      req.params.id,
+      userId,
+    );
     res.json({ success: true, data: connection });
   } catch (error) {
     console.error("[BlingAccountsRouter] Erro ao renovar conexao:", error);
-    const message = error instanceof Error ? error.message : "Erro ao renovar conexao Bling";
+    const message =
+      error instanceof Error ? error.message : "Erro ao renovar conexao Bling";
     res.status(400).json({ success: false, error: message });
   }
 });
@@ -184,10 +231,15 @@ router.post("/:id/refresh", async (req, res) => {
 router.post("/:id/reconnect", async (req, res) => {
   try {
     const { userId } = getAdminUser(req);
-    const connection = await blingConnectionsService.getById(req.params.id, userId);
+    const connection = await blingConnectionsService.getById(
+      req.params.id,
+      userId,
+    );
 
     if (!connection) {
-      return res.status(404).json({ success: false, error: "Conexao Bling nao encontrada" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Conexao Bling nao encontrada" });
     }
 
     const payload = await blingConnectionsService.createAuthorizationUrl(
@@ -198,7 +250,8 @@ router.post("/:id/reconnect", async (req, res) => {
     return res.json({ success: true, data: payload });
   } catch (error) {
     console.error("[BlingAccountsRouter] Erro ao reconectar conta:", error);
-    const message = error instanceof Error ? error.message : "Erro ao reconectar conta Bling";
+    const message =
+      error instanceof Error ? error.message : "Erro ao reconectar conta Bling";
     return res.status(400).json({ success: false, error: message });
   }
 });
@@ -207,10 +260,16 @@ router.post("/:id/disconnect", async (req, res) => {
   try {
     const { userId } = getAdminUser(req);
     await blingConnectionsService.disconnectConnection(req.params.id, userId);
-    res.json({ success: true, message: "Conta Bling desconectada com sucesso" });
+    res.json({
+      success: true,
+      message: "Conta Bling desconectada com sucesso",
+    });
   } catch (error) {
     console.error("[BlingAccountsRouter] Erro ao desconectar conta:", error);
-    const message = error instanceof Error ? error.message : "Erro ao desconectar conta Bling";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao desconectar conta Bling";
     res.status(400).json({ success: false, error: message });
   }
 });
@@ -218,11 +277,66 @@ router.post("/:id/disconnect", async (req, res) => {
 router.get("/:id/status", async (req, res) => {
   try {
     const { userId } = getAdminUser(req);
-    const connection = await blingConnectionsService.getConnectionStatus(req.params.id, userId);
+    const connection = await blingConnectionsService.getConnectionStatus(
+      req.params.id,
+      userId,
+    );
     res.json({ success: true, data: connection });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao buscar status da conta Bling";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao buscar status da conta Bling";
     res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/bling-accounts/:id/sync-company-id
+ * Backfill: busca o companyId da empresa Bling e salva na conexão.
+ * Necessário para conexões criadas antes da implementação do webhook.
+ */
+router.post("/:id/sync-company-id", async (req, res) => {
+  try {
+    const { userId, userRole } = getAdminUser(req);
+    if (userRole !== "admin") {
+      res
+        .status(403)
+        .json({ success: false, error: "Acesso restrito a administradores" });
+      return;
+    }
+
+    const [connection] = await db
+      .select()
+      .from(blingConnections)
+      .where(eq(blingConnections.id, req.params.id))
+      .limit(1);
+
+    if (!connection || connection.userId !== userId) {
+      res.status(404).json({ success: false, error: "Conexão não encontrada" });
+      return;
+    }
+
+    if (!connection.accessTokenEncrypted) {
+      res
+        .status(400)
+        .json({ success: false, error: "Conexão ainda não autenticada" });
+      return;
+    }
+
+    const accessToken = decryptToken(connection.accessTokenEncrypted);
+    const companyInfo = await getBlingCompanyInfo(accessToken);
+
+    await db
+      .update(blingConnections)
+      .set({ blingCompanyId: companyInfo.id, updatedAt: new Date() })
+      .where(eq(blingConnections.id, connection.id));
+
+    res.json({ success: true, data: { blingCompanyId: companyInfo.id } });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao sincronizar companyId";
+    res.status(500).json({ success: false, error: message });
   }
 });
 

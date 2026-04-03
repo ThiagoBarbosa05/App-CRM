@@ -10,6 +10,7 @@ import { decryptToken, encryptToken } from "../lib/token-crypto";
 import {
   buildBlingAuthorizationUrl,
   exchangeAuthorizationCode,
+  getBlingCompanyInfo,
   getBlingRedirectUri,
   parseJwtPayload,
   refreshBlingAccessToken,
@@ -198,7 +199,9 @@ export class BlingConnectionsService {
           ? encryptToken(params.oauthClientSecret)
           : connection.oauthClientSecretEncrypted,
         status: credentialsChanged ? "reauth_required" : connection.status,
-        accessTokenEncrypted: credentialsChanged ? null : connection.accessTokenEncrypted,
+        accessTokenEncrypted: credentialsChanged
+          ? null
+          : connection.accessTokenEncrypted,
         refreshTokenEncrypted: credentialsChanged
           ? null
           : connection.refreshTokenEncrypted,
@@ -286,8 +289,22 @@ export class BlingConnectionsService {
       getOAuthCredentials(connection),
     );
     const identity = getBlingIdentity(tokenResponse.access_token);
-    const accessTokenExpiresAt = getAccessTokenExpiryDate(tokenResponse.expires_in);
+    const accessTokenExpiresAt = getAccessTokenExpiryDate(
+      tokenResponse.expires_in,
+    );
     const refreshTokenExpiresAt = getRefreshTokenExpiryDate();
+
+    // Busca o companyId da empresa Bling para vincular o webhook
+    let blingCompanyId: string | null = null;
+    try {
+      const companyInfo = await getBlingCompanyInfo(tokenResponse.access_token);
+      blingCompanyId = companyInfo.id;
+    } catch (error) {
+      console.error(
+        "[BlingConnectionsService] Não foi possível obter companyId da empresa Bling — webhook poderá não funcionar:",
+        error,
+      );
+    }
 
     await db
       .update(blingConnections)
@@ -305,6 +322,7 @@ export class BlingConnectionsService {
         blingLogin: identity.blingLogin,
         blingAccountId: identity.blingAccountId,
         blingAccountName: identity.blingAccountName,
+        blingCompanyId,
         updatedAt: new Date(),
       })
       .where(eq(blingConnections.id, connection.id));
@@ -347,7 +365,9 @@ export class BlingConnectionsService {
           refreshTokenEncrypted: encryptToken(tokenResponse.refresh_token),
           tokenType: tokenResponse.token_type,
           scope: tokenResponse.scope ?? connection.scope,
-          accessTokenExpiresAt: getAccessTokenExpiryDate(tokenResponse.expires_in),
+          accessTokenExpiresAt: getAccessTokenExpiryDate(
+            tokenResponse.expires_in,
+          ),
           refreshTokenExpiresAt: getRefreshTokenExpiryDate(),
           lastRefreshAt: new Date(),
           lastError: null,
@@ -360,7 +380,9 @@ export class BlingConnectionsService {
         .where(eq(blingConnections.id, connection.id));
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Erro ao renovar token do Bling";
+        error instanceof Error
+          ? error.message
+          : "Erro ao renovar token do Bling";
 
       await db
         .update(blingConnections)

@@ -26,7 +26,9 @@ async function fetchBlingApi(
   const url = new URL(`${getApiBaseUrl()}${path}`);
 
   if (params) {
-    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+    Object.entries(params).forEach(([key, value]) =>
+      url.searchParams.set(key, value),
+    );
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -49,7 +51,9 @@ async function fetchBlingApi(
     const retryAfter = response.headers.get("Retry-After");
     const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : 400;
 
-    console.warn(`Bling rate limit atingido. Aguardando ${waitMs}ms antes da tentativa ${attempt + 2}/${maxRetries + 1}.`);
+    console.warn(
+      `Bling rate limit atingido. Aguardando ${waitMs}ms antes da tentativa ${attempt + 2}/${maxRetries + 1}.`,
+    );
     await sleep(waitMs);
   }
 
@@ -163,7 +167,9 @@ export async function getBlingPedidoVenda(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Falha ao buscar pedido de venda do Bling: ${errorText || response.statusText}`);
+    throw new Error(
+      `Falha ao buscar pedido de venda do Bling: ${errorText || response.statusText}`,
+    );
   }
 
   const body = (await response.json()) as { data: BlingPedidoVenda };
@@ -221,7 +227,9 @@ export async function getBlingProdutos(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Falha ao buscar produtos do Bling: ${errorText || response.statusText}`);
+    throw new Error(
+      `Falha ao buscar produtos do Bling: ${errorText || response.statusText}`,
+    );
   }
 
   const body = (await response.json()) as { data: BlingProduto[] };
@@ -250,16 +258,129 @@ export interface BlingVendedor {
  *
  * @param accessToken - Token de acesso OAuth2 válido do Bling.
  */
-export async function getBlingVendedores(accessToken: string): Promise<BlingVendedor[]> {
-  const response = await fetchBlingApi(accessToken, "/vendedores", { situacaoContato: "A" });
+export async function getBlingVendedores(
+  accessToken: string,
+): Promise<BlingVendedor[]> {
+  const response = await fetchBlingApi(accessToken, "/vendedores", {
+    situacaoContato: "A",
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Falha ao buscar vendedores do Bling: ${errorText || response.statusText}`);
+    throw new Error(
+      `Falha ao buscar vendedores do Bling: ${errorText || response.statusText}`,
+    );
   }
 
   const body = (await response.json()) as { data: BlingVendedor[] };
   return body.data;
+}
+
+export interface BlingCompanyInfo {
+  id: string;
+}
+
+/**
+ * Retorna o ID da empresa (companyId) a partir dos dados básicos da conta Bling.
+ *
+ * Necessário para vincular o companyId recebido no webhook à conexão correta.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingCompanyInfo(
+  accessToken: string,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingCompanyInfo> {
+  let token = accessToken;
+
+  let response = await fetchBlingApi(token, "/empresas/me/dados-basicos");
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/empresas/me/dados-basicos");
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao buscar dados da empresa no Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: { id: string } };
+  return { id: String(body.data.id) };
+}
+
+export interface BlingContato {
+  id: number;
+  nome: string | null;
+  telefone: string | null;
+  celular: string | null;
+  tipo: string | null;
+  numeroDocumento: string | null;
+  email: string | null;
+  fantasia: string | null;
+}
+
+/**
+ * Retorna os dados de um contato pelo ID no Bling.
+ *
+ * Usado para enriquecer os dados do pedido recebido via webhook com telefone,
+ * celular, tipo de pessoa e CPF/CNPJ do contato.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param contatoId      - ID do contato no Bling.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingContato(
+  accessToken: string,
+  contatoId: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingContato> {
+  let token = accessToken;
+
+  let response = await fetchBlingApi(token, `/contatos/${contatoId}`);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, `/contatos/${contatoId}`);
+  }
+
+  if (response.status === 404) {
+    throw new Error(`Contato ${contatoId} não encontrado no Bling`);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao buscar contato do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as {
+    data: {
+      id: number;
+      nome: string | null;
+      telefone: string | null;
+      celular: string | null;
+      tipo: string | null;
+      numeroDocumento: string | null;
+      email: string | null;
+      fantasia: string | null;
+    };
+  };
+
+  return {
+    id: body.data.id,
+    nome: body.data.nome ?? null,
+    telefone: body.data.telefone ?? null,
+    celular: body.data.celular ?? null,
+    tipo: body.data.tipo ?? null,
+    numeroDocumento: body.data.numeroDocumento ?? null,
+    email: body.data.email ?? null,
+    fantasia: body.data.fantasia ?? null,
+  };
 }
 
 export interface BlingTokenResponse {
@@ -301,7 +422,9 @@ export function getBlingRedirectUri(): string {
   return redirectUri;
 }
 
-function getBasicAuthorizationHeader(credentialsInput: BlingOAuthClientCredentials): string {
+function getBasicAuthorizationHeader(
+  credentialsInput: BlingOAuthClientCredentials,
+): string {
   const credentials = `${credentialsInput.clientId}:${credentialsInput.clientSecret}`;
   return `Basic ${Buffer.from(credentials).toString("base64")}`;
 }
@@ -322,7 +445,9 @@ async function postOAuthToken(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Falha ao obter token do Bling: ${errorText || response.statusText}`);
+    throw new Error(
+      `Falha ao obter token do Bling: ${errorText || response.statusText}`,
+    );
   }
 
   return (await response.json()) as BlingTokenResponse;
@@ -345,13 +470,16 @@ export async function exchangeAuthorizationCode(
   code: string,
   credentials: BlingOAuthClientCredentials,
 ): Promise<BlingTokenResponse> {
-  return postOAuthToken({
-    clientId: credentials.clientId,
-    clientSecret: credentials.clientSecret,
-  }, {
-    grant_type: "authorization_code",
-    code,
-  });
+  return postOAuthToken(
+    {
+      clientId: credentials.clientId,
+      clientSecret: credentials.clientSecret,
+    },
+    {
+      grant_type: "authorization_code",
+      code,
+    },
+  );
 }
 
 export async function refreshBlingAccessToken(
@@ -380,7 +508,9 @@ export async function revokeBlingToken(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Falha ao revogar token do Bling: ${errorText || response.statusText}`);
+    throw new Error(
+      `Falha ao revogar token do Bling: ${errorText || response.statusText}`,
+    );
   }
 }
 

@@ -2181,7 +2181,14 @@ export const blingConnections = pgTable(
     oauthClientId: text("oauth_client_id").notNull(),
     oauthClientSecretEncrypted: text("oauth_client_secret_encrypted").notNull(),
     status: text("status", {
-      enum: ["pending", "connected", "expired", "reauth_required", "revoked", "error"],
+      enum: [
+        "pending",
+        "connected",
+        "expired",
+        "reauth_required",
+        "revoked",
+        "error",
+      ],
     })
       .notNull()
       .default("pending"),
@@ -2198,13 +2205,18 @@ export const blingConnections = pgTable(
     lastRefreshAt: timestamp("last_refresh_at"),
     lastSyncAt: timestamp("last_sync_at"),
     lastError: text("last_error"),
+    blingCompanyId: text("bling_company_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     index("bling_connections_user_idx").on(table.userId),
     index("bling_connections_status_idx").on(table.status),
-    uniqueIndex("bling_connections_user_name_uidx").on(table.userId, table.name),
+    index("bling_connections_company_id_idx").on(table.blingCompanyId),
+    uniqueIndex("bling_connections_user_name_uidx").on(
+      table.userId,
+      table.name,
+    ),
   ],
 );
 

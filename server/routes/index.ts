@@ -30,6 +30,8 @@ import { telemarketingGoalsRouter } from "./telemarketing-goals.routes";
 import blingAccountsRouter from "./bling-accounts.routes";
 import blingProductsRouter from "./bling-products.routes";
 import connectOrdersRouter from "./connect-orders.routes";
+import unifiedOrdersRouter from "./unified-orders.routes";
+import blingWebhookRouter from "./bling-webhook.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -70,6 +72,9 @@ apiRouter.use("/telemarketing-goals", telemarketingGoalsRouter);
 apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
+apiRouter.use("/unified-orders", unifiedOrdersRouter);
+// Webhook do Bling — sem autenticação de usuário (chamado diretamente pelo Bling)
+apiRouter.use("/bling", blingWebhookRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);
