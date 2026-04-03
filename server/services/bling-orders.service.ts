@@ -869,6 +869,10 @@ export class BlingOrdersService {
     userId: string;
     blingOrdersDbId: string;
   }): Promise<void> {
+    // TODO: pós-processamento desabilitado temporariamente para testes
+    // (cashback + vínculo de cliente). Remova este return quando finalizar os testes.
+    return;
+
     const { action, order, userId, blingOrdersDbId } = params;
 
     // Somente Pessoa Física é elegível para vínculo com cliente do app
@@ -939,7 +943,6 @@ export class BlingOrdersService {
     } catch (error) {
       console.error("[BlingOrdersService] Erro ao processar cashback:", error);
     }
-
   }
 }
 

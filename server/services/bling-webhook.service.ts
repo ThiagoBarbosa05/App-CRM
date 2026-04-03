@@ -119,7 +119,7 @@ export async function resolveConnectionByCompanyId(
 // Lookup de sellerName no banco de dados local
 // ---------------------------------------------------------------------------
 
-async function resolveSellerName(
+export async function resolveSellerName(
   blingVendedorId: number | null,
 ): Promise<string | null> {
   if (!blingVendedorId) return null;
@@ -143,7 +143,7 @@ async function resolveSellerName(
 // Adapter: BlingPedidoVenda → SalesOrder (tipo do bling-orders.service)
 // ---------------------------------------------------------------------------
 
-function mapPedidoToSalesOrder(
+export function mapPedidoToSalesOrder(
   pedido: BlingPedidoVenda,
   contato: BlingContato | null,
   sellerName: string | null,
@@ -211,7 +211,7 @@ function mapPedidoToSalesOrder(
   };
 }
 
-function buildMessage(
+export function buildMessage(
   order: SalesOrder,
   eventType: "created" | "updated" | "deleted",
   connection: BlingConnection,
@@ -296,7 +296,7 @@ async function markLogFailed(logId: string, error: unknown): Promise<void> {
 // Helper: obtém access token descriptografado e cria callback de refresh
 // ---------------------------------------------------------------------------
 
-function getAccessTokenAndRefresher(connection: BlingConnection): {
+export function getAccessTokenAndRefresher(connection: BlingConnection): {
   accessToken: string;
   onTokenRefresh: () => Promise<string>;
 } {

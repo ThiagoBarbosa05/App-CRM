@@ -176,6 +176,105 @@ export async function getBlingPedidoVenda(
   return body.data;
 }
 
+// ---------------------------------------------------------------------------
+// Lista paginada de pedidos de venda
+// ---------------------------------------------------------------------------
+
+/**
+ * Resumo de um pedido de venda retornado pelo endpoint de listagem.
+ * Contém dados básicos — para itens e parcelas use `getBlingPedidoVenda`.
+ */
+export interface BlingPedidoVendaSummary {
+  id: number;
+  numero: number;
+  numeroPedidoCompra: string | null;
+  data: string;
+  dataSaida: string | null;
+  dataPrevista: string | null;
+  totalProdutos: number;
+  total: number;
+  situacao: { id: number; valor: number };
+  contato: {
+    id: number;
+    nome: string;
+    tipoPessoa: string;
+    numeroDocumento: string;
+  };
+  loja: { id: number };
+  vendedor: { id: number } | null;
+}
+
+export interface GetBlingPedidosVendasParams {
+  /** Página de resultados (default: 1) */
+  pagina?: number;
+  /** Itens por página — máximo 100 (default: 100) */
+  limite?: number;
+  /** Data inicial de venda no formato yyyy-MM-dd */
+  dataInicial?: string;
+  /** Data final de venda no formato yyyy-MM-dd */
+  dataFinal?: string;
+  idContato?: number;
+  idVendedor?: number;
+  idSituacao?: number;
+  idLoja?: number;
+  numero?: number;
+}
+
+/**
+ * Lista pedidos de venda do Bling com suporte a paginação.
+ *
+ * O Bling retorna no máximo 100 pedidos por página. Para importação completa,
+ * continue incrementando `pagina` até receber um array vazio ou com menos de
+ * `limite` itens.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param params         - Filtros e paginação.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingPedidosVendas(
+  accessToken: string,
+  params: GetBlingPedidosVendasParams = {},
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingPedidoVendaSummary[]> {
+  let token = accessToken;
+
+  const queryParams: Record<string, string> = {
+    limite: String(params.limite ?? 100),
+  };
+  if (params.pagina !== undefined) queryParams.pagina = String(params.pagina);
+  if (params.dataInicial) queryParams.dataInicial = params.dataInicial;
+  if (params.dataFinal) queryParams.dataFinal = params.dataFinal;
+  if (params.idContato !== undefined)
+    queryParams.idContato = String(params.idContato);
+  if (params.idVendedor !== undefined)
+    queryParams.idVendedor = String(params.idVendedor);
+  if (params.idSituacao !== undefined)
+    queryParams.idSituacao = String(params.idSituacao);
+  if (params.idLoja !== undefined) queryParams.idLoja = String(params.idLoja);
+  if (params.numero !== undefined) queryParams.numero = String(params.numero);
+
+  let response = await fetchBlingApi(token, "/pedidos/vendas", queryParams);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/pedidos/vendas", queryParams);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao listar pedidos de venda do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: BlingPedidoVendaSummary[] };
+  return body.data ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Produtos
+// ---------------------------------------------------------------------------
+
 export interface BlingProdutoEstoque {
   saldoVirtualTotal: number;
 }

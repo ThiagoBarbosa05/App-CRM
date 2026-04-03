@@ -7,6 +7,12 @@ import { blingConnectionsService } from "../services/bling-connections.service";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
 import { getBlingCompanyInfo } from "../integrations/bling";
 import { decryptToken } from "../lib/token-crypto";
+import {
+  startImport,
+  cancelImport,
+  getImportStatus,
+  loadValidatedConnection,
+} from "../services/bling-historical-import.service";
 
 const router = Router();
 
@@ -105,13 +111,11 @@ router.post("/connect", async (req, res) => {
     console.error("[BlingAccountsRouter] Erro ao iniciar conexao:", error);
 
     if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Dados invalidos",
-          details: error.errors,
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Dados invalidos",
+        details: error.errors,
+      });
     }
 
     const message =
@@ -160,13 +164,11 @@ router.put("/:id", async (req, res) => {
     console.error("[BlingAccountsRouter] Erro ao atualizar conta:", error);
 
     if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Dados invalidos",
-          details: error.errors,
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Dados invalidos",
+        details: error.errors,
+      });
     }
 
     const message =
@@ -336,6 +338,142 @@ router.post("/:id/sync-company-id", async (req, res) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Erro ao sincronizar companyId";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Importação histórica de pedidos
+// ---------------------------------------------------------------------------
+
+const importOrdersSchema = z.object({
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "startDate deve estar no formato yyyy-MM-dd"),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "endDate deve estar no formato yyyy-MM-dd"),
+  forceUpdate: z.boolean().optional(),
+  idSituacao: z.number().int().positive().optional(),
+  idLoja: z.number().int().positive().optional(),
+});
+
+/**
+ * POST /api/bling-accounts/:id/import-orders
+ *
+ * Inicia importação histórica de pedidos do Bling para o período informado.
+ * Responde 202 imediatamente; o processo roda em background com rate limit.
+ * Consulte o status via GET /:id/import-status.
+ */
+router.post("/:id/import-orders", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const parsed = importOrdersSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: "Parâmetros inválidos",
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada ou não autenticada",
+      });
+      return;
+    }
+
+    const started = await startImport(connection, parsed.data);
+    if (!started) {
+      res.status(409).json({
+        success: false,
+        error:
+          "Já existe uma importação em andamento para esta conexão. Aguarde ou cancele via POST /:id/import-cancel.",
+      });
+      return;
+    }
+
+    res.status(202).json({
+      success: true,
+      message: `Importação iniciada para o período ${parsed.data.startDate} → ${parsed.data.endDate}. Acompanhe via GET /api/bling-accounts/${req.params.id}/import-status.`,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao iniciar importação";
+    res
+      .status(
+        error instanceof Error &&
+          error.message.includes("Apenas administradores")
+          ? 403
+          : 500,
+      )
+      .json({ success: false, error: message });
+  }
+});
+
+/**
+ * GET /api/bling-accounts/:id/import-status
+ *
+ * Retorna o estado atual da importação histórica (progresso, contadores, erros).
+ */
+router.get("/:id/import-status", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada",
+      });
+      return;
+    }
+
+    const status = getImportStatus(connection.id);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao buscar status";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/bling-accounts/:id/import-cancel
+ *
+ * Sinaliza o cancelamento cooperativo de uma importação em andamento.
+ */
+router.post("/:id/import-cancel", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada",
+      });
+      return;
+    }
+
+    const cancelled = cancelImport(connection.id);
+    if (!cancelled) {
+      res.status(400).json({
+        success: false,
+        error: "Nenhuma importação em andamento para cancelar.",
+      });
+      return;
+    }
+
+    res.json({ success: true, message: "Cancelamento solicitado." });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao cancelar importação";
     res.status(500).json({ success: false, error: message });
   }
 });
