@@ -167,6 +167,17 @@ export function mapPedidoToSalesOrder(
     telefone: contato?.telefone ?? null,
     celular: contato?.celular ?? null,
     fantasia: contato?.fantasia ?? null,
+    endereco: contato?.endereco
+      ? {
+          endereco: contato.endereco.endereco ?? undefined,
+          numero: contato.endereco.numero ?? undefined,
+          complemento: contato.endereco.complemento ?? undefined,
+          bairro: contato.endereco.bairro ?? undefined,
+          municipio: contato.endereco.municipio ?? undefined,
+          uf: contato.endereco.uf ?? undefined,
+          cep: contato.endereco.cep ?? undefined,
+        }
+      : null,
   };
 
   const itens: OrderItem[] = (pedido.itens ?? []).map((item) => ({

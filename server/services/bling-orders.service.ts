@@ -652,6 +652,8 @@ export class BlingOrdersService {
         ? documento.replace(/\D/g, "")
         : null;
 
+    const end = order.contato.endereco;
+
     try {
       const [created] = await db
         .insert(clients)
@@ -663,6 +665,13 @@ export class BlingOrdersService {
             ? { fixedPhone: telefone.replace(/\D/g, "") }
             : {}),
           ...(cpf ? { cpf } : {}),
+          ...(order.contato.email ? { email: order.contato.email } : {}),
+          ...(end?.cep ? { cep: end.cep } : {}),
+          ...(end?.endereco ? { address: end.endereco } : {}),
+          ...(end?.numero ? { number: end.numero } : {}),
+          ...(end?.bairro ? { neighborhood: end.bairro } : {}),
+          ...(end?.municipio ? { city: end.municipio } : {}),
+          ...(end?.uf ? { state: end.uf } : {}),
           ...(responsavelId ? { responsavelId } : {}),
           categoria: "Bling",
           origem: "Bling",
@@ -874,12 +883,54 @@ export class BlingOrdersService {
   }
 
   /**
+   * Enriquece um cliente existente com dados do Bling, preenchendo apenas os
+   * campos que estão vazios no app. Nunca sobrescreve name nem phone (unique).
+   * Também atribui responsavelId se ainda não tiver vendedor vinculado.
+   */
+  private async enrichAppClientFromBling(
+    client: Client,
+    order: SalesOrder,
+    sellerAppUserId: string | null,
+  ): Promise<void> {
+    const end = order.contato.endereco;
+    const documento = order.contato.documento ?? null;
+    const cpf =
+      documento && /^\d{11}$/.test(documento.replace(/\D/g, ""))
+        ? documento.replace(/\D/g, "")
+        : null;
+
+    const patch: Partial<typeof clients.$inferInsert> = {};
+
+    if (!client.cpf && cpf) patch.cpf = cpf;
+    if (!client.email && order.contato.email) patch.email = order.contato.email;
+    if (!client.cep && end?.cep) patch.cep = end.cep;
+    if (!client.address && end?.endereco) patch.address = end.endereco;
+    if (!client.number && end?.numero) patch.number = end.numero;
+    if (!client.neighborhood && end?.bairro) patch.neighborhood = end.bairro;
+    if (!client.city && end?.municipio) patch.city = end.municipio;
+    if (!client.state && end?.uf) patch.state = end.uf;
+    if (!client.responsavelId && sellerAppUserId)
+      patch.responsavelId = sellerAppUserId;
+
+    if (Object.keys(patch).length === 0) return;
+
+    try {
+      await db.update(clients).set(patch).where(eq(clients.id, client.id));
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao enriquecer cliente existente via Bling:",
+        error,
+      );
+    }
+  }
+
+  /**
    * Pós-processamento após salvar o pedido no banco.
    * - Apenas para Pessoa Física (tipo === "F")
-   * - Salva telefone/celular no registro de pedido
-   * - Busca cliente do app por telefone/celular normalizado
-   * - Vincula appClientId no pedido
-   * - Se cliente encontrado: processa cashback e registra venda
+   * - Busca cliente do app por CPF, celular ou telefone normalizado
+   * - Se encontrado: enriquece campos vazios com dados do Bling (idempotente)
+   * - Se não encontrado: cria com todos os dados disponíveis
+   * - Vincula appClientId no pedido (sempre reatualiza — idempotente)
    *
    * Nunca propaga erros — falhas são apenas logadas para não comprometer
    * o processamento principal do pedido.
@@ -923,8 +974,13 @@ export class BlingOrdersService {
       }
     }
 
-    // Se não encontrou, cria automaticamente com os dados do Bling
-    if (!appClient && (celular || telefone)) {
+    if (appClient) {
+      // Cliente encontrado: enriquece campos vazios com dados frescos do Bling
+      await this.enrichAppClientFromBling(appClient, order, sellerAppUserId).catch(
+        () => null,
+      );
+    } else if (celular || telefone) {
+      // Não encontrado: cria com todos os dados disponíveis
       try {
         appClient = await this.createAppClientFromBling(order, sellerAppUserId);
       } catch (error) {
@@ -936,6 +992,7 @@ export class BlingOrdersService {
     }
 
     // Atualiza o pedido com telefone, celular e vínculo com cliente do app
+    // (idempotente: reatualiza sempre para garantir consistência)
     try {
       await db
         .update(blingOrders)

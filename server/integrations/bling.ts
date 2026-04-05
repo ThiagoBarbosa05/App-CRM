@@ -411,6 +411,16 @@ export async function getBlingCompanyInfo(
   return { id: String(body.data.id) };
 }
 
+export interface BlingContatoEndereco {
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  municipio: string | null;
+  uf: string | null;
+  cep: string | null;
+}
+
 export interface BlingContato {
   id: number;
   nome: string | null;
@@ -420,6 +430,7 @@ export interface BlingContato {
   numeroDocumento: string | null;
   email: string | null;
   fantasia: string | null;
+  endereco: BlingContatoEndereco | null;
 }
 
 /**
@@ -467,8 +478,19 @@ export async function getBlingContato(
       numeroDocumento: string | null;
       email: string | null;
       fantasia: string | null;
+      endereco?: {
+        endereco?: string | null;
+        numero?: string | null;
+        complemento?: string | null;
+        bairro?: string | null;
+        municipio?: string | null;
+        uf?: string | null;
+        cep?: string | null;
+      } | null;
     };
   };
+
+  const end = body.data.endereco;
 
   return {
     id: body.data.id,
@@ -479,6 +501,17 @@ export async function getBlingContato(
     numeroDocumento: body.data.numeroDocumento ?? null,
     email: body.data.email ?? null,
     fantasia: body.data.fantasia ?? null,
+    endereco: end
+      ? {
+          endereco: end.endereco ?? null,
+          numero: end.numero ?? null,
+          complemento: end.complemento ?? null,
+          bairro: end.bairro ?? null,
+          municipio: end.municipio ?? null,
+          uf: end.uf ?? null,
+          cep: end.cep ?? null,
+        }
+      : null,
   };
 }
 
