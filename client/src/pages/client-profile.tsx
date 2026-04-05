@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,15 +13,37 @@ import { ClientCashbackTab } from "@/components/client-cashback-tab";
 import { ClientInfoTab } from "@/components/clients/client-info-tab";
 import { ClientFunnelsTab } from "@/components/clients/client-funnels-tab";
 import { ClientWhatsAppTab } from "@/components/clients/client-whatsapp-tab";
+import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ClientProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("info");
+  const [activeTab, setActiveTab] = useState(() => {
+    const currentTab = new URLSearchParams(window.location.search).get("tab");
+    return currentTab || "info";
+  });
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  useEffect(() => {
+    const nextTab = new URLSearchParams(window.location.search).get("tab") || "info";
+    setActiveTab(nextTab);
+  }, [location, id]);
+
+  useEffect(() => {
+    const currentTab = new URLSearchParams(window.location.search).get("tab") || "info";
+    if (currentTab !== activeTab) {
+      const url = new URL(window.location.href);
+      if (activeTab === "info") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", activeTab);
+      }
+      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    }
+  }, [activeTab]);
 
   const {
     data: client,
@@ -138,6 +160,13 @@ export default function ClientProfilePage() {
                 Interações
               </TabsTrigger>
               <TabsTrigger
+                value="compras"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-cyan-50 data-[state=active]:text-cyan-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-cyan-500/20 dark:data-[state=active]:bg-cyan-600"
+              >
+                <Wallet className="h-4 w-4" />
+                Compras
+              </TabsTrigger>
+              <TabsTrigger
                 value="cashback"
                 className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-amber-500/20 dark:data-[state=active]:bg-amber-600"
               >
@@ -186,6 +215,8 @@ export default function ClientProfilePage() {
                 {activeTab === "interactions" && (
                   <ClientInteractionsTab client={client} />
                 )}
+
+                {activeTab === "compras" && <ClientPurchasesTab client={client} />}
 
                 {activeTab === "cashback" && (
                   <ClientCashbackTab client={client} />

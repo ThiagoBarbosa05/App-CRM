@@ -1171,6 +1171,7 @@ export class BlingOrdersController {
           rank: i + 1,
           contactId: c.contactId,
           contactName: c.contactName || "Cliente sem nome",
+          appClientId: c.linkedAppClientId,
           totalOrders: Number(c.totalOrders),
           totalValue: Number(c.totalValue),
           avgValue: Number(c.avgValue),

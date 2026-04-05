@@ -692,6 +692,7 @@ export class BlingOrdersRepository {
       .select({
         contactId: blingOrders.contactId,
         contactName: blingOrders.contactName,
+        linkedAppClientId: sql<string | null>`CASE WHEN count(distinct ${blingOrders.appClientId}) FILTER (WHERE ${blingOrders.appClientId} IS NOT NULL) = 1 THEN max(${blingOrders.appClientId}) ELSE NULL END`,
         totalOrders: sql<number>`count(distinct ${blingOrders.id})`,
         totalValue: sql<string>`sum(${blingOrders.totalValue})`,
         avgValue: sql<string>`avg(${blingOrders.totalValue})`,

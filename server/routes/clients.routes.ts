@@ -11,6 +11,7 @@ import { confirmClientController } from "../controllers/clients/confirm-client.c
 import { getClientInteractionsController } from "../controllers/clients/get-client-interactions.controller";
 import { getClientFunnelsController } from "../controllers/clients/get-client-funnels.controller";
 import { getClientByIdController } from "../controllers/clients/get-client-by-id.controller";
+import { getClientPurchaseInsightsController } from "../controllers/clients/get-client-purchase-insights.controller";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -79,6 +80,11 @@ clientsRouter.get("/export-all", getClientsExportAllController);
  * @returns {object} Cliente encontrado ou erro 404
  */
 clientsRouter.get("/:id", getClientByIdController);
+
+clientsRouter.get(
+  "/:clientId/purchase-insights",
+  getClientPurchaseInsightsController,
+);
 
 /**
  * @route GET /api/clients/:clientId/interactions

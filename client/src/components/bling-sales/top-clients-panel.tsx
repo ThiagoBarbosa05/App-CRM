@@ -70,6 +70,12 @@ export function TopClientsPanel({ data, isLoading }: TopClientsPanelProps) {
 
   const handleClientClick = async (client: TopClient) => {
     if (loadingContactId) return;
+
+    if (client.appClientId) {
+      navigate(`/clientes/${client.appClientId}?tab=compras`);
+      return;
+    }
+
     setLoadingContactId(client.contactId);
 
     try {
@@ -98,7 +104,7 @@ export function TopClientsPanel({ data, isLoading }: TopClientsPanelProps) {
         (c) => c.name.toLowerCase().trim() === normalizedTarget,
       );
       const bestMatch = exactMatch ?? clients[0];
-      navigate(`/clientes/${bestMatch.id}`);
+      navigate(`/clientes/${bestMatch.id}?tab=compras`);
     } catch {
       toast({
         title: "Erro ao buscar cliente",

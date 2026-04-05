@@ -350,6 +350,7 @@ export interface TopClient {
   rank: number;
   contactId: string;
   contactName: string;
+  appClientId?: string | null;
   totalOrders: number;
   totalValue: number;
   avgValue: number;

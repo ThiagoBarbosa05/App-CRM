@@ -29,6 +29,7 @@ import {
   Link2Off,
 } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { OrderDetailsDialog } from "@/components/bling-sales/order-details-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -92,6 +93,7 @@ export function UnifiedOrdersTable({
   hasMore,
   totalOrders = 0,
 }: UnifiedOrdersTableProps) {
+  const [, navigate] = useLocation();
   const [selectedBlingOrderId, setSelectedBlingOrderId] = useState<
     string | null
   >(null);
@@ -100,6 +102,11 @@ export function UnifiedOrdersTable({
   const handleViewBlingDetails = (blingOrderId: string) => {
     setSelectedBlingOrderId(blingOrderId);
     setIsDetailsOpen(true);
+  };
+
+  const handleOpenClientPurchases = (appClientId: string | null) => {
+    if (!appClientId) return;
+    navigate(`/clientes/${appClientId}?tab=compras`);
   };
 
   if (isLoading) {
@@ -240,10 +247,20 @@ export function UnifiedOrdersTable({
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-black text-slate-900 dark:text-white truncate max-w-[200px]">
-                            {order.contactName || "Anônimo"}
+                            {order.appClientId ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenClientPurchases(order.appClientId)}
+                                className="truncate text-left transition-colors hover:text-cyan-600 dark:hover:text-cyan-400"
+                              >
+                                {order.contactName || "Anonimo"}
+                              </button>
+                            ) : (
+                              order.contactName || "Anonimo"
+                            )}
                           </span>
                           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-tighter">
-                            Rep: {order.sellerName || "Não vinculado"}
+                            Rep: {order.sellerName || "Nao vinculado"}
                           </span>
                         </div>
                       </TableCell>
