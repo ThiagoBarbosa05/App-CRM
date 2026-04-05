@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Client, type ClientInteractionWithUser } from "@shared/schema";
@@ -23,6 +24,13 @@ import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import InteractionFormModal from "./interaction-form-modal";
 import { useToast } from "@/hooks/use-toast";
+
+type InteractionDraft = {
+  type: "telemarketing" | "email" | "meeting" | "whatsapp" | "visit" | "note" | "other";
+  subject: string;
+  description: string;
+  status: "completed" | "scheduled" | "cancelled";
+};
 
 interface ClientInteractionsTabProps {
   client: Client;
@@ -71,10 +79,54 @@ const statusConfig = {
 export default function ClientInteractionsTab({
   client,
 }: ClientInteractionsTabProps) {
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingInteraction, setEditingInteraction] =
     useState<ClientInteractionWithUser | null>(null);
+  const [pendingInteractionDraft, setPendingInteractionDraft] =
+    useState<InteractionDraft | null>(null);
+
+  const interactionDraft = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("interactionSource") !== "purchase-insights") {
+      return null;
+    }
+
+    return {
+      type: (params.get("interactionType") as
+        | "telemarketing"
+        | "email"
+        | "meeting"
+        | "whatsapp"
+        | "visit"
+        | "note"
+        | "other"
+        | null) ?? "note",
+      subject: params.get("interactionSubject") ?? "",
+      description: params.get("interactionDescription") ?? "",
+      status: (params.get("interactionStatus") as
+        | "completed"
+        | "scheduled"
+        | "cancelled"
+        | null) ?? "scheduled",
+    };
+  }, [location]);
+
+  useEffect(() => {
+    if (!interactionDraft || showFormModal || editingInteraction) return;
+
+    setPendingInteractionDraft(interactionDraft);
+    setShowFormModal(true);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("interactionSource");
+    url.searchParams.delete("interactionType");
+    url.searchParams.delete("interactionSubject");
+    url.searchParams.delete("interactionDescription");
+    url.searchParams.delete("interactionStatus");
+    navigate(`${url.pathname}${url.search}`, { replace: true });
+  }, [editingInteraction, interactionDraft, navigate, showFormModal]);
 
   const { data: interactions = [], isLoading } = useQuery({
     queryKey: ["/api/clients", client.id, "interactions"],
@@ -146,7 +198,10 @@ export default function ClientInteractionsTab({
           </p>
         </div>
         <Button
-          onClick={() => setShowFormModal(true)}
+          onClick={() => {
+            setPendingInteractionDraft(null);
+            setShowFormModal(true);
+          }}
           className="bg-primary hover:bg-primary-dark text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -165,7 +220,10 @@ export default function ClientInteractionsTab({
           </p>
           <div className="mt-6">
             <Button
-              onClick={() => setShowFormModal(true)}
+              onClick={() => {
+                setPendingInteractionDraft(null);
+                setShowFormModal(true);
+              }}
               className="bg-primary hover:bg-primary-dark text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -311,11 +369,17 @@ export default function ClientInteractionsTab({
 
       <InteractionFormModal
         open={showFormModal}
-        onOpenChange={setShowFormModal}
+        onOpenChange={(open) => {
+          setShowFormModal(open);
+          if (!open) {
+            setPendingInteractionDraft(null);
+          }
+        }}
         target={{
           id: client.id,
           type: "client",
         }}
+        draft={pendingInteractionDraft ?? undefined}
       />
 
       {editingInteraction && (

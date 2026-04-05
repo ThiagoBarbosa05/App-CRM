@@ -5,7 +5,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
-import { User, MessageSquare, Wallet, ArrowLeft, AlertCircle } from "lucide-react";
+import {
+  User,
+  MessageSquare,
+  Wallet,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
 import ClientInteractionsTab from "@/components/client-interactions-tab";
@@ -28,12 +34,14 @@ export default function ClientProfilePage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
-    const nextTab = new URLSearchParams(window.location.search).get("tab") || "info";
+    const nextTab =
+      new URLSearchParams(window.location.search).get("tab") || "info";
     setActiveTab(nextTab);
   }, [location, id]);
 
   useEffect(() => {
-    const currentTab = new URLSearchParams(window.location.search).get("tab") || "info";
+    const currentTab =
+      new URLSearchParams(window.location.search).get("tab") || "info";
     if (currentTab !== activeTab) {
       const url = new URL(window.location.href);
       if (activeTab === "info") {
@@ -216,7 +224,9 @@ export default function ClientProfilePage() {
                   <ClientInteractionsTab client={client} />
                 )}
 
-                {activeTab === "compras" && <ClientPurchasesTab client={client} />}
+                {activeTab === "compras" && (
+                  <ClientPurchasesTab client={client} />
+                )}
 
                 {activeTab === "cashback" && (
                   <ClientCashbackTab client={client} />

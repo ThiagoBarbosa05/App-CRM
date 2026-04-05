@@ -86,6 +86,12 @@ interface InteractionFormModalProps {
     type: "client" | "company";
   };
   interaction?: ClientInteraction;
+  draft?: Partial<
+    Pick<
+      InteractionFormData,
+      "type" | "subject" | "description" | "status" | "date" | "callResult"
+    >
+  >;
 }
 
 const interactionTypes = [
@@ -118,6 +124,7 @@ export default function InteractionFormModal({
   onOpenChange,
   target,
   interaction,
+  draft,
 }: InteractionFormModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -160,14 +167,14 @@ export default function InteractionFormModal({
         clientId: targetData?.type === "client" ? targetData.id : undefined,
         companyId: targetData?.type === "company" ? targetData.id : undefined,
         userId: userData?.id || "",
-        type: interactionData?.type || "note",
-        subject: interactionData?.subject || "",
-        description: interactionData?.description || "",
+        subject: interactionData?.subject || draft?.subject || "",
+        description: interactionData?.description || draft?.description || "",
         date: interactionData?.date
           ? new Date(interactionData.date).toISOString().slice(0, 16)
-          : defaultDate,
-        callResult: interactionData?.callResult || undefined,
-        status: interactionData?.status || "completed",
+          : draft?.date ||
+            defaultDate,
+        callResult: interactionData?.callResult || draft?.callResult || undefined,
+        status: interactionData?.status || draft?.status || "completed",
         attachments: interactionData?.attachments || [],
         latitude: interactionData?.latitude
           ? Number(interactionData.latitude)
@@ -176,9 +183,10 @@ export default function InteractionFormModal({
           ? Number(interactionData.longitude)
           : undefined,
         address: interactionData?.address || undefined,
+        type: interactionData?.type || draft?.type || "note",
       };
     },
-    []
+    [draft]
   );
 
   // Effect to initialize form when modal opens
@@ -197,6 +205,12 @@ export default function InteractionFormModal({
     target?.type,
     user?.id,
     interaction?.id,
+    draft?.type,
+    draft?.subject,
+    draft?.description,
+    draft?.status,
+    draft?.date,
+    draft?.callResult,
     form,
     getDefaultValues,
     interaction,
