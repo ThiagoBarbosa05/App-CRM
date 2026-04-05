@@ -77,25 +77,28 @@ export function ClientPurchaseSummary({
       {cards.map((card) => (
         <div
           key={card.label}
-          className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-transform hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-900"
+          className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900"
         >
-          {/* Left accent border */}
-          <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l-xl bg-amber-400" />
+          {/* Left gradient accent */}
+          <div className="absolute bottom-0 left-0 top-0 w-[3px] rounded-l-xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
 
-          <div className="flex items-start justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          {/* Subtle bg shimmer on hover */}
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 to-amber-50/0 transition-all duration-300 group-hover:from-amber-50/60 group-hover:to-transparent dark:group-hover:from-amber-900/10 dark:group-hover:to-transparent" />
+
+          <div className="relative flex items-start justify-between pl-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               {card.label}
             </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-50 to-amber-100/50 ring-1 ring-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/20 dark:ring-amber-700/30">
               <card.icon className="h-4 w-4 text-amber-500" />
             </div>
           </div>
 
-          <p className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-white xl:text-2xl">
+          <p className="relative mt-3 pl-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white xl:text-2xl">
             {card.value}
           </p>
 
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+          <p className="relative mt-1 pl-3 text-xs font-medium text-amber-600/80 dark:text-amber-400/80">
             {card.subtitle}
           </p>
         </div>

@@ -3,7 +3,6 @@ import {
   AlertCircle,
   BarChart3,
   History,
-  Loader2,
   MessageSquare,
   ShoppingBag,
   Star,
@@ -175,10 +174,10 @@ export function ClientPurchasesTab({ client }: ClientPurchasesTabProps) {
   return (
     <div className="space-y-6">
       {data.linkStatus === "partial" && (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-          <Loader2 className="h-4 w-4" />
-          <AlertTitle>Historico parcial</AlertTitle>
-          <AlertDescription>
+        <Alert className="border-amber-200/60 bg-amber-50/80 text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-100">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="font-semibold">Historico parcial</AlertTitle>
+          <AlertDescription className="text-amber-800/80 dark:text-amber-200/70">
             O cliente possui compras vinculadas, mas ainda nao ha base
             suficiente para todas as previsoes de recompra.
           </AlertDescription>
@@ -193,7 +192,7 @@ export function ClientPurchasesTab({ client }: ClientPurchasesTabProps) {
 
       {/* Sub-tab Navigation */}
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100/80 p-1 dark:bg-slate-800/60">
           {subTabs.map((tab) => {
             const isActive = activeSubTab === tab.value;
             return (
@@ -204,13 +203,18 @@ export function ClientPurchasesTab({ client }: ClientPurchasesTabProps) {
                   setActiveSubTab(tab.value);
                 }}
                 className={cn(
-                  "flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "border-amber-500 text-amber-600 dark:text-amber-400"
-                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
+                    ? "bg-white text-amber-600 shadow-sm dark:bg-slate-900 dark:text-amber-400"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
                 )}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon
+                  className={cn(
+                    "h-4 w-4 transition-colors",
+                    isActive ? "text-amber-500" : "text-slate-400",
+                  )}
+                />
                 {tab.label}
               </button>
             );
