@@ -11,7 +11,6 @@ import { DashboardDebtsTab } from "@/components/dashboard/dashboard-debts-tab";
 import { DashboardBirthdaysTab } from "@/components/dashboard/dashboard-birthdays-tab";
 import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-tab";
 
-
 export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -89,7 +88,8 @@ export default function Dashboard() {
   });
 
   const getDebtStatusColor = (status: string, dueDate: string) => {
-    if (status === "paid") return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200";
+    if (status === "paid")
+      return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200";
     if (status === "overdue" || new Date(dueDate) < new Date())
       return "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200";
     return "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200";
@@ -141,16 +141,16 @@ export default function Dashboard() {
           </div> */}
 
           {/* Cards de Estatísticas */}
-          <DashboardStatsCards 
-            stats={stats} 
-            pendingDebts={pendingDebts} 
-            overdueDebts={overdueDebts} 
+          <DashboardStatsCards
+            stats={stats}
+            pendingDebts={pendingDebts}
+            overdueDebts={overdueDebts}
           />
 
           {/* Tabs com conteúdo */}
           <Tabs defaultValue="debts" className="space-y-6">
             <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1 rounded-lg bg-gray-50 dark:bg-slate-900">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
                 <TabsTrigger
                   value="debts"
                   className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200 
@@ -194,9 +194,11 @@ export default function Dashboard() {
               value="debts"
               className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm"
             >
-              <DashboardDebtsTab 
-                pendingDebts={pendingDebts} 
-                setSelectedClient={(client) => navigate(`/clientes/${client.id}`)} 
+              <DashboardDebtsTab
+                pendingDebts={pendingDebts}
+                setSelectedClient={(client) =>
+                  navigate(`/clientes/${client.id}`)
+                }
               />
             </TabsContent>
 
@@ -204,9 +206,11 @@ export default function Dashboard() {
               value="birthdays"
               className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm"
             >
-              <DashboardBirthdaysTab 
-                upcomingBirthdays={upcomingBirthdays} 
-                setSelectedClient={(client) => navigate(`/clientes/${client.id}`)} 
+              <DashboardBirthdaysTab
+                upcomingBirthdays={upcomingBirthdays}
+                setSelectedClient={(client) =>
+                  navigate(`/clientes/${client.id}`)
+                }
               />
             </TabsContent>
 
@@ -218,7 +222,7 @@ export default function Dashboard() {
               value="summary"
               className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm"
             >
-              <DashboardSummaryTab 
+              <DashboardSummaryTab
                 clientDebts={clientDebts}
                 pendingDebts={pendingDebts}
                 overdueDebts={overdueDebts}
@@ -228,7 +232,6 @@ export default function Dashboard() {
           </Tabs>
         </div>
       </div>
-
     </div>
   );
 }

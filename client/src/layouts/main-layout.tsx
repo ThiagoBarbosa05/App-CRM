@@ -48,7 +48,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 bg-gray-50 dark:bg-slate-900 overflow-y-auto p-5 lg:p-6 relative">
+        <main className="flex-1 bg-slate-100 dark:bg-slate-900 overflow-y-auto p-5 lg:p-6 relative">
           <AnimatePresence mode="popLayout">
             <motion.div
               initial={{ opacity: 0, y: 15 }}

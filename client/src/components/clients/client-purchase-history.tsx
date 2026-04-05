@@ -60,32 +60,14 @@ export function ClientPurchaseHistory({
             Historico de compras
           </CardTitle>
           <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
-            Filtre a origem para revisar pedidos do ERP ou importacoes Connect.
+            Veja as compras mais recentes do cliente para entender seu
+            comportamento e apoiar a proxima abordagem.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             {history.total} compra(s)
           </span>
-          <div className="flex rounded-xl border border-slate-200/80 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
-            {historySourceOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onHistorySourceChange(option.value)}
-                className={cn(
-                  "rounded-lg px-3 text-xs",
-                  historySource === option.value
-                    ? "bg-white font-semibold text-amber-600 shadow-sm dark:bg-slate-800 dark:text-amber-400"
-                    : "font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400",
-                )}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

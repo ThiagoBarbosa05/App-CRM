@@ -8,7 +8,15 @@ import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Download, Upload, Loader2, Briefcase, Users } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Download,
+  Upload,
+  Loader2,
+  Briefcase,
+  Users,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -161,7 +169,7 @@ export default function Clients() {
   }, [selectedClients, allClientsForExport]);
 
   return (
-    <div className="bg-gray-50 dark:bg-slate-900">
+    <div className="bg-slate-100 dark:bg-slate-900">
       <div className="space-y-6">
         <ClientsHeader
           totalItems={totalItems}
@@ -178,13 +186,17 @@ export default function Clients() {
           onClearSelection={clearSelection}
           onBulkDealClick={() => setIsBulkDealModalOpen(true)}
           onExportClick={() => setIsExportModalOpen(true)}
-          isExporting={isExportModalOpen && selectedClients.length === 0 && isFetchingAllForExport}
+          isExporting={
+            isExportModalOpen &&
+            selectedClients.length === 0 &&
+            isFetchingAllForExport
+          }
         />
 
         {/* Clients Table */}
         <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
           {/* Header da tabela com informações de paginação */}
-          <div className="bg-gradient-to-r from-gray-50  to-slate-50 dark:from-slate-900 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+          <div className="bg-gradient-to-r from-slate-50  to-slate-100 dark:from-slate-900 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">

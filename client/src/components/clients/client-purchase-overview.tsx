@@ -134,21 +134,23 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
                 data={monthlyData}
                 margin={{ top: 5, right: 10, left: 10, bottom: 0 }}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="month"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12 }}
+                  tick={{
+                    fontSize: 12,
+                    fill: "var(--color-text)",
+                  }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12 }}
+                  tick={{
+                    fontSize: 12,
+                    fill: "var(--color-text)",
+                  }}
                   tickFormatter={(value: number) =>
                     value >= 1000
                       ? `${(value / 1000).toFixed(0)}k`
@@ -156,8 +158,14 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
                   }
                 />
                 <ChartTooltip
+                  cursor={{
+                    fill: "hsl(var(--muted))",
+                    opacity: 0.4,
+                    radius: 6,
+                  }}
                   content={
                     <ChartTooltipContent
+                      className="bg-white"
                       formatter={(value) => (
                         <span className="font-mono font-medium tabular-nums">
                           {formatCurrency(Number(value))}
@@ -201,7 +209,7 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
               </p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/60">
+          <Card className="relative overflow-hidden rounded-xl border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900/60">
             <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700" />
             <CardContent className="p-5 pl-6">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">

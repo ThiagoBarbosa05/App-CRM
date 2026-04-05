@@ -130,7 +130,11 @@ export default function CalendarPage() {
   const getBirthdayThisYear = (birthday: string) => {
     const birthdayDate = parseISO(birthday);
     const today = new Date();
-    return new Date(today.getFullYear(), birthdayDate.getMonth(), birthdayDate.getDate());
+    return new Date(
+      today.getFullYear(),
+      birthdayDate.getMonth(),
+      birthdayDate.getDate(),
+    );
   };
 
   const birthdayMap = useMemo(() => {
@@ -203,11 +207,11 @@ export default function CalendarPage() {
   if (isClientsLoading || !user) {
     return (
       <div className="space-y-6 animate-pulse p-6">
-        <div className="h-24 bg-slate-100 dark:bg-slate-800 rounded-2xl w-full" />
-        <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-2xl w-full" />
+        <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full" />
+        <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-2xl" />
-          <div className="h-96 bg-slate-100 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
         </div>
       </div>
     );
@@ -242,26 +246,31 @@ export default function CalendarPage() {
         }}
       />
 
-      <UpcomingBirthdays
-        upcomingBirthdays={upcomingBirthdays}
-        users={users}
-      />
+      <UpcomingBirthdays upcomingBirthdays={upcomingBirthdays} users={users} />
 
       {/* Reminder Modal */}
       <Dialog open={reminderModalOpen} onOpenChange={setReminderModalOpen}>
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Lembrete de Aniversário</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              Lembrete de Aniversário
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
             <div>
               <Label className="text-slate-500 mb-1.5 block">Cliente</Label>
-              <Input value={selectedClient?.name || ""} disabled className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl" />
+              <Input
+                value={selectedClient?.name || ""}
+                disabled
+                className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-500 mb-1.5 block">Dias de Antecedência</Label>
+                <Label className="text-slate-500 mb-1.5 block">
+                  Dias de Antecedência
+                </Label>
                 <Select value={reminderDays} onValueChange={setReminderDays}>
                   <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-700">
                     <SelectValue />
@@ -277,7 +286,9 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <Label className="text-slate-500 mb-1.5 block">Tipo de Lembrete</Label>
+                <Label className="text-slate-500 mb-1.5 block">
+                  Tipo de Lembrete
+                </Label>
                 <Select value={reminderType} onValueChange={setReminderType}>
                   <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-700">
                     <SelectValue />
@@ -292,7 +303,9 @@ export default function CalendarPage() {
             </div>
 
             <div>
-              <Label className="text-slate-500 mb-1.5 block">Mensagem (Opcional)</Label>
+              <Label className="text-slate-500 mb-1.5 block">
+                Mensagem (Opcional)
+              </Label>
               <Textarea
                 value={reminderMessage}
                 onChange={(e) => setReminderMessage(e.target.value)}
@@ -302,11 +315,21 @@ export default function CalendarPage() {
             </div>
 
             <div className="flex gap-3 justify-end pt-2">
-              <Button variant="ghost" onClick={() => setReminderModalOpen(false)} className="rounded-xl px-6">
+              <Button
+                variant="ghost"
+                onClick={() => setReminderModalOpen(false)}
+                className="rounded-xl px-6"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleCreateReminder} disabled={createReminderMutation.isPending} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-8 rounded-xl h-11">
-                {createReminderMutation.isPending ? "Criando..." : "Criar Lembrete"}
+              <Button
+                onClick={handleCreateReminder}
+                disabled={createReminderMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-8 rounded-xl h-11"
+              >
+                {createReminderMutation.isPending
+                  ? "Criando..."
+                  : "Criar Lembrete"}
               </Button>
             </div>
           </div>

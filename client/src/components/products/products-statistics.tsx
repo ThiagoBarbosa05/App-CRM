@@ -1,4 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Award, TrendingUp, Wine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -16,9 +22,9 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const itemVariants = {
@@ -28,9 +34,9 @@ const itemVariants = {
     opacity: 1,
     transition: {
       duration: 0.4,
-      ease: "easeOut"
-    }
-  }
+      ease: "easeOut",
+    },
+  },
 };
 
 export function ProductsStatistics({
@@ -56,7 +62,10 @@ export function ProductsStatistics({
     return (
       <div className="grid gap-6 md:grid-cols-2">
         {[1, 2].map((i) => (
-          <Card key={i} className="border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <Card
+            key={i}
+            className="border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
+          >
             <CardHeader className="bg-slate-50 dark:bg-slate-900 content-none h-24 p-6 flex flex-col gap-2">
               <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
               <div className="h-4 w-64 bg-slate-100 dark:bg-slate-800/50 animate-pulse rounded" />
@@ -84,7 +93,7 @@ export function ProductsStatistics({
   const { topCompaniesByProducts, topProductsByCompanies } = statistics;
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -104,37 +113,53 @@ export function ProductsStatistics({
               Top 10 clientes com maior variedade de produtos
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 bg-white">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {topCompaniesByProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
                     <Award className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                   </div>
-                  <p className="text-slate-900 dark:text-white font-semibold">Nenhum dado disponível</p>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">Aguarde clientes cadastrarem produtos para ver o ranking</p>
+                  <p className="text-slate-900 dark:text-white font-semibold">
+                    Nenhum dado disponível
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">
+                    Aguarde clientes cadastrarem produtos para ver o ranking
+                  </p>
                 </div>
               ) : (
                 topCompaniesByProducts.map((company: any, index: number) => (
-                  <div key={company.companyId} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+                  <div
+                    key={company.companyId}
+                    className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm transition-all group-hover/row:scale-105 ${
-                        index === 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200/50" :
-                        index === 1 ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/50" :
-                        index === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200/50" :
-                        "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
-                      }`}>
+                      <div
+                        className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm transition-all group-hover/row:scale-105 ${
+                          index === 0
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200/50"
+                            : index === 1
+                              ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/50"
+                              : index === 2
+                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200/50"
+                                : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
+                        }`}
+                      >
                         {index + 1}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">{company.companyName}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                          {company.companyName}
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">
                             {company.companyCity}, {company.companyState}
                           </span>
                           {company.responsibleName && (
                             <>
-                              <span className="text-slate-300 dark:text-slate-700">•</span>
+                              <span className="text-slate-300 dark:text-slate-700">
+                                •
+                              </span>
                               <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
                                 {company.responsibleName}
                               </span>
@@ -173,39 +198,61 @@ export function ProductsStatistics({
               Top 10 produtos mais presentes nas cartas
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 bg-white">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {topProductsByCompanies.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
                     <Wine className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                   </div>
-                  <p className="text-slate-900 dark:text-white font-semibold">Nenhum dado disponível</p>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">Aguarde vinhos serem vinculados a clientes para ver o ranking</p>
+                  <p className="text-slate-900 dark:text-white font-semibold">
+                    Nenhum dado disponível
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">
+                    Aguarde vinhos serem vinculados a clientes para ver o
+                    ranking
+                  </p>
                 </div>
               ) : (
                 topProductsByCompanies.map((product: any, index: number) => (
-                  <div key={product.productId} className="flex items-start justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row">
+                  <div
+                    key={product.productId}
+                    className="flex items-start justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row"
+                  >
                     <div className="flex items-start gap-4 min-w-0">
-                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm transition-all group-hover/row:scale-105 mt-1 shrink-0 ${
-                        index === 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200/50" :
-                        index === 1 ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/50" :
-                        index === 2 ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200/50" :
-                        "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
-                      }`}>
+                      <div
+                        className={`h-9 w-9 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm transition-all group-hover/row:scale-105 mt-1 shrink-0 ${
+                          index === 0
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200/50"
+                            : index === 1
+                              ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/50"
+                              : index === 2
+                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200/50"
+                                : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
+                        }`}
+                      >
                         {index + 1}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">{product.productName}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                          {product.productName}
+                        </p>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300">
-                            <span className="text-base leading-none">{getCountryFlag(product.productCountry)}</span>
+                            <span className="text-base leading-none">
+                              {getCountryFlag(product.productCountry)}
+                            </span>
                             {product.productCountry}
                           </span>
-                          <Badge variant="outline" className="text-[10px] font-black uppercase border-slate-200 dark:border-slate-700">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-black uppercase border-slate-200 dark:border-slate-700"
+                          >
                             {product.productVolume}
                           </Badge>
-                          <Badge className={`text-[10px] font-black uppercase border-0 ${getTypeColor(product.productType)}`}>
+                          <Badge
+                            className={`text-[10px] font-black uppercase border-0 ${getTypeColor(product.productType)}`}
+                          >
                             {product.productType}
                           </Badge>
                         </div>

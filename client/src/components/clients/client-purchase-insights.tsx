@@ -160,24 +160,6 @@ export function ClientPurchaseInsights({
                   </span>
                 </div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button
-                  type="button"
-                  onClick={onRegisterTask}
-                  className="rounded-lg bg-slate-900 px-5 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                >
-                  Registrar tarefa
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onViewInteractions}
-                  className="rounded-lg px-5"
-                >
-                  Ver interacoes
-                </Button>
-              </div>
             </div>
 
             {/* Immediate reading sidebar */}

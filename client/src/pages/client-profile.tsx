@@ -104,7 +104,7 @@ export default function ClientProfilePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-0 pb-10">
+    <div className=" pb-10">
       {/* Header */}
       <div className="border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-5">
         <div className="flex items-center gap-4">
