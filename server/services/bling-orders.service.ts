@@ -7,6 +7,7 @@ import {
   sales,
   cashbackTransactions,
   cashbackSettings,
+  users,
   type InsertBlingOrder,
   type InsertBlingOrderItem,
   type InsertBlingOrderInstallment,
@@ -524,33 +525,51 @@ export class BlingOrdersService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Normaliza um telefone mantendo apenas dígitos.
+   * Busca o UUID do usuário do app correspondente ao vendedor Bling pelo blingVendedorId.
    */
-  private normalizePhone(phone: string): string {
-    return phone.replace(/\D/g, "");
+  private async resolveSellerAppUserId(
+    blingVendedorId: number | null,
+  ): Promise<string | null> {
+    if (!blingVendedorId) return null;
+    try {
+      const [user] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.blingVendedorId, String(blingVendedorId)))
+        .limit(1);
+      return user?.id ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**
-   * Busca um cliente no app pelo celular ou telefone fixo do contato Bling.
-   * Normaliza ambos os lados (Bling e banco) para comparação apenas por dígitos.
+   * Busca um cliente no app pelo CPF, celular ou telefone fixo do contato Bling.
+   * Normaliza ambos os lados para comparação apenas por dígitos.
+   * CPF tem prioridade; em seguida celular, depois telefone fixo.
    * Retorna o primeiro cliente encontrado ou null.
    */
-  private async findAppClientByPhone(
+  private async findAppClientByCpfOrPhone(
+    cpf: string | null,
     celular: string | null,
     telefone: string | null,
   ): Promise<Client | null> {
     const conditions: ReturnType<typeof sql>[] = [];
 
-    const normalizedCelular = celular ? this.normalizePhone(celular) : null;
-    const normalizedTelefone = telefone ? this.normalizePhone(telefone) : null;
+    const normalizedCpf = cpf ? cpf.replace(/\D/g, "") : null;
+    const normalizedCelular = celular ? celular.replace(/\D/g, "") : null;
+    const normalizedTelefone = telefone ? telefone.replace(/\D/g, "") : null;
 
+    if (normalizedCpf && normalizedCpf.length === 11) {
+      conditions.push(eq(clients.cpf, normalizedCpf));
+    }
     if (normalizedCelular) {
       conditions.push(
         sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedCelular}`,
         sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedCelular}`,
       );
     }
-    if (normalizedTelefone) {
+    if (normalizedTelefone && normalizedTelefone !== normalizedCelular) {
       conditions.push(
         sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedTelefone}`,
         sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedTelefone}`,
@@ -568,7 +587,7 @@ export class BlingOrdersService {
       return found ?? null;
     } catch (error) {
       console.error(
-        "[BlingOrdersService] Erro ao buscar cliente por telefone:",
+        "[BlingOrdersService] Erro ao buscar cliente por CPF/telefone:",
         error,
       );
       return null;
@@ -618,6 +637,7 @@ export class BlingOrdersService {
    */
   private async createAppClientFromBling(
     order: SalesOrder,
+    responsavelId: string | null = null,
   ): Promise<Client | null> {
     const celular = order.contato.celular ?? null;
     const telefone = order.contato.telefone ?? null;
@@ -625,11 +645,11 @@ export class BlingOrdersService {
 
     if (!phone) return null;
 
-    const normalizedPhone = this.normalizePhone(phone);
+    const normalizedPhone = phone.replace(/\D/g, "");
     const documento = order.contato.documento ?? null;
     const cpf =
-      documento && /^\d{11}$/.test(this.normalizePhone(documento))
-        ? this.normalizePhone(documento)
+      documento && /^\d{11}$/.test(documento.replace(/\D/g, ""))
+        ? documento.replace(/\D/g, "")
         : null;
 
     try {
@@ -640,9 +660,10 @@ export class BlingOrdersService {
           phone: normalizedPhone,
           // Se o celular foi usado como phone, guarda o telefone fixo separado
           ...(celular && telefone
-            ? { fixedPhone: this.normalizePhone(telefone) }
+            ? { fixedPhone: telefone.replace(/\D/g, "") }
             : {}),
           ...(cpf ? { cpf } : {}),
+          ...(responsavelId ? { responsavelId } : {}),
           categoria: "Bling",
           origem: "Bling",
           status: "pending",
@@ -664,9 +685,9 @@ export class BlingOrdersService {
 
       if (isUniqueViolation) {
         console.warn(
-          "[BlingOrdersService] Race condition ao criar cliente — buscando existente pelo telefone",
+          "[BlingOrdersService] Race condition ao criar cliente — buscando existente por CPF/telefone",
         );
-        return this.findAppClientByPhone(celular, telefone);
+        return this.findAppClientByCpfOrPhone(cpf, celular, telefone);
       }
 
       console.error(
@@ -878,15 +899,25 @@ export class BlingOrdersService {
 
     const celular = order.contato.celular ?? null;
     const telefone = order.contato.telefone ?? null;
+    const documento = order.contato.documento ?? null;
+    const cpf =
+      documento && /^\d{11}$/.test(documento.replace(/\D/g, ""))
+        ? documento.replace(/\D/g, "")
+        : null;
 
-    // Busca cliente no app pelo telefone/celular normalizado
+    // Resolve o usuário do app correspondente ao vendedor Bling
+    const sellerAppUserId = await this.resolveSellerAppUserId(
+      order.vendedor.id ?? null,
+    ).catch(() => null);
+
+    // Busca cliente no app por CPF, celular ou telefone (normalizado)
     let appClient: Client | null = null;
-    if (celular || telefone) {
+    if (cpf || celular || telefone) {
       try {
-        appClient = await this.findAppClientByPhone(celular, telefone);
+        appClient = await this.findAppClientByCpfOrPhone(cpf, celular, telefone);
       } catch (error) {
         console.error(
-          "[BlingOrdersService] Erro ao buscar cliente no app por telefone:",
+          "[BlingOrdersService] Erro ao buscar cliente no app por CPF/telefone:",
           error,
         );
       }
@@ -895,7 +926,7 @@ export class BlingOrdersService {
     // Se não encontrou, cria automaticamente com os dados do Bling
     if (!appClient && (celular || telefone)) {
       try {
-        appClient = await this.createAppClientFromBling(order);
+        appClient = await this.createAppClientFromBling(order, sellerAppUserId);
       } catch (error) {
         console.error(
           "[BlingOrdersService] Erro ao criar cliente automaticamente via Bling:",
