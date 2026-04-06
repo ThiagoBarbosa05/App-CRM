@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import {
   useUnifiedOrders,
   useUnifiedSalesComparison,
   useUnifiedSalesEvolution,
   useUnifiedTopSellers,
-  type OrderSource,
 } from "@/hooks/use-unified-orders";
 import {
   useTopProducts,
@@ -18,6 +18,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { exportBlingOrdersToExcel } from "@/lib/excel-export";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // Bling components
 import { SalesStatisticsCards } from "@/components/bling-sales/sales-statistics-cards";
@@ -36,7 +37,19 @@ import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-im
 // UI
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Download, Loader2, HandCoins } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Upload,
+  Download,
+  Loader2,
+  HandCoins,
+  CalendarIcon,
+} from "lucide-react";
 
 export default function BlingSalesPage() {
   const { toast } = useToast();
@@ -44,6 +57,7 @@ export default function BlingSalesPage() {
   const pageSize = 20;
   const [isExporting, setIsExporting] = useState(false);
   const [connectImportOpen, setConnectImportOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -53,12 +67,8 @@ export default function BlingSalesPage() {
   const [contactName, setContactName] = useState("");
   const debouncedContact = useDebounce(contactName, 500);
   const [sellerId, setSellerId] = useState<string | undefined>();
-  const [source, setSource] = useState<OrderSource>("all");
-  const [storeId, setStoreId] = useState<string | undefined>();
-  const [situationId, setSituationId] = useState<string | undefined>();
   const [minValue, setMinValue] = useState<number | undefined>();
   const [maxValue, setMaxValue] = useState<number | undefined>();
-  const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>();
 
   // ── Computed dates ────────────────────────────────────────────────────────
   const startDate = useMemo(
@@ -83,18 +93,18 @@ export default function BlingSalesPage() {
 
   // ── Unified queries ───────────────────────────────────────────────────────
   const { data: salesComparison, isLoading: isStatsLoading } =
-    useUnifiedSalesComparison(startDate, endDate, source);
+    useUnifiedSalesComparison(startDate, endDate, "all");
   const { data: salesEvolution, isLoading: isEvolutionLoading } =
-    useUnifiedSalesEvolution(startDate, endDate, groupBy, source);
+    useUnifiedSalesEvolution(startDate, endDate, groupBy, "all");
   const { data: topSellers, isLoading: isTopSellersLoading } =
-    useUnifiedTopSellers(startDate, endDate, 5, source);
+    useUnifiedTopSellers(startDate, endDate, 5, "all");
   const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
     {
       startDate,
       endDate,
       contactName: debouncedContact || undefined,
       sellerId,
-      source,
+      source: "all",
       limit: pageSize,
       offset: (page - 1) * pageSize,
     },
@@ -134,11 +144,8 @@ export default function BlingSalesPage() {
         contactType: "F",
         contactName: debouncedContact || undefined,
         sellerId,
-        storeId,
-        situationId,
         minValue,
         maxValue,
-        paymentMethodId,
       },
       false,
     );
@@ -249,55 +256,61 @@ export default function BlingSalesPage() {
         onOpenChange={setConnectImportOpen}
       />
 
-      {/* Filters */}
-      <OrdersFilters
-        dateRange={dateRange}
-        onDateRangeChange={(range) => {
-          setDateRange(range);
-          setPage(1);
-        }}
-        contactName={contactName}
-        onContactNameChange={(name) => {
-          setContactName(name);
-          setPage(1);
-        }}
-        sellerId={sellerId}
-        onSellerIdChange={(id) => {
-          setSellerId(id);
-          setPage(1);
-        }}
-        source={source}
-        onSourceChange={(s) => {
-          setSource(s);
-          setPage(1);
-        }}
-        storeId={storeId}
-        onStoreIdChange={(id) => {
-          setStoreId(id);
-          setPage(1);
-        }}
-        situationId={situationId}
-        onSituationIdChange={(id) => {
-          setSituationId(id);
-          setPage(1);
-        }}
-        minValue={minValue}
-        onMinValueChange={(val) => {
-          setMinValue(val);
-          setPage(1);
-        }}
-        maxValue={maxValue}
-        onMaxValueChange={(val) => {
-          setMaxValue(val);
-          setPage(1);
-        }}
-        paymentMethodId={paymentMethodId}
-        onPaymentMethodIdChange={(id) => {
-          setPaymentMethodId(id);
-          setPage(1);
-        }}
-        isLoading={isOrdersLoading}
-      />
+      {/* Global period selector */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-4 rounded-2xl shadow-sm flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+          <CalendarIcon className="h-4 w-4" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">
+            Período
+          </span>
+        </div>
+        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "justify-start text-left font-bold h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 transition-all hover:border-blue-400 dark:hover:border-blue-500",
+                !dateRange && "text-slate-400",
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <span>
+                    {format(dateRange.from, "dd/MM/yy")} -{" "}
+                    {format(dateRange.to, "dd/MM/yy")}
+                  </span>
+                ) : (
+                  format(dateRange.from, "dd/MM/yy")
+                )
+              ) : (
+                <span>Selecione um período</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0 rounded-2xl shadow-2xl border-slate-200 dark:border-slate-800"
+            align="start"
+          >
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={(range) => {
+                setDateRange(range);
+                setPage(1);
+              }}
+              numberOfMonths={2}
+              locale={ptBR}
+              className="rounded-2xl"
+            />
+          </PopoverContent>
+        </Popover>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Afeta todos os gráficos e métricas da página
+        </p>
+      </div>
 
       {/* Unified statistics cards */}
       <SalesStatisticsCards
@@ -320,7 +333,7 @@ export default function BlingSalesPage() {
       </section>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="space-y-4">
         <div className="xl:col-span-2">
           <SalesEvolutionChart
             data={evolutionForChart}
@@ -328,14 +341,13 @@ export default function BlingSalesPage() {
             groupBy={groupBy}
           />
         </div>
-        <div className="flex flex-col gap-5">
+
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch">
           <TopSellersChart
             data={topSellersForChart}
             isLoading={isTopSellersLoading}
           />
-          {/* Top Products — Bling only */}
-          <div className="space-y-2">
-            <SectionLabel label="Top Produtos" blingOnly small />
+          <div className="flex-1 min-w-0">
             <TopProductsChart
               data={topProducts}
               isLoading={isTopProductsLoading}
@@ -360,6 +372,31 @@ export default function BlingSalesPage() {
           endDate={endDate}
         />
       </section>
+
+      {/* Table filters — affect only the orders table below */}
+      <OrdersFilters
+        contactName={contactName}
+        onContactNameChange={(name) => {
+          setContactName(name);
+          setPage(1);
+        }}
+        sellerId={sellerId}
+        onSellerIdChange={(id) => {
+          setSellerId(id);
+          setPage(1);
+        }}
+        minValue={minValue}
+        onMinValueChange={(val) => {
+          setMinValue(val);
+          setPage(1);
+        }}
+        maxValue={maxValue}
+        onMaxValueChange={(val) => {
+          setMaxValue(val);
+          setPage(1);
+        }}
+        isLoading={isOrdersLoading}
+      />
 
       {/* Unified orders table */}
       <UnifiedOrdersTable

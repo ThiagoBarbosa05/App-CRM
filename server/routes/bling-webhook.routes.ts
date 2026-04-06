@@ -1,8 +1,10 @@
 import { Router, type Request, type Response } from "express";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "../db";
+import { blingConnections } from "../../shared/schema";
 import { decryptToken } from "../lib/token-crypto";
 import {
   verifyBlingSignature,
-  resolveConnectionByCompanyId,
   enqueueWebhookEvent,
   type BlingWebhookEvent,
 } from "../services/bling-webhook.service";
@@ -10,21 +12,19 @@ import {
 const router = Router();
 
 /**
- * POST /api/bling/webhook
+ * POST /api/bling/webhook/:connectionId
  *
  * Endpoint público (sem requireAuth) chamado diretamente pelo Bling.
+ * O connectionId na URL identifica univocamente a conexão Bling.
  *
  * Fluxo:
  * 1. Parseia o JSON do rawBody capturado pelo `express.json({ verify })`.
- * 2. Extrai o companyId e busca a conexão Bling correspondente.
+ * 2. Busca a conexão pelo connectionId da URL.
  * 3. Verifica a assinatura HMAC-SHA256 do header `X-Bling-Signature-256`.
  * 4. Responde 200 imediatamente (Bling exige resposta em até 5 segundos).
  * 5. Enfileira o evento para processamento assíncrono com rate limit.
- *
- * Em caso de assinatura inválida ou conexão não encontrada, responde 400
- * para que o Bling não tente reenviar o evento (evento rejeitado).
  */
-router.post("/webhook", async (req: Request, res: Response) => {
+router.post("/webhook/:connectionId", async (req: Request, res: Response) => {
   const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
 
   if (!rawBody || rawBody.length === 0) {
@@ -41,15 +41,27 @@ router.post("/webhook", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!event.eventId || !event.event || !event.companyId || !event.data) {
+  if (!event.eventId || !event.event || !event.data) {
     res.status(400).json({ error: "Payload de webhook inválido" });
     return;
   }
 
-  // Resolve a conexão pelo companyId
+  const { connectionId } = req.params;
+
+  // Resolve a conexão pelo connectionId da URL
   let connection;
   try {
-    connection = await resolveConnectionByCompanyId(event.companyId);
+    const [found] = await db
+      .select()
+      .from(blingConnections)
+      .where(
+        and(
+          eq(blingConnections.id, connectionId),
+          inArray(blingConnections.status, ["connected", "reauth_required"]),
+        ),
+      )
+      .limit(1);
+    connection = found ?? null;
   } catch (error) {
     console.error("[BlingWebhook] Erro ao buscar conexão:", error);
     res.status(500).json({ error: "Erro interno ao processar webhook" });
@@ -57,13 +69,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
   }
 
   if (!connection) {
-    console.warn(
-      `[BlingWebhook] Nenhuma conexão ativa para companyId ${event.companyId}. ` +
-        "Configure o blingCompanyId via POST /api/bling-accounts/:id/sync-company-id.",
-    );
-    // Responde 200 para evitar que o Bling desabilite a configuração de webhook
-    // (não é um erro do integrador, é uma conexão ainda não sincronizada)
-    res.status(200).json({ received: true });
+    res.status(404).json({ error: "Conexão não encontrada" });
     return;
   }
 
@@ -96,7 +102,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
   if (!isValidSignature) {
     console.warn(
-      `[BlingWebhook] Assinatura inválida para evento ${event.eventId} (companyId: ${event.companyId})`,
+      `[BlingWebhook] Assinatura inválida para evento ${event.eventId} (connectionId: ${connectionId})`,
     );
     res.status(400).json({ error: "Assinatura inválida" });
     return;

@@ -10,7 +10,6 @@ import { decryptToken, encryptToken } from "../lib/token-crypto";
 import {
   buildBlingAuthorizationUrl,
   exchangeAuthorizationCode,
-  getBlingCompanyInfo,
   getBlingRedirectUri,
   parseJwtPayload,
   refreshBlingAccessToken,
@@ -294,18 +293,6 @@ export class BlingConnectionsService {
     );
     const refreshTokenExpiresAt = getRefreshTokenExpiryDate();
 
-    // Busca o companyId da empresa Bling para vincular o webhook
-    let blingCompanyId: string | null = null;
-    try {
-      const companyInfo = await getBlingCompanyInfo(tokenResponse.access_token);
-      blingCompanyId = companyInfo.id;
-    } catch (error) {
-      console.error(
-        "[BlingConnectionsService] Não foi possível obter companyId da empresa Bling — webhook poderá não funcionar:",
-        error,
-      );
-    }
-
     await db
       .update(blingConnections)
       .set({
@@ -322,7 +309,6 @@ export class BlingConnectionsService {
         blingLogin: identity.blingLogin,
         blingAccountId: identity.blingAccountId,
         blingAccountName: identity.blingAccountName,
-        blingCompanyId,
         updatedAt: new Date(),
       })
       .where(eq(blingConnections.id, connection.id));

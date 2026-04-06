@@ -1,12 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -14,50 +8,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import {
-  CalendarIcon,
-  FilterX,
-  Search,
-  SlidersHorizontal,
-  Briefcase,
-  Store,
-  Activity,
-  CreditCard,
-  Layers,
-} from "lucide-react";
-import { useState } from "react";
-import { DateRange } from "react-day-picker";
-import {
-  useAvailableSellers,
-  useAvailableStores,
-  useAvailableSituations,
-  useAvailablePaymentMethods,
-} from "@/hooks/use-bling-orders";
+import { FilterX, Search, SlidersHorizontal, Briefcase } from "lucide-react";
+import { useAvailableSellers } from "@/hooks/use-bling-orders";
 import { motion, AnimatePresence } from "framer-motion";
-import type { OrderSource } from "@/hooks/use-unified-orders";
 
 interface OrdersFiltersProps {
-  dateRange: DateRange | undefined;
-  onDateRangeChange: (dateRange: DateRange | undefined) => void;
-
   contactName?: string;
   onContactNameChange: (name: string) => void;
 
   sellerId?: string;
   onSellerIdChange: (id: string | undefined) => void;
-
-  /** Filtro de fonte: "all" | "bling" | "connect". Se omitido, o seletor não é exibido. */
-  source?: OrderSource;
-  onSourceChange?: (source: OrderSource) => void;
-
-  storeId?: string;
-  onStoreIdChange: (id: string | undefined) => void;
-
-  situationId?: string;
-  onSituationIdChange: (id: string | undefined) => void;
 
   minValue?: number;
   onMinValueChange: (value: number | undefined) => void;
@@ -65,72 +25,34 @@ interface OrdersFiltersProps {
   maxValue?: number;
   onMaxValueChange: (value: number | undefined) => void;
 
-  paymentMethodId?: string;
-  onPaymentMethodIdChange: (id: string | undefined) => void;
-
   isLoading?: boolean;
 }
 
 export function OrdersFilters({
-  dateRange,
-  onDateRangeChange,
   contactName,
   onContactNameChange,
   sellerId,
   onSellerIdChange,
-  source,
-  onSourceChange,
-  storeId,
-  onStoreIdChange,
-  situationId,
-  onSituationIdChange,
   minValue,
   onMinValueChange,
   maxValue,
   onMaxValueChange,
-  paymentMethodId,
-  onPaymentMethodIdChange,
   isLoading,
 }: OrdersFiltersProps) {
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  // Bling-only filters are visible when there's no source filter OR source is "bling"
-  const showBlingFilters =
-    source === undefined || source === "bling" || source === "all";
-
-  // Fetch filter options
   const { data: sellers, isLoading: isSellersLoading } = useAvailableSellers();
-  const { data: stores, isLoading: isStoresLoading } = useAvailableStores();
-  const { data: situations, isLoading: isSituationsLoading } =
-    useAvailableSituations();
-  const { data: paymentMethods, isLoading: isPaymentMethodsLoading } =
-    useAvailablePaymentMethods();
 
   const handleClearFilters = () => {
-    const today = new Date();
-    const last90Days = new Date();
-    last90Days.setDate(today.getDate() - 90);
-
-    onDateRangeChange({ from: last90Days, to: today });
     onContactNameChange("");
     onSellerIdChange(undefined);
-    onStoreIdChange(undefined);
-    onSituationIdChange(undefined);
     onMinValueChange(undefined);
     onMaxValueChange(undefined);
-    onPaymentMethodIdChange(undefined);
-    if (onSourceChange) onSourceChange("all");
   };
 
   const hasActiveFilters =
     contactName ||
     sellerId ||
-    (source && source !== "all") ||
-    storeId ||
-    situationId ||
     minValue !== undefined ||
-    maxValue !== undefined ||
-    paymentMethodId;
+    maxValue !== undefined;
 
   return (
     <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
@@ -141,7 +63,7 @@ export function OrdersFilters({
               <SlidersHorizontal className="h-4 w-4" />
             </div>
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
-              Filtros Avançados
+              Filtros da Tabela
             </h3>
           </div>
 
@@ -168,54 +90,6 @@ export function OrdersFilters({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Date Picker */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-              Período
-            </label>
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-bold h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 transition-all hover:border-blue-400 dark:hover:border-blue-500",
-                    !dateRange && "text-slate-400",
-                  )}
-                  disabled={isLoading}
-                >
-                  <CalendarIcon className="mr-3 h-4 w-4 text-blue-500" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      <span className="truncate">
-                        {format(dateRange.from, "dd/MM/yy")} -{" "}
-                        {format(dateRange.to, "dd/MM/yy")}
-                      </span>
-                    ) : (
-                      format(dateRange.from, "dd/MM/yy")
-                    )
-                  ) : (
-                    <span>Selecione um período</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-0 rounded-2xl shadow-2xl border-slate-200 dark:border-slate-800"
-                align="start"
-              >
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={(range) => onDateRangeChange(range)}
-                  numberOfMonths={2}
-                  locale={ptBR}
-                  className="rounded-2xl"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
           {/* Client Name Search */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
@@ -247,99 +121,6 @@ export function OrdersFilters({
             placeholder="Todos os Vendedores"
             isLoading={isSellersLoading || isLoading}
           />
-
-          {/* Source filter — visible only when onSourceChange is provided */}
-          {onSourceChange && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-                Plataforma
-              </label>
-              <Select
-                value={source ?? "all"}
-                onValueChange={(val) => onSourceChange(val as OrderSource)}
-                disabled={isLoading}
-              >
-                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
-                  <div className="flex items-center gap-3">
-                    <Layers className="h-4 w-4 text-blue-500" />
-                    <SelectValue />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
-                  <SelectItem value="all" className="rounded-xl font-bold">
-                    Todas as Plataformas
-                  </SelectItem>
-                  <SelectItem value="bling" className="rounded-xl font-bold">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-sm bg-green-100 text-[8px] font-black text-green-600">
-                        B
-                      </span>
-                      Bling
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="connect" className="rounded-xl font-bold">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-sm bg-violet-100 text-[8px] font-black text-violet-600">
-                        C
-                      </span>
-                      Connect
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Store Select — Bling only */}
-          {showBlingFilters && (
-            <FilterSelect
-              label="Loja"
-              icon={<Store className="h-4 w-4 text-indigo-500" />}
-              value={storeId}
-              onValueChange={onStoreIdChange}
-              options={stores?.map((s) => ({
-                value: s.storeId,
-                label: `Loja ${s.storeId}`,
-                count: s.orderCount,
-              }))}
-              placeholder="Todas as Lojas"
-              isLoading={isStoresLoading || isLoading}
-            />
-          )}
-
-          {/* Situation Select — Bling only */}
-          {showBlingFilters && (
-            <FilterSelect
-              label="Situação"
-              icon={<Activity className="h-4 w-4 text-amber-500" />}
-              value={situationId}
-              onValueChange={onSituationIdChange}
-              options={situations?.map((s) => ({
-                value: s.situationId,
-                label: s.situationValue,
-                count: s.orderCount,
-              }))}
-              placeholder="Todas as Situações"
-              isLoading={isSituationsLoading || isLoading}
-            />
-          )}
-
-          {/* Payment Method Select — Bling only */}
-          {showBlingFilters && (
-            <FilterSelect
-              label="Pagamento"
-              icon={<CreditCard className="h-4 w-4 text-rose-500" />}
-              value={paymentMethodId}
-              onValueChange={onPaymentMethodIdChange}
-              options={paymentMethods?.map((p) => ({
-                value: p.paymentMethodId,
-                label: p.paymentMethodName,
-                count: p.orderCount,
-              }))}
-              placeholder="Todas as Formas"
-              isLoading={isPaymentMethodsLoading || isLoading}
-            />
-          )}
 
           {/* Range de Valor */}
           <div className="space-y-1.5 md:col-span-2 lg:col-span-2">

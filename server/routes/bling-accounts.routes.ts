@@ -5,8 +5,6 @@ import { blingConnections } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
-import { getBlingCompanyInfo } from "../integrations/bling";
-import { decryptToken } from "../lib/token-crypto";
 import {
   startImport,
   cancelImport,
@@ -290,55 +288,6 @@ router.get("/:id/status", async (req, res) => {
         ? error.message
         : "Erro ao buscar status da conta Bling";
     res.status(400).json({ success: false, error: message });
-  }
-});
-
-/**
- * POST /api/bling-accounts/:id/sync-company-id
- * Backfill: busca o companyId da empresa Bling e salva na conexão.
- * Necessário para conexões criadas antes da implementação do webhook.
- */
-router.post("/:id/sync-company-id", async (req, res) => {
-  try {
-    const { userId, userRole } = getAdminUser(req);
-    if (userRole !== "admin") {
-      res
-        .status(403)
-        .json({ success: false, error: "Acesso restrito a administradores" });
-      return;
-    }
-
-    const [connection] = await db
-      .select()
-      .from(blingConnections)
-      .where(eq(blingConnections.id, req.params.id))
-      .limit(1);
-
-    if (!connection || connection.userId !== userId) {
-      res.status(404).json({ success: false, error: "Conexão não encontrada" });
-      return;
-    }
-
-    if (!connection.accessTokenEncrypted) {
-      res
-        .status(400)
-        .json({ success: false, error: "Conexão ainda não autenticada" });
-      return;
-    }
-
-    const accessToken = decryptToken(connection.accessTokenEncrypted);
-    const companyInfo = await getBlingCompanyInfo(accessToken);
-
-    await db
-      .update(blingConnections)
-      .set({ blingCompanyId: companyInfo.id, updatedAt: new Date() })
-      .where(eq(blingConnections.id, connection.id));
-
-    res.json({ success: true, data: { blingCompanyId: companyInfo.id } });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Erro ao sincronizar companyId";
-    res.status(500).json({ success: false, error: message });
   }
 });
 

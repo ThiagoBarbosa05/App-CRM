@@ -91,31 +91,6 @@ export function verifyBlingSignature(
 }
 
 // ---------------------------------------------------------------------------
-// Resolução de conexão por companyId
-// ---------------------------------------------------------------------------
-
-/**
- * Busca a conexão Bling ativa pelo companyId recebido no webhook.
- * Retorna null se nenhuma conexão ativa com aquele companyId for encontrada.
- */
-export async function resolveConnectionByCompanyId(
-  companyId: string,
-): Promise<BlingConnection | null> {
-  const [connection] = await db
-    .select()
-    .from(blingConnections)
-    .where(
-      and(
-        eq(blingConnections.blingCompanyId, companyId),
-        inArray(blingConnections.status, ["connected", "reauth_required"]),
-      ),
-    )
-    .limit(1);
-
-  return connection ?? null;
-}
-
-// ---------------------------------------------------------------------------
 // Lookup de sellerName no banco de dados local
 // ---------------------------------------------------------------------------
 

@@ -375,41 +375,6 @@ export async function getBlingVendedores(
   return body.data;
 }
 
-export interface BlingCompanyInfo {
-  id: string;
-}
-
-/**
- * Retorna o ID da empresa (companyId) a partir dos dados básicos da conta Bling.
- *
- * Necessário para vincular o companyId recebido no webhook à conexão correta.
- *
- * @param accessToken    - Token de acesso OAuth2 válido do Bling.
- * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
- */
-export async function getBlingCompanyInfo(
-  accessToken: string,
-  onTokenRefresh?: () => Promise<string>,
-): Promise<BlingCompanyInfo> {
-  let token = accessToken;
-
-  let response = await fetchBlingApi(token, "/empresas/me/dados-basicos");
-
-  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
-    token = await onTokenRefresh();
-    response = await fetchBlingApi(token, "/empresas/me/dados-basicos");
-  }
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Falha ao buscar dados da empresa no Bling: ${errorText || response.statusText}`,
-    );
-  }
-
-  const body = (await response.json()) as { data: { id: string } };
-  return { id: String(body.data.id) };
-}
 
 export interface BlingContatoEndereco {
   endereco: string | null;
