@@ -175,6 +175,7 @@ export default function Metas() {
         selectedYear={selectedYear}
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
+        isAdmin={isManager}
       />
 
       {user?.role === "vendedor" && (

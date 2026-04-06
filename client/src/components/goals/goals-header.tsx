@@ -1,14 +1,17 @@
-import { Target } from "lucide-react";
+import { Target, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
+import { useLocation } from "wouter";
 
 interface GoalsHeaderProps {
   selectedMonth: number;
   selectedYear: number;
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
+  isAdmin?: boolean;
 }
 
 export function GoalsHeader({
@@ -16,7 +19,9 @@ export function GoalsHeader({
   selectedYear,
   onMonthChange,
   onYearChange,
+  isAdmin,
 }: GoalsHeaderProps) {
+  const [, navigate] = useLocation();
   const currentDate = new Date();
   const selectedDate = new Date(selectedYear, selectedMonth - 1);
 
@@ -46,6 +51,15 @@ export function GoalsHeader({
           animate={{ opacity: 1, x: 0 }}
           className="flex flex-wrap items-center gap-4 w-full md:w-auto"
         >
+          {isAdmin && (
+            <Button
+              onClick={() => navigate("/admin-metas")}
+              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Meta
+            </Button>
+          )}
           <div className="flex items-center gap-3">
             <Label htmlFor="month-select" className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mês</Label>
             <select
