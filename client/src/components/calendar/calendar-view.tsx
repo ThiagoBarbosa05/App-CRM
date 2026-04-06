@@ -75,7 +75,28 @@ export function CalendarView({
             locale={ptBR}
             modifiers={dayModifiers}
             modifiersClassNames={dayModifiersClassNames}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm"
+            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm w-full"
+            classNames={{
+              months: "flex flex-col w-full",
+              month: "w-full",
+              caption: "flex justify-center pt-1 relative items-center mb-4",
+              caption_label: "text-base font-semibold",
+              nav: "space-x-1 flex items-center",
+              nav_button: "h-9 w-9 bg-transparent p-0 opacity-70 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center justify-center",
+              nav_button_previous: "absolute left-1",
+              nav_button_next: "absolute right-1",
+              table: "w-full border-collapse",
+              head_row: "flex w-full",
+              head_cell: "text-slate-500 dark:text-slate-400 rounded-md flex-1 font-medium text-sm text-center py-2",
+              row: "flex w-full mt-2",
+              cell: "flex-1 h-11 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+              day: "h-11 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center justify-center",
+              day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white rounded-lg",
+              day_today: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold",
+              day_outside: "text-slate-400 dark:text-slate-600 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
+              day_disabled: "text-slate-300 dark:text-slate-700 opacity-50",
+              day_hidden: "invisible",
+            }}
           />
         </CardContent>
       </Card>
