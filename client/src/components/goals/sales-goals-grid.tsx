@@ -1,4 +1,4 @@
-import { Target, BarChart3, TrendingUp, Package, Plus } from "lucide-react";
+import { Target, BarChart3, TrendingUp, Package, Plus, Pencil } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,6 +39,7 @@ interface SalesGoalsGridProps {
     field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
   ) => number;
   onAddResult?: (goal: UserGoal) => void;
+  onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
   isAdmin?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function SalesGoalsGrid({
   calculatePercentage,
   getTotalAchieved,
   onAddResult,
+  onEditResult,
   isAdmin,
 }: SalesGoalsGridProps) {
   if (goals.length === 0) {
@@ -79,6 +81,7 @@ export function SalesGoalsGrid({
           calculatePercentage={calculatePercentage}
           getTotalAchieved={getTotalAchieved}
           onAddResult={onAddResult}
+          onEditResult={onEditResult}
           isAdmin={isAdmin}
         />
       ))}
@@ -93,6 +96,7 @@ function SalesGoalCard({
   calculatePercentage,
   getTotalAchieved,
   onAddResult,
+  onEditResult,
   isAdmin,
 }: {
   goal: UserGoal;
@@ -104,6 +108,7 @@ function SalesGoalCard({
     field: "salesAchieved" | "ticketAchieved" | "itemsAchieved",
   ) => number;
   onAddResult?: (goal: UserGoal) => void;
+  onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
   isAdmin?: boolean;
 }) {
   const weeklyResults = goal.weeklyResults || [];
@@ -198,35 +203,59 @@ function SalesGoalCard({
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((week) => {
-                const hasResult = weeklyResults.some((r) => r.week === week);
+                const result = weeklyResults.find((r) => r.week === week);
+                const hasResult = !!result;
+                const canEdit = isAdmin && hasResult && onEditResult;
                 return (
-                  <div
-                    key={week}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
-                      hasResult
-                        ? "bg-blue-500 shadow-sm shadow-blue-500/20"
-                        : "bg-slate-100 dark:bg-slate-800"
-                    }`}
-                    title={
-                      hasResult
-                        ? `Semana ${week} concluída`
-                        : `Semana ${week} pendente`
-                    }
-                  />
+                  <div key={week} className="relative group/week">
+                    <div
+                      className={`h-2.5 rounded-full transition-all duration-300 ${
+                        hasResult
+                          ? "bg-blue-500 shadow-sm shadow-blue-500/20"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      } ${canEdit ? "cursor-pointer group-hover/week:bg-amber-400" : ""}`}
+                      title={hasResult ? `Semana ${week} concluída` : `Semana ${week} pendente`}
+                      onClick={() => canEdit && result && onEditResult(goal, result)}
+                    />
+                    {canEdit && (
+                      <div
+                        className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover/week:opacity-100 transition-opacity cursor-pointer"
+                        onClick={() => result && onEditResult(goal, result)}
+                        title={`Editar semana ${week}`}
+                      >
+                        <Pencil className="h-3 w-3 text-amber-500" />
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
 
-            {isAdmin && onAddResult && (
-              <Button
-                size="sm"
-                onClick={() => onAddResult(goal)}
-                className="mt-4 w-full h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shadow-none font-bold text-[10px] uppercase tracking-widest gap-1.5 transition-all"
-                variant="ghost"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar Resultado
-              </Button>
+            {isAdmin && (
+              <div className="flex gap-2 mt-4">
+                {onAddResult && (
+                  <Button
+                    size="sm"
+                    onClick={() => onAddResult(goal)}
+                    className="flex-1 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shadow-none font-bold text-[10px] uppercase tracking-widest gap-1.5 transition-all"
+                    variant="ghost"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar
+                  </Button>
+                )}
+                {onEditResult && weeklyResults.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => onEditResult(goal, weeklyResults[weeklyResults.length - 1])}
+                    className="flex-1 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-none font-bold text-[10px] uppercase tracking-widest gap-1.5 transition-all"
+                    variant="ghost"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </CardContent>

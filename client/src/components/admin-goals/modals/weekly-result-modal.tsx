@@ -43,12 +43,22 @@ const weeklyResultSchema = z.object({
 
 type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
 
+interface WeeklyResult {
+  id: string;
+  goalId: string;
+  week: number;
+  salesAchieved: string;
+  ticketAchieved: string;
+  itemsAchieved: number;
+}
+
 interface WeeklyResultModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedGoal: any | null;
   selectedMonth: number;
   selectedYear: number;
+  existingResult?: WeeklyResult | null;
 }
 
 export function WeeklyResultModal({
@@ -57,9 +67,12 @@ export function WeeklyResultModal({
   selectedGoal,
   selectedMonth,
   selectedYear,
+  existingResult,
 }: WeeklyResultModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!existingResult;
+
   const {
     register,
     handleSubmit,
@@ -71,7 +84,20 @@ export function WeeklyResultModal({
   });
 
   useEffect(() => {
-    if (selectedGoal) {
+    if (!open) return;
+    if (isEditing && existingResult) {
+      const formatVal = (v: string) => {
+        const n = Number(v);
+        return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      };
+      reset({
+        goalId: existingResult.goalId,
+        week: existingResult.week,
+        salesAchieved: formatVal(existingResult.salesAchieved),
+        ticketAchieved: formatVal(existingResult.ticketAchieved),
+        itemsAchieved: existingResult.itemsAchieved,
+      });
+    } else if (selectedGoal) {
       reset({
         goalId: selectedGoal.id,
         week: 1,
@@ -80,7 +106,7 @@ export function WeeklyResultModal({
         itemsAchieved: 0,
       });
     }
-  }, [selectedGoal, open, reset]);
+  }, [selectedGoal, existingResult, open, reset, isEditing]);
 
   const resultMutation = useMutation({
     mutationFn: (data: WeeklyResultFormData) => {
@@ -89,6 +115,9 @@ export function WeeklyResultModal({
         salesAchieved: parseCurrency(data.salesAchieved),
         ticketAchieved: parseCurrency(data.ticketAchieved),
       };
+      if (isEditing && existingResult) {
+        return apiRequest("PUT", `/api/weekly-results/${existingResult.id}`, payload);
+      }
       return apiRequest("POST", "/api/weekly-results", payload);
     },
     onSuccess: () => {
@@ -98,8 +127,10 @@ export function WeeklyResultModal({
         ],
       });
       toast({
-        title: "Resultado salvo",
-        description: "O resultado semanal foi registrado com sucesso.",
+        title: isEditing ? "Resultado atualizado" : "Resultado salvo",
+        description: isEditing
+          ? "O resultado semanal foi atualizado com sucesso."
+          : "O resultado semanal foi registrado com sucesso.",
       });
       onOpenChange(false);
       reset();
@@ -120,17 +151,16 @@ export function WeeklyResultModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-[2rem] border-0 shadow-2xl overflow-hidden p-0">
-        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-8 text-white relative">
+        <div className={`p-8 text-white relative ${isEditing ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-emerald-600 to-teal-700"}`}>
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
           <DialogTitle className="text-2xl font-black uppercase tracking-tight relative z-10">
-            Desempenho Semanal
+            {isEditing ? "Editar Resultado" : "Desempenho Semanal"}
           </DialogTitle>
-          <p className="text-emerald-100/80 text-sm font-medium mt-1 relative z-10 text-balance">
-            Registre os resultados atingidos pelo vendedor{" "}
-            <span className="text-white font-black">
-              {selectedGoal?.userName}
-            </span>{" "}
-            nesta semana.
+          <p className={`text-sm font-medium mt-1 relative z-10 text-balance ${isEditing ? "text-amber-100/80" : "text-emerald-100/80"}`}>
+            {isEditing
+              ? <>Editando semana <span className="text-white font-black">{existingResult?.week}</span> de <span className="text-white font-black">{selectedGoal?.userName}</span>.</>
+              : <>Registre os resultados atingidos pelo vendedor <span className="text-white font-black">{selectedGoal?.userName}</span> nesta semana.</>
+            }
           </p>
         </div>
 
@@ -145,7 +175,8 @@ export function WeeklyResultModal({
               max="5"
               placeholder="Ex: 1, 2, 3..."
               {...register("week")}
-              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              disabled={isEditing}
+              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold disabled:opacity-60"
             />
             {errors.week && (
               <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
@@ -225,9 +256,13 @@ export function WeeklyResultModal({
             <Button
               type="submit"
               disabled={resultMutation.isPending}
-              className="h-12 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              className={`h-12 px-8 rounded-xl text-white font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95 ${isEditing ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"}`}
             >
-              {resultMutation.isPending ? "Salvando..." : "Salvar Resultado"}
+              {resultMutation.isPending
+                ? "Salvando..."
+                : isEditing
+                  ? "Atualizar Resultado"
+                  : "Salvar Resultado"}
             </Button>
           </div>
         </form>

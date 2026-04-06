@@ -19,9 +19,8 @@ export default function Metas() {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [selectedGoalForResults, setSelectedGoalForResults] = useState<
-    any | null
-  >(null);
+  const [selectedGoalForResults, setSelectedGoalForResults] = useState<any | null>(null);
+  const [selectedResultForEdit, setSelectedResultForEdit] = useState<any | null>(null);
 
   // Queries
   const { data: userGoals = [], isLoading: isUserGoalsLoading } = useQuery<
@@ -198,16 +197,26 @@ export default function Metas() {
         isAdmin={isManager}
         onAddResult={(goal) => {
           setSelectedGoalForResults(goal);
+          setSelectedResultForEdit(null);
+          setIsResultModalOpen(true);
+        }}
+        onEditResult={(goal, result) => {
+          setSelectedGoalForResults(goal);
+          setSelectedResultForEdit(result);
           setIsResultModalOpen(true);
         }}
       />
 
       <WeeklyResultModal
         open={isResultModalOpen}
-        onOpenChange={setIsResultModalOpen}
+        onOpenChange={(open) => {
+          setIsResultModalOpen(open);
+          if (!open) setSelectedResultForEdit(null);
+        }}
         selectedGoal={selectedGoalForResults}
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}
+        existingResult={selectedResultForEdit}
       />
 
       <TelemarketingGoalsGrid
