@@ -41,7 +41,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!event.eventId || !event.event || !event.companyId) {
+  if (!event.eventId || !event.event || !event.companyId || !event.data) {
     res.status(400).json({ error: "Payload de webhook inválido" });
     return;
   }

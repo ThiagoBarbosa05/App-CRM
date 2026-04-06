@@ -252,7 +252,12 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
   const [existing] = await db
     .select({ id: pubsubProcessingLogs.id })
     .from(pubsubProcessingLogs)
-    .where(eq(pubsubProcessingLogs.messageId, eventId))
+    .where(
+      and(
+        eq(pubsubProcessingLogs.messageId, eventId),
+        inArray(pubsubProcessingLogs.status, ["success", "processing"]),
+      ),
+    )
     .limit(1);
   return !!existing;
 }
@@ -434,13 +439,21 @@ async function processWebhookEvent(
       connection.userId,
       rawEvent,
     );
-  } catch (logError) {
-    // Se não conseguir criar o log (ex: duplicado por race), provavelmente já processado
-    console.warn(
-      `[BlingWebhookService] Não foi possível criar log para evento ${event.eventId} — pode já ter sido processado:`,
-      logError,
-    );
-    return;
+  } catch (logError: unknown) {
+    const isUniqueViolation =
+      typeof logError === "object" &&
+      logError !== null &&
+      "code" in logError &&
+      (logError as { code: string }).code === "23505";
+
+    if (isUniqueViolation) {
+      console.warn(
+        `[BlingWebhookService] Evento ${event.eventId} já em processamento (unique violation) — ignorando.`,
+      );
+      return;
+    }
+    // Qualquer outro erro (ex: falha de conexão) não deve silenciosamente descartar o evento
+    throw logError;
   }
 
   try {

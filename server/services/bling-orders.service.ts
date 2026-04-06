@@ -64,11 +64,16 @@ export class BlingOrdersService {
     const { order, metadata } = message;
 
     try {
-      // Verifica se o pedido já existe
+      // Verifica se o pedido já existe (exclui soft-deleted para permitir recriação)
       const existingOrder = await db
         .select()
         .from(blingOrders)
-        .where(eq(blingOrders.blingOrderId, order.id.toString()))
+        .where(
+          and(
+            eq(blingOrders.blingOrderId, order.id.toString()),
+            isNull(blingOrders.deletedAt),
+          ),
+        )
         .limit(1);
 
       if (existingOrder.length > 0) {
@@ -127,10 +132,10 @@ export class BlingOrdersService {
           discount: item.desconto?.toString() || "0",
         }));
 
-        const createdItems = await tx
-          .insert(blingOrderItems)
-          .values(itemsData)
-          .returning();
+        const createdItems =
+          itemsData.length > 0
+            ? await tx.insert(blingOrderItems).values(itemsData).returning()
+            : [];
 
         // Cria as parcelas do pedido (se houver)
         let createdInstallments: any[] = [];
@@ -209,9 +214,11 @@ export class BlingOrdersService {
         .limit(1);
 
       if (existingOrder.length === 0) {
-        throw new Error(
-          `Pedido com ID ${order.id} não encontrado no banco de dados`,
+        // out-of-order: order.updated chegou antes do order.created — trata como create
+        console.warn(
+          `[BlingOrdersService] order.updated para pedido ${order.id} não encontrado — criando via upsert`,
         );
+        return this.createOrder({ message });
       }
 
       const currentOrder = existingOrder[0];
@@ -266,10 +273,10 @@ export class BlingOrdersService {
           discount: item.desconto?.toString() || "0",
         }));
 
-        const createdItems = await tx
-          .insert(blingOrderItems)
-          .values(itemsData)
-          .returning();
+        const createdItems =
+          itemsData.length > 0
+            ? await tx.insert(blingOrderItems).values(itemsData).returning()
+            : [];
 
         // Remove parcelas existentes
         await tx
