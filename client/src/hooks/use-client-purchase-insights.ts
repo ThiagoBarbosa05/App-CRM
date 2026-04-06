@@ -19,11 +19,13 @@ export interface ClientPurchaseInsightsResponse {
     predictedNextPurchaseDate: string | null;
     daysSinceLastPurchase: number | null;
     daysLate: number | null;
+    cycleProgress: number | null;
     status:
       | "dentro_do_ciclo"
       | "atencao"
       | "reativacao"
       | "risco_de_queda"
+      | "primeira_compra"
       | "sem_base";
     explanation: string;
   };

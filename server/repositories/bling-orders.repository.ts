@@ -11,7 +11,7 @@ import {
   type PubsubProcessingLog,
   type CashbackTransaction,
 } from "../../shared/schema";
-import { eq, and, isNull, desc, gte, lte, sql, ilike, ne } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, desc, gte, lte, sql, ilike, ne } from "drizzle-orm";
 
 /**
  * Interface para filtros de busca de pedidos
@@ -368,6 +368,8 @@ export class BlingOrdersRepository {
       gte(blingOrders.saleDate, startDate),
       lte(blingOrders.saleDate, endDate),
       isNull(blingOrders.deletedAt),
+      isNotNull(blingOrderItems.description),
+      sql`trim(${blingOrderItems.description}) <> ''`,
     ];
     if (contactType) conditions.push(eq(blingOrders.contactType, contactType));
     return await db
@@ -387,7 +389,7 @@ export class BlingOrdersRepository {
         blingOrderItems.productCode,
         blingOrderItems.description,
       )
-      .orderBy(desc(sql`sum(${blingOrderItems.quantity})`))
+      .orderBy(desc(sql`sum(${blingOrderItems.value})`))
       .limit(limit);
   }
 

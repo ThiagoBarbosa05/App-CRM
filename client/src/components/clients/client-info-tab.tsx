@@ -1,9 +1,23 @@
-import { User, Phone, Mail, CreditCard, Calendar, MapPin, Building, Tag, FileText, Edit, Check } from "lucide-react";
+import {
+  User,
+  Phone,
+  Mail,
+  CreditCard,
+  Calendar,
+  MapPin,
+  Building,
+  Tag,
+  FileText,
+  Edit,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
 
 interface ClientInfoTabProps {
@@ -61,17 +75,41 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
     return cpf;
   };
 
+  const clientInitial = client.name.trim().charAt(0).toUpperCase();
+  const hasCommercialInfo = Boolean(
+    client.categoria || client.origem || (client.markers && client.markers.length > 0),
+  );
+
   return (
     <div className="space-y-6">
-      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-          <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between">
-            <div className="flex items-center text-slate-800 dark:text-slate-200 gap-2">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-[0_20px_60px_-38px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950">
+        <CardHeader className="relative overflow-hidden border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_28%),linear-gradient(135deg,#f8fbff_0%,#ffffff_46%,#f3f7ff_100%)] px-6 py-6 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.22),transparent_26%),linear-gradient(135deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.92)_60%,rgba(30,41,59,0.96)_100%)]">
+          <div className="absolute -right-10 top-0 h-36 w-36 rounded-full bg-blue-200/40 blur-3xl dark:bg-blue-500/20" />
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-white/70 bg-white/80 text-xl font-black text-blue-700 shadow-[0_18px_40px_-26px_rgba(37,99,235,0.45)] backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/75 dark:text-blue-300">
+                {clientInitial}
               </div>
-              Informações Pessoais
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Badge className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-blue-700 shadow-sm hover:bg-blue-50 dark:border-blue-800/70 dark:bg-blue-500/10 dark:text-blue-300">
+                    Perfil do Cliente
+                  </Badge>
+                  {client.categoria && (
+                    <Badge className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700 shadow-sm hover:bg-violet-50 dark:border-violet-800/70 dark:bg-violet-500/10 dark:text-violet-300">
+                      {client.categoria}
+                    </Badge>
+                  )}
+                </div>
+                <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  {client.name}
+                </CardTitle>
+                <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Visual completo com dados pessoais, contexto comercial e identificadores do cadastro.
+                </p>
+              </div>
             </div>
+
             <Button
               onClick={() => {
                 if (onEdit) {
@@ -79,141 +117,85 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   onClose();
                 }
               }}
-              className="flex items-center gap-2 mt-4 sm:mt-0 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-sm transition-all focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="h-11 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(225,29,72,0.6)] transition-all hover:translate-y-[-1px] hover:from-rose-700 hover:to-red-600"
               size="sm"
             >
-              <Edit className="h-4 w-4" />
-              <span>Editar</span>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar cadastro
             </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                <Phone className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                  Telefone
-                </p>
-                <a
-                  href={`tel:${client.phone}`}
-                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors truncate block"
-                  title="Clique para ligar"
-                >
-                  {formatPhone(client.phone)}
-                </a>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                <CreditCard className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                  CPF
-                </p>
-                <p className="font-semibold text-slate-900 dark:text-slate-200">
-                  {formatCPF(client.cpf || "")}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                  Aniversário
-                </p>
-                <p className="font-semibold text-slate-900 dark:text-slate-200">
-                  {client.birthday ? formatBirthday(client.birthday) : "Não informado"}
-                </p>
-              </div>
-            </div>
           </div>
+        </CardHeader>
 
-          {client.email && (
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-                <Mail className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                  E-mail
-                </p>
-                <p className="font-semibold text-slate-900 dark:text-slate-200">
-                  {client.email}
-                </p>
-              </div>
-            </div>
-          )}
+        <CardContent className="space-y-5 px-6 py-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoTile
+              icon={Phone}
+              accent="blue"
+              label="Telefone"
+              value={formatPhone(client.phone)}
+              href={`tel:${client.phone}`}
+              interactive
+            />
+            <InfoTile
+              icon={CreditCard}
+              accent="slate"
+              label="CPF"
+              value={formatCPF(client.cpf || "")}
+            />
+            <InfoTile
+              icon={Calendar}
+              accent="amber"
+              label="Aniversário"
+              value={client.birthday ? formatBirthday(client.birthday) : "Não informado"}
+            />
+            <InfoTile
+              icon={Mail}
+              accent="emerald"
+              label="E-mail"
+              value={client.email || "Não informado"}
+            />
+          </div>
         </CardContent>
       </Card>
 
       {(client.address || client.cep) && (
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-            <CardTitle className="text-lg flex text-slate-800 dark:text-slate-200 items-center gap-2">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+        <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-[0_18px_50px_-40px_rgba(15,23,42,0.32)] dark:border-slate-800 dark:bg-slate-950">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/50">
+            <CardTitle className="flex items-center gap-3 text-lg font-black text-slate-800 dark:text-slate-200">
+              <div className="rounded-xl bg-amber-100 p-2.5 dark:bg-amber-900/40">
                 <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
               Endereço
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2">
               {client.address && (
-                <div className="flex items-start gap-3">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium min-w-[80px] pt-0.5">
-                    Endereço:
-                  </span>
+                <AddressTile label="Endereço">
                   <span className="font-semibold text-slate-900 dark:text-slate-200">
                     {client.address}
                     {client.number && `, ${client.number}`}
                   </span>
-                </div>
+                </AddressTile>
               )}
 
               {client.neighborhood && (
-                <div className="flex items-start gap-3">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium min-w-[80px] pt-0.5">
-                    Bairro:
-                  </span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-200">
-                    {client.neighborhood}
-                  </span>
-                </div>
+                <AddressTile label="Bairro">{client.neighborhood}</AddressTile>
               )}
 
               {client.city && (
-                <div className="flex items-start gap-3">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium min-w-[80px] pt-0.5">
-                    Cidade:
-                  </span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-200">
-                    {client.city}
-                    {client.state && ` - ${client.state}`}
-                  </span>
-                </div>
+                <AddressTile label="Cidade">
+                  {client.city}
+                  {client.state && ` - ${client.state}`}
+                </AddressTile>
               )}
 
               {client.cep && (
-                <div className="flex items-start gap-3">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium min-w-[80px] pt-0.5">
-                    CEP:
-                  </span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-200">
-                    {client.cep}
-                  </span>
-                </div>
+                <AddressTile label="CEP">{client.cep}</AddressTile>
               )}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
               <Button
                 variant="outline"
                 size="sm"
@@ -233,53 +215,62 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   )}`;
                   window.open(mapsUrl, "_blank");
                 }}
-                className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold shadow-sm transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
               >
-                <MapPin className="h-4 w-4 text-slate-500" />
+                <MapPin className="mr-2 h-4 w-4" />
                 Ver no Mapa
+                <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-          <CardTitle className="text-lg flex text-slate-800 dark:text-slate-200 items-center gap-2">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-[0_18px_50px_-40px_rgba(15,23,42,0.32)] dark:border-slate-800 dark:bg-slate-950">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/50">
+          <CardTitle className="flex items-center gap-3 text-lg font-black text-slate-800 dark:text-slate-200">
+            <div className="rounded-xl bg-violet-100 p-2.5 dark:bg-violet-900/40">
               <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             </div>
             Informações Comerciais
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {client.categoria && (
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-2">
-                  Categoria
-                </p>
-                <Badge variant="secondary" className="capitalize bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/70 border-none">
-                  {client.categoria}
-                </Badge>
-              </div>
-            )}
+          {hasCommercialInfo ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {client.categoria && (
+                <CommercialTile label="Categoria">
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border-none bg-violet-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-violet-800 hover:bg-violet-100 dark:bg-violet-900/50 dark:text-violet-300"
+                  >
+                    {client.categoria}
+                  </Badge>
+                </CommercialTile>
+              )}
 
-            {client.origem && (
-              <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-2">
-                  Origem
-                </p>
-                <Badge variant="outline" className="capitalize border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300">
-                  {client.origem}
-                </Badge>
-              </div>
-            )}
-          </div>
+              {client.origem && (
+                <CommercialTile label="Origem">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-slate-300 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                  >
+                    {client.origem}
+                  </Badge>
+                </CommercialTile>
+              )}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Building}
+              title="Sem dados comerciais"
+              description="Categoria, origem e marcadores ainda não foram preenchidos para este cliente."
+            />
+          )}
 
           {client.markers && client.markers.length > 0 && (
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-3 flex items-center gap-2">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/45">
+              <p className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
                 <Tag className="h-4 w-4" />
                 Marcadores
               </p>
@@ -288,7 +279,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   <Badge
                     key={index}
                     variant="default"
-                    className="text-xs bg-slate-800 hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 shadow-sm"
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-sm hover:bg-slate-900 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-100"
                   >
                     {marker}
                   </Badge>
@@ -299,36 +290,187 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         </CardContent>
       </Card>
 
-      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-          <CardTitle className="text-lg flex text-slate-800 dark:text-slate-200 items-center gap-2">
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
+      <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-[0_18px_50px_-40px_rgba(15,23,42,0.32)] dark:border-slate-800 dark:bg-slate-950">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/50">
+          <CardTitle className="flex items-center gap-3 text-lg font-black text-slate-800 dark:text-slate-200">
+            <div className="rounded-xl bg-emerald-100 p-2.5 dark:bg-emerald-900/40">
               <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             Informações do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="space-y-3 text-sm">
-            <p className="flex items-center gap-3">
-              <span className="text-slate-500 dark:text-slate-400 font-medium min-w-[120px]">
-                Data de cadastro:
-              </span>
+          <div className="grid gap-4 md:grid-cols-2">
+            <SystemTile label="Data de cadastro">
               <span className="font-semibold text-slate-900 dark:text-slate-200">
                 {formatDate(String(client.createdAt))}
               </span>
-            </p>
-            <p className="flex items-center gap-3">
-              <span className="text-slate-500 dark:text-slate-400 font-medium min-w-[120px]">
-                ID do cliente:
-              </span>
+            </SystemTile>
+            <SystemTile label="ID do cliente">
               <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300">
                 {client.id}
               </span>
-            </p>
+            </SystemTile>
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+type TileAccent = "blue" | "slate" | "amber" | "emerald";
+
+const tileAccentStyles: Record<
+  TileAccent,
+  { iconWrap: string; icon: string; link: string }
+> = {
+  blue: {
+    iconWrap: "bg-blue-100 dark:bg-blue-900/30",
+    icon: "text-blue-600 dark:text-blue-400",
+    link: "text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200",
+  },
+  slate: {
+    iconWrap: "bg-slate-100 dark:bg-slate-800",
+    icon: "text-slate-600 dark:text-slate-300",
+    link: "text-slate-900 dark:text-slate-100",
+  },
+  amber: {
+    iconWrap: "bg-amber-100 dark:bg-amber-900/30",
+    icon: "text-amber-600 dark:text-amber-400",
+    link: "text-slate-900 dark:text-slate-100",
+  },
+  emerald: {
+    iconWrap: "bg-emerald-100 dark:bg-emerald-900/30",
+    icon: "text-emerald-600 dark:text-emerald-400",
+    link: "text-slate-900 dark:text-slate-100",
+  },
+};
+
+function InfoTile({
+  icon: Icon,
+  accent,
+  label,
+  value,
+  href,
+  interactive = false,
+}: {
+  icon: typeof User;
+  accent: TileAccent;
+  label: string;
+  value: string;
+  href?: string;
+  interactive?: boolean;
+}) {
+  const styles = tileAccentStyles[accent];
+
+  return (
+    <div className="group rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/75">
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-inner",
+            styles.iconWrap,
+          )}
+        >
+          <Icon className={cn("h-4 w-4", styles.icon)} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+            {label}
+          </p>
+          {href ? (
+            <a
+              href={href}
+              className={cn(
+                "mt-2 block truncate text-base font-black transition-colors",
+                interactive ? styles.link : "text-slate-900 dark:text-slate-100",
+              )}
+              title={value}
+            >
+              {value}
+            </a>
+          ) : (
+            <p className="mt-2 break-words text-base font-black text-slate-900 dark:text-slate-100">
+              {value}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddressTile({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_30px_-34px_rgba(15,23,42,0.42)] dark:border-slate-800 dark:bg-slate-900/75">
+      <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+        {label}
+      </p>
+      <div className="text-sm text-slate-900 dark:text-slate-100">{children}</div>
+    </div>
+  );
+}
+
+function CommercialTile({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_35px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+        {label}
+      </p>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+function SystemTile({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_30px_-36px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
+      <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+        {label}
+      </p>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof Building;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/45">
+      <div className="mb-4 rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-800">
+        <Icon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+      </div>
+      <p className="text-base font-black text-slate-800 dark:text-slate-100">
+        {title}
+      </p>
+      <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
+        {description}
+      </p>
     </div>
   );
 }

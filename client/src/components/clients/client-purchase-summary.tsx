@@ -77,28 +77,25 @@ export function ClientPurchaseSummary({
       {cards.map((card) => (
         <div
           key={card.label}
-          className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900"
+          className="group relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_35px_-35px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-35px_rgba(15,23,42,0.42)] dark:border-slate-800/80 dark:bg-slate-900"
         >
-          {/* Left gradient accent */}
-          <div className="absolute bottom-0 left-0 top-0 w-[3px] rounded-l-xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_34%)] opacity-80" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/80 to-transparent dark:via-amber-500/30" />
 
-          {/* Subtle bg shimmer on hover */}
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 to-amber-50/0 transition-all duration-300 group-hover:from-amber-50/60 group-hover:to-transparent dark:group-hover:from-amber-900/10 dark:group-hover:to-transparent" />
-
-          <div className="relative flex items-start justify-between pl-3">
+          <div className="relative flex items-start justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               {card.label}
             </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-50 to-amber-100/50 ring-1 ring-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/20 dark:ring-amber-700/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/70 ring-1 ring-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/20 dark:ring-amber-700/30">
               <card.icon className="h-4 w-4 text-amber-500" />
             </div>
           </div>
 
-          <p className="relative mt-3 pl-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white xl:text-2xl">
+          <p className="relative mt-4 text-2xl font-black tracking-tight text-slate-900 dark:text-white xl:text-[1.75rem]">
             {card.value}
           </p>
 
-          <p className="relative mt-1 pl-3 text-xs font-medium text-amber-600/80 dark:text-amber-400/80">
+          <p className="relative mt-1 text-xs font-medium text-amber-600/80 dark:text-amber-400/80">
             {card.subtitle}
           </p>
         </div>

@@ -42,14 +42,14 @@ export function ClientProductMixTable({
       : 1;
 
   return (
-    <Card className="rounded-xl border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+    <Card className="rounded-[24px] border-slate-200/80 bg-white shadow-[0_18px_40px_-36px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-900">
       <CardHeader className="pb-3">
         <CardTitle className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
           Mix de produtos
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800/80">
+        <div className="overflow-hidden rounded-[20px] border border-slate-200/80 dark:border-slate-800/80">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 dark:bg-slate-800/50">
@@ -129,7 +129,7 @@ export function ClientProductMixTable({
         </div>
 
         {productMix.length === 0 && (
-          <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="rounded-[20px] border border-dashed border-slate-200/80 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-950/40">
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
               Nenhum produto encontrado.
             </p>
@@ -150,7 +150,7 @@ export function ClientInactiveProducts({
   inactiveProducts,
 }: ClientInactiveProductsProps) {
   return (
-    <Card className="rounded-xl border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+    <Card className="rounded-[24px] border-slate-200/80 bg-white shadow-[0_18px_40px_-36px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-900">
       <CardHeader className="pb-3">
         <CardTitle className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
           Itens que sumiram do ciclo
@@ -158,7 +158,7 @@ export function ClientInactiveProducts({
       </CardHeader>
       <CardContent className="space-y-3">
         {inactiveProducts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200/80 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="rounded-[20px] border border-dashed border-slate-200/80 bg-slate-50/50 px-4 py-10 text-center dark:border-slate-800 dark:bg-slate-950/40">
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
               Nenhum item recorrente esta fora do ciclo esperado.
             </p>
@@ -172,7 +172,7 @@ export function ClientInactiveProducts({
             return (
               <div
                 key={`${product.productId ?? product.description}-${product.lastPurchaseDate ?? "none"}`}
-                className={`relative overflow-hidden rounded-xl border bg-white px-4 py-4 dark:bg-slate-950/60 ${
+                className={`relative overflow-hidden rounded-[20px] border bg-white px-4 py-4 dark:bg-slate-950/60 ${
                   isAbandoned
                     ? "border-rose-200/60 dark:border-rose-800/30"
                     : "border-amber-200/60 dark:border-amber-800/30"

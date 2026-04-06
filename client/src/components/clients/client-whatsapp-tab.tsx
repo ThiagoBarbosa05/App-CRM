@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import {
   AlertCircle,
   Bot,
   Check,
+  ChevronRight,
   MessageSquareMore,
   RefreshCw,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -35,11 +38,10 @@ interface ClientWhatsAppTabProps {
   clientPhone: string;
   clientName: string;
   clientEmail?: string;
-  isOpen: boolean; // Utilizado para não disparar hooks atoa se a aba/modal não estiver aberto
+  isOpen: boolean;
 }
 
 export function ClientWhatsAppTab({
-  clientId,
   clientPhone,
   clientName,
   clientEmail,
@@ -91,6 +93,8 @@ export function ClientWhatsAppTab({
   const hasPendingChatFailure = pendingStatus === "failed";
   const shouldShowEmptyState =
     !hasConfirmedChat && !isWaitingForChatConfirmation && !hasPendingChatFailure;
+  const lastMessage = contactChat?.items?.[0]?.lastMessage?.content;
+  const canUseBotActions = !startBotOnChatMutation.isPending && hasConfirmedChat;
 
   useEffect(() => {
     if (!clientPhone || !pendingChatCreation) {
@@ -198,288 +202,386 @@ export function ClientWhatsAppTab({
   }, [clientPhone, pendingChatCreation, pendingStatus, queryClient]);
 
   return (
-    <Card className="border border-green-200 dark:border-green-900 shadow-sm hover:shadow-md transition-shadow duration-300">
-      <CardHeader className="bg-green-50/50 dark:bg-green-900/10 border-b border-green-100 dark:border-green-900/50">
-        <CardTitle className="text-lg flex items-center text-green-800 dark:text-green-400 gap-3">
-          <div className="p-2 bg-green-100 dark:bg-green-900/60 rounded-lg">
-            <FaWhatsapp className="h-5 w-5 text-green-600 dark:text-green-400" />
-          </div>
-          WhatsApp Integration
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        {isLoadingContact ? (
-          <div className="flex items-center gap-3 text-slate-500">
-            <RefreshCw className="h-4 w-4 animate-spin text-green-500" />
-            <p className="text-sm font-medium">
-              Verificando status do WhatsApp...
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-slate-50 border border-slate-100 dark:bg-slate-900/50 dark:border-slate-800">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Status da Sincronização</span>
-                {umblerContact ? (
-                  <div className="flex items-center mt-1">
-                     <Badge
-                      className="bg-green-100 border-none px-3 py-1 text-green-800 dark:bg-green-900/30 dark:text-green-400 font-semibold"
-                      variant="outline"
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Sincronizado
-                    </Badge>
-                  </div>
-                ) : (
-                  <span className="text-sm text-slate-700 dark:text-slate-300 mt-1">Não sincronizado</span>
+    <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-[0_20px_60px_-38px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950">
+      <CardHeader className="relative overflow-hidden border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.18),transparent_28%),linear-gradient(135deg,#f7fff8_0%,#ffffff_46%,#f3fbf5_100%)] px-6 py-6 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.24),transparent_26%),linear-gradient(135deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.92)_60%,rgba(24,39,33,0.95)_100%)]">
+        <div className="absolute -right-10 top-0 h-36 w-36 rounded-full bg-green-200/50 blur-3xl dark:bg-green-500/20" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-white/70 bg-white/80 shadow-[0_18px_40px_-26px_rgba(22,163,74,0.45)] backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/75">
+              <FaWhatsapp className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Badge className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-green-700 shadow-sm hover:bg-green-50 dark:border-green-800/70 dark:bg-green-500/10 dark:text-green-300">
+                  Canal WhatsApp
+                </Badge>
+                {clientPhone && (
+                  <Badge className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                    {clientPhone}
+                  </Badge>
                 )}
               </div>
-              
-              {!umblerContact && (
-                <Button
-                  size="sm"
-                  disabled={syncCustomer.isPending}
-                  onClick={() => {
-                    syncCustomer.mutate({
-                      phoneNumber: clientPhone,
-                      organizationId: "aGx7Jh43-au36EGi",
-                      name: clientName,
-                      email: clientEmail || "nao_informado@email.com",
-                    });
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center w-full sm:w-auto"
-                >
-                  <RefreshCw
+              <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                Conversa e automações
+              </CardTitle>
+              <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500 dark:text-slate-400">
+                Sincronize o contato, acompanhe o chat e envie mensagens ou fluxos automáticos com acabamento mais claro e operacional.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:w-[360px]">
+            <StatusSummaryTile
+              label="Contato"
+              value={umblerContact ? "Sincronizado" : "Pendente"}
+              tone={umblerContact ? "success" : "neutral"}
+            />
+            <StatusSummaryTile
+              label="Chat"
+              value={
+                hasConfirmedChat
+                  ? "Ativo"
+                  : isWaitingForChatConfirmation
+                    ? "Confirmando"
+                    : hasPendingChatFailure
+                      ? "Falhou"
+                      : "Inexistente"
+              }
+              tone={
+                hasConfirmedChat
+                  ? "success"
+                  : isWaitingForChatConfirmation
+                    ? "warning"
+                    : hasPendingChatFailure
+                      ? "danger"
+                      : "neutral"
+              }
+            />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6 px-6 py-6">
+        {isLoadingContact ? (
+          <LoadingPanel />
+        ) : (
+          <>
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_35px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
+                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                      Status da Sincronização
+                    </p>
+                    <p className="mt-2 text-lg font-black text-slate-900 dark:text-white">
+                      {umblerContact
+                        ? "Contato conectado ao Umbler"
+                        : "Contato ainda não sincronizado"}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                      {umblerContact
+                        ? "O cliente já pode receber interações dentro do fluxo do WhatsApp."
+                        : "Sincronize este cadastro para liberar criação de chat e automações."}
+                    </p>
+                  </div>
+
+                  <Badge
                     className={cn(
-                      "h-4 w-4 mr-2",
-                      syncCustomer.isPending && "animate-spin",
+                      "rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] shadow-sm",
+                      umblerContact
+                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/70 dark:bg-emerald-500/10 dark:text-emerald-300"
+                        : "border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     )}
-                  />
-                  {syncCustomer.isPending
-                    ? "Sincronizando..."
-                    : "Sincronizar com WhatsApp"}
-                </Button>
+                  >
+                    {umblerContact ? (
+                      <>
+                        <Check className="mr-1 h-3.5 w-3.5" />
+                        sincronizado
+                      </>
+                    ) : (
+                      "pendente"
+                    )}
+                  </Badge>
+                </div>
+              </div>
+
+              {!umblerContact && (
+                <div className="rounded-[24px] border border-green-200/80 bg-[linear-gradient(135deg,rgba(240,253,244,0.95),rgba(255,255,255,1))] p-5 shadow-[0_20px_40px_-34px_rgba(22,163,74,0.35)] dark:border-green-900/60 dark:bg-[linear-gradient(135deg,rgba(20,33,26,0.95),rgba(15,23,42,0.98))]">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-green-700 dark:text-green-300">
+                    Próximo passo
+                  </p>
+                  <p className="mt-2 text-base font-black text-slate-900 dark:text-white">
+                    Ativar contato no canal
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    Esse processo envia o cliente para a base do WhatsApp e prepara o restante do fluxo.
+                  </p>
+                  <Button
+                    size="sm"
+                    disabled={syncCustomer.isPending}
+                    onClick={() => {
+                      syncCustomer.mutate({
+                        phoneNumber: clientPhone,
+                        organizationId: "aGx7Jh43-au36EGi",
+                        name: clientName,
+                        email: clientEmail || "nao_informado@email.com",
+                      });
+                    }}
+                    className="mt-5 h-11 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-4 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(22,163,74,0.55)] transition-all hover:translate-y-[-1px] hover:from-green-700 hover:to-emerald-600"
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        syncCustomer.isPending && "animate-spin",
+                      )}
+                    />
+                    {syncCustomer.isPending
+                      ? "Sincronizando..."
+                      : "Sincronizar com WhatsApp"}
+                  </Button>
+                </div>
               )}
             </div>
 
             {umblerContact && (
-              <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-6 border-t border-slate-100 pt-6 dark:border-slate-800">
                 {isLoadingChats ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-[60px] w-full rounded-md" />
-                    <Skeleton className="h-[120px] w-full rounded-md" />
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <Skeleton className="h-[240px] rounded-[24px]" />
+                    <Skeleton className="h-[240px] rounded-[24px]" />
                   </div>
                 ) : isContactChatError ? (
-                  <div className="py-8 flex flex-col items-center justify-center text-center bg-red-50 dark:bg-red-950/20 rounded-xl border border-dashed border-red-200 dark:border-red-900/40">
-                    <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-4">
-                      <AlertCircle className="h-8 w-8 text-red-500" />
-                    </div>
-                    <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
-                      Erro ao consultar o chat
-                    </h4>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                      Não foi possível verificar as conversas do cliente no
-                      Umbler agora.
-                    </p>
-                  </div>
+                  <StatePanel
+                    icon={AlertCircle}
+                    title="Erro ao consultar o chat"
+                    description="Não foi possível verificar as conversas do cliente no Umbler agora."
+                    tone="danger"
+                  />
                 ) : (
                   <>
                     {hasConfirmedChat ? (
-                      <div className="space-y-6">
-                        <div className="bg-blue-50/50 dark:bg-slate-900/80 p-4 rounded-xl border border-blue-100 dark:border-slate-800">
-                          <p className="text-sm font-semibold text-blue-800 dark:text-blue-400 mb-3 flex items-center gap-2">
-                            <MessageSquareMore className="h-4 w-4" />
-                            Última mensagem enviada:
-                          </p>
-                          {contactChat.items[0].lastMessage ? (
-                            <div className="bg-white p-4 rounded-lg border border-slate-200 dark:bg-slate-950 dark:border-slate-800 shadow-sm relative">
-                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-lg"></div>
-                              <p className="text-sm text-slate-700 dark:text-slate-300 italic whitespace-pre-wrap">
-                                "{contactChat.items[0].lastMessage.content}"
-                              </p>
+                      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+                        <div className="space-y-6">
+                          <div className="rounded-[24px] border border-blue-200/70 bg-[linear-gradient(135deg,rgba(239,246,255,0.95),rgba(255,255,255,1))] p-5 shadow-[0_18px_38px_-34px_rgba(59,130,246,0.32)] dark:border-slate-800 dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.92))]">
+                            <div className="mb-4 flex items-center gap-3">
+                              <div className="rounded-2xl bg-blue-100 p-2.5 dark:bg-blue-900/30">
+                                <MessageSquareMore className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">
+                                  Última mensagem
+                                </p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                  Histórico mais recente da conversa ativa
+                                </p>
+                              </div>
                             </div>
-                          ) : (
-                            <p className="text-sm text-slate-400 italic">
-                              Nenhuma mensagem enviada ainda.
-                            </p>
-                          )}
+
+                            {lastMessage ? (
+                              <div className="relative overflow-hidden rounded-[22px] border border-slate-200/80 bg-white px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                                <div className="absolute inset-y-0 left-0 w-1 rounded-l-[22px] bg-blue-500" />
+                                <p className="pl-2 text-sm leading-7 text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                                  {lastMessage}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="rounded-[22px] border border-dashed border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+                                Nenhuma mensagem enviada ainda.
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_35px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
+                            <div className="mb-4 flex items-center gap-3">
+                              <div className="rounded-2xl bg-emerald-100 p-2.5 dark:bg-emerald-900/30">
+                                <Send className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                  Nova mensagem
+                                </p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                  Use esse espaço para conversar diretamente com o cliente
+                                </p>
+                              </div>
+                            </div>
+
+                            <Textarea
+                              value={message}
+                              onChange={(e) => setMessage(e.target.value)}
+                              placeholder="Digite sua mensagem para o cliente..."
+                              className="min-h-[150px] resize-none rounded-[20px] border-slate-200 bg-slate-50/70 px-4 py-3 text-sm shadow-inner focus-visible:ring-green-500 dark:border-slate-700 dark:bg-slate-950"
+                            />
+
+                            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                              <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
+                                As mensagens são enviadas para o chat ativo no Umbler.
+                              </p>
+                              <Button
+                                onClick={() => {
+                                  sendMessageMutation.mutate({
+                                    chatId: contactChat?.items[0]?.id,
+                                    message,
+                                  });
+                                  setMessage("");
+                                }}
+                                disabled={
+                                  sendMessageMutation.isPending || !message.trim()
+                                }
+                                className="h-11 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(22,163,74,0.55)] transition-all hover:translate-y-[-1px] hover:from-green-700 hover:to-emerald-600"
+                              >
+                                <Send className="mr-2 h-4 w-4" />
+                                {sendMessageMutation.isPending
+                                  ? "Enviando..."
+                                  : "Enviar mensagem"}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                            Envie uma nova mensagem
-                          </p>
-                          <Textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            placeholder="Digite sua mensagem para o cliente..."
-                            className="resize-none border-slate-300 focus-visible:ring-green-500 dark:border-slate-700 min-h-[100px] bg-white dark:bg-slate-950"
-                          />
-                          <div className="flex flex-col sm:flex-row justify-between gap-4 pt-2">
-                            <div className="flex-1 flex flex-wrap gap-2">
-                              {isLoadingInactiveBot && isLoadingWelcomeBot ? (
-                                <Skeleton className="w-[140px] h-[36px]" />
-                              ) : (
-                                <>
-                                  {welcomeBot?.result
-                                    .filter(
-                                      (bot: any) =>
-                                        bot.title === "Fluxo BOAS VINDAS",
-                                    )
-                                    .map((bot: any) => (
-                                      <Button
-                                        key={`bot-welcome-${bot.id}`}
-                                        onClick={async () =>
-                                          startBotOnChatMutation.mutateAsync({
-                                            botId: bot.id,
-                                            chatId: contactChat.items[0].id,
-                                            phone: clientPhone,
-                                            triggerName: "Boas vindas",
-                                          })
-                                        }
-                                        disabled={
-                                          startBotOnChatMutation.isPending
-                                        }
-                                        size="sm"
-                                        variant="outline"
-                                        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800/50 dark:hover:bg-indigo-900/50"
-                                      >
-                                        <Bot className="h-4 w-4 mr-2" />
-                                        {startBotOnChatMutation.isPending
-                                          ? "Iniciando..."
-                                          : bot.title}
-                                      </Button>
-                                    ))}
-
-                                  {inactiveBot?.result
-                                    .filter(
-                                      (bot: any) => bot.title === "campanha INATIVOS",
-                                    )
-                                    .map((bot: any) => (
-                                      <Button
-                                        key={`bot-inactive-${bot.id}`}
-                                        onClick={async () =>
-                                          startBotOnChatMutation.mutateAsync({
-                                            botId: bot.id,
-                                            chatId: contactChat.items[0].id,
-                                            phone: clientPhone,
-                                            triggerName: "Início",
-                                          })
-                                        }
-                                        disabled={
-                                          startBotOnChatMutation.isPending
-                                        }
-                                        size="sm"
-                                        variant="outline"
-                                        className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/50 dark:hover:bg-amber-900/50"
-                                      >
-                                        <Bot className="h-4 w-4 mr-2" />
-                                        {startBotOnChatMutation.isPending
-                                          ? "Iniciando..."
-                                          : bot.title}
-                                      </Button>
-                                    ))}
-                                </>
-                              )}
+                        <div className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_35px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className="rounded-2xl bg-violet-100 p-2.5 dark:bg-violet-900/30">
+                              <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                             </div>
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                Fluxos rápidos
+                              </p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Inicie automações úteis sem sair do perfil
+                              </p>
+                            </div>
+                          </div>
 
-                            <Button
-                              onClick={() => {
-                                sendMessageMutation.mutate({
-                                  chatId: contactChat?.items[0]?.id,
-                                  message,
-                                });
-                                // Limpa a mensagem após o envio proativamente
-                                setMessage("");
-                              }}
-                              disabled={sendMessageMutation.isPending || !message.trim()}
-                              className="bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              {sendMessageMutation.isPending
-                                ? "Enviando..."
-                                : "Enviar"}
-                            </Button>
+                          <div className="space-y-3">
+                            {isLoadingInactiveBot && isLoadingWelcomeBot ? (
+                              <>
+                                <Skeleton className="h-[88px] rounded-[20px]" />
+                                <Skeleton className="h-[88px] rounded-[20px]" />
+                              </>
+                            ) : (
+                              <>
+                                {welcomeBot?.result
+                                  .filter(
+                                    (bot: { id: string; title: string }) =>
+                                      bot.title === "Fluxo BOAS VINDAS",
+                                  )
+                                  .map((bot: { id: string; title: string }) => (
+                                    <BotActionCard
+                                      key={`bot-welcome-${bot.id}`}
+                                      title={bot.title}
+                                      description="Ideal para iniciar relacionamento e retomar o primeiro contato."
+                                      tone="violet"
+                                      disabled={!canUseBotActions}
+                                      isPending={startBotOnChatMutation.isPending}
+                                      onClick={() =>
+                                        startBotOnChatMutation.mutateAsync({
+                                          botId: bot.id,
+                                          chatId: contactChat.items[0].id,
+                                          phone: clientPhone,
+                                          triggerName: "Boas vindas",
+                                        })
+                                      }
+                                    />
+                                  ))}
+
+                                {inactiveBot?.result
+                                  .filter(
+                                    (bot: { id: string; title: string }) =>
+                                      bot.title === "campanha INATIVOS",
+                                  )
+                                  .map((bot: { id: string; title: string }) => (
+                                    <BotActionCard
+                                      key={`bot-inactive-${bot.id}`}
+                                      title={bot.title}
+                                      description="Use para reaquecer clientes que estão há mais tempo sem interação."
+                                      tone="amber"
+                                      disabled={!canUseBotActions}
+                                      isPending={startBotOnChatMutation.isPending}
+                                      onClick={() =>
+                                        startBotOnChatMutation.mutateAsync({
+                                          botId: bot.id,
+                                          chatId: contactChat.items[0].id,
+                                          phone: clientPhone,
+                                          triggerName: "Início",
+                                        })
+                                      }
+                                    />
+                                  ))}
+
+                                {!welcomeBot?.result?.length &&
+                                  !inactiveBot?.result?.length && (
+                                    <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50/70 px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+                                      Nenhum fluxo disponível no momento.
+                                    </div>
+                                  )}
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
                     ) : isWaitingForChatConfirmation ? (
-                      <div className="py-8 flex flex-col items-center justify-center text-center bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-dashed border-amber-300 dark:border-amber-900/40">
-                        <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-4">
-                          <RefreshCw className="h-8 w-8 text-amber-500 animate-spin" />
-                        </div>
-                        <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
-                          {pendingStatus === "creating"
+                      <StatePanel
+                        icon={RefreshCw}
+                        title={
+                          pendingStatus === "creating"
                             ? "Criando chat"
-                            : "Aguardando confirmação do Umbler"}
-                        </h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-3">
-                          A solicitação foi enviada e estamos verificando
-                          automaticamente quando o chat ficar disponível.
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className="border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300"
-                        >
-                          Tentativa {pendingChatCreation?.attemptCount ?? 1}
-                        </Badge>
-                      </div>
+                            : "Aguardando confirmação do Umbler"
+                        }
+                        description="A solicitação foi enviada e estamos verificando automaticamente quando o chat ficar disponível."
+                        tone="warning"
+                        badgeText={`Tentativa ${pendingChatCreation?.attemptCount ?? 1}`}
+                        spinning
+                      />
                     ) : hasPendingChatFailure ? (
-                      <div className="py-8 flex flex-col items-center justify-center text-center bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-dashed border-amber-300 dark:border-amber-900/40">
-                        <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-4">
-                          <AlertCircle className="h-8 w-8 text-amber-500" />
-                        </div>
-                        <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
-                          Chat ainda não confirmado
-                        </h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6">
-                          O Umbler ainda não confirmou este chat. Você pode
-                          tentar novamente em instantes se ele continuar sem
-                          aparecer.
-                        </p>
-                        <Button
-                          disabled={createChatMutation.isPending}
-                          onClick={() =>
-                            createChatMutation.mutate({
-                              contactId: umblerContact.id,
-                              phone: clientPhone,
-                            })
-                          }
-                          className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                        >
-                          <MessageSquareMore className="h-4 w-4 mr-2" />
-                          {createChatMutation.isPending
-                            ? "Criando..."
-                            : "Tentar criar novamente"}
-                        </Button>
-                      </div>
+                      <StatePanel
+                        icon={AlertCircle}
+                        title="Chat ainda não confirmado"
+                        description="O Umbler ainda não confirmou este chat. Você pode tentar novamente em instantes se ele continuar sem aparecer."
+                        tone="warning"
+                        action={
+                          <Button
+                            disabled={createChatMutation.isPending}
+                            onClick={() =>
+                              createChatMutation.mutate({
+                                contactId: umblerContact.id,
+                                phone: clientPhone,
+                              })
+                            }
+                            className="h-11 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(22,163,74,0.55)] transition-all hover:translate-y-[-1px] hover:from-green-700 hover:to-emerald-600"
+                          >
+                            <MessageSquareMore className="mr-2 h-4 w-4" />
+                            {createChatMutation.isPending
+                              ? "Criando..."
+                              : "Tentar criar novamente"}
+                          </Button>
+                        }
+                      />
                     ) : shouldShowEmptyState ? (
-                      <div className="py-8 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-800">
-                        <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-4">
-                          <MessageSquareMore className="h-8 w-8 text-green-500" />
-                        </div>
-                        <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
-                          Nenhum chat ativo
-                        </h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6">
-                          Inicie uma conversa no WhatsApp para começar a interagir com este cliente.
-                        </p>
-                        <Button
-                          disabled={createChatMutation.isPending}
-                          onClick={async () =>
-                            createChatMutation.mutateAsync({
-                              contactId: umblerContact.id,
-                              phone: clientPhone,
-                            })
-                          }
-                          className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                        >
-                          <MessageSquareMore className="h-4 w-4 mr-2" />
-                          {createChatMutation.isPending
-                            ? "Criando..."
-                            : "Criar chat no WhatsApp"}
-                        </Button>
-                      </div>
+                      <StatePanel
+                        icon={MessageSquareMore}
+                        title="Nenhum chat ativo"
+                        description="Inicie uma conversa no WhatsApp para começar a interagir com este cliente."
+                        tone="neutral"
+                        action={
+                          <Button
+                            disabled={createChatMutation.isPending}
+                            onClick={() =>
+                              createChatMutation.mutateAsync({
+                                contactId: umblerContact.id,
+                                phone: clientPhone,
+                              })
+                            }
+                            className="h-11 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(22,163,74,0.55)] transition-all hover:translate-y-[-1px] hover:from-green-700 hover:to-emerald-600"
+                          >
+                            <MessageSquareMore className="mr-2 h-4 w-4" />
+                            {createChatMutation.isPending
+                              ? "Criando..."
+                              : "Criar chat no WhatsApp"}
+                          </Button>
+                        }
+                      />
                     ) : null}
                   </>
                 )}
@@ -489,5 +591,193 @@ export function ClientWhatsAppTab({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function LoadingPanel() {
+  return (
+    <div className="flex items-center gap-3 rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-5 py-4 text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+      <RefreshCw className="h-4 w-4 animate-spin text-green-500" />
+      <p className="text-sm font-medium">Verificando status do WhatsApp...</p>
+    </div>
+  );
+}
+
+function StatusSummaryTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "success" | "warning" | "danger" | "neutral";
+}) {
+  const toneClass = {
+    success:
+      "border-emerald-200 bg-emerald-50/90 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-500/10 dark:text-emerald-300",
+    warning:
+      "border-amber-200 bg-amber-50/90 text-amber-700 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-300",
+    danger:
+      "border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800/60 dark:bg-rose-500/10 dark:text-rose-300",
+    neutral:
+      "border-slate-200 bg-white/85 text-slate-700 dark:border-slate-700 dark:bg-slate-900/75 dark:text-slate-300",
+  }[tone];
+
+  return (
+    <div
+      className={cn(
+        "rounded-[20px] border px-4 py-3 shadow-sm backdrop-blur-sm",
+        toneClass,
+      )}
+    >
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black">{value}</p>
+    </div>
+  );
+}
+
+function StatePanel({
+  icon: Icon,
+  title,
+  description,
+  tone,
+  badgeText,
+  action,
+  spinning = false,
+}: {
+  icon: typeof AlertCircle;
+  title: string;
+  description: string;
+  tone: "warning" | "danger" | "neutral";
+  badgeText?: string;
+  action?: ReactNode;
+  spinning?: boolean;
+}) {
+  const styles = {
+    warning: {
+      wrapper:
+        "border-amber-300 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20",
+      iconWrap: "bg-white dark:bg-slate-800",
+      icon: "text-amber-500",
+    },
+    danger: {
+      wrapper:
+        "border-rose-300 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/20",
+      iconWrap: "bg-white dark:bg-slate-800",
+      icon: "text-rose-500",
+    },
+    neutral: {
+      wrapper:
+        "border-slate-300 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50",
+      iconWrap: "bg-white dark:bg-slate-800",
+      icon: "text-green-500",
+    },
+  }[tone];
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-10 text-center",
+        styles.wrapper,
+      )}
+    >
+      <div className={cn("mb-4 rounded-full p-3 shadow-sm", styles.iconWrap)}>
+        <Icon className={cn("h-8 w-8", styles.icon, spinning && "animate-spin")} />
+      </div>
+      <h4 className="mb-1 text-lg font-black text-slate-900 dark:text-slate-100">
+        {title}
+      </h4>
+      <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
+        {description}
+      </p>
+      {badgeText && (
+        <Badge
+          variant="outline"
+          className="mt-4 border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/30 dark:text-amber-300"
+        >
+          {badgeText}
+        </Badge>
+      )}
+      {action && <div className="mt-6">{action}</div>}
+    </div>
+  );
+}
+
+function BotActionCard({
+  title,
+  description,
+  tone,
+  disabled,
+  isPending,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  tone: "violet" | "amber";
+  disabled: boolean;
+  isPending: boolean;
+  onClick: () => Promise<unknown>;
+}) {
+  const styles = {
+    violet: {
+      wrapper:
+        "border-violet-200/80 bg-violet-50/70 dark:border-violet-800/50 dark:bg-violet-900/15",
+      iconWrap: "bg-violet-100 dark:bg-violet-900/35",
+      icon: "text-violet-600 dark:text-violet-400",
+      button:
+        "border-violet-200 bg-white text-violet-700 hover:bg-violet-100 dark:border-violet-800/60 dark:bg-slate-950 dark:text-violet-300 dark:hover:bg-violet-900/30",
+    },
+    amber: {
+      wrapper:
+        "border-amber-200/80 bg-amber-50/70 dark:border-amber-800/50 dark:bg-amber-900/15",
+      iconWrap: "bg-amber-100 dark:bg-amber-900/35",
+      icon: "text-amber-600 dark:text-amber-400",
+      button:
+        "border-amber-200 bg-white text-amber-700 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-slate-950 dark:text-amber-300 dark:hover:bg-amber-900/30",
+    },
+  }[tone];
+
+  return (
+    <div
+      className={cn(
+        "rounded-[20px] border p-4 shadow-[0_16px_30px_-34px_rgba(15,23,42,0.38)]",
+        styles.wrapper,
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+            styles.iconWrap,
+          )}
+        >
+          <Bot className={cn("h-4 w-4", styles.icon)} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black text-slate-900 dark:text-white">
+            {title}
+          </p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {description}
+          </p>
+        </div>
+      </div>
+
+      <Button
+        onClick={onClick}
+        disabled={disabled}
+        variant="outline"
+        className={cn(
+          "mt-4 h-10 w-full rounded-xl border text-sm font-bold shadow-sm transition-all",
+          styles.button,
+        )}
+      >
+        <Sparkles className="mr-2 h-4 w-4" />
+        {isPending ? "Iniciando..." : "Iniciar fluxo"}
+        <ChevronRight className="ml-1 h-4 w-4" />
+      </Button>
+    </div>
   );
 }

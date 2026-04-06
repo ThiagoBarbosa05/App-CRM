@@ -111,7 +111,7 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
           </h2>
           <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
         </div>
-        <Card className="rounded-xl border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
+        <Card className="rounded-[24px] border-slate-200/80 bg-white shadow-[0_18px_40px_-36px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-900">
           <CardContent className="p-6">
             <div className="mb-6 flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -195,7 +195,7 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
           <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="relative overflow-hidden rounded-xl border-amber-200/60 bg-white shadow-sm dark:border-amber-800/30 dark:bg-slate-900">
+          <Card className="relative overflow-hidden rounded-[22px] border-amber-200/60 bg-white shadow-[0_18px_35px_-34px_rgba(245,158,11,0.28)] dark:border-amber-800/30 dark:bg-slate-900">
             <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-gradient-to-b from-amber-300 to-amber-500" />
             <CardContent className="p-5 pl-6">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
@@ -209,7 +209,7 @@ export function ClientPurchaseOverview({ data }: ClientPurchaseOverviewProps) {
               </p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden rounded-xl border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900/60">
+          <Card className="relative overflow-hidden rounded-[22px] border-slate-200/80 bg-white shadow-[0_18px_35px_-34px_rgba(15,23,42,0.28)] dark:border-slate-800/80 dark:bg-slate-900/60">
             <div className="absolute bottom-0 left-0 top-0 w-[3px] bg-gradient-to-b from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700" />
             <CardContent className="p-5 pl-6">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
@@ -325,7 +325,7 @@ function RiskIndicatorCard({
   const styles = riskSeverityStyles[severity];
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border bg-white p-4 shadow-sm dark:bg-slate-900 ${styles.border}`}
+      className={`relative overflow-hidden rounded-[22px] border bg-white p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.34)] dark:bg-slate-900 ${styles.border}`}
     >
       <div
         className={`absolute bottom-0 left-0 top-0 w-[3px] ${styles.accent}`}

@@ -335,12 +335,16 @@ export const unifiedOrdersService = {
     const connectEnd = `${endDate}T23:59:59`;
 
     const blingFrag = sql`
-      SELECT seller_id, seller_name, total_value::numeric AS v
-      FROM bling_orders
-      WHERE deleted_at IS NULL
-        AND sale_date >= ${startDate}
-        AND sale_date <= ${endDate}
-        AND seller_id IS NOT NULL
+      SELECT
+        COALESCE(u.id, bo.seller_id) AS seller_id,
+        COALESCE(u.name, bo.seller_name) AS seller_name,
+        bo.total_value::numeric AS v
+      FROM bling_orders bo
+      LEFT JOIN users u ON u.bling_vendedor_id = bo.seller_id
+      WHERE bo.deleted_at IS NULL
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.seller_id IS NOT NULL
     `;
 
     const connectFrag = sql`

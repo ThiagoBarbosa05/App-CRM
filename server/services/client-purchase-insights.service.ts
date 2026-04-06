@@ -64,11 +64,13 @@ export interface ClientPurchaseInsightsResponse {
     predictedNextPurchaseDate: string | null;
     daysSinceLastPurchase: number | null;
     daysLate: number | null;
+    cycleProgress: number | null;
     status:
       | "dentro_do_ciclo"
       | "atencao"
       | "reativacao"
       | "risco_de_queda"
+      | "primeira_compra"
       | "sem_base";
     explanation: string;
   };
@@ -377,11 +379,36 @@ function buildSummary(allOrders: Array<{ saleDate: string; totalValue: number }>
 }
 
 function buildPredictiveAnalysis(summary: ClientPurchaseInsightsResponse["summary"]) {
-  if (!summary.lastPurchaseDate || summary.averageDaysBetweenPurchases === null) {
+  if (!summary.lastPurchaseDate) {
     return {
       predictedNextPurchaseDate: null,
       daysSinceLastPurchase: null,
       daysLate: null,
+      cycleProgress: null,
+      status: "sem_base" as const,
+      explanation: "O cliente ainda não tem histórico suficiente para prever o próximo ciclo de compra.",
+    };
+  }
+
+  if (summary.purchaseCount === 1) {
+    const lastPurchaseDate = parseSaleDate(summary.lastPurchaseDate);
+    const daysSinceLastPurchase = diffInDays(new Date(), lastPurchaseDate);
+    return {
+      predictedNextPurchaseDate: null,
+      daysSinceLastPurchase,
+      daysLate: null,
+      cycleProgress: null,
+      status: "primeira_compra" as const,
+      explanation: `Cliente com apenas uma compra registrada. Ainda não há ciclo de recompra para análise preditiva. Há ${daysSinceLastPurchase} dia(s) desde a primeira compra.`,
+    };
+  }
+
+  if (summary.averageDaysBetweenPurchases === null) {
+    return {
+      predictedNextPurchaseDate: null,
+      daysSinceLastPurchase: null,
+      daysLate: null,
+      cycleProgress: null,
       status: "sem_base" as const,
       explanation: "O cliente ainda não tem histórico suficiente para prever o próximo ciclo de compra.",
     };
@@ -393,6 +420,7 @@ function buildPredictiveAnalysis(summary: ClientPurchaseInsightsResponse["summar
   const predictedDate = new Date(lastPurchaseDate.getTime() + averageCycle * DAY_IN_MS);
   const daysSinceLastPurchase = diffInDays(now, lastPurchaseDate);
   const daysLate = daysSinceLastPurchase - averageCycle;
+  const cycleProgress = Math.round((daysSinceLastPurchase / averageCycle) * 100);
 
   let status: ClientPurchaseInsightsResponse["predictiveAnalysis"]["status"] = "dentro_do_ciclo";
   if (daysSinceLastPurchase > averageCycle * 1.5) {
@@ -403,12 +431,20 @@ function buildPredictiveAnalysis(summary: ClientPurchaseInsightsResponse["summar
     status = "atencao";
   }
 
+  const atrasoText = daysLate > 0
+    ? ` — ${daysLate} dia(s) além do ciclo habitual`
+    : ` — dentro do prazo esperado`;
+  const mesesText = summary.activeMonthsLast12 > 0
+    ? ` Ativo em ${summary.activeMonthsLast6} dos últimos 6 meses (${summary.activeMonthsLast12} nos últimos 12).`
+    : "";
+
   return {
     predictedNextPurchaseDate: formatDateOnly(predictedDate),
     daysSinceLastPurchase,
     daysLate,
+    cycleProgress,
     status,
-    explanation: `Cliente costuma comprar a cada ${averageCycle} dia(s) e está há ${daysSinceLastPurchase} dia(s) sem compra.`,
+    explanation: `Compra a cada ${averageCycle} dia(s) em média. Há ${daysSinceLastPurchase} dia(s) sem comprar${atrasoText}.${mesesText}`,
   };
 }
 
