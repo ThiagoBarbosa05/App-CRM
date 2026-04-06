@@ -42,6 +42,32 @@ interface UnifiedOrdersTableProps {
   totalOrders?: number;
 }
 
+function getSituationLabel(value: string | null | undefined) {
+  switch (String(value ?? "").trim()) {
+    case "0":
+      return "Em Aberto";
+    case "1":
+      return "Concluído";
+    case "2":
+      return "Cancelado";
+    default:
+      return value || null;
+  }
+}
+
+function getSituationBadgeClass(value: string | null | undefined) {
+  switch (String(value ?? "").trim()) {
+    case "0":
+      return "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400";
+    case "1":
+      return "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400";
+    case "2":
+      return "bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400";
+    default:
+      return "bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-400";
+  }
+}
+
 function SourceBadge({ source }: { source: "bling" | "connect" }) {
   if (source === "bling") {
     return (
@@ -207,8 +233,13 @@ export function UnifiedOrdersTable({
                             </span>
                           )}
                           {order.situationValue && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-                              {order.situationValue}
+                            <span
+                              className={cn(
+                                "w-fit rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider",
+                                getSituationBadgeClass(order.situationValue),
+                              )}
+                            >
+                              {getSituationLabel(order.situationValue)}
                             </span>
                           )}
                           {order.appClientStatus && !order.orderNumber && (

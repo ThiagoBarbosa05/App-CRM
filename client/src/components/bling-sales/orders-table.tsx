@@ -44,6 +44,19 @@ interface OrdersTableProps {
   totalOrders?: number;
 }
 
+function getSituationLabel(value: string | null | undefined) {
+  switch (String(value ?? "").trim()) {
+    case "0":
+      return "Em Aberto";
+    case "1":
+      return "Concluído";
+    case "2":
+      return "Cancelado";
+    default:
+      return value || undefined;
+  }
+}
+
 function getStatusStyles(statusName: string | undefined) {
   if (!statusName)
     return { bg: "bg-slate-100", text: "text-slate-600", dot: "bg-slate-400" };
@@ -281,8 +294,9 @@ export function OrdersTable({
                       <TableCell>
                         <StatusBadge
                           name={
+                            getSituationLabel(order.situationValue) ||
+                            getSituationLabel(order.situationId) ||
                             order.situationName ||
-                            order.situationId ||
                             "DEFININDO"
                           }
                         />
