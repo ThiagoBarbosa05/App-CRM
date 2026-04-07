@@ -139,19 +139,17 @@ async function findClientByCpfOrPhone(
 
 /**
  * Cria um novo cliente no app a partir dos dados do CSV Connect.
- * Phone é obrigatório na tabela; usa celular primeiro, depois telefone.
+ * Phone é opcional — se não houver, o cliente é criado sem telefone.
  * Em caso de race condition (unique violation em phone), refaz o lookup.
  */
 async function createClientFromConnect(
   row: ConnectCsvRow,
   sellerId: string | null,
 ): Promise<ClientRecord | null> {
+  const clientName = row.contactName?.trim() || "Cliente Connect";
   const cellNorm = row.contactCellphone ? normalizePhone(row.contactCellphone) : null;
   const phoneNorm = row.contactPhone ? normalizePhone(row.contactPhone) : null;
-  const primaryPhone = cellNorm || phoneNorm;
-
-  // phone é NOT NULL no schema
-  if (!primaryPhone) return null;
+  const primaryPhone = cellNorm || phoneNorm || null;
 
   const cpfNorm = row.contactCpf ? normalizeCpf(row.contactCpf) : null;
   const validCpf = cpfNorm && cpfNorm.length === 11 ? cpfNorm : null;
@@ -160,8 +158,8 @@ async function createClientFromConnect(
     const [created] = await db
       .insert(clients)
       .values({
-        name: row.contactName || "Cliente Connect",
-        phone: primaryPhone,
+        name: clientName,
+        ...(primaryPhone ? { phone: primaryPhone } : {}),
         // Se usou celular como phone principal, fixa o telefone como fixedPhone
         ...(cellNorm && phoneNorm && cellNorm !== phoneNorm
           ? { fixedPhone: phoneNorm }
