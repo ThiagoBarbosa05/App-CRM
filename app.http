@@ -16,3 +16,7 @@ x-user-role: admin
   "forceUpdate": true,
   "idSituacao": 9
 }
+
+###
+GET https://api.bling.com.br/Api/v3/contatos?telefone=22988523633
+Authorization: Bearer 

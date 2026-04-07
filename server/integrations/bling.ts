@@ -21,6 +21,7 @@ async function fetchBlingApi(
   accessToken: string,
   path: string,
   params?: Record<string, string>,
+  init?: RequestInit,
   maxRetries = 3,
 ): Promise<Response> {
   const url = new URL(`${getApiBaseUrl()}${path}`);
@@ -32,12 +33,17 @@ async function fetchBlingApi(
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const headers = new Headers(init?.headers);
+    headers.set("Authorization", `Bearer ${accessToken}`);
+
+    if (!headers.has("Accept")) {
+      headers.set("Accept", "application/json");
+    }
+
     const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
+      ...init,
+      method: init?.method ?? "GET",
+      headers,
     });
 
     if (response.status !== 429) {
@@ -398,6 +404,172 @@ export interface BlingContato {
   endereco: BlingContatoEndereco | null;
 }
 
+export interface BlingContatoSummary {
+  id: number;
+  nome: string | null;
+  codigo: string | null;
+  situacao: string | null;
+  numeroDocumento: string | null;
+  telefone: string | null;
+  celular: string | null;
+}
+
+export type BlingContatoTipo = "J" | "F" | "E";
+
+export interface BlingContatoPayloadEndereco {
+  endereco?: string;
+  cep?: string;
+  bairro?: string;
+  municipio?: string;
+  uf?: string;
+  numero?: string;
+  complemento?: string;
+}
+
+export interface BlingContatoPayload {
+  nome: string;
+  codigo?: string;
+  situacao?: "A" | "I";
+  numeroDocumento?: string;
+  telefone?: string;
+  celular?: string;
+  fantasia?: string;
+  tipo: BlingContatoTipo;
+  indicadorIe?: number;
+  ie?: string;
+  rg?: string;
+  inscricaoMunicipal?: string;
+  orgaoEmissor?: string;
+  email?: string;
+  emailNotaFiscal?: string;
+  orgaoPublico?: "S" | "N";
+  endereco?: {
+    geral?: BlingContatoPayloadEndereco;
+    cobranca?: BlingContatoPayloadEndereco;
+  };
+  vendedor?: {
+    id?: number;
+  };
+  dadosAdicionais?: {
+    dataNascimento?: string;
+    sexo?: string;
+    naturalidade?: string;
+  };
+  financeiro?: {
+    limiteCredito?: number;
+    condicaoPagamento?: string;
+    categoria?: {
+      id?: number;
+    };
+  };
+  pais?: {
+    nome?: string;
+  };
+  tiposContato?: Array<{
+    id?: number;
+    descricao?: string;
+  }>;
+  pessoasContato?: Array<{
+    id?: number;
+    descricao?: string;
+  }>;
+}
+
+interface BlingCreateContatoResponse {
+  data: {
+    id: number;
+  };
+}
+
+export interface GetBlingContatosParams {
+  telefone?: string;
+  numeroDocumento?: string;
+}
+
+function normalizeBlingContatoPhoneQuery(phone: string): string {
+  let digits = phone.replace(/\D/g, "");
+
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+
+  return phone.trim();
+}
+
+function normalizeBlingContatoDocumentQuery(document: string): string {
+  return document.replace(/\D/g, "");
+}
+
+function normalizeBlingContatoValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (Array.isArray(value)) {
+    const normalizedItems = value
+      .map((item) => normalizeBlingContatoValue(item))
+      .filter((item) => item !== undefined);
+
+    return normalizedItems.length > 0 ? normalizedItems : undefined;
+  }
+
+  if (value && typeof value === "object") {
+    const normalizedEntries = Object.entries(value as Record<string, unknown>)
+      .map(([key, entryValue]) => [key, normalizeBlingContatoValue(entryValue)] as const)
+      .filter(([, entryValue]) => entryValue !== undefined);
+
+    return normalizedEntries.length > 0
+      ? Object.fromEntries(normalizedEntries)
+      : undefined;
+  }
+
+  return value;
+}
+
+function normalizeBlingContatoPayload(
+  payload: BlingContatoPayload,
+): BlingContatoPayload & { situacao: "A" | "I" } {
+  const normalized = normalizeBlingContatoValue(payload) as Partial<BlingContatoPayload> | undefined;
+
+  const nome = normalized?.nome;
+
+  if (!nome) {
+    throw new Error("Falha ao criar contato no Bling: campo 'nome' é obrigatório");
+  }
+
+  const tipo = normalized?.tipo;
+
+  if (tipo !== "J" && tipo !== "F" && tipo !== "E") {
+    throw new Error(
+      "Falha ao criar contato no Bling: campo 'tipo' deve ser 'J', 'F' ou 'E'",
+    );
+  }
+
+  const situacao = normalized?.situacao ?? "A";
+
+  if (situacao !== "A" && situacao !== "I") {
+    throw new Error(
+      "Falha ao criar contato no Bling: campo 'situacao' deve ser 'A' ou 'I'",
+    );
+  }
+
+  return {
+    ...(normalized ?? {}),
+    nome,
+    tipo,
+    situacao,
+  };
+}
+
 /**
  * Retorna os dados de um contato pelo ID no Bling.
  *
@@ -478,6 +650,123 @@ export async function getBlingContato(
         }
       : null,
   };
+}
+
+export async function getBlingContatos(
+  accessToken: string,
+  params: GetBlingContatosParams = {},
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingContatoSummary[]> {
+  let token = accessToken;
+
+  const queryParams: Record<string, string> = {};
+
+  if (params.telefone) {
+    queryParams.telefone = normalizeBlingContatoPhoneQuery(params.telefone);
+  }
+
+  if (params.numeroDocumento) {
+    queryParams.numeroDocumento = normalizeBlingContatoDocumentQuery(
+      params.numeroDocumento,
+    );
+  }
+
+  let response = await fetchBlingApi(token, "/contatos", queryParams);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/contatos", queryParams);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao listar contatos do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: BlingContatoSummary[] };
+  return body.data ?? [];
+}
+
+export async function createBlingContato(
+  accessToken: string,
+  payload: BlingContatoPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<{ id: number }> {
+  let token = accessToken;
+
+  const normalizedPayload = normalizeBlingContatoPayload(payload);
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(normalizedPayload),
+  };
+
+  let response = await fetchBlingApi(token, "/contatos", undefined, requestInit);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/contatos", undefined, requestInit);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao criar contato no Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as BlingCreateContatoResponse;
+  return { id: body.data.id };
+}
+
+export async function updateBlingContato(
+  accessToken: string,
+  contatoId: number,
+  payload: BlingContatoPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<void> {
+  let token = accessToken;
+
+  const normalizedPayload = normalizeBlingContatoPayload(payload);
+  const requestInit: RequestInit = {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(normalizedPayload),
+  };
+
+  let response = await fetchBlingApi(
+    token,
+    `/contatos/${contatoId}`,
+    undefined,
+    requestInit,
+  );
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(
+      token,
+      `/contatos/${contatoId}`,
+      undefined,
+      requestInit,
+    );
+  }
+
+  if (response.status === 404) {
+    throw new Error(`Contato ${contatoId} não encontrado no Bling`);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao atualizar contato no Bling: ${errorText || response.statusText}`,
+    );
+  }
 }
 
 export interface BlingTokenResponse {
