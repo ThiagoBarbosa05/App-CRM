@@ -1,6 +1,28 @@
 import { z } from "zod";
 import { validateCpf } from "./utils";
 
+function validateCnpj(cnpj: string): boolean {
+  const digits = cnpj.replace(/\D/g, "");
+  if (digits.length !== 14) return false;
+  if (/^(\d)\1+$/.test(digits)) return false;
+
+  const calc = (d: string, weights: number[]) =>
+    weights.reduce((acc, w, i) => acc + parseInt(d[i]) * w, 0);
+
+  const mod = (n: number) => {
+    const r = n % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  return (
+    mod(calc(digits, w1)) === parseInt(digits[12]) &&
+    mod(calc(digits, w2)) === parseInt(digits[13])
+  );
+}
+
 /**
  * Valida se a pessoa é maior de idade (18 anos ou mais)
  */
@@ -42,10 +64,19 @@ export const clientValidationSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   phone: z.string().min(10, "Celular deve ter pelo menos 10 dígitos"),
   fixedPhone: z.string().optional().or(z.literal("")),
+  documentType: z.enum(["cpf", "cnpj"]).default("cpf"),
   cpf: z
     .string()
     .optional()
-    .refine((val) => !val || validateCpf(val), "CPF inválido"),
+    .or(z.literal(""))
+    .refine((val) => {
+      if (!val) return true;
+      const digits = val.replace(/\D/g, "");
+      if (digits.length <= 11) return validateCpf(val);
+      return validateCnpj(val);
+    }, "CPF ou CNPJ inválido"),
+  nomeFantasia: z.string().optional().or(z.literal("")),
+  inscricaoEstadual: z.string().optional().or(z.literal("")),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   birthday: z
     .string()

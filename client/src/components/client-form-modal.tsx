@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -143,7 +143,10 @@ export default function ClientFormModal({
       name: client?.name || "",
       phone: client?.phone || "",
       fixedPhone: client?.fixedPhone || "",
+      documentType: (client?.documentType as "cpf" | "cnpj") || "cpf",
       cpf: client?.cpf || "",
+      nomeFantasia: client?.nomeFantasia || "",
+      inscricaoEstadual: client?.inscricaoEstadual || "",
       email: client?.email || "",
       birthday: convertBrazilianDateToISO(client?.birthday || ""),
       cep: client?.cep || "",
@@ -160,6 +163,18 @@ export default function ClientFormModal({
     },
     mode: "onChange",
   });
+
+  const watchedCpf = form.watch("cpf");
+  const isCnpj = useMemo(() => {
+    const digits = (watchedCpf || "").replace(/\D/g, "");
+    return digits.length > 11;
+  }, [watchedCpf]);
+
+  // Sincroniza documentType quando o campo muda
+  const documentType = isCnpj ? "cnpj" : "cpf";
+  if (form.getValues("documentType") !== documentType) {
+    form.setValue("documentType", documentType);
+  }
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -306,6 +321,9 @@ export default function ClientFormModal({
       const processedData = {
         ...data,
         cpf: data.cpf?.trim() || null,
+        documentType: isCnpj ? "cnpj" : "cpf",
+        nomeFantasia: isCnpj ? (data.nomeFantasia?.trim() || null) : null,
+        inscricaoEstadual: isCnpj ? (data.inscricaoEstadual?.trim() || null) : null,
         email: data.email?.trim() || null,
         cep: data.cep?.trim() || "",
         address: data.address?.trim() || "",
@@ -389,20 +407,86 @@ export default function ClientFormModal({
                     control={form.control}
                     name="cpf"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">CPF</FormLabel>
+                      <FormItem className={isCnpj ? "md:col-span-2" : ""}>
+                        <FormLabel className="text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          {isCnpj ? "CNPJ" : "CPF / CNPJ"}
+                          {isCnpj && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 px-2 py-0.5 rounded-full">
+                              Pessoa Jurídica
+                            </span>
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <InputMask
-                            mask="999.999.999-99"
-                            placeholder="000.000.000-00"
-                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-blue-500"
-                            {...field}
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                            placeholder={isCnpj ? "00.000.000/0000-00" : "000.000.000-00"}
+                            value={field.value}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, "").slice(0, 14);
+                              let formatted = digits;
+                              if (digits.length <= 11) {
+                                // Formato CPF: 000.000.000-00
+                                formatted = digits
+                                  .replace(/(\d{3})(\d)/, "$1.$2")
+                                  .replace(/(\d{3})(\d)/, "$1.$2")
+                                  .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                              } else {
+                                // Formato CNPJ: 00.000.000/0000-00
+                                formatted = digits
+                                  .replace(/(\d{2})(\d)/, "$1.$2")
+                                  .replace(/(\d{3})(\d)/, "$1.$2")
+                                  .replace(/(\d{3})(\d)/, "$1/$2")
+                                  .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+                              }
+                              field.onChange(formatted);
+                            }}
+                            onBlur={field.onBlur}
+                            name={field.name}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {isCnpj && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="nomeFantasia"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-slate-700 dark:text-slate-300">Nome Fantasia</FormLabel>
+                            <FormControl>
+                              <Input
+                                className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                                placeholder="Nome fantasia da empresa"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="inscricaoEstadual"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-slate-700 dark:text-slate-300">Inscrição Estadual</FormLabel>
+                            <FormControl>
+                              <Input
+                                className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                                placeholder="Inscrição estadual"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
 
                   <FormField
                     control={form.control}

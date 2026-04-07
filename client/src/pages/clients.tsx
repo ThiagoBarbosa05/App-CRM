@@ -8,21 +8,24 @@ import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Plus,
   Search,
-  Download,
-  Upload,
   Loader2,
   Briefcase,
   Users,
+  Building2,
+  Phone,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { ClientsHeader } from "@/components/clients/clients-header";
 import { ClientsActions } from "@/components/clients/clients-actions";
 import { type Client } from "@shared/schema";
+import { useLocation } from "wouter";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -119,6 +122,25 @@ export default function Clients() {
     () => (Array.isArray(users) ? users : []),
     [users],
   );
+
+  const selectedResponsavel = clientFilters.responsavelId !== "all" ? clientFilters.responsavelId : null;
+
+  const { data: companiesData, isFetching: isFetchingCompanies } = useQuery({
+    queryKey: ["/api/companies", selectedResponsavel],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedResponsavel) params.append("responsavelId", selectedResponsavel);
+      const response = await fetch(`/api/companies?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch companies");
+      const result = await response.json();
+      return Array.isArray(result) ? result : result.data || result.companies || [];
+    },
+    enabled: !!selectedResponsavel,
+  });
+
+  const companiesArray = useMemo(() => companiesData || [], [companiesData]);
+
+  const [, navigate] = useLocation();
 
   const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
     useQuery({
@@ -329,6 +351,124 @@ export default function Clients() {
             </div>
           )}
         </div>
+
+        {/* Seção de Empresas - aparece quando filtro por responsável está ativo */}
+      {selectedResponsavel && (
+        <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 px-6 py-4 border-b border-purple-200 dark:border-purple-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                  <Building2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-lg">
+                    Empresas do Vendedor
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                    {isFetchingCompanies
+                      ? "Carregando empresas..."
+                      : `${companiesArray.length} empresa(s) vinculada(s) ao vendedor selecionado`}
+                  </p>
+                </div>
+              </div>
+              {companiesArray.length > 0 && (
+                <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-300 dark:border-purple-700">
+                  {companiesArray.length} empresa{companiesArray.length !== 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {isFetchingCompanies ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                <p className="text-sm text-gray-500 dark:text-slate-400">Buscando empresas...</p>
+              </div>
+            </div>
+          ) : companiesArray.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-6">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                <Building2 className="h-8 w-8 text-purple-400 dark:text-purple-500" />
+              </div>
+              <h4 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                Nenhuma empresa encontrada
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-slate-400 text-center">
+                Este vendedor não possui empresas vinculadas.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-800">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">Nome / Razão Social</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">CNPJ</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5" />
+                        Telefone
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Localização
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companiesArray.map((company: any, index: number) => (
+                    <tr
+                      key={company.id}
+                      className={`border-b border-gray-100 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors ${
+                        index % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-purple-50/20 dark:bg-purple-900/5"
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">
+                            {company.nomeFantasia || company.razaoSocial}
+                          </p>
+                          {company.nomeFantasia && company.razaoSocial && company.nomeFantasia !== company.razaoSocial && (
+                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                              {company.razaoSocial}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">
+                        {company.cnpj || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
+                        {company.phone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
+                        {[company.city, company.state].filter(Boolean).join(", ") || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                          onClick={() => navigate(`/empresas`)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                          Ver
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
       </div>
 
       <ClientFormModal

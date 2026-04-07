@@ -12,9 +12,10 @@ import {
   clients,
   users,
   blingConnections,
+  blingClientSync,
   type BlingConnection,
 } from "../../shared/schema";
-import { asc, eq, ne } from "drizzle-orm";
+import { asc, eq, ne, sql } from "drizzle-orm";
 import {
   getBlingContatos,
   createBlingContato,
@@ -254,6 +255,7 @@ async function runExport(
             onTokenRefresh,
             progress,
           );
+          await markSynced(client.id);
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
           progress.failed++;
@@ -264,6 +266,7 @@ async function runExport(
               error: errMsg,
             });
           }
+          await markSyncError(client.id, errMsg);
           console.error(
             `[BlingClientsExport] Erro ao exportar cliente ${client.id} (${client.name}):`,
             errMsg,
@@ -312,6 +315,50 @@ async function runExport(
       error,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de persistência de status de sincronização
+// ---------------------------------------------------------------------------
+
+async function markSynced(clientId: string): Promise<void> {
+  await db
+    .insert(blingClientSync)
+    .values({
+      clientId,
+      syncStatus: "synced",
+      lastSyncedAt: new Date(),
+      errorMessage: null,
+    })
+    .onConflictDoUpdate({
+      target: blingClientSync.clientId,
+      set: {
+        syncStatus: "synced",
+        lastSyncedAt: new Date(),
+        errorMessage: null,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+async function markSyncError(clientId: string, errorMessage: string): Promise<void> {
+  await db
+    .insert(blingClientSync)
+    .values({
+      clientId,
+      syncStatus: "error",
+      errorMessage,
+      retryCount: 1,
+    })
+    .onConflictDoUpdate({
+      target: blingClientSync.clientId,
+      set: {
+        syncStatus: "error",
+        errorMessage,
+        retryCount: sql`${blingClientSync.retryCount} + 1`,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -502,7 +549,14 @@ export async function syncClientToBling(clientId: string): Promise<void> {
     cancelRequested: false,
   };
 
-  await processClient(client, accessToken, onTokenRefresh, stub);
+  try {
+    await processClient(client, accessToken, onTokenRefresh, stub);
+    await markSynced(clientId);
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    await markSyncError(clientId, errMsg);
+    throw error;
+  }
 
   console.info(
     `[Bling] Cliente ${clientId} sincronizado (criados: ${stub.created}, atualizados: ${stub.updated})`,

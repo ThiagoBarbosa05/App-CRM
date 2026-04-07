@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(printf '\\\\n')",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(printf '\\\\033[B\\\\n')",
+      "Bash(yes \"\")",
+      "Bash(node:*)",
+      "Bash(printenv)"
+    ]
+  }
+}

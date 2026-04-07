@@ -10,6 +10,8 @@ import {
   FileText,
   Edit,
   ChevronRight,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,7 +116,6 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               onClick={() => {
                 if (onEdit) {
                   onEdit(client);
-                  onClose();
                 }
               }}
               className="h-11 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(225,29,72,0.6)] transition-all hover:translate-y-[-1px] hover:from-rose-700 hover:to-red-600"
@@ -139,7 +140,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
             <InfoTile
               icon={CreditCard}
               accent="slate"
-              label="CPF"
+              label={client.documentType === "cnpj" ? "CNPJ" : "CPF"}
               value={formatCPF(client.cpf || "")}
             />
             <InfoTile
@@ -236,6 +237,21 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
+          {client.documentType === "cnpj" && (client.nomeFantasia || client.inscricaoEstadual) && (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 mb-6">
+              {client.nomeFantasia && (
+                <CommercialTile label="Nome Fantasia">
+                  <span className="font-semibold text-slate-900 dark:text-slate-200">{client.nomeFantasia}</span>
+                </CommercialTile>
+              )}
+              {client.inscricaoEstadual && (
+                <CommercialTile label="Inscrição Estadual">
+                  <span className="font-semibold text-slate-900 dark:text-slate-200">{client.inscricaoEstadual}</span>
+                </CommercialTile>
+              )}
+            </div>
+          )}
+
           {hasCommercialInfo ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {client.categoria && (
@@ -310,6 +326,19 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300">
                 {client.id}
               </span>
+            </SystemTile>
+            <SystemTile label="Bling">
+              {client.blingContactId ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Sincronizado
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 dark:text-slate-500">
+                  <XCircle className="h-4 w-4" />
+                  Não sincronizado
+                </span>
+              )}
             </SystemTile>
           </div>
         </CardContent>

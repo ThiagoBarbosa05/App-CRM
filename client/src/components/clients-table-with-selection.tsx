@@ -17,7 +17,15 @@ import {
   ChevronDown,
   AlertCircle,
   CheckCircle,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +73,7 @@ export default function ClientsTableWithSelection({
   const [saleClient, setSaleClient] = useState<Client | null>(null);
   const [confirmingClient, setConfirmingClient] = useState<Client | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [tagsModalClient, setTagsModalClient] = useState<Client | null>(null);
   const [sortField, setSortField] = useState<"name" | "categoria" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -559,25 +568,40 @@ export default function ClientsTableWithSelection({
                     </div>
                   </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSaleClient(client)}
-                        className="h-8 w-8 p-0 rounded-lg hover:bg-green-100 text-green-600 hover:text-green-700 transition-colors shadow-sm"
-                        title="Lançar Venda"
-                      >
-                        <DollarSign className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingClient(client)}
-                        className="h-8 w-8 p-0 rounded-lg hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors shadow-sm"
-                        title="Editar Cliente"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center justify-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setSaleClient(client)}>
+                            <DollarSign className="mr-2 h-4 w-4 text-green-600" />
+                            Lançar venda
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditingClient(client)}>
+                            <Edit className="mr-2 h-4 w-4 text-blue-600" />
+                            Editar
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeletingClient(client)}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -813,6 +837,34 @@ export default function ClientsTableWithSelection({
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!deletingClient}
+        onOpenChange={(open) => { if (!open) setDeletingClient(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deletingClient?.name}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingClient) {
+                  deleteClientsMutation.mutate([deletingClient.id]);
+                  setDeletingClient(null);
+                }
+              }}
               className="bg-red-600 hover:bg-red-700"
             >
               Excluir

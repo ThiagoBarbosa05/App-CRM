@@ -99,6 +99,9 @@ export const clients = pgTable("clients", {
   confirmationCodeSentAt: timestamp("confirmation_code_sent_at"),
   umblerContactId: text("umbler_contact_id"),
   blingContactId: text("bling_contact_id"),
+  documentType: text("document_type", { enum: ["cpf", "cnpj"] }).default("cpf"),
+  nomeFantasia: text("nome_fantasia"),
+  inscricaoEstadual: text("inscricao_estadual"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -2630,6 +2633,55 @@ export const blingOrderInstallmentsRelations = relations(
     }),
   }),
 );
+
+// Tabela de status de sincronização de clientes com o Bling
+export const blingClientSync = pgTable(
+  "bling_client_sync",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id")
+      .notNull()
+      .unique()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    syncStatus: text("sync_status", {
+      enum: ["pending", "synced", "error"],
+    })
+      .notNull()
+      .default("pending"),
+    lastSyncedAt: timestamp("last_synced_at"),
+    errorMessage: text("error_message"),
+    retryCount: integer("retry_count").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bling_client_sync_client_idx").on(table.clientId),
+    index("bling_client_sync_status_idx").on(table.syncStatus),
+  ],
+);
+
+export const blingClientSyncRelations = relations(
+  blingClientSync,
+  ({ one }) => ({
+    client: one(clients, {
+      fields: [blingClientSync.clientId],
+      references: [clients.id],
+    }),
+  }),
+);
+
+export const insertBlingClientSyncSchema = createInsertSchema(
+  blingClientSync,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BlingClientSync = typeof blingClientSync.$inferSelect;
+export type InsertBlingClientSync = z.infer<typeof insertBlingClientSyncSchema>;
 
 // Tabela de campanhas Umbler
 export const umblerCampaigns = pgTable("umbler_campaigns", {
