@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag } from "lucide-react";
+import { DuplicateWarning, type DuplicateMatch } from "@/components/duplicate-warning";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { TagSelector } from "@/components/ui/tag-selector";
@@ -165,6 +166,10 @@ export default function ClientFormModal({
   });
 
   const watchedCpf = form.watch("cpf");
+  const watchedName = form.watch("name");
+  const watchedPhone = form.watch("phone");
+  const watchedEmail = form.watch("email");
+
   const isCnpj = useMemo(() => {
     const digits = (watchedCpf || "").replace(/\D/g, "");
     return digits.length > 11;
@@ -175,6 +180,30 @@ export default function ClientFormModal({
   if (form.getValues("documentType") !== documentType) {
     form.setValue("documentType", documentType);
   }
+
+  // Verificação de duplicatas com debounce
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const name = watchedName?.trim();
+      const phone = watchedPhone?.replace(/\D/g, "");
+      const cpf = watchedCpf?.replace(/\D/g, "");
+      const email = watchedEmail?.trim();
+      if (!name && !phone && !cpf && !email) { setDuplicates([]); return; }
+      try {
+        const res = await fetch("/api/clients/check-duplicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, phone, cpf, email, excludeId: client?.id }),
+        });
+        if (res.ok) setDuplicates(await res.json());
+      } catch { /* silencioso */ }
+    }, 700);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [watchedName, watchedPhone, watchedCpf, watchedEmail, client?.id]);
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -379,6 +408,8 @@ export default function ClientFormModal({
         <div className="overflow-y-auto overflow-x-hidden p-6 gap-6 relative flex flex-col h-full scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
           <Form {...form}>
             <form id="client-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <DuplicateWarning matches={duplicates} />
+
               {/* Seção 1: Dados Pessoais */}
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 dark:bg-blue-600"></div>

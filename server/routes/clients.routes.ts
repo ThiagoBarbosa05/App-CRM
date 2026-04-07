@@ -12,6 +12,8 @@ import { getClientInteractionsController } from "../controllers/clients/get-clie
 import { getClientFunnelsController } from "../controllers/clients/get-client-funnels.controller";
 import { getClientByIdController } from "../controllers/clients/get-client-by-id.controller";
 import { getClientPurchaseInsightsController } from "../controllers/clients/get-client-purchase-insights.controller";
+import { checkDuplicateController } from "../controllers/clients/check-duplicate.controller";
+import { getDuplicatesController } from "../controllers/clients/get-duplicates.controller";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -38,6 +40,8 @@ export const clientsRouter = Router();
  * @returns {object} Lista paginada de clientes
  */
 clientsRouter.get("/", getClientsController);
+clientsRouter.get("/duplicates", getDuplicatesController);
+clientsRouter.post("/check-duplicate", checkDuplicateController);
 
 /**
  * @route GET /api/clients/by-phone/:phone

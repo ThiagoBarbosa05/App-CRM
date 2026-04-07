@@ -30,6 +30,7 @@ import CampaignDetailsPage from "./pages/campaign-details";
 import BlingSalesPage from "./pages/bling-sales";
 import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
+import DuplicatesPage from "./pages/duplicates";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -215,6 +216,14 @@ function Router() {
           component={() => (
             <MainLayout>
               <SellerPerformancePage />
+            </MainLayout>
+          )}
+        />
+        <Route
+          path="/clientes/duplicatas"
+          component={() => (
+            <MainLayout>
+              <DuplicatesPage />
             </MainLayout>
           )}
         />

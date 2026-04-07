@@ -7,7 +7,8 @@
       "Bash(printf '\\\\033[B\\\\n')",
       "Bash(yes \"\")",
       "Bash(node:*)",
-      "Bash(printenv)"
+      "Bash(printenv)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }
