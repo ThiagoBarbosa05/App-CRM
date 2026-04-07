@@ -12,6 +12,7 @@ import {
   getContactByPhone,
 } from "../integrations/umbler";
 import { formatPhoneToDigits } from "@/lib/format-phone-number";
+import { syncClientToBling } from "./bling-clients-export.service";
 
 export interface GetClientsParams {
   userId?: string;
@@ -333,6 +334,10 @@ export class ClientsService {
       const client =
         await this.clientsRepository.createClient(clientDataToInsert);
 
+      void syncClientToBling(client.id).catch((err) =>
+        console.error("[Bling] Erro ao sincronizar cliente criado:", err),
+      );
+
       // console.log("Tags recebidas:", externalTagIds);
 
       // ============================================================
@@ -444,6 +449,10 @@ export class ClientsService {
       if (!client) {
         throw new Error("CLIENT_NOT_FOUND");
       }
+
+      void syncClientToBling(clientId).catch((err) =>
+        console.error("[Bling] Erro ao sincronizar cliente atualizado:", err),
+      );
 
       console.log("Cliente atualizado:", clientId);
       // console.log(

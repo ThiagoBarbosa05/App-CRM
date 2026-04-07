@@ -98,6 +98,7 @@ export const clients = pgTable("clients", {
     .default("pending"),
   confirmationCodeSentAt: timestamp("confirmation_code_sent_at"),
   umblerContactId: text("umbler_contact_id"),
+  blingContactId: text("bling_contact_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

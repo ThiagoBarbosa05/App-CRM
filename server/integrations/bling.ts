@@ -381,7 +381,6 @@ export async function getBlingVendedores(
   return body.data;
 }
 
-
 export interface BlingContatoEndereco {
   endereco: string | null;
   numero: string | null;
@@ -489,7 +488,10 @@ export interface GetBlingContatosParams {
 function normalizeBlingContatoPhoneQuery(phone: string): string {
   let digits = phone.replace(/\D/g, "");
 
-  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+  if (
+    digits.startsWith("55") &&
+    (digits.length === 12 || digits.length === 13)
+  ) {
     digits = digits.slice(2);
   }
 
@@ -524,7 +526,10 @@ function normalizeBlingContatoValue(value: unknown): unknown {
 
   if (value && typeof value === "object") {
     const normalizedEntries = Object.entries(value as Record<string, unknown>)
-      .map(([key, entryValue]) => [key, normalizeBlingContatoValue(entryValue)] as const)
+      .map(
+        ([key, entryValue]) =>
+          [key, normalizeBlingContatoValue(entryValue)] as const,
+      )
       .filter(([, entryValue]) => entryValue !== undefined);
 
     return normalizedEntries.length > 0
@@ -538,12 +543,16 @@ function normalizeBlingContatoValue(value: unknown): unknown {
 function normalizeBlingContatoPayload(
   payload: BlingContatoPayload,
 ): BlingContatoPayload & { situacao: "A" | "I" } {
-  const normalized = normalizeBlingContatoValue(payload) as Partial<BlingContatoPayload> | undefined;
+  const normalized = normalizeBlingContatoValue(payload) as
+    | Partial<BlingContatoPayload>
+    | undefined;
 
   const nome = normalized?.nome;
 
   if (!nome) {
-    throw new Error("Falha ao criar contato no Bling: campo 'nome' é obrigatório");
+    throw new Error(
+      "Falha ao criar contato no Bling: campo 'nome' é obrigatório",
+    );
   }
 
   const tipo = normalized?.tipo;
@@ -705,7 +714,12 @@ export async function createBlingContato(
     body: JSON.stringify(normalizedPayload),
   };
 
-  let response = await fetchBlingApi(token, "/contatos", undefined, requestInit);
+  let response = await fetchBlingApi(
+    token,
+    "/contatos",
+    undefined,
+    requestInit,
+  );
 
   if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
     token = await onTokenRefresh();
@@ -835,6 +849,8 @@ async function postOAuthToken(
       `Falha ao obter token do Bling: ${errorText || response.statusText}`,
     );
   }
+
+  console.log("TOOOOOOOOOOOKEN", await response.clone().text());
 
   return (await response.json()) as BlingTokenResponse;
 }

@@ -11,6 +11,11 @@ import {
   getImportStatus,
   loadValidatedConnection,
 } from "../services/bling-historical-import.service";
+import {
+  startExport,
+  cancelExport,
+  getExportStatus,
+} from "../services/bling-clients-export.service";
 
 const router = Router();
 
@@ -423,6 +428,117 @@ router.post("/:id/import-cancel", async (req, res) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Erro ao cancelar importação";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Exportação de clientes para o Bling
+// ---------------------------------------------------------------------------
+
+const exportClientsBodySchema = z.object({
+  includeBlingSourced: z.boolean().optional(),
+});
+
+/**
+ * POST /api/bling-accounts/:id/export-clients
+ *
+ * Inicia a exportação de clientes do CRM para o Bling em background.
+ */
+router.post("/:id/export-clients", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada",
+      });
+      return;
+    }
+
+    const parsed = exportClientsBodySchema.safeParse(req.body);
+    const params = parsed.success ? parsed.data : {};
+
+    const started = await startExport(connection, params);
+    if (!started) {
+      res.status(409).json({
+        success: false,
+        error: "Já existe uma exportação em andamento para esta conexão.",
+      });
+      return;
+    }
+
+    res.status(202).json({
+      success: true,
+      message: "Exportação iniciada em background.",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao iniciar exportação";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+/**
+ * GET /api/bling-accounts/:id/export-status
+ *
+ * Retorna o progresso atual da exportação de clientes para uma conexão.
+ */
+router.get("/:id/export-status", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada",
+      });
+      return;
+    }
+
+    const status = getExportStatus(connection.id);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao buscar status";
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/bling-accounts/:id/export-cancel
+ *
+ * Sinaliza o cancelamento cooperativo de uma exportação em andamento.
+ */
+router.post("/:id/export-cancel", async (req, res) => {
+  try {
+    const { userId } = getAdminUser(req);
+
+    const connection = await loadValidatedConnection(req.params.id, userId);
+    if (!connection) {
+      res.status(404).json({
+        success: false,
+        error: "Conexão Bling não encontrada",
+      });
+      return;
+    }
+
+    const cancelled = cancelExport(connection.id);
+    if (!cancelled) {
+      res.status(400).json({
+        success: false,
+        error: "Nenhuma exportação em andamento para cancelar.",
+      });
+      return;
+    }
+
+    res.json({ success: true, message: "Cancelamento solicitado." });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao cancelar exportação";
     res.status(500).json({ success: false, error: message });
   }
 });
