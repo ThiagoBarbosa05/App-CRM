@@ -29,22 +29,22 @@ export default function ClientProfilePage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     const currentTab = new URLSearchParams(window.location.search).get("tab");
-    return currentTab || "info";
+    return currentTab || "compras";
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     const nextTab =
-      new URLSearchParams(window.location.search).get("tab") || "info";
+      new URLSearchParams(window.location.search).get("tab") || "compras";
     setActiveTab(nextTab);
   }, [location, id]);
 
   useEffect(() => {
     const currentTab =
-      new URLSearchParams(window.location.search).get("tab") || "info";
+      new URLSearchParams(window.location.search).get("tab") || "compras";
     if (currentTab !== activeTab) {
       const url = new URL(window.location.href);
-      if (activeTab === "info") {
+      if (activeTab === "compras") {
         url.searchParams.delete("tab");
       } else {
         url.searchParams.set("tab", activeTab);
