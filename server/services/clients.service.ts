@@ -657,6 +657,7 @@ export class ClientsService {
       responsavelId:
         updateData.responsavelId === "" ? null : updateData.responsavelId,
       cpf: updateData.cpf === "" ? null : updateData.cpf,
+      phone: updateData.phone === "" ? null : updateData.phone,
       email: updateData.email === "" ? null : updateData.email,
     };
 

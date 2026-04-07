@@ -62,7 +62,14 @@ const validateAdultAge = (dateStr: string): boolean => {
 
 export const clientValidationSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  phone: z.string().min(10, "Celular deve ter pelo menos 10 dígitos"),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (val) => !val || val.replace(/\D/g, "").length >= 10,
+      "Celular deve ter pelo menos 10 dígitos"
+    ),
   fixedPhone: z.string().optional().or(z.literal("")),
   documentType: z.enum(["cpf", "cnpj"]).default("cpf"),
   cpf: z

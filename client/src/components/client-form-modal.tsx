@@ -350,6 +350,7 @@ export default function ClientFormModal({
       const processedData = {
         ...data,
         cpf: data.cpf?.trim() || null,
+        phone: data.phone?.replace(/\D/g, "") ? data.phone?.trim() : null,
         documentType: isCnpj ? "cnpj" : "cpf",
         nomeFantasia: isCnpj ? (data.nomeFantasia?.trim() || null) : null,
         inscricaoEstadual: isCnpj ? (data.inscricaoEstadual?.trim() || null) : null,
@@ -550,7 +551,7 @@ export default function ClientFormModal({
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Celular WhatsApp *</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Celular WhatsApp</FormLabel>
                         <FormControl>
                           <InputMask
                             mask="(99) 99999-9999"
