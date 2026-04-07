@@ -119,12 +119,16 @@ export class ClientsRepository {
     // Filtro de busca geral (case-insensitive)
     if (filters.search) {
       const searchTerm = `%${filters.search}%`;
+      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
       conditions.push(
         or(
           ilike(clients.name, searchTerm),
           ilike(clients.email, searchTerm),
           ilike(clients.phone, searchTerm),
-          ilike(clients.cpf, searchTerm)
+          ilike(clients.cpf, searchTerm),
+          ...(normalizedSearchPhone.length >= 5
+            ? [sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${"%" + normalizedSearchPhone + "%"}`]
+            : [])
         )
       );
     }
@@ -187,12 +191,16 @@ export class ClientsRepository {
     // Filtro de busca geral (case-insensitive)
     if (filters.search) {
       const searchTerm = `%${filters.search}%`;
+      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
       conditions.push(
         or(
           ilike(clients.name, searchTerm),
           ilike(clients.email, searchTerm),
           ilike(clients.phone, searchTerm),
-          ilike(clients.cpf, searchTerm)
+          ilike(clients.cpf, searchTerm),
+          ...(normalizedSearchPhone.length >= 5
+            ? [sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${"%" + normalizedSearchPhone + "%"}`]
+            : [])
         )
       );
     }
