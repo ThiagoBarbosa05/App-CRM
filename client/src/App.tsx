@@ -20,7 +20,6 @@ import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
 import Configurations from "@/pages/configurations";
-import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import UmblerContactsPage from "./pages/umbler-contacts";
@@ -103,14 +102,6 @@ function Router() {
         component={() => (
           <MainLayout>
             <CampaignsDashboardPage />
-          </MainLayout>
-        )}
-      />
-      <Route
-        path="/acompanhamento"
-        component={() => (
-          <MainLayout>
-            <Acompanhamento />
           </MainLayout>
         )}
       />

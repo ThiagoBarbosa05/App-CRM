@@ -422,7 +422,7 @@ export default function SellerDashboardPage() {
   const highestAvgTicket = data?.highestAvgTicket ?? [];
   const highestAvgItemValue = data?.highestAvgItemValue ?? [];
   const inactiveClients = data?.inactiveClients ?? [];
-  const newClientsThisMonth = data?.newClientsThisMonth ?? [];
+  const newClientsThisMonth = (data?.newClientsThisMonth ?? []).slice(0, 18);
 
   if (isLoading) {
     return (
@@ -571,15 +571,15 @@ export default function SellerDashboardPage() {
         </SectionCard>
       </div>
 
-      {/* Clientes Novos no Mês */}
+      {/* Últimos Clientes Cadastrados */}
       <SectionCard
-        title={`Clientes Novos — ${format(new Date(), "MMMM yyyy", { locale: ptBR }).replace(/^\w/, (c) => c.toUpperCase())}`}
+        title="Últimos Clientes Cadastrados"
         icon={<UserPlus className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         iconBg="bg-emerald-50 dark:bg-emerald-900/20"
         count={newClientsThisMonth.length}
       >
         {!newClientsThisMonth.length ? (
-          <EmptyState message="Nenhum cliente novo este mês." />
+          <EmptyState message="Nenhum cliente cadastrado." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
             {newClientsThisMonth.map((c, i) => (

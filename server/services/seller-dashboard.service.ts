@@ -332,7 +332,7 @@ async function fetchInactiveClients(
   }));
 }
 
-// ─── Clientes Novos no Mês ────────────────────────────────────────────────
+// ─── Últimos 18 Clientes Cadastrados ─────────────────────────────────────
 
 async function fetchNewClientsThisMonth(userId: string): Promise<NewClientRow[]> {
   const result = await db.execute<{
@@ -348,8 +348,8 @@ async function fetchNewClientsThisMonth(userId: string): Promise<NewClientRow[]>
       created_at::text
     FROM clients
     WHERE responsavel_id = ${userId}
-      AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
     ORDER BY created_at DESC
+    LIMIT 18
   `);
 
   return result.rows.map((r) => ({
