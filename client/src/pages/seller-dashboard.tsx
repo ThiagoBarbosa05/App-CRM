@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +18,8 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SellerTotalsTable } from "@/components/bling-sales/seller-totals-table";
+import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -348,6 +350,12 @@ export default function SellerDashboardPage() {
     enabled: !!user?.id,
   });
 
+  const currentMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const currentMonthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const currentMonthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
+  const { data: allSellers, isLoading: isAllSellersLoading } =
+    useUnifiedTopSellers(currentMonthStart, currentMonthEnd, 100, "all");
+
   const topClients = data?.topClients ?? [];
   const highestAvgTicket = data?.highestAvgTicket ?? [];
   const highestAvgItemValue = data?.highestAvgItemValue ?? [];
@@ -389,6 +397,19 @@ export default function SellerDashboardPage() {
 
       {/* Progresso da Meta */}
       {user && <GoalProgressBlock userId={user.id} />}
+
+      {/* Total Vendido por Vendedor — mês atual */}
+      <div>
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 px-1 flex items-center gap-2">
+          Total Vendido por Vendedor
+          <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800 inline-block" />
+        </h2>
+        <SellerTotalsTable
+          data={allSellers}
+          isLoading={isAllSellersLoading}
+          monthLabel={currentMonthLabel}
+        />
+      </div>
 
       {/* Grid 2 colunas: Top Clientes + Maior Ticket Médio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
