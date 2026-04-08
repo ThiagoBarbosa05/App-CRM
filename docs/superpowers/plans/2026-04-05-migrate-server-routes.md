@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** migrar todas as rotas ainda ativas em `server/routes.ts` para o padrao modular ja usado em `server/routes/`, preservando 100% da logica e cobrindo cada migracao com testes de rota.
+**Goal:** migrar todas as rotas ainda ativas em `server/routes.ts` para o padrao modular ja usado em `server/routes/`, preservando 100% da logica, mantendo exatamente os mesmos caminhos publicos das URLs atuais e cobrindo cada migracao com testes de rota.
 
-**Architecture:** manter `server/routes.ts` apenas como ponto de bootstrap de infraestrutura e registro de routers. Cada grupo de rotas deve ir para um arquivo `*.routes.ts`, com controladores/servicos extraidos apenas quando necessario para reduzir tamanho e facilitar testes, sem alterar contratos HTTP, payloads, headers esperados ou ordem sensivel de rotas.
+**Architecture:** manter `server/routes.ts` apenas como ponto de bootstrap de infraestrutura e registro de routers. Cada grupo de rotas deve ir para um arquivo `*.routes.ts`, com controladores/servicos extraidos apenas quando necessario para reduzir tamanho e facilitar testes, sem alterar contratos HTTP, payloads, headers esperados, ordem sensivel de rotas ou os caminhos publicos das URLs ja consumidas pelo front-end.
 
 **Tech Stack:** Express 4, TypeScript, Zod, Drizzle ORM, Vitest, Supertest.
 
@@ -395,6 +395,7 @@
 - Preferir copiar a logica atual primeiro e so depois extrair helpers, para evitar regressao comportamental.
 - Onde ja existe router do dominio, expandir o arquivo atual antes de criar um router novo.
 - Para endpoints fora de `/api`, modularizar o arquivo, mas manter o mount fora de `apiRouter`.
+- Toda rota migrada deve manter exatamente o mesmo caminho de URL publico ja exposto hoje; a modularizacao nao pode introduzir prefixos, renomeacoes ou remapeamentos que quebrem o front-end.
 
 ## Sequencia recomendada de entrega
 
