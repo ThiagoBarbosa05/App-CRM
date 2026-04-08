@@ -98,6 +98,8 @@ import {
   companyProducts,
   type InsertCompanyProduct,
   type CompanyProduct,
+  blingOrders,
+  blingOrderItems,
   serviceChannels,
   userServiceChannel,
   events,
@@ -4528,28 +4530,34 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsStatistics() {
     try {
-      // Top clients by number of products in wine list
+      // Top purchased wines from Bling orders linked to app clients
       const topClientsByProducts = await this.db
         .select({
-          clientId: clients.id,
-          clientName: clients.name,
-          clientCity: clients.city,
-          clientState: clients.state,
-          responsibleName: users.name,
-          productCount: sql<number>`COUNT(${companyProducts.productId})::int`,
+          productId: products.id,
+          productName: products.name,
+          productCountry: products.country,
+          productVolume: products.volume,
+          productType: products.type,
+          totalQuantity: sql<number>`SUM(${blingOrderItems.quantity}::numeric)::int`,
+          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
         })
-        .from(companyProducts)
-        .innerJoin(clients, eq(companyProducts.companyId, clients.id))
-        .leftJoin(users, eq(clients.responsavelId, users.id))
-        .where(eq(companyProducts.isActive, "true"))
-        .groupBy(
-          clients.id,
-          clients.name,
-          clients.city,
-          clients.state,
-          users.name
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .where(
+          and(
+            isNull(blingOrders.deletedAt),
+            isNotNull(blingOrders.appClientId)
+          )
         )
-        .orderBy(sql`COUNT(${companyProducts.productId}) DESC`)
+        .groupBy(
+          products.id,
+          products.name,
+          products.country,
+          products.volume,
+          products.type
+        )
+        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric) DESC`)
         .limit(10);
 
       // Top products by number of clients
