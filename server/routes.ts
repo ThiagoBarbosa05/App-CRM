@@ -64,18 +64,12 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import bcrypt from "bcrypt";
 import { Client } from "@replit/object-storage";
 import multer, { MulterError } from "multer";
 import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { randomUUID } from "crypto";
-import {
-  createFileController,
-  uploadMiddleware,
-} from "./controllers/create-file.controller";
-import { deleteFileController } from "./controllers/delete-file.controller";
 import {
   DeleteObjectCommand,
   PutObjectCommand,
@@ -164,27 +158,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MIGRADO: Rotas para Message Jobs Logs - ver message-jobs-logs.routes.ts
 
   // Umbler Integrations
-  app.get("/api/umbler/channels", async (req, res) => {
-    try {
-      const channels = await getChannels();
-
-      res.json(channels);
-    } catch (error) {
-      console.error("Erro ao buscar canais:", error);
-      res.status(500).json({ message: "Erro ao buscar canais" });
-    }
-  });
-
-  app.get("/api/umbler/whatsapp-api/channels", async (req, res) => {
-    try {
-      const channels = await getChannels();
-
-      res.json(channels);
-    } catch (error) {
-      console.error("Erro ao buscar canais:", error);
-      res.status(500).json({ message: "Erro ao buscar canais" });
-    }
-  });
 
   app.get("/api/umbler/contacts/conversations", async (req, res) => {
     try {
@@ -213,53 +186,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar contato:", error);
       res.status(500).json({ message: "Erro ao buscar contato" });
-    }
-  });
-
-  app.get("/api/umbler/bot", async (req, res) => {
-    try {
-      const { title } = req.query as {
-        title: string;
-      };
-
-      const result = await getBot(title);
-
-      res.json({ result: result?.items });
-    } catch (error) {
-      console.error("Erro ao buscar bot:", error);
-      res.status(500).json({ message: "Erro ao buscar bot" });
-    }
-  });
-
-  app.get("/api/umbler/manual-starts/bot", async (req, res) => {
-    try {
-      const { query, hidden } = req.query as {
-        query?: string;
-        hidden?: string;
-      };
-
-      console.log("Buscando bots com parâmetros:", { query, hidden });
-
-      // Filtrar apenas bots não ocultos se hidden=false
-      const result = await getManualStartsBot(query || "");
-
-      if (!result) {
-        console.error("getManualStartsBot retornou null");
-        return res.status(500).json({
-          message: "Erro ao buscar bots",
-          error: "API retornou null",
-        });
-      }
-
-      console.log("Bots recebidos:", result);
-
-      res.json(result);
-    } catch (error) {
-      console.error("Erro ao buscar bot:", error);
-      res.status(500).json({
-        message: "Erro ao buscar bot",
-        error: error instanceof Error ? error.message : "Erro desconhecido",
-      });
     }
   });
 
@@ -301,113 +227,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar chats:", error);
       res.status(500).json({ message: "Erro ao buscar chats" });
-    }
-  });
-
-  app.post("/api/users/channel", async (req, res) => {
-    try {
-      const { userId, serviceChannelId } = req.body;
-
-      if (!userId || !serviceChannelId) {
-        return res
-          .status(400)
-          .json({ message: "ID do usuário e ID do canal são obrigatórios" });
-      }
-
-      // Verificar se o usuário existe
-      const userExists = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.id, userId));
-      if (userExists.length === 0) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-
-      // Verificar se o canal existe na tabela local
-      let channelExists = await db
-        .select({ id: serviceChannels.id })
-        .from(serviceChannels)
-        .where(eq(serviceChannels.id, serviceChannelId));
-
-      // Se o canal não existe localmente, tentar sincronizar da API do Umbler
-      if (channelExists.length === 0) {
-        try {
-          const { getChannels } = await import("./integrations/umbler");
-          const umblerChannels = await getChannels();
-
-          // Buscar o canal específico na resposta do Umbler
-          const umblerChannel = umblerChannels.find(
-            (ch: any) => ch.id === serviceChannelId,
-          );
-
-          if (umblerChannel) {
-            // Inserir o canal na tabela local (upsert)
-            await db
-              .insert(serviceChannels)
-              .values({
-                id: umblerChannel.id,
-                name: umblerChannel.name,
-                phoneNumber: umblerChannel.phoneNumber || null,
-              })
-              .onConflictDoUpdate({
-                target: serviceChannels.id,
-                set: {
-                  name: umblerChannel.name,
-                  phoneNumber: umblerChannel.phoneNumber || null,
-                },
-              });
-
-            // Verificar novamente
-            channelExists = await db
-              .select({ id: serviceChannels.id })
-              .from(serviceChannels)
-              .where(eq(serviceChannels.id, serviceChannelId));
-          }
-        } catch (syncError) {
-          console.error("Erro ao sincronizar canal do Umbler:", syncError);
-        }
-      }
-
-      if (channelExists.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "Canal de serviço não encontrado" });
-      }
-
-      // Verificar se já existe uma vinculação para este usuário
-      const [existingLink] = await db
-        .select()
-        .from(userServiceChannel)
-        .where(eq(userServiceChannel.userId, userId));
-
-      if (existingLink) {
-        // Se já existe, apenas atualiza o canal
-        await db
-          .update(userServiceChannel)
-          .set({ serviceChannelId: serviceChannelId })
-          .where(eq(userServiceChannel.userId, userId));
-
-        res.status(200).json({
-          message: "Canal do usuário atualizado com sucesso",
-          channelId: serviceChannelId,
-        });
-      } else {
-        // Se não existe, cria uma nova vinculação
-        await db.insert(userServiceChannel).values({
-          userId,
-          serviceChannelId,
-        });
-
-        res.status(200).json({
-          message: "Canal vinculado ao usuário com sucesso",
-          channelId: serviceChannelId,
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao vincular/atualizar canal do usuário:", error);
-      res
-        .status(500)
-        .json({ message: "Erro interno ao processar a solicitação" });
     }
   });
 
@@ -534,35 +353,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar tags:", error);
       res.status(500).json({ message: "Erro ao buscar tags" });
-    }
-  });
-
-  app.get("/api/umbler/bots", async (req, res) => {
-    try {
-      const { query, skip, take, hidden } = req.query;
-
-      const skipNumber = skip ? parseInt(skip as string, 10) : 0;
-      const takeNumber = take ? parseInt(take as string, 10) : 34;
-      const hiddenBoolean = hidden === "true";
-
-      const bots = await getBots(
-        query as string | undefined,
-        skipNumber,
-        takeNumber,
-        // hiddenBoolean
-      );
-
-      if (!bots) {
-        return res.status(500).json({ error: "Failed to fetch bots" });
-      }
-
-      res.json(bots);
-    } catch (error) {
-      console.error("Erro ao buscar bots:", error);
-      res.status(500).json({
-        message: "Erro ao buscar bots",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
     }
   });
 
@@ -703,66 +493,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/umbler/birthday-bots", async (req, res) => {
-    try {
-      const bots = await getBirthdayBots();
-
-      res.json({ items: bots?.items });
-    } catch (error) {
-      console.error("Erro ao buscar bots de aniversário:", error);
-      res.status(500).json({ message: "Erro ao buscar bots de aniversário" });
-    }
-  });
-
-  app.get("/api/umbler/birthday-bots-today", async (req, res) => {
-    try {
-      const bots = await getBirthdayTodayBotsAutomation();
-
-      res.json({ items: bots?.items || [] });
-    } catch (error) {
-      console.error("Erro ao buscar bots de aniversário do dia:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar bots de aniversário do dia" });
-    }
-  });
-
-  app.get("/api/umbler/birthday-bots-days-before", async (req, res) => {
-    try {
-      const bots = await getBirthdayDaysBeforeBotAutomation();
-
-      res.json({ items: bots?.items || [] });
-    } catch (error) {
-      console.error("Erro ao buscar bots de aniversário dias antes:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar bots de aniversário dias antes" });
-    }
-  });
-
-  app.post("/api/start/birthday-bot", async (req, res) => {
-    try {
-      const { botId, chatId, triggerName } = req.body as {
-        chatId: string;
-        botId: string;
-        triggerName: string;
-      };
-
-      const result = await startBirthdayBot({
-        botId,
-        chatId,
-        triggerName,
-      });
-
-      res
-        .status(201)
-        .json({ message: "Bot de aniversário iniciado com sucesso", result });
-    } catch (error) {
-      console.error("Erro ao iniciar bot de aniversário:", error);
-      res.status(500).json({ message: "Erro ao iniciar bot de aniversário" });
-    }
-  });
-
   app.get("/api/umbler/:contactId/cashback-field", async (req, res) => {
     try {
       const { contactId } = req.params as { contactId: string };
@@ -824,253 +554,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao atualizar cashback:", error);
       res.status(500).json({ message: "Erro ao atualizar cashback" });
-    }
-  });
-
-  // File management routes
-  app.post("/api/files/upload", uploadMiddleware, createFileController);
-
-  app.delete("/api/files/:fileId", deleteFileController);
-
-  // Authentication routes
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      console.log("Tentativa de login:", {
-        email,
-        password: password ? "***" : "não fornecida",
-      });
-
-      if (!email || !password) {
-        return res
-          .status(400)
-          .json({ message: "Email e senha são obrigatórios" });
-      }
-
-      const user = await storage.getUserByEmail(email.toLowerCase());
-      console.log("Usuário encontrado:", user ? "Sim" : "Não");
-
-      if (!user) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
-      }
-
-      console.log("Verificando senha...");
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      console.log("Senha válida:", isValidPassword);
-
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
-      }
-
-      const userWithoutPassword = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        serviceChannelId: user.serviceChannel?.id,
-      };
-
-      console.log("Login bem-sucedido para:", userWithoutPassword);
-
-      res.json({
-        user: userWithoutPassword,
-        message: "Login realizado com sucesso",
-      });
-    } catch (error) {
-      console.error("Erro no login:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
-    }
-  });
-
-  // Rota da página de Acompanhamento
-  app.get("/api/acompanhamento", async (req, res) => {
-    try {
-      const userId = req.headers["x-user-id"] as string;
-      const userRole = req.headers["x-user-role"] as string;
-      const searchQuery = req.query.search as string | undefined;
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 10;
-
-      // --- Base de Condições para as Queries ---
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-      const clientsWithInteractions = db
-        .selectDistinct({ clientId: clientInteractions.clientId })
-        .from(clientInteractions);
-
-      const baseConditions = [
-        sql`${clients.id} NOT IN ${clientsWithInteractions}`,
-        lte(clients.createdAt, oneDayAgo),
-      ];
-
-      if (userRole !== "admin" && userRole !== "administrador") {
-        baseConditions.push(eq(clients.responsavelId, userId));
-      }
-
-      if (searchQuery) {
-        const lowercasedQuery = `%${searchQuery.toLowerCase()}%`;
-        const searchCondition = or(
-          like(clients.name, lowercasedQuery),
-          like(clients.phone, lowercasedQuery),
-          like(clients.cpf, lowercasedQuery),
-        );
-        if (searchCondition) {
-          baseConditions.push(searchCondition);
-        }
-      }
-
-      const finalConditions = and(...baseConditions);
-
-      // --- Queries ---
-
-      // 1. Query para buscar os clientes da página atual
-      const clientsQuery = db
-        .select({
-          id: clients.id,
-          name: clients.name,
-          phone: clients.phone,
-          email: clients.email,
-          cpf: clients.cpf,
-          createdAt: clients.createdAt,
-          responsavelName: users.name,
-        })
-        .from(clients)
-        .leftJoin(users, eq(clients.responsavelId, users.id))
-        .where(finalConditions)
-        .orderBy(asc(clients.createdAt))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
-
-      // 2. Query para contar o total de clientes pendentes (para stats e paginação)
-      const totalPendentesQuery = db
-        .select({ count: count() })
-        .from(clients)
-        .where(finalConditions);
-
-      // 3. Queries para as estatísticas de prioridade
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const criticosQuery = db
-        .select({ count: count() })
-        .from(clients)
-        .where(and(finalConditions, lte(clients.createdAt, thirtyDaysAgo)));
-      const altaQuery = db
-        .select({ count: count() })
-        .from(clients)
-        .where(
-          and(
-            finalConditions,
-            lte(clients.createdAt, fourteenDaysAgo),
-            gt(clients.createdAt, thirtyDaysAgo),
-          ),
-        );
-      const mediaQuery = db
-        .select({ count: count() })
-        .from(clients)
-        .where(
-          and(
-            finalConditions,
-            lte(clients.createdAt, sevenDaysAgo),
-            gt(clients.createdAt, fourteenDaysAgo),
-          ),
-        );
-      const normalQuery = db
-        .select({ count: count() })
-        .from(clients)
-        .where(and(finalConditions, gt(clients.createdAt, sevenDaysAgo)));
-
-      // 4. Queries para estatísticas gerais
-      const totalClientsInSystemQuery =
-        userRole !== "admin" && userRole !== "administrador"
-          ? db
-              .select({ count: count() })
-              .from(clients)
-              .where(eq(clients.responsavelId, userId))
-          : db.select({ count: count() }).from(clients);
-      const totalInteracoesQuery = db
-        .select({ count: count() })
-        .from(clientInteractions);
-
-      // --- Execução das Queries em Paralelo ---
-      const [
-        clientsToContactRaw,
-        totalPendentesResult,
-        criticosResult,
-        altaResult,
-        mediaResult,
-        normalResult,
-        totalClientsResult,
-        totalInteracoesResult,
-      ] = await Promise.all([
-        clientsQuery,
-        totalPendentesQuery,
-        criticosQuery,
-        altaQuery,
-        mediaQuery,
-        normalQuery,
-        totalClientsInSystemQuery,
-        totalInteracoesQuery,
-      ]);
-
-      // --- Processamento e Resposta ---
-      const today = new Date();
-      const clientsToContact = clientsToContactRaw.map((client) => {
-        const createdDate = new Date(client.createdAt);
-        const daysSinceCreated = Math.floor(
-          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        return {
-          ...client,
-          daysSinceCreated,
-          responsavelName: client.responsavelName || "Não definido",
-        };
-      });
-
-      const totalPendentes = totalPendentesResult[0].count;
-      const totalClientes = totalClientsResult[0].count;
-      const totalInteracoes = totalInteracoesResult[0].count;
-
-      const stats = {
-        totalPendentes,
-        criticos: criticosResult[0].count,
-        alta: altaResult[0].count,
-        media: mediaResult[0].count,
-        normal: normalResult[0].count,
-        produtividade:
-          totalClientes > 0
-            ? Math.round(
-                ((totalClientes - totalPendentes) / totalClientes) * 100,
-              )
-            : 100,
-        totalInteracoes,
-        mediaInteracoes:
-          totalClientes > 0
-            ? (totalInteracoes / totalClientes).toFixed(1)
-            : "0",
-      };
-
-      res.json({
-        clients: clientsToContact,
-        stats,
-        pagination: {
-          currentPage: page,
-          pageSize,
-          totalPages: Math.ceil(totalPendentes / pageSize),
-          totalItems: totalPendentes,
-        },
-      });
-    } catch (error) {
-      console.error("Erro ao buscar dados de acompanhamento:", error);
-      res
-        .status(500)
-        .json({ message: "Erro ao buscar dados de acompanhamento" });
     }
   });
 
@@ -1152,21 +635,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //     res.status(500).json({ message: "Erro ao buscar cliente por telefone" });
   //   }
   // });
-
-  // Rota para buscar usuário por email
-  app.get("/api/users/by-email/:email", async (req, res) => {
-    try {
-      const { email } = req.params;
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-      res.json(user);
-    } catch (error) {
-      console.error("Erro ao buscar usuário por email:", error);
-      res.status(500).json({ message: "Erro ao buscar usuário por email" });
-    }
-  });
 
   // MIGRATED: Rota para buscar clientes sem contato recente
   // Migrated to server/routes/clients.routes.ts - GET /without-contact
