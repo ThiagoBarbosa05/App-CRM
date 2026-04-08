@@ -1,4 +1,4 @@
-import { Target, BarChart3, TrendingUp, Package, Plus, Pencil } from "lucide-react";
+import { Target, BarChart3, TrendingUp, Package, Plus, Pencil, ShoppingBag } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import type { TopSeller } from "@/hooks/use-bling-orders";
 
 interface WeeklyResult {
   id: string;
@@ -41,6 +42,20 @@ interface SalesGoalsGridProps {
   onAddResult?: (goal: UserGoal) => void;
   onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
   isAdmin?: boolean;
+  topSellersData?: TopSeller[];
+}
+
+function normalizeName(name: string) {
+  return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function findSellerData(userName: string, topSellers: TopSeller[]): TopSeller | null {
+  const normUser = normalizeName(userName);
+  return topSellers.find((s) => {
+    if (!s.sellerName) return false;
+    const normSeller = normalizeName(s.sellerName);
+    return normUser === normSeller || normUser.startsWith(normSeller) || normSeller.startsWith(normUser);
+  }) ?? null;
 }
 
 export function SalesGoalsGrid({
@@ -51,6 +66,7 @@ export function SalesGoalsGrid({
   onAddResult,
   onEditResult,
   isAdmin,
+  topSellersData = [],
 }: SalesGoalsGridProps) {
   if (goals.length === 0) {
     return (
@@ -83,6 +99,7 @@ export function SalesGoalsGrid({
           onAddResult={onAddResult}
           onEditResult={onEditResult}
           isAdmin={isAdmin}
+          sellerData={findSellerData(goal.userName, topSellersData)}
         />
       ))}
     </div>
@@ -98,6 +115,7 @@ function SalesGoalCard({
   onAddResult,
   onEditResult,
   isAdmin,
+  sellerData,
 }: {
   goal: UserGoal;
   index: number;
@@ -110,6 +128,7 @@ function SalesGoalCard({
   onAddResult?: (goal: UserGoal) => void;
   onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
   isAdmin?: boolean;
+  sellerData?: TopSeller | null;
 }) {
   const weeklyResults = goal.weeklyResults || [];
   const totalSalesAchieved = getTotalAchieved(weeklyResults, "salesAchieved");
@@ -131,6 +150,10 @@ function SalesGoalCard({
     totalItemsAchieved,
     goal.itemsPerSale,
   );
+
+  const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
+  const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
+  const realSalesPercentage = calculatePercentage(realSalesValue, Number(goal.salesGoal));
 
   return (
     <motion.div
@@ -159,6 +182,72 @@ function SalesGoalCard({
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
+
+          {/* Vendas Reais no Mês (Bling/Connect) */}
+          <div className={`rounded-2xl p-4 border ${
+            realSalesPercentage >= 100
+              ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40"
+              : realSalesPercentage >= 50
+                ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40"
+                : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/40"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-lg ${
+                  realSalesPercentage >= 100 ? "bg-emerald-100 dark:bg-emerald-900/30" :
+                  realSalesPercentage >= 50 ? "bg-amber-100 dark:bg-amber-900/30" :
+                  "bg-rose-100 dark:bg-rose-900/30"
+                }`}>
+                  <ShoppingBag className={`h-3.5 w-3.5 ${
+                    realSalesPercentage >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                    realSalesPercentage >= 50 ? "text-amber-600 dark:text-amber-400" :
+                    "text-rose-600 dark:text-rose-400"
+                  }`} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Vendas Reais no Mês
+                </span>
+              </div>
+              <span className={`text-xs font-black ${
+                realSalesPercentage >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                realSalesPercentage >= 50 ? "text-amber-600 dark:text-amber-400" :
+                "text-rose-600 dark:text-rose-400"
+              }`}>
+                {realSalesPercentage.toFixed(1)}%
+              </span>
+            </div>
+            <div className="mb-2">
+              <span className={`text-xl font-black ${
+                realSalesPercentage >= 100 ? "text-emerald-700 dark:text-emerald-300" :
+                realSalesPercentage >= 50 ? "text-amber-700 dark:text-amber-300" :
+                "text-rose-700 dark:text-rose-300"
+              }`}>
+                {sellerData ? formatCurrency(realSalesValue) : "—"}
+              </span>
+              {sellerData && (
+                <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {realSalesOrders} pedido{realSalesOrders !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div className="w-full bg-white/60 dark:bg-slate-800/60 rounded-full h-2 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(realSalesPercentage, 100)}%` }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+                className={`h-full rounded-full ${
+                  realSalesPercentage >= 100 ? "bg-emerald-500" :
+                  realSalesPercentage >= 50 ? "bg-amber-500" :
+                  "bg-rose-500"
+                }`}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
+              <span>Meta: {formatCurrency(goal.salesGoal)}</span>
+              {!sellerData && <span className="italic">Sem pedidos no período</span>}
+            </div>
+          </div>
+
           {/* Sales Progress */}
           <MetricProgress
             label="Volume de Vendas"

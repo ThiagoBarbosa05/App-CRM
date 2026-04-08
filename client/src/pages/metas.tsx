@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { WeeklyResultModal } from "@/components/admin-goals/modals/weekly-result-modal";
 
@@ -67,6 +68,27 @@ export default function Metas() {
 
   const { data: interactionStats = [] } = useQuery<any[]>({
     queryKey: [`/api/interaction-stats/${selectedMonth}/${selectedYear}`],
+  });
+
+  // Vendas reais (Bling + Connect) para o mês selecionado
+  const startDate = format(
+    startOfMonth(new Date(selectedYear, selectedMonth - 1, 1)),
+    "yyyy-MM-dd",
+  );
+  const endDate = format(
+    endOfMonth(new Date(selectedYear, selectedMonth - 1, 1)),
+    "yyyy-MM-dd",
+  );
+  const { data: topSellers = [] } = useQuery<any[]>({
+    queryKey: ["unified-top-sellers", startDate, endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate, limit: "100" });
+      const res = await fetch(`/api/unified-orders/statistics/top-sellers?${params}`);
+      if (!res.ok) return [];
+      const j = await res.json();
+      return j.data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Helpers
@@ -196,6 +218,7 @@ export default function Metas() {
         calculatePercentage={calculatePercentage}
         getTotalAchieved={getTotalAchieved}
         isAdmin={isManager}
+        topSellersData={topSellers}
         onAddResult={(goal) => {
           setSelectedGoalForResults(goal);
           setSelectedResultForEdit(null);
