@@ -326,7 +326,7 @@ async function listProductMix(clientId: string) {
       boi.description AS description,
       COUNT(DISTINCT boi.order_id)::int AS "orderCount",
       COALESCE(SUM(boi.quantity), 0)::text AS "totalQuantity",
-      COALESCE(SUM(boi.value), 0)::text AS "totalValue",
+      COALESCE(SUM(boi.quantity * boi.value), 0)::text AS "totalValue",
       MIN(bo.sale_date) AS "firstPurchaseDate",
       MAX(bo.sale_date) AS "lastPurchaseDate",
       ARRAY_AGG(DISTINCT bo.sale_date ORDER BY bo.sale_date) AS "purchaseDates"
@@ -335,7 +335,7 @@ async function listProductMix(clientId: string) {
     WHERE bo.deleted_at IS NULL
       AND bo.app_client_id = ${clientId}
     GROUP BY boi.product_id, boi.product_code, boi.description
-    ORDER BY COALESCE(SUM(boi.value), 0) DESC, COALESCE(SUM(boi.quantity), 0) DESC
+    ORDER BY COALESCE(SUM(boi.quantity * boi.value), 0) DESC, COALESCE(SUM(boi.quantity), 0) DESC
   `);
 
   return result.rows as unknown as ProductMixRow[];

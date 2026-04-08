@@ -378,7 +378,7 @@ export class BlingOrdersRepository {
         productCode: blingOrderItems.productCode,
         description: blingOrderItems.description,
         totalQuantity: sql<string>`sum(${blingOrderItems.quantity})`,
-        totalValue: sql<string>`sum(${blingOrderItems.value})`,
+        totalValue: sql<string>`sum(${blingOrderItems.quantity} * ${blingOrderItems.value})`,
         orderCount: sql<number>`count(distinct ${blingOrderItems.orderId})`,
       })
       .from(blingOrderItems)
@@ -389,7 +389,7 @@ export class BlingOrdersRepository {
         blingOrderItems.productCode,
         blingOrderItems.description,
       )
-      .orderBy(desc(sql`sum(${blingOrderItems.value})`))
+      .orderBy(desc(sql`sum(${blingOrderItems.quantity} * ${blingOrderItems.value})`))
       .limit(limit);
   }
 
