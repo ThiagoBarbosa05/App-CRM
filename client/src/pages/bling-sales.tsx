@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import {
@@ -99,8 +99,11 @@ export default function BlingSalesPage() {
     useUnifiedSalesEvolution(startDate, endDate, groupBy, "all");
   const { data: topSellers, isLoading: isTopSellersLoading } =
     useUnifiedTopSellers(startDate, endDate, 5, "all");
+  const currentMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const currentMonthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const currentMonthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
   const { data: allSellers, isLoading: isAllSellersLoading } =
-    useUnifiedTopSellers(startDate, endDate, 100, "all");
+    useUnifiedTopSellers(currentMonthStart, currentMonthEnd, 100, "all");
   const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
     {
       startDate,
@@ -365,6 +368,7 @@ export default function BlingSalesPage() {
         <SellerTotalsTable
           data={allSellers}
           isLoading={isAllSellersLoading}
+          monthLabel={currentMonthLabel}
         />
       </section>
 

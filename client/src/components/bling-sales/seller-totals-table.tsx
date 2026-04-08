@@ -5,6 +5,7 @@ import { Users2, TrendingUp, ShoppingCart, Receipt } from "lucide-react";
 interface SellerTotalsTableProps {
   data?: UnifiedTopSeller[];
   isLoading: boolean;
+  monthLabel?: string;
 }
 
 const RANK_STYLES = [
@@ -33,7 +34,7 @@ function SkeletonRow() {
   );
 }
 
-export function SellerTotalsTable({ data, isLoading }: SellerTotalsTableProps) {
+export function SellerTotalsTable({ data, isLoading, monthLabel }: SellerTotalsTableProps) {
   const sellers = data ?? [];
   const maxValue = sellers.length > 0 ? Math.max(...sellers.map((s) => s.totalValue)) : 1;
   const grandTotal = sellers.reduce((acc, s) => acc + s.totalValue, 0);
@@ -52,8 +53,8 @@ export function SellerTotalsTable({ data, isLoading }: SellerTotalsTableProps) {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Total Vendido por Vendedor
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Bling + Connect · período selecionado
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
+                Bling + Connect · {monthLabel ?? "mês atual"}
               </p>
             </div>
           </div>
