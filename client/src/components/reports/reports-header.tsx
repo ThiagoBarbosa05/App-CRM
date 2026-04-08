@@ -15,7 +15,7 @@ export function ReportsHeader() {
               Relatórios e Métricas
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 truncate">
-              Acompanhe o desempenho geral de clientes e empresas do sistema
+              Acompanhe o desempenho, segmentação e qualidade dos dados do CRM
             </p>
           </div>
         </div>
