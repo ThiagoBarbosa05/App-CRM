@@ -26,7 +26,7 @@ const evolutionQuerySchema = baseQuerySchema.extend({
 });
 
 const topSellersQuerySchema = baseQuerySchema.extend({
-  limit: z.coerce.number().min(1).max(50).optional().default(10),
+  limit: z.coerce.number().min(1).max(200).optional().default(10),
 });
 
 /**

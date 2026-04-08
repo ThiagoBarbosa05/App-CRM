@@ -30,6 +30,7 @@ import { OrdersFilters } from "@/components/bling-sales/orders-filters";
 import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
 import { TopClientsPanel } from "@/components/bling-sales/top-clients-panel";
 import { UnifiedOrdersTable } from "@/components/bling-sales/unified-orders-table";
+import { SellerTotalsTable } from "@/components/bling-sales/seller-totals-table";
 
 // Connect import
 import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-import-modal";
@@ -98,6 +99,8 @@ export default function BlingSalesPage() {
     useUnifiedSalesEvolution(startDate, endDate, groupBy, "all");
   const { data: topSellers, isLoading: isTopSellersLoading } =
     useUnifiedTopSellers(startDate, endDate, 5, "all");
+  const { data: allSellers, isLoading: isAllSellersLoading } =
+    useUnifiedTopSellers(startDate, endDate, 100, "all");
   const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
     {
       startDate,
@@ -355,6 +358,15 @@ export default function BlingSalesPage() {
           </div>
         </div>
       </div>
+
+      {/* Total por Vendedor */}
+      <section className="space-y-3">
+        <SectionLabel label="Total Vendido por Vendedor" />
+        <SellerTotalsTable
+          data={allSellers}
+          isLoading={isAllSellersLoading}
+        />
+      </section>
 
       {/* Top 20 Clientes — Bling only */}
       <section className="space-y-3">
