@@ -59,6 +59,9 @@ export interface ClientPurchaseInsightsResponse {
     lastPurchaseValue: number | null;
     activeMonthsLast6: number;
     activeMonthsLast12: number;
+    totalItems: number;
+    avgItemsPerOrder: number | null;
+    avgItemPrice: number | null;
   };
   predictiveAnalysis: {
     predictedNextPurchaseDate: string | null;
@@ -528,6 +531,15 @@ export const clientPurchaseInsightsService = {
     const predictiveAnalysis = buildPredictiveAnalysis(summary);
     const { productMix, inactiveProducts } = buildProductAnalytics(productRows);
 
+    const totalItems = productRows.reduce((sum, row) => sum + Number(row.totalQuantity ?? 0), 0);
+    const totalItemValue = productRows.reduce((sum, row) => sum + Number(row.totalValue ?? 0), 0);
+    const avgItemsPerOrder = summary.purchaseCount > 0 && totalItems > 0
+      ? roundTo(totalItems / summary.purchaseCount, 1)
+      : null;
+    const avgItemPrice = totalItems > 0
+      ? roundTo(totalItemValue / totalItems)
+      : null;
+
     const linkStatus: ClientPurchaseInsightsResponse["linkStatus"] =
       allOrders.length === 0 ? "unlinked" : predictiveAnalysis.status === "sem_base" ? "partial" : "linked";
 
@@ -539,6 +551,9 @@ export const clientPurchaseInsightsService = {
           summary.averageDaysBetweenPurchases === null
             ? null
             : roundTo(summary.averageDaysBetweenPurchases, 1),
+        totalItems,
+        avgItemsPerOrder,
+        avgItemPrice,
       },
       predictiveAnalysis,
       inactiveProducts: inactiveProducts.map((product) => ({

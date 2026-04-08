@@ -14,6 +14,9 @@ export interface ClientPurchaseInsightsResponse {
     lastPurchaseValue: number | null;
     activeMonthsLast6: number;
     activeMonthsLast12: number;
+    totalItems: number;
+    avgItemsPerOrder: number | null;
+    avgItemPrice: number | null;
   };
   predictiveAnalysis: {
     predictedNextPurchaseDate: string | null;
