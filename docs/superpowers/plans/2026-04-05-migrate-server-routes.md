@@ -103,12 +103,12 @@
 - `GET /api/users/by-email/:email`
 - `POST /api/users/channel`
 
-- [ ] Extrair `login` para `auth.routes.ts` preservando validacao manual, payloads de erro e sucesso.
-- [ ] Mover rotas de arquivo para `files.routes.ts` reutilizando `uploadMiddleware`, `createFileController` e `deleteFileController`.
-- [ ] Expandir `users.routes.ts` para absorver `by-email` e `channel`.
-- [ ] Extrair a query de acompanhamento para controller/service dedicado sem alterar filtros, paginacao ou calculo de stats.
-- [ ] Registrar novos mounts em `server/routes/index.ts`.
-- [ ] Remover os blocos equivalentes de `server/routes.ts`.
+- [x] Extrair `login` para `auth.routes.ts` preservando validacao manual, payloads de erro e sucesso.
+- [x] Mover rotas de arquivo para `files.routes.ts` reutilizando `uploadMiddleware`, `createFileController` e `deleteFileController`.
+- [x] Expandir `users.routes.ts` para absorver `by-email` e `channel`.
+- [x] Extrair a query de acompanhamento para controller/service dedicado sem alterar filtros, paginacao ou calculo de stats.
+- [x] Registrar novos mounts em `server/routes/index.ts`.
+- [x] Remover os blocos equivalentes de `server/routes.ts`.
 
 **Cobertura minima**
 - `auth.routes.test.ts`

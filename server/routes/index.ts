@@ -34,6 +34,9 @@ import unifiedOrdersRouter from "./unified-orders.routes";
 import blingWebhookRouter from "./bling-webhook.routes";
 import systemSettingsRouter from "./system-settings.routes";
 import { authRouter } from "./auth.routes";
+import { filesRouter } from "./files.routes";
+import { acompanhamentoRouter } from "./acompanhamento.routes";
+import { umblerRouter } from "./umbler.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -47,6 +50,9 @@ export const apiRouter = Router();
  */
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/files", filesRouter);
+apiRouter.use("/acompanhamento", acompanhamentoRouter);
+apiRouter.use("/", umblerRouter);
 apiRouter.use("/companies", companiesRouter);
 apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
@@ -89,6 +95,9 @@ apiRouter.use("/system-settings", systemSettingsRouter);
 // ✅ apiRouter.use("/", dealAnswersRouter); - MIGRADO (deal-answers)
 // ✅ apiRouter.use("/users", usersRouter); - MIGRADO
 // apiRouter.use("/cashback", cashbackRouter);
+// ✅ apiRouter.use("/files", filesRouter); - MIGRADO
+// ✅ apiRouter.use("/acompanhamento", acompanhamentoRouter); - MIGRADO
+// ✅ apiRouter.use("/", umblerRouter); - MIGRADO PARCIAL (umbler)
 // apiRouter.use("/reports", reportsRouter);
 // apiRouter.use("/events", eventsRouter);
 // apiRouter.use("/products", productsRouter);

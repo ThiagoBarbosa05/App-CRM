@@ -5,11 +5,16 @@ import { createUserController } from "../controllers/users/post-user.controller"
 import { validateBody, validateParams } from "../middleware/validation";
 import { insertUserSchema } from "../../shared/schema";
 import { z } from "zod";
+import { storage } from "../storage";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+import { serviceChannels, userServiceChannel, users } from "../../shared/schema";
 import { updateUserController } from "server/controllers/users/put-user.controller";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
 import { getSellerSalesController } from "server/controllers/users/get-seller-sales.controller";
+import { getChannels } from "../integrations/umbler";
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -83,6 +88,117 @@ usersRouter.get("/", getUsersController);
  *   - ID, createdAt e updatedAt são gerados automaticamente
  */
 usersRouter.post("/", validateBody(insertUserSchema), createUserController);
+
+usersRouter.post("/channel", async (req, res) => {
+  try {
+    const { userId, serviceChannelId } = req.body;
+
+    if (!userId || !serviceChannelId) {
+      return res
+        .status(400)
+        .json({ message: "ID do usuário e ID do canal são obrigatórios" });
+    }
+
+    const userExists = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (userExists.length === 0) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    let channelExists = await db
+      .select({ id: serviceChannels.id })
+      .from(serviceChannels)
+      .where(eq(serviceChannels.id, serviceChannelId));
+
+    if (channelExists.length === 0) {
+      try {
+        const umblerChannels = await getChannels();
+        const umblerChannel = umblerChannels.find(
+          (channel: { id: string }) => channel.id === serviceChannelId,
+        );
+
+        if (umblerChannel) {
+          await db
+            .insert(serviceChannels)
+            .values({
+              id: umblerChannel.id,
+              name: umblerChannel.name,
+              phoneNumber: umblerChannel.phoneNumber || null,
+            })
+            .onConflictDoUpdate({
+              target: serviceChannels.id,
+              set: {
+                name: umblerChannel.name,
+                phoneNumber: umblerChannel.phoneNumber || null,
+              },
+            });
+
+          channelExists = await db
+            .select({ id: serviceChannels.id })
+            .from(serviceChannels)
+            .where(eq(serviceChannels.id, serviceChannelId));
+        }
+      } catch (syncError) {
+        console.error("Erro ao sincronizar canal do Umbler:", syncError);
+      }
+    }
+
+    if (channelExists.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Canal de serviço não encontrado" });
+    }
+
+    const [existingLink] = await db
+      .select()
+      .from(userServiceChannel)
+      .where(eq(userServiceChannel.userId, userId));
+
+    if (existingLink) {
+      await db
+        .update(userServiceChannel)
+        .set({ serviceChannelId })
+        .where(eq(userServiceChannel.userId, userId));
+
+      return res.status(200).json({
+        message: "Canal do usuário atualizado com sucesso",
+        channelId: serviceChannelId,
+      });
+    }
+
+    await db.insert(userServiceChannel).values({
+      userId,
+      serviceChannelId,
+    });
+
+    return res.status(200).json({
+      message: "Canal vinculado ao usuário com sucesso",
+      channelId: serviceChannelId,
+    });
+  } catch (error) {
+    console.error("Erro ao vincular/atualizar canal do usuário:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro interno ao processar a solicitação" });
+  }
+});
+
+usersRouter.get("/by-email/:email", async (req, res) => {
+  try {
+    const user = await storage.getUserByEmail(req.params.email);
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error("Erro ao buscar usuário por email:", error);
+    return res.status(500).json({ message: "Erro ao buscar usuário por email" });
+  }
+});
 
 /**
  * Validação de parâmetros para rotas com ID de usuário
