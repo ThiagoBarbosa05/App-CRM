@@ -776,7 +776,21 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(clients)
       .where(eq(clients.id, id));
-    return client || undefined;
+    if (!client) return undefined;
+    // Enriquecer com lastPurchaseDate
+    const safeId = id.replace(/'/g, "");
+    const purchaseResult = await this.db.execute(sql.raw(`
+      SELECT MAX(sale_date)::text AS last_purchase_date
+      FROM (
+        SELECT sale_date::text AS sale_date FROM bling_orders
+        WHERE deleted_at IS NULL AND app_client_id = '${safeId}'
+        UNION ALL
+        SELECT to_char(sale_date, 'YYYY-MM-DD') AS sale_date FROM connect_orders
+        WHERE app_client_id = '${safeId}'
+      ) AS purchases
+    `));
+    const lastPurchaseDate = (purchaseResult.rows[0] as any)?.last_purchase_date ?? null;
+    return { ...client, lastPurchaseDate } as any;
   }
 
   async getClientByCpf(cpf: string): Promise<Client | undefined> {
