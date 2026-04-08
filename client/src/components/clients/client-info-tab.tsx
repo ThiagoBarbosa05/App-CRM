@@ -12,6 +12,7 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 
 interface ClientInfoTabProps {
   client: Client;
@@ -77,6 +79,20 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
     return cpf;
   };
 
+  const { data: systemSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+  const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
+  const lastPurchaseDate = (client as any).lastPurchaseDate as string | null | undefined;
+
+  const purchaseStatus = (() => {
+    if (!lastPurchaseDate) return "inativo";
+    const last = new Date(lastPurchaseDate + "T00:00:00");
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - purchaseStatusDays);
+    return last >= threshold ? "ativo" : "inativo";
+  })();
+
   const clientInitial = client.name.trim().charAt(0).toUpperCase();
   const hasCommercialInfo = Boolean(
     client.categoria || client.origem || (client.markers && client.markers.length > 0),
@@ -128,7 +144,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         </CardHeader>
 
         <CardContent className="space-y-5 px-6 py-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <InfoTile
               icon={Phone}
               accent="blue"
@@ -155,6 +171,52 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               label="E-mail"
               value={client.email || "Não informado"}
             />
+            <div
+              className={cn(
+                "flex flex-col gap-2 rounded-2xl border p-4 transition-all",
+                purchaseStatus === "ativo"
+                  ? "border-green-200 bg-green-50/60 dark:border-green-800/60 dark:bg-green-900/10"
+                  : "border-red-200 bg-red-50/60 dark:border-red-800/60 dark:bg-red-900/10",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-xl",
+                  purchaseStatus === "ativo"
+                    ? "bg-green-100 dark:bg-green-900/40"
+                    : "bg-red-100 dark:bg-red-900/40",
+                )}
+              >
+                <ShoppingCart
+                  className={cn(
+                    "h-4 w-4",
+                    purchaseStatus === "ativo"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400",
+                  )}
+                />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Status de Compra
+                </p>
+                <Badge
+                  className={cn(
+                    "mt-1 font-black uppercase tracking-wider",
+                    purchaseStatus === "ativo"
+                      ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700"
+                      : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700",
+                  )}
+                >
+                  {purchaseStatus === "ativo" ? "ATIVO" : "INATIVO"}
+                </Badge>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {lastPurchaseDate
+                    ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
+                    : "Nenhuma compra registrada"}
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

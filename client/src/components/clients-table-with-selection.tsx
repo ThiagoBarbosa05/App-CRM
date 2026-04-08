@@ -88,6 +88,19 @@ export default function ClientsTableWithSelection({
     queryKey: ["/api/users"],
   });
 
+  const { data: systemSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+  const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
+
+  const computePurchaseStatus = (lastPurchaseDate: string | null | undefined) => {
+    if (!lastPurchaseDate) return "inativo";
+    const last = new Date(lastPurchaseDate + "T00:00:00");
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - purchaseStatusDays);
+    return last >= threshold ? "ativo" : "inativo";
+  };
+
   const deleteClientsMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
       const response = await fetch("/api/clients", {
@@ -329,6 +342,12 @@ export default function ClientsTableWithSelection({
                     Aniversário
                   </div>
                 </th>
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[120px]">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-gray-500 dark:text-slate-400" />
+                    Status
+                  </div>
+                </th>
                 <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 w-28">
                   <div className="flex items-center gap-2">
                     <Edit className="h-4 w-4 text-gray-500 dark:text-slate-400" />
@@ -566,6 +585,22 @@ export default function ClientsTableWithSelection({
                           : "Não informado"}
                       </span>
                     </div>
+                  </td>
+                  <td className="p-4">
+                    {(() => {
+                      const status = computePurchaseStatus((client as any).lastPurchaseDate);
+                      return status === "ativo" ? (
+                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-700 font-semibold">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          ATIVO
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-300 dark:border-red-700 font-semibold">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          INATIVO
+                        </Badge>
+                      );
+                    })()}
                   </td>
                   <td className="p-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center">

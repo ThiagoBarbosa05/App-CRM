@@ -36,6 +36,7 @@ export interface ClientFilters {
   categoria: string;
   origem: string;
   markers: string;
+  purchaseStatus: string;
 }
 
 export default function ClientFilters({
@@ -86,6 +87,7 @@ export default function ClientFilters({
       categoria: "all",
       origem: "all",
       markers: "all",
+      purchaseStatus: "all",
     };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
@@ -263,6 +265,25 @@ export default function ClientFilters({
                         </div>
                       </SelectItem>
                     ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="filter-purchase-status" className="text-sm font-medium">
+                Status de Compra
+              </Label>
+              <Select
+                value={localFilters.purchaseStatus}
+                onValueChange={(value) => handleFilterChange("purchaseStatus", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

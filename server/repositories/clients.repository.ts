@@ -32,6 +32,35 @@ export class ClientsRepository {
    * Usa INNER JOIN para pegar todas as tags de uma vez, evitando problema N+1
    * Performance: O(n) vs O(n*m) do método anterior com Promise.all
    */
+  private async getClientsLastPurchaseDates(
+    clientIds: string[]
+  ): Promise<Map<string, string | null>> {
+    if (clientIds.length === 0) return new Map();
+    // IDs are NanoIDs/UUIDs — safe to inline (no SQL injection risk)
+    const safeList = clientIds.map((id) => `'${id.replace(/'/g, "")}'`).join(",");
+    const result = await this.db.execute(
+      sql.raw(`
+        SELECT client_id, MAX(sale_date)::text AS last_purchase_date
+        FROM (
+          SELECT app_client_id AS client_id, sale_date::text AS sale_date
+          FROM bling_orders
+          WHERE deleted_at IS NULL AND app_client_id IN (${safeList})
+          UNION ALL
+          SELECT app_client_id AS client_id, to_char(sale_date, 'YYYY-MM-DD') AS sale_date
+          FROM connect_orders
+          WHERE app_client_id IN (${safeList})
+        ) AS purchases
+        GROUP BY client_id
+      `)
+    );
+    const map = new Map<string, string | null>();
+    for (const clientId of clientIds) map.set(clientId, null);
+    for (const row of result.rows as { client_id: string; last_purchase_date: string }[]) {
+      map.set(row.client_id, row.last_purchase_date);
+    }
+    return map;
+  }
+
   private async getClientsWithTags(clientsList: Client[]): Promise<any[]> {
     if (clientsList.length === 0) {
       return [];
@@ -133,6 +162,37 @@ export class ClientsRepository {
       );
     }
 
+    // Filtro de status de compra (ATIVO/INATIVO)
+    // bling_orders.sale_date é text (YYYY-MM-DD), connect_orders.sale_date é timestamp
+    if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
+      const days = filters.purchaseStatusDays ?? 60;
+      if (filters.purchaseStatus === "ativo") {
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      } else if (filters.purchaseStatus === "inativo") {
+        conditions.push(sql`NOT EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      }
+    }
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as typeof query;
     }
@@ -145,7 +205,14 @@ export class ClientsRepository {
       .offset(offset);
 
     // Buscar tags de forma otimizada (1 query para todos os clientes)
-    return await this.getClientsWithTags(result);
+    const clientsWithTags = await this.getClientsWithTags(result);
+
+    // Enriquecer com lastPurchaseDate
+    const lastPurchaseDates = await this.getClientsLastPurchaseDates(result.map((c) => c.id));
+    return clientsWithTags.map((client) => ({
+      ...client,
+      lastPurchaseDate: lastPurchaseDates.get(client.id) ?? null,
+    }));
   }
 
   async getClientsCount(
@@ -205,6 +272,37 @@ export class ClientsRepository {
       );
     }
 
+    // Filtro de status de compra (ATIVO/INATIVO)
+    // bling_orders.sale_date é text (YYYY-MM-DD), connect_orders.sale_date é timestamp
+    if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
+      const days = filters.purchaseStatusDays ?? 60;
+      if (filters.purchaseStatus === "ativo") {
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      } else if (filters.purchaseStatus === "inativo") {
+        conditions.push(sql`NOT EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      }
+    }
+
     let countQuery = this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(clients);
@@ -230,7 +328,9 @@ export class ClientsRepository {
       .select()
       .from(clients)
       .where(eq(clients.id, id));
-    return client || undefined;
+    if (!client) return undefined;
+    const lastPurchaseDates = await this.getClientsLastPurchaseDates([client.id]);
+    return { ...client, lastPurchaseDate: lastPurchaseDates.get(client.id) ?? null } as any;
   }
 
   async getClientsWithoutRecentContact(

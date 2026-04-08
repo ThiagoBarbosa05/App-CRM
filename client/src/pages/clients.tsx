@@ -54,7 +54,13 @@ export default function Clients() {
     categoria: "",
     origem: "",
     markers: "",
+    purchaseStatus: "all",
   });
+
+  const { data: systemSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+  const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
@@ -76,6 +82,7 @@ export default function Clients() {
       debouncedSearchQuery,
       clientFilters,
       currentPage,
+      purchaseStatusDays,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -88,6 +95,10 @@ export default function Clients() {
       Object.entries(clientFilters).forEach(([key, value]) => {
         if (value && value !== "all") params.append(key, value);
       });
+
+      if (clientFilters.purchaseStatus && clientFilters.purchaseStatus !== "all") {
+        params.append("purchaseStatusDays", purchaseStatusDays.toString());
+      }
 
       params.append("page", currentPage.toString());
       params.append("pageSize", itemsPerPage.toString());
