@@ -133,6 +133,13 @@ export class ClientsService {
     if (rawFilters.markers && typeof rawFilters.markers === "string") {
       filters.markers = rawFilters.markers;
     }
+    if (rawFilters.purchaseStatus && typeof rawFilters.purchaseStatus === "string") {
+      filters.purchaseStatus = rawFilters.purchaseStatus;
+    }
+    if (rawFilters.purchaseStatusDays) {
+      const days = parseInt(String(rawFilters.purchaseStatusDays), 10);
+      if (!isNaN(days) && days > 0) filters.purchaseStatusDays = days;
+    }
 
     return filters;
   }
@@ -831,6 +838,8 @@ export class ClientsService {
       categoria: req.query.categoria,
       origem: req.query.origem,
       markers: req.query.markers,
+      purchaseStatus: req.query.purchaseStatus,
+      purchaseStatusDays: req.query.purchaseStatusDays,
     });
 
     return {

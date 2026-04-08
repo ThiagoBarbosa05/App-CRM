@@ -32,6 +32,7 @@ import blingProductsRouter from "./bling-products.routes";
 import connectOrdersRouter from "./connect-orders.routes";
 import unifiedOrdersRouter from "./unified-orders.routes";
 import blingWebhookRouter from "./bling-webhook.routes";
+import systemSettingsRouter from "./system-settings.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -75,6 +76,7 @@ apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 // Webhook do Bling — sem autenticação de usuário (chamado diretamente pelo Bling)
 apiRouter.use("/bling", blingWebhookRouter);
+apiRouter.use("/system-settings", systemSettingsRouter);
 
 // TODO: Adicionar outros routers conforme migração:
 // apiRouter.use("/auth", authRouter);

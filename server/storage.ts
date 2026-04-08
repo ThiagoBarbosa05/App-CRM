@@ -153,6 +153,8 @@ export interface ClientFilters {
   categoria?: string;
   origem?: string;
   markers?: string;
+  purchaseStatus?: string;
+  purchaseStatusDays?: number;
 }
 
 export interface CompanyFilters {

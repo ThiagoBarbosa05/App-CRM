@@ -2829,3 +2829,9 @@ export const automationExecutionsRelations = relations(
     }),
   }),
 );
+
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  description: text("description"),
+});
