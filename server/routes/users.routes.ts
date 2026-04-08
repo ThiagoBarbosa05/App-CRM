@@ -14,7 +14,10 @@ import { deleteUserController } from "server/controllers/users/delete-user.contr
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
 import { getSellerSalesController } from "server/controllers/users/get-seller-sales.controller";
+
 import { getChannels } from "../integrations/umbler";
+import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
+
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -355,6 +358,16 @@ usersRouter.get(
   "/:id/seller-sales",
   validateParams(userParamsSchema),
   getSellerSalesController,
+);
+
+/**
+ * @route GET /api/users/:id/seller-dashboard
+ * @description Retorna métricas do Dashboard Vendedor
+ */
+usersRouter.get(
+  "/:id/seller-dashboard",
+  validateParams(userParamsSchema),
+  getSellerDashboardController,
 );
 
 // TODO: Migrar outras rotas de users para este arquivo:

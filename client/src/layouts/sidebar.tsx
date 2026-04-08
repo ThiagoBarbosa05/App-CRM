@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
   },
   { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
   { href: "/metas", icon: Target, label: "Metas" },
+  { href: "/dashboard-vendedor", icon: BarChart3, label: "Dashboard Vendedor" },
   {
     href: "/relatorios",
     icon: BarChart3,

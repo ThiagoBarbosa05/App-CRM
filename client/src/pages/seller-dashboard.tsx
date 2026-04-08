@@ -1,0 +1,517 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { motion } from "framer-motion";
+import {
+  BarChart3,
+  Package,
+  TrendingUp,
+  Trophy,
+  UserMinus,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { formatCurrency } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+interface TopClientRow {
+  clientId: string | null;
+  clientName: string | null;
+  orderCount: number;
+  totalValue: number;
+  avgTicket: number;
+}
+
+interface TopItemValueRow {
+  clientId: string | null;
+  clientName: string | null;
+  avgItemValue: number;
+  itemCount: number;
+}
+
+interface InactiveClientRow {
+  clientId: string;
+  clientName: string;
+  phone: string | null;
+  lastPurchaseDate: string | null;
+  daysSincePurchase: number | null;
+}
+
+interface NewClientRow {
+  clientId: string;
+  clientName: string;
+  phone: string | null;
+  createdAt: string;
+}
+
+interface DashboardData {
+  success: boolean;
+  seller: { id: string; name: string };
+  topClients: TopClientRow[];
+  highestAvgTicket: TopClientRow[];
+  highestAvgItemValue: TopItemValueRow[];
+  inactiveClients: InactiveClientRow[];
+  newClientsThisMonth: NewClientRow[];
+}
+
+interface WeeklyResult {
+  id: string;
+  goalId: string;
+  week: number;
+  salesAchieved: string;
+  ticketAchieved: string;
+  itemsAchieved: number;
+}
+
+interface UserGoal {
+  id: string;
+  userId: string;
+  salesGoal: string;
+  averageTicket: string;
+  itemsPerSale: number;
+  userName: string;
+  weeklyResults: WeeklyResult[];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function pct(achieved: number, goal: number) {
+  if (goal === 0) return 0;
+  return Math.min((achieved / goal) * 100, 100);
+}
+
+function totalWeekly(results: WeeklyResult[], field: "salesAchieved" | "ticketAchieved") {
+  return results.reduce((sum, r) => sum + Number(r[field]), 0);
+}
+
+function avgWeekly(results: WeeklyResult[], field: "ticketAchieved") {
+  if (results.length === 0) return 0;
+  return totalWeekly(results, field) / results.length;
+}
+
+function totalItems(results: WeeklyResult[]) {
+  return results.reduce((sum, r) => sum + r.itemsAchieved, 0);
+}
+
+// ─── Componentes auxiliares ───────────────────────────────────────────────────
+
+function ProgressBar({
+  label,
+  icon,
+  achieved,
+  goal,
+  percentage,
+  colorClass,
+  bgClass,
+  textClass,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  achieved: string;
+  goal: string;
+  percentage: number;
+  colorClass: string;
+  bgClass: string;
+  textClass: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-end mb-1">
+        <div className="flex items-center gap-2">
+          <div className={`p-1 rounded-md ${bgClass} ${textClass}`}>{icon}</div>
+          <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{label}</span>
+        </div>
+        <span className={`text-sm font-black ${textClass}`}>{percentage.toFixed(1)}%</span>
+      </div>
+      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(percentage, 100)}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className={`h-full ${colorClass} rounded-full`}
+        />
+      </div>
+      <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <span>Alcançado: {achieved}</span>
+        <span>Meta: {goal}</span>
+      </div>
+    </div>
+  );
+}
+
+function ClientRow({
+  rank,
+  clientId,
+  name,
+  secondary,
+  badge,
+}: {
+  rank: number;
+  clientId: string | null;
+  name: string | null;
+  secondary: string;
+  badge?: string;
+}) {
+  const content = (
+    <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+      <span className="w-6 text-center text-xs font-black text-slate-400">#{rank}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+          {name ?? "—"}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{secondary}</p>
+      </div>
+      {badge && (
+        <Badge variant="secondary" className="text-xs shrink-0">
+          {badge}
+        </Badge>
+      )}
+    </div>
+  );
+
+  if (clientId) {
+    return <Link href={`/clientes/${clientId}`}>{content}</Link>;
+  }
+  return content;
+}
+
+function SectionCard({
+  title,
+  icon,
+  iconBg,
+  children,
+  count,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  children: React.ReactNode;
+  count?: number;
+}) {
+  return (
+    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
+      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${iconBg}`}>{icon}</div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              {title}
+            </CardTitle>
+          </div>
+          {count !== undefined && (
+            <Badge variant="secondary" className="text-xs font-bold">
+              {count}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-3 pb-4 px-4">{children}</CardContent>
+    </Card>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">{message}</p>
+  );
+}
+
+// ─── Bloco de Progresso da Meta ───────────────────────────────────────────────
+
+function GoalProgressBlock({ userId }: { userId: string }) {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  const { data: goals = [] } = useQuery<UserGoal[]>({
+    queryKey: [`/api/user-goals-with-results/${month}/${year}`],
+  });
+
+  const goal = useMemo(
+    () => goals.find((g) => g.userId === userId),
+    [goals, userId],
+  );
+
+  if (!goal) {
+    return (
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
+        <CardContent className="py-10 text-center text-sm text-slate-400">
+          Nenhuma meta cadastrada para este mês.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const results = goal.weeklyResults ?? [];
+  const salesAchieved = totalWeekly(results, "salesAchieved");
+  const ticketAchieved = avgWeekly(results, "ticketAchieved");
+  const itemsAchieved = totalItems(results);
+
+  return (
+    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
+      <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Progresso da Meta —{" "}
+              {format(now, "MMMM yyyy", { locale: ptBR })
+                .replace(/^\w/, (c) => c.toUpperCase())}
+            </CardTitle>
+          </div>
+          <Badge
+            variant="secondary"
+            className="text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+          >
+            {results.length}/4 SEMANAS
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6 space-y-6">
+        <ProgressBar
+          label="Volume de Vendas"
+          icon={<TrendingUp className="h-3.5 w-3.5" />}
+          achieved={formatCurrency(salesAchieved)}
+          goal={formatCurrency(goal.salesGoal)}
+          percentage={pct(salesAchieved, Number(goal.salesGoal))}
+          colorClass="bg-emerald-500"
+          bgClass="bg-emerald-50 dark:bg-emerald-900/20"
+          textClass="text-emerald-600 dark:text-emerald-400"
+        />
+        <ProgressBar
+          label="Ticket Médio"
+          icon={<BarChart3 className="h-3.5 w-3.5" />}
+          achieved={formatCurrency(ticketAchieved)}
+          goal={formatCurrency(goal.averageTicket)}
+          percentage={pct(ticketAchieved, Number(goal.averageTicket))}
+          colorClass="bg-blue-500"
+          bgClass="bg-blue-50 dark:bg-blue-900/20"
+          textClass="text-blue-600 dark:text-blue-400"
+        />
+        <ProgressBar
+          label="Itens por Venda"
+          icon={<Package className="h-3.5 w-3.5" />}
+          achieved={`${itemsAchieved} itens`}
+          goal={`${goal.itemsPerSale} itens`}
+          percentage={pct(itemsAchieved, goal.itemsPerSale)}
+          colorClass="bg-purple-500"
+          bgClass="bg-purple-50 dark:bg-purple-900/20"
+          textClass="text-purple-600 dark:text-purple-400"
+        />
+
+        {/* Semanas */}
+        <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span>Status Semanal</span>
+            <span>{results.length} Completas</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((week) => {
+              const hasResult = results.some((r) => r.week === week);
+              return (
+                <div key={week} className="flex flex-col items-center gap-1">
+                  <div
+                    className={`h-2.5 w-full rounded-full transition-all duration-300 ${
+                      hasResult
+                        ? "bg-blue-500 shadow-sm shadow-blue-500/20"
+                        : "bg-slate-100 dark:bg-slate-800"
+                    }`}
+                    title={hasResult ? `Semana ${week} concluída` : `Semana ${week} pendente`}
+                  />
+                  <span className="text-[10px] font-medium text-slate-400">S{week}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
+export default function SellerDashboardPage() {
+  const { user } = useAuth();
+
+  const { data, isLoading } = useQuery<DashboardData>({
+    queryKey: [`/api/users/${user?.id}/seller-dashboard`],
+    enabled: !!user?.id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6 animate-pulse">
+        <Skeleton className="h-8 w-64 rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-3xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-72 rounded-3xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full rounded-3xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-10">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          Dashboard Vendedor
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Visão geral de performance e carteira de clientes
+        </p>
+      </div>
+
+      {/* Progresso da Meta */}
+      {user && <GoalProgressBlock userId={user.id} />}
+
+      {/* Grid 2 colunas: Top Clientes + Maior Ticket Médio */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Top Clientes */}
+        <SectionCard
+          title="Top Clientes"
+          icon={<Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+          iconBg="bg-amber-50 dark:bg-amber-900/20"
+          count={data?.topClients.length}
+        >
+          {!data?.topClients.length ? (
+            <EmptyState message="Nenhuma venda registrada." />
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data.topClients.map((c, i) => (
+                <ClientRow
+                  key={c.clientId ?? i}
+                  rank={i + 1}
+                  clientId={c.clientId}
+                  name={c.clientName}
+                  secondary={`${c.orderCount} pedido${c.orderCount !== 1 ? "s" : ""}`}
+                  badge={formatCurrency(c.totalValue)}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Maior Ticket Médio */}
+        <SectionCard
+          title="Maior Ticket Médio"
+          icon={<BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-50 dark:bg-blue-900/20"
+          count={data?.highestAvgTicket.length}
+        >
+          {!data?.highestAvgTicket.length ? (
+            <EmptyState message="Nenhuma venda registrada." />
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data.highestAvgTicket.map((c, i) => (
+                <ClientRow
+                  key={c.clientId ?? i}
+                  rank={i + 1}
+                  clientId={c.clientId}
+                  name={c.clientName}
+                  secondary={`${c.orderCount} pedido${c.orderCount !== 1 ? "s" : ""}`}
+                  badge={formatCurrency(c.avgTicket)}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Maior Valor de Item Médio */}
+        <SectionCard
+          title="Maior Valor de Item Médio"
+          icon={<Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+          iconBg="bg-purple-50 dark:bg-purple-900/20"
+          count={data?.highestAvgItemValue.length}
+        >
+          {!data?.highestAvgItemValue.length ? (
+            <EmptyState message="Sem dados de itens Bling." />
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {data.highestAvgItemValue.map((c, i) => (
+                <ClientRow
+                  key={c.clientId ?? i}
+                  rank={i + 1}
+                  clientId={c.clientId}
+                  name={c.clientName}
+                  secondary={`${c.itemCount} iten${c.itemCount !== 1 ? "s" : ""}`}
+                  badge={formatCurrency(c.avgItemValue)}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Clientes Inativos */}
+        <SectionCard
+          title="Clientes Inativos"
+          icon={<UserMinus className="h-4 w-4 text-red-500 dark:text-red-400" />}
+          iconBg="bg-red-50 dark:bg-red-900/20"
+          count={data?.inactiveClients.length}
+        >
+          {!data?.inactiveClients.length ? (
+            <EmptyState message="Nenhum cliente inativo." />
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800 max-h-80 overflow-y-auto">
+              {data.inactiveClients.map((c, i) => (
+                <ClientRow
+                  key={c.clientId}
+                  rank={i + 1}
+                  clientId={c.clientId}
+                  name={c.clientName}
+                  secondary={
+                    c.lastPurchaseDate
+                      ? `Última compra: ${format(parseISO(c.lastPurchaseDate), "dd/MM/yyyy")}`
+                      : "Sem compras registradas"
+                  }
+                  badge={
+                    c.daysSincePurchase != null
+                      ? `${c.daysSincePurchase}d`
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Clientes Novos no Mês */}
+      <SectionCard
+        title={`Clientes Novos — ${format(new Date(), "MMMM yyyy", { locale: ptBR }).replace(/^\w/, (c) => c.toUpperCase())}`}
+        icon={<UserPlus className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+        iconBg="bg-emerald-50 dark:bg-emerald-900/20"
+        count={data?.newClientsThisMonth.length}
+      >
+        {!data?.newClientsThisMonth.length ? (
+          <EmptyState message="Nenhum cliente novo este mês." />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+            {data.newClientsThisMonth.map((c, i) => (
+              <ClientRow
+                key={c.clientId}
+                rank={i + 1}
+                clientId={c.clientId}
+                name={c.clientName}
+                secondary={format(parseISO(c.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              />
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
