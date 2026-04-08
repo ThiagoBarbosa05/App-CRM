@@ -4530,26 +4530,22 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsStatistics() {
     try {
-      // Top purchased wines from Bling orders linked to app clients
-      const topClientsByProducts = await this.db
+      // Top products by revenue from Bling orders linked to app clients
+      const topProductsByRevenue = await this.db
         .select({
           productId: products.id,
           productName: products.name,
           productCountry: products.country,
           productVolume: products.volume,
           productType: products.type,
+          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
           totalQuantity: sql<number>`SUM(${blingOrderItems.quantity}::numeric)::int`,
           orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
         .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
-        .where(
-          and(
-            isNull(blingOrders.deletedAt),
-            isNotNull(blingOrders.appClientId)
-          )
-        )
+        .where(isNull(blingOrders.deletedAt))
         .groupBy(
           products.id,
           products.name,
@@ -4557,37 +4553,26 @@ export class DatabaseStorage implements IStorage {
           products.volume,
           products.type
         )
-        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric) DESC`)
-        .limit(10);
+        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`)
+        .limit(8);
 
-      // Top products by number of clients
-      const topProductsByClients = await this.db
+      // Revenue distribution by wine type from Bling orders
+      const revenueByType = await this.db
         .select({
-          productId: products.id,
-          productName: products.name,
-          productCountry: products.country,
-          productVolume: products.volume,
           productType: products.type,
-          productPrice: products.negotiatedPrice,
-          clientCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
+          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
+          totalQuantity: sql<number>`SUM(${blingOrderItems.quantity}::numeric)::int`,
         })
-        .from(companyProducts)
-        .innerJoin(products, eq(companyProducts.productId, products.id))
-        .where(eq(companyProducts.isActive, "true"))
-        .groupBy(
-          products.id,
-          products.name,
-          products.country,
-          products.volume,
-          products.type,
-          products.negotiatedPrice
-        )
-        .orderBy(sql`COUNT(${companyProducts.companyId}) DESC`)
-        .limit(10);
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .where(isNull(blingOrders.deletedAt))
+        .groupBy(products.type)
+        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
 
       return {
-        topClientsByProducts,
-        topProductsByClients,
+        topProductsByRevenue,
+        revenueByType,
       };
     } catch (error) {
       console.error("Error fetching products statistics:", error);

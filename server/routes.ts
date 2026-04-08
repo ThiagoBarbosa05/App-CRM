@@ -328,16 +328,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({ id: serviceChannels.id })
         .from(serviceChannels)
         .where(eq(serviceChannels.id, serviceChannelId));
-      
+
       // Se o canal não existe localmente, tentar sincronizar da API do Umbler
       if (channelExists.length === 0) {
         try {
           const { getChannels } = await import("./integrations/umbler");
           const umblerChannels = await getChannels();
-          
+
           // Buscar o canal específico na resposta do Umbler
-          const umblerChannel = umblerChannels.find((ch: any) => ch.id === serviceChannelId);
-          
+          const umblerChannel = umblerChannels.find(
+            (ch: any) => ch.id === serviceChannelId,
+          );
+
           if (umblerChannel) {
             // Inserir o canal na tabela local (upsert)
             await db
@@ -354,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   phoneNumber: umblerChannel.phoneNumber || null,
                 },
               });
-            
+
             // Verificar novamente
             channelExists = await db
               .select({ id: serviceChannels.id })
@@ -365,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Erro ao sincronizar canal do Umbler:", syncError);
         }
       }
-      
+
       if (channelExists.length === 0) {
         return res
           .status(404)
@@ -3832,8 +3834,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao atualizar meta de cadastros" });
     }
   };
-  app.put("/api/client-registration-goals/:id", updateClientRegistrationGoalHandler);
-  app.patch("/api/client-registration-goals/:id", updateClientRegistrationGoalHandler);
+  app.put(
+    "/api/client-registration-goals/:id",
+    updateClientRegistrationGoalHandler,
+  );
+  app.patch(
+    "/api/client-registration-goals/:id",
+    updateClientRegistrationGoalHandler,
+  );
 
   app.delete("/api/client-registration-goals/:id", async (req, res) => {
     try {
@@ -4810,12 +4818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Fetching products statistics...");
       const statistics = await storage.getProductsStatistics();
-      console.log("Statistics fetched:", {
-        topCompaniesByProductsCount:
-          statistics.topCompaniesByProducts?.length || 0,
-        topProductsByCompaniesCount:
-          statistics.topProductsByCompanies?.length || 0,
-      });
+
       res.json(statistics);
     } catch (error) {
       console.error("Error fetching products statistics:", error);
