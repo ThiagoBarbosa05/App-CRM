@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, addDays } from "date-fns";
+import { format, parseISO, addDays, isValid } from "date-fns";
 import type { Client } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -127,8 +127,9 @@ export default function CalendarPage() {
   });
 
   // Helpers
-  const getBirthdayThisYear = (birthday: string) => {
+  const getBirthdayThisYear = (birthday: string): Date | null => {
     const birthdayDate = parseISO(birthday);
+    if (!isValid(birthdayDate)) return null;
     const today = new Date();
     return new Date(
       today.getFullYear(),
@@ -142,6 +143,7 @@ export default function CalendarPage() {
     clients.forEach((client: Client) => {
       if (client.birthday) {
         const birthdayThisYear = getBirthdayThisYear(client.birthday);
+        if (!birthdayThisYear) return;
         const key = format(birthdayThisYear, "yyyy-MM-dd");
         if (!map.has(key)) map.set(key, []);
         map.get(key)!.push(client);
