@@ -4,6 +4,9 @@ import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import bcrypt from "bcrypt";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
@@ -66,6 +69,13 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // await db.insert(users).values({
+  //   name: "Admin",
+  //   email: "admin@email.com",
+  //   password: await bcrypt.hash("admin123", 10),
+  //   role: "admin",
+  // });
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
