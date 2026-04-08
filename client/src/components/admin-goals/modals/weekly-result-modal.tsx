@@ -16,12 +16,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrency } from "@/lib/utils";
 
-const weeklyResultSchema = z.object({
+const monthlyResultSchema = z.object({
   goalId: z.string().min(1, "Meta é obrigatória"),
-  week: z.coerce
-    .number({ invalid_type_error: "Deve ser um número" })
-    .min(1, "Mínimo 1")
-    .max(5, "Máximo 5"),
+  week: z.number().default(1),
   salesAchieved: z
     .string()
     .min(1, "Vendas atingidas é obrigatória")
@@ -41,7 +38,7 @@ const weeklyResultSchema = z.object({
     .min(0, "Mínimo 0"),
 });
 
-type WeeklyResultFormData = z.infer<typeof weeklyResultSchema>;
+type MonthlyResultFormData = z.infer<typeof monthlyResultSchema>;
 
 interface WeeklyResult {
   id: string;
@@ -79,8 +76,8 @@ export function WeeklyResultModal({
     reset,
     setValue,
     formState: { errors },
-  } = useForm<WeeklyResultFormData>({
-    resolver: zodResolver(weeklyResultSchema),
+  } = useForm<MonthlyResultFormData>({
+    resolver: zodResolver(monthlyResultSchema),
   });
 
   useEffect(() => {
@@ -92,7 +89,7 @@ export function WeeklyResultModal({
       };
       reset({
         goalId: existingResult.goalId,
-        week: existingResult.week,
+        week: 1,
         salesAchieved: formatVal(existingResult.salesAchieved),
         ticketAchieved: formatVal(existingResult.ticketAchieved),
         itemsAchieved: existingResult.itemsAchieved,
@@ -109,9 +106,10 @@ export function WeeklyResultModal({
   }, [selectedGoal, existingResult, open, reset, isEditing]);
 
   const resultMutation = useMutation({
-    mutationFn: (data: WeeklyResultFormData) => {
+    mutationFn: (data: MonthlyResultFormData) => {
       const payload = {
         ...data,
+        week: 1,
         salesAchieved: parseCurrency(data.salesAchieved),
         ticketAchieved: parseCurrency(data.ticketAchieved),
       };
@@ -129,8 +127,8 @@ export function WeeklyResultModal({
       toast({
         title: isEditing ? "Resultado atualizado" : "Resultado salvo",
         description: isEditing
-          ? "O resultado semanal foi atualizado com sucesso."
-          : "O resultado semanal foi registrado com sucesso.",
+          ? "O resultado mensal foi atualizado com sucesso."
+          : "O resultado mensal foi registrado com sucesso.",
       });
       onOpenChange(false);
       reset();
@@ -144,7 +142,7 @@ export function WeeklyResultModal({
     },
   });
 
-  const onSubmit = (data: WeeklyResultFormData) => {
+  const onSubmit = (data: MonthlyResultFormData) => {
     resultMutation.mutate(data);
   };
 
@@ -154,12 +152,12 @@ export function WeeklyResultModal({
         <div className={`p-8 text-white relative ${isEditing ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-gradient-to-br from-emerald-600 to-teal-700"}`}>
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
           <DialogTitle className="text-2xl font-black uppercase tracking-tight relative z-10">
-            {isEditing ? "Editar Resultado" : "Desempenho Semanal"}
+            {isEditing ? "Editar Resultado" : "Resultado Mensal"}
           </DialogTitle>
           <p className={`text-sm font-medium mt-1 relative z-10 text-balance ${isEditing ? "text-amber-100/80" : "text-emerald-100/80"}`}>
             {isEditing
-              ? <>Editando semana <span className="text-white font-black">{existingResult?.week}</span> de <span className="text-white font-black">{selectedGoal?.userName}</span>.</>
-              : <>Registre os resultados atingidos pelo vendedor <span className="text-white font-black">{selectedGoal?.userName}</span> nesta semana.</>
+              ? <>Editando resultado de <span className="text-white font-black">{selectedGoal?.userName}</span>.</>
+              : <>Registre os resultados mensais de <span className="text-white font-black">{selectedGoal?.userName}</span>.</>
             }
           </p>
         </div>
@@ -167,27 +165,7 @@ export function WeeklyResultModal({
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Número da Semana
-            </Label>
-            <Input
-              type="number"
-              min="1"
-              max="5"
-              placeholder="Ex: 1, 2, 3..."
-              {...register("week")}
-              disabled={isEditing}
-              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold disabled:opacity-60"
-            />
-            {errors.week && (
-              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
-                {errors.week.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Vendas Atingidas (R$)
+              Vendas Atingidas no Mês (R$)
             </Label>
             <Input
               placeholder="0,00"

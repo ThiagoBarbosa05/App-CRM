@@ -131,12 +131,11 @@ function SalesGoalCard({
   sellerData?: TopSeller | null;
 }) {
   const weeklyResults = goal.weeklyResults || [];
-  const totalSalesAchieved = getTotalAchieved(weeklyResults, "salesAchieved");
-  const totalItemsAchieved = getTotalAchieved(weeklyResults, "itemsAchieved");
-  const avgTicketAchieved =
-    weeklyResults.length > 0
-      ? getTotalAchieved(weeklyResults, "ticketAchieved") / weeklyResults.length
-      : 0;
+  // Acompanhamento mensal: usar o primeiro (e único) resultado do mês
+  const monthlyResult = weeklyResults[0] ?? null;
+  const totalSalesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
+  const totalItemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
+  const avgTicketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
 
   const salesPercentage = calculatePercentage(
     totalSalesAchieved,
@@ -175,9 +174,9 @@ function SalesGoalCard({
             </div>
             <Badge
               variant="secondary"
-              className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-none px-2 py-0.5 h-6 text-xs font-bold whitespace-nowrap"
+              className={`border-none px-2 py-0.5 h-6 text-xs font-bold whitespace-nowrap ${monthlyResult ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}
             >
-              {weeklyResults.length}/4 SEMANAS
+              {monthlyResult ? "✓ REGISTRADO" : "PENDENTE"}
             </Badge>
           </div>
         </CardHeader>
@@ -284,45 +283,18 @@ function SalesGoalCard({
             textClass="text-purple-600 dark:text-purple-400"
           />
 
-          {/* Weekly Status Tracker */}
-          <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
-            <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              <span>Status Semanal</span>
-              <span>{weeklyResults.length} Completas</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((week) => {
-                const result = weeklyResults.find((r) => r.week === week);
-                const hasResult = !!result;
-                const canEdit = isAdmin && hasResult && onEditResult;
-                return (
-                  <div key={week} className="relative group/week">
-                    <div
-                      className={`h-2.5 rounded-full transition-all duration-300 ${
-                        hasResult
-                          ? "bg-blue-500 shadow-sm shadow-blue-500/20"
-                          : "bg-slate-100 dark:bg-slate-800"
-                      } ${canEdit ? "cursor-pointer group-hover/week:bg-amber-400" : ""}`}
-                      title={hasResult ? `Semana ${week} concluída` : `Semana ${week} pendente`}
-                      onClick={() => canEdit && result && onEditResult(goal, result)}
-                    />
-                    {canEdit && (
-                      <div
-                        className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover/week:opacity-100 transition-opacity cursor-pointer"
-                        onClick={() => result && onEditResult(goal, result)}
-                        title={`Editar semana ${week}`}
-                      >
-                        <Pencil className="h-3 w-3 text-amber-500" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Status Mensal + Ações */}
+          {isAdmin && (
+            <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <span>Resultado do Mês</span>
+                <span className={monthlyResult ? "text-emerald-500" : "text-slate-400"}>
+                  {monthlyResult ? "Registrado" : "Pendente"}
+                </span>
+              </div>
 
-            {isAdmin && (
-              <div className="flex gap-2 mt-4">
-                {onAddResult && (
+              <div className="flex gap-2">
+                {!monthlyResult && onAddResult && (
                   <Button
                     size="sm"
                     onClick={() => onAddResult(goal)}
@@ -330,23 +302,23 @@ function SalesGoalCard({
                     variant="ghost"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Adicionar
+                    Registrar Resultado
                   </Button>
                 )}
-                {onEditResult && weeklyResults.length > 0 && (
+                {monthlyResult && onEditResult && (
                   <Button
                     size="sm"
-                    onClick={() => onEditResult(goal, weeklyResults[weeklyResults.length - 1])}
+                    onClick={() => onEditResult(goal, monthlyResult)}
                     className="flex-1 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-none font-bold text-[10px] uppercase tracking-widest gap-1.5 transition-all"
                     variant="ghost"
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    Editar
+                    Editar Resultado
                   </Button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

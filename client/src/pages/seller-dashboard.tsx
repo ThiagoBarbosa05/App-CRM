@@ -88,18 +88,6 @@ function pct(achieved: number, goal: number) {
   return Math.min((achieved / goal) * 100, 100);
 }
 
-function totalWeekly(results: WeeklyResult[], field: "salesAchieved" | "ticketAchieved") {
-  return results.reduce((sum, r) => sum + Number(r[field]), 0);
-}
-
-function avgWeekly(results: WeeklyResult[], field: "ticketAchieved") {
-  if (results.length === 0) return 0;
-  return totalWeekly(results, field) / results.length;
-}
-
-function totalItems(results: WeeklyResult[]) {
-  return results.reduce((sum, r) => sum + r.itemsAchieved, 0);
-}
 
 // ─── Componentes auxiliares ───────────────────────────────────────────────────
 
@@ -279,9 +267,11 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   }
 
   const results = goal.weeklyResults ?? [];
-  const salesAchieved = totalWeekly(results, "salesAchieved");
-  const ticketAchieved = avgWeekly(results, "ticketAchieved");
-  const itemsAchieved = totalItems(results);
+  // Acompanhamento mensal: usar o único resultado registrado (week=1)
+  const monthlyResult = results[0] ?? null;
+  const salesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
+  const ticketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
+  const itemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
 
   const realValue = realSalesData?.totalValue ?? 0;
   const realOrders = realSalesData?.totalOrders ?? 0;
@@ -317,9 +307,9 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           </div>
           <Badge
             variant="secondary"
-            className="text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+            className={`text-xs font-bold ${monthlyResult ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}
           >
-            {results.length}/4 SEMANAS
+            {monthlyResult ? "✓ REGISTRADO" : "PENDENTE"}
           </Badge>
         </div>
       </CardHeader>
@@ -404,29 +394,13 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           textClass="text-purple-600 dark:text-purple-400"
         />
 
-        {/* Semanas */}
+        {/* Status Mensal */}
         <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            <span>Status Semanal</span>
-            <span>{results.length} Completas</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[1, 2, 3, 4].map((week) => {
-              const hasResult = results.some((r) => r.week === week);
-              return (
-                <div key={week} className="flex flex-col items-center gap-1">
-                  <div
-                    className={`h-2.5 w-full rounded-full transition-all duration-300 ${
-                      hasResult
-                        ? "bg-blue-500 shadow-sm shadow-blue-500/20"
-                        : "bg-slate-100 dark:bg-slate-800"
-                    }`}
-                    title={hasResult ? `Semana ${week} concluída` : `Semana ${week} pendente`}
-                  />
-                  <span className="text-[10px] font-medium text-slate-400">S{week}</span>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span>Resultado do Mês</span>
+            <span className={monthlyResult ? "text-emerald-500" : "text-slate-400"}>
+              {monthlyResult ? "Registrado" : "Pendente"}
+            </span>
           </div>
         </div>
       </CardContent>
