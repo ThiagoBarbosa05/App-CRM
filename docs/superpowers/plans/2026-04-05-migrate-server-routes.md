@@ -69,11 +69,11 @@
 - Create: `server/test/create-route-test-app.ts`
 - Create: `server/test/raw-body-json.ts`
 
-- [ ] Adicionar `vitest` e `supertest` como dependencias de desenvolvimento.
-- [ ] Adicionar script `test` e `test:run` em `package.json`.
-- [ ] Criar `create-route-test-app()` para montar routers isolados com `express.json()`, `express.urlencoded()` e suporte opcional a `rawBody`.
-- [ ] Criar helper para headers recorrentes (`x-user-id`, `x-user-role`) e mocks de middleware quando necessario.
-- [ ] Validar que o harness consegue testar um router isolado sem subir `server/index.ts`.
+- [x] Adicionar `vitest` e `supertest` como dependencias de desenvolvimento.
+- [x] Adicionar script `test` e `test:run` em `package.json`.
+- [x] Criar `create-route-test-app()` para montar routers isolados com `express.json()`, `express.urlencoded()` e suporte opcional a `rawBody`.
+- [x] Criar helper para headers recorrentes (`x-user-id`, `x-user-role`) e mocks de middleware quando necessario.
+- [x] Validar que o harness consegue testar um router isolado sem subir `server/index.ts`.
 
 ### Checkpoint 1
 
