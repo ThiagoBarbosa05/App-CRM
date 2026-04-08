@@ -18,7 +18,6 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SellerTotalsTable } from "@/components/bling-sales/seller-totals-table";
 import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -225,6 +224,22 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+// ─── Normaliza nome para comparação ───────────────────────────────────────────
+
+function normalizeName(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function namesMatch(a: string, b: string) {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  return na === nb || na.startsWith(nb) || nb.startsWith(na);
+}
+
 // ─── Bloco de Progresso da Meta ───────────────────────────────────────────────
 
 function GoalProgressBlock({ userId }: { userId: string }) {
@@ -232,14 +247,26 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
 
+  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+
   const { data: goals = [] } = useQuery<UserGoal[]>({
     queryKey: [`/api/user-goals-with-results/${month}/${year}`],
   });
+
+  const { data: topSellers = [], isLoading: isTopSellersLoading } =
+    useUnifiedTopSellers(monthStart, monthEnd, 100, "all");
 
   const goal = useMemo(
     () => goals.find((g) => g.userId === userId),
     [goals, userId],
   );
+
+  // Vendas reais do mês para este vendedor
+  const realSalesData = useMemo(() => {
+    if (!goal || !topSellers.length) return null;
+    return topSellers.find((s) => namesMatch(s.sellerName, goal.userName)) ?? null;
+  }, [goal, topSellers]);
 
   if (!goal) {
     return (
@@ -255,6 +282,24 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const salesAchieved = totalWeekly(results, "salesAchieved");
   const ticketAchieved = avgWeekly(results, "ticketAchieved");
   const itemsAchieved = totalItems(results);
+
+  const realValue = realSalesData?.totalValue ?? 0;
+  const realOrders = realSalesData?.totalOrders ?? 0;
+  const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
+  const salesGoalNum = Number(goal.salesGoal);
+  const realPct = salesGoalNum > 0 ? Math.min((realValue / salesGoalNum) * 100, 100) : 0;
+  const realPctColor =
+    realPct >= 100
+      ? "bg-emerald-500"
+      : realPct >= 50
+        ? "bg-amber-400"
+        : "bg-red-500";
+  const realTextColor =
+    realPct >= 100
+      ? "text-emerald-600 dark:text-emerald-400"
+      : realPct >= 50
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-red-400";
 
   return (
     <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
@@ -279,8 +324,57 @@ function GoalProgressBlock({ userId }: { userId: string }) {
         </div>
       </CardHeader>
       <CardContent className="p-6 space-y-6">
+
+        {/* ── Vendas Reais no Mês (Bling + Connect) ── */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Vendas Reais no Mês
+            </span>
+            <span className="text-[10px] text-slate-400">Bling + Connect</span>
+          </div>
+
+          {isTopSellersLoading ? (
+            <div className="space-y-2 animate-pulse">
+              <div className="h-7 w-40 rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700" />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <p className={`text-2xl font-black tabular-nums ${realTextColor}`}>
+                    {formatCurrency(realValue)}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {realOrders} pedido{realOrders !== 1 ? "s" : ""} · ticket médio {formatCurrency(realAvgTicket)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-lg font-black tabular-nums ${realTextColor}`}>
+                    {realPct.toFixed(1)}%
+                  </p>
+                  <p className="text-[10px] text-slate-400">da meta</p>
+                </div>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${realPct}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className={`h-full rounded-full ${realPctColor}`}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-medium text-slate-400">
+                <span>Vendido: {formatCurrency(realValue)}</span>
+                <span>Meta: {formatCurrency(salesGoalNum)}</span>
+              </div>
+            </>
+          )}
+        </div>
+
         <ProgressBar
-          label="Volume de Vendas"
+          label="Volume de Vendas (semanal)"
           icon={<TrendingUp className="h-3.5 w-3.5" />}
           achieved={formatCurrency(salesAchieved)}
           goal={formatCurrency(goal.salesGoal)}
@@ -350,12 +444,6 @@ export default function SellerDashboardPage() {
     enabled: !!user?.id,
   });
 
-  const currentMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const currentMonthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-  const currentMonthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
-  const { data: allSellers, isLoading: isAllSellersLoading } =
-    useUnifiedTopSellers(currentMonthStart, currentMonthEnd, 100, "all");
-
   const topClients = data?.topClients ?? [];
   const highestAvgTicket = data?.highestAvgTicket ?? [];
   const highestAvgItemValue = data?.highestAvgItemValue ?? [];
@@ -397,19 +485,6 @@ export default function SellerDashboardPage() {
 
       {/* Progresso da Meta */}
       {user && <GoalProgressBlock userId={user.id} />}
-
-      {/* Total Vendido por Vendedor — mês atual */}
-      <div>
-        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 px-1 flex items-center gap-2">
-          Total Vendido por Vendedor
-          <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800 inline-block" />
-        </h2>
-        <SellerTotalsTable
-          data={allSellers}
-          isLoading={isAllSellersLoading}
-          monthLabel={currentMonthLabel}
-        />
-      </div>
 
       {/* Grid 2 colunas: Top Clientes + Maior Ticket Médio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
