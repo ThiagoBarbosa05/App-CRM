@@ -4,6 +4,8 @@ import {
   Tag,
   RefreshCw,
   ShoppingBag,
+  Package,
+  Coins,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -70,10 +72,28 @@ export function ClientPurchaseSummary({
           ? "Sem base"
           : `Ha ${daysSinceLastPurchase} dias`,
     },
+    {
+      label: "Itens por compra",
+      icon: Package,
+      value:
+        summary.avgItemsPerOrder === null
+          ? "\u2014"
+          : `${summary.avgItemsPerOrder.toLocaleString("pt-BR")} itens`,
+      subtitle: `Total: ${summary.totalItems.toLocaleString("pt-BR")} itens`,
+    },
+    {
+      label: "Preco medio por item",
+      icon: Coins,
+      value:
+        summary.avgItemPrice === null
+          ? "\u2014"
+          : formatCurrency(summary.avgItemPrice),
+      subtitle: "Medio entre todos os itens",
+    },
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {cards.map((card) => (
         <div
           key={card.label}
