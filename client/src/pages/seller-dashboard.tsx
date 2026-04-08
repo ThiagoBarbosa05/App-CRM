@@ -343,10 +343,16 @@ function GoalProgressBlock({ userId }: { userId: string }) {
 export default function SellerDashboardPage() {
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: [`/api/users/${user?.id}/seller-dashboard`],
     enabled: !!user?.id,
   });
+
+  const topClients = data?.topClients ?? [];
+  const highestAvgTicket = data?.highestAvgTicket ?? [];
+  const highestAvgItemValue = data?.highestAvgItemValue ?? [];
+  const inactiveClients = data?.inactiveClients ?? [];
+  const newClientsThisMonth = data?.newClientsThisMonth ?? [];
 
   if (isLoading) {
     return (
@@ -375,6 +381,12 @@ export default function SellerDashboardPage() {
         </p>
       </div>
 
+      {isError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          Erro ao carregar dados: {String(error)}
+        </div>
+      )}
+
       {/* Progresso da Meta */}
       {user && <GoalProgressBlock userId={user.id} />}
 
@@ -385,13 +397,13 @@ export default function SellerDashboardPage() {
           title="Top Clientes"
           icon={<Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
           iconBg="bg-amber-50 dark:bg-amber-900/20"
-          count={data?.topClients.length}
+          count={topClients.length}
         >
-          {!data?.topClients.length ? (
+          {!topClients.length ? (
             <EmptyState message="Nenhuma venda registrada." />
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {data.topClients.map((c, i) => (
+              {topClients.map((c, i) => (
                 <ClientRow
                   key={c.clientId ?? i}
                   rank={i + 1}
@@ -410,13 +422,13 @@ export default function SellerDashboardPage() {
           title="Maior Ticket Médio"
           icon={<BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-50 dark:bg-blue-900/20"
-          count={data?.highestAvgTicket.length}
+          count={highestAvgTicket.length}
         >
-          {!data?.highestAvgTicket.length ? (
+          {!highestAvgTicket.length ? (
             <EmptyState message="Nenhuma venda registrada." />
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {data.highestAvgTicket.map((c, i) => (
+              {highestAvgTicket.map((c, i) => (
                 <ClientRow
                   key={c.clientId ?? i}
                   rank={i + 1}
@@ -435,13 +447,13 @@ export default function SellerDashboardPage() {
           title="Maior Valor de Item Médio"
           icon={<Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
-          count={data?.highestAvgItemValue.length}
+          count={highestAvgItemValue.length}
         >
-          {!data?.highestAvgItemValue.length ? (
+          {!highestAvgItemValue.length ? (
             <EmptyState message="Sem dados de itens Bling." />
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {data.highestAvgItemValue.map((c, i) => (
+              {highestAvgItemValue.map((c, i) => (
                 <ClientRow
                   key={c.clientId ?? i}
                   rank={i + 1}
@@ -460,13 +472,13 @@ export default function SellerDashboardPage() {
           title="Clientes Inativos"
           icon={<UserMinus className="h-4 w-4 text-red-500 dark:text-red-400" />}
           iconBg="bg-red-50 dark:bg-red-900/20"
-          count={data?.inactiveClients.length}
+          count={inactiveClients.length}
         >
-          {!data?.inactiveClients.length ? (
+          {!inactiveClients.length ? (
             <EmptyState message="Nenhum cliente inativo." />
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800 max-h-80 overflow-y-auto">
-              {data.inactiveClients.map((c, i) => (
+              {inactiveClients.map((c, i) => (
                 <ClientRow
                   key={c.clientId}
                   rank={i + 1}
@@ -494,13 +506,13 @@ export default function SellerDashboardPage() {
         title={`Clientes Novos — ${format(new Date(), "MMMM yyyy", { locale: ptBR }).replace(/^\w/, (c) => c.toUpperCase())}`}
         icon={<UserPlus className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         iconBg="bg-emerald-50 dark:bg-emerald-900/20"
-        count={data?.newClientsThisMonth.length}
+        count={newClientsThisMonth.length}
       >
-        {!data?.newClientsThisMonth.length ? (
+        {!newClientsThisMonth.length ? (
           <EmptyState message="Nenhum cliente novo este mês." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-            {data.newClientsThisMonth.map((c, i) => (
+            {newClientsThisMonth.map((c, i) => (
               <ClientRow
                 key={c.clientId}
                 rank={i + 1}
