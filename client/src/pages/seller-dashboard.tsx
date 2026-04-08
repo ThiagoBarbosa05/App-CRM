@@ -386,9 +386,9 @@ function GoalProgressBlock({ userId }: { userId: string }) {
         <ProgressBar
           label="Ticket Médio"
           icon={<BarChart3 className="h-3.5 w-3.5" />}
-          achieved={formatCurrency(ticketAchieved)}
+          achieved={formatCurrency(realAvgTicket)}
           goal={formatCurrency(goal.averageTicket)}
-          percentage={pct(ticketAchieved, Number(goal.averageTicket))}
+          percentage={pct(realAvgTicket, Number(goal.averageTicket))}
           colorClass="bg-blue-500"
           bgClass="bg-blue-50 dark:bg-blue-900/20"
           textClass="text-blue-600 dark:text-blue-400"
