@@ -45,18 +45,43 @@ const navItems: NavItem[] = [
   { href: "/clientes", icon: Users, label: "Clientes" },
   { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
   { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
-  { href: "/empresas", icon: Building2, label: "Empresas" },
+  // { href: "/empresas", icon: Building2, label: "Empresas" },
   { href: "/products", icon: Wine, label: "Produtos" },
-  { href: "/funil", icon: GitBranch, label: "Funil de Vendas", roles: ["admin", "vendedor"] },
+  {
+    href: "/funil",
+    icon: GitBranch,
+    label: "Funil de Vendas",
+    roles: ["admin", "vendedor"],
+  },
   { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
   { href: "/metas", icon: Target, label: "Metas" },
-  { href: "/relatorios", icon: BarChart3, label: "Relatórios", hideForRoles: ["vendedor"] },
-  { href: "/vendas", icon: ShoppingCart, label: "Vendas (BETA)", roles: ["admin", "gerente"] },
+  {
+    href: "/relatorios",
+    icon: BarChart3,
+    label: "Relatórios",
+    hideForRoles: ["vendedor"],
+  },
+  {
+    href: "/vendas",
+    icon: ShoppingCart,
+    label: "Vendas (BETA)",
+    roles: ["admin", "gerente"],
+  },
   { href: "/assistente-ia", icon: Sparkles, label: "IA Assistente" },
   { href: "/treinamentos", icon: Video, label: "Treinamentos" },
-  { href: "/admin-metas", icon: Shield, label: "Admin Metas", roles: ["admin", "gerente"] },
+  {
+    href: "/admin-metas",
+    icon: Shield,
+    label: "Admin Metas",
+    roles: ["admin", "gerente"],
+  },
   { href: "/cashback", icon: Gift, label: "Cashback" },
-  { href: "/configuracoes", icon: Settings, label: "Configurações", hideForRoles: ["vendedor"] },
+  {
+    href: "/configuracoes",
+    icon: Settings,
+    label: "Configurações",
+    hideForRoles: ["vendedor"],
+  },
 ];
 
 export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
@@ -107,10 +132,17 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
       {/* Navigation */}
       <nav className="flex flex-col gap-1 mt-5">
         {navItems.map((item) => {
-          if (item.roles && (!user || !item.roles.includes(user.role))) return null;
-          if (item.hideForRoles && user && item.hideForRoles.includes(user.role)) return null;
+          if (item.roles && (!user || !item.roles.includes(user.role)))
+            return null;
+          if (
+            item.hideForRoles &&
+            user &&
+            item.hideForRoles.includes(user.role)
+          )
+            return null;
 
-          const isActive = location === item.href || (location.startsWith(`${item.href}/`));
+          const isActive =
+            location === item.href || location.startsWith(`${item.href}/`);
 
           return (
             <Link key={item.href} href={item.href}>
@@ -120,14 +152,15 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
                   "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-all duration-300 mobile-button group",
                   isActive
                     ? "text-white bg-gradient-to-r from-purple-600 to-indigo-600 shadow-md shadow-purple-600/30 dark:shadow-purple-900/40"
-                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 hover:translate-x-1"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 hover:translate-x-1",
                 )}
               >
-                <item.icon 
+                <item.icon
                   className={cn(
                     "mr-3 h-5 w-5 shrink-0 transition-transform duration-300",
-                    !isActive && "group-hover:scale-110 group-hover:text-purple-600 dark:group-hover:text-purple-400"
-                  )} 
+                    !isActive &&
+                      "group-hover:scale-110 group-hover:text-purple-600 dark:group-hover:text-purple-400",
+                  )}
                 />
                 <span className="mobile-text">{item.label}</span>
               </button>

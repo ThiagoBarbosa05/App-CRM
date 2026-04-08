@@ -90,7 +90,7 @@ export function ProductsStatistics({
     );
   }
 
-  const { topCompaniesByProducts, topProductsByCompanies } = statistics;
+  const { topClientsByProducts, topProductsByClients } = statistics;
 
   return (
     <motion.div
@@ -115,7 +115,7 @@ export function ProductsStatistics({
           </CardHeader>
           <CardContent className="p-0 bg-white">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {topCompaniesByProducts.length === 0 ? (
+              {topClientsByProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
                     <Award className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -128,9 +128,9 @@ export function ProductsStatistics({
                   </p>
                 </div>
               ) : (
-                topCompaniesByProducts.map((company: any, index: number) => (
+                topClientsByProducts.map((client: any, index: number) => (
                   <div
-                    key={company.companyId}
+                    key={client.clientId}
                     className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row"
                   >
                     <div className="flex items-center gap-4">
@@ -149,19 +149,21 @@ export function ProductsStatistics({
                       </div>
                       <div>
                         <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                          {company.companyName}
+                          {client.clientName}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">
-                            {company.companyCity}, {company.companyState}
-                          </span>
-                          {company.responsibleName && (
+                          {(client.clientCity || client.clientState) && (
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">
+                              {[client.clientCity, client.clientState].filter(Boolean).join(", ")}
+                            </span>
+                          )}
+                          {client.responsibleName && (
                             <>
                               <span className="text-slate-300 dark:text-slate-700">
                                 •
                               </span>
                               <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                                {company.responsibleName}
+                                {client.responsibleName}
                               </span>
                             </>
                           )}
@@ -170,7 +172,7 @@ export function ProductsStatistics({
                     </div>
                     <div className="text-right">
                       <div className="text-xl font-black text-slate-900 dark:text-white leading-none">
-                        {company.productCount}
+                        {client.productCount}
                       </div>
                       <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-wider">
                         vinhos
@@ -195,12 +197,12 @@ export function ProductsStatistics({
               Vinhos Mais Populares
             </CardTitle>
             <CardDescription className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
-              Top 10 produtos mais presentes nas cartas
+              Top 10 produtos mais vinculados a clientes
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 bg-white">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {topProductsByCompanies.length === 0 ? (
+              {topProductsByClients.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
                     <Wine className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -214,7 +216,7 @@ export function ProductsStatistics({
                   </p>
                 </div>
               ) : (
-                topProductsByCompanies.map((product: any, index: number) => (
+                topProductsByClients.map((product: any, index: number) => (
                   <div
                     key={product.productId}
                     className="flex items-start justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group/row"
@@ -260,7 +262,7 @@ export function ProductsStatistics({
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-xl font-black text-slate-900 dark:text-white leading-none">
-                        {product.companyCount}
+                        {product.clientCount}
                       </div>
                       <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-wider">
                         clientes

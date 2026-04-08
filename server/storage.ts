@@ -4528,36 +4528,32 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsStatistics() {
     try {
-      // Top companies by number of products in wine list
-      const topCompaniesByProducts = await this.db
+      // Top clients by number of products in wine list
+      const topClientsByProducts = await this.db
         .select({
-          companyId: companies.id,
-          companyName: companies.nomeFantasia,
-          companyRazaoSocial: companies.razaoSocial,
-          companyCnpj: companies.cnpj,
-          companyCity: companies.city,
-          companyState: companies.state,
+          clientId: clients.id,
+          clientName: clients.name,
+          clientCity: clients.city,
+          clientState: clients.state,
           responsibleName: users.name,
           productCount: sql<number>`COUNT(${companyProducts.productId})::int`,
         })
         .from(companyProducts)
-        .innerJoin(companies, eq(companyProducts.companyId, companies.id))
-        .leftJoin(users, eq(companies.responsavelId, users.id))
+        .innerJoin(clients, eq(companyProducts.companyId, clients.id))
+        .leftJoin(users, eq(clients.responsavelId, users.id))
         .where(eq(companyProducts.isActive, "true"))
         .groupBy(
-          companies.id,
-          companies.nomeFantasia,
-          companies.razaoSocial,
-          companies.cnpj,
-          companies.city,
-          companies.state,
+          clients.id,
+          clients.name,
+          clients.city,
+          clients.state,
           users.name
         )
         .orderBy(sql`COUNT(${companyProducts.productId}) DESC`)
         .limit(10);
 
-      // Top products by number of companies
-      const topProductsByCompanies = await this.db
+      // Top products by number of clients
+      const topProductsByClients = await this.db
         .select({
           productId: products.id,
           productName: products.name,
@@ -4565,7 +4561,7 @@ export class DatabaseStorage implements IStorage {
           productVolume: products.volume,
           productType: products.type,
           productPrice: products.negotiatedPrice,
-          companyCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
+          clientCount: sql<number>`COUNT(${companyProducts.companyId})::int`,
         })
         .from(companyProducts)
         .innerJoin(products, eq(companyProducts.productId, products.id))
@@ -4582,8 +4578,8 @@ export class DatabaseStorage implements IStorage {
         .limit(10);
 
       return {
-        topCompaniesByProducts,
-        topProductsByCompanies,
+        topClientsByProducts,
+        topProductsByClients,
       };
     } catch (error) {
       console.error("Error fetching products statistics:", error);

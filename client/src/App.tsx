@@ -48,187 +48,180 @@ function Router() {
 
   return (
     <Switch>
-        <Route path="/" component={Home} />
-        <Route
-          path="/dashboard"
-          component={() => (
-            <MainLayout>
-              <DashboardPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/clientes"
-          component={() => (
-            <MainLayout>
-              <Clients />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/clientes/:id"
-          component={() => (
-            <MainLayout>
-              <ClientProfilePage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/umbler/contacts"
-          component={() => (
-            <MainLayout>
-              <UmblerContactsPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/umbler/campaigns/create"
-          component={() => (
-            <MainLayout>
-              <CreateCampaignPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/umbler/campaigns/:id"
-          component={() => (
-            <MainLayout>
-              <CampaignDetailsPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/umbler/campaigns"
-          component={() => (
-            <MainLayout>
-              <CampaignsDashboardPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/acompanhamento"
-          component={() => (
-            <MainLayout>
-              <Acompanhamento />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/empresas"
-          component={() => (
-            <MainLayout>
-              <Companies />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/funil"
-          component={() => (
-            <MainLayout>
-              <Funnel />
-            </MainLayout>
-          )}
-        />
-
-        <Route
-          path="/relatorios"
-          component={() => (
-            <MainLayout>
-              <Reports />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/calendario"
-          component={() => (
-            <MainLayout>
-              <Calendar />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/metas"
-          component={() => (
-            <MainLayout>
-              <Metas />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/admin-metas"
-          component={() => (
-            <MainLayout>
-              <AdminGoals />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/assistente-ia"
-          component={() => (
-            <MainLayout>
-              <AIAssistant />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/treinamentos"
-          component={() => (
-            <MainLayout>
-              <Trainings />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/products"
-          component={() => (
-            <MainLayout>
-              <Products />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/configuracoes"
-          component={() => (
-            <MainLayout>
-              <Configurations />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/cashback"
-          component={() => (
-            <MainLayout>
-              <Cashback />
-            </MainLayout>
-          )}
-        />
+      <Route path="/" component={Home} />
+      <Route
+        path="/dashboard"
+        component={() => (
+          <MainLayout>
+            <DashboardPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/clientes"
+        component={() => (
+          <MainLayout>
+            <Clients />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/clientes/:id"
+        component={() => (
+          <MainLayout>
+            <ClientProfilePage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/contacts"
+        component={() => (
+          <MainLayout>
+            <UmblerContactsPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/campaigns/create"
+        component={() => (
+          <MainLayout>
+            <CreateCampaignPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/campaigns/:id"
+        component={() => (
+          <MainLayout>
+            <CampaignDetailsPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/umbler/campaigns"
+        component={() => (
+          <MainLayout>
+            <CampaignsDashboardPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/acompanhamento"
+        component={() => (
+          <MainLayout>
+            <Acompanhamento />
+          </MainLayout>
+        )}
+      />
 
       <Route
-          path="/vendas"
-          component={() => (
-            <MainLayout>
-              <BlingSalesPage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/vendedores/:id"
-          component={() => (
-            <MainLayout>
-              <SellerPerformancePage />
-            </MainLayout>
-          )}
-        />
-        <Route
-          path="/clientes/duplicatas"
-          component={() => (
-            <MainLayout>
-              <DuplicatesPage />
-            </MainLayout>
-          )}
-        />
-        <Route component={NotFound} />
-      </Switch>
+        path="/funil"
+        component={() => (
+          <MainLayout>
+            <Funnel />
+          </MainLayout>
+        )}
+      />
+
+      <Route
+        path="/relatorios"
+        component={() => (
+          <MainLayout>
+            <Reports />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/calendario"
+        component={() => (
+          <MainLayout>
+            <Calendar />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/metas"
+        component={() => (
+          <MainLayout>
+            <Metas />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/admin-metas"
+        component={() => (
+          <MainLayout>
+            <AdminGoals />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/assistente-ia"
+        component={() => (
+          <MainLayout>
+            <AIAssistant />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/treinamentos"
+        component={() => (
+          <MainLayout>
+            <Trainings />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/products"
+        component={() => (
+          <MainLayout>
+            <Products />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/configuracoes"
+        component={() => (
+          <MainLayout>
+            <Configurations />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/cashback"
+        component={() => (
+          <MainLayout>
+            <Cashback />
+          </MainLayout>
+        )}
+      />
+
+      <Route
+        path="/vendas"
+        component={() => (
+          <MainLayout>
+            <BlingSalesPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/vendedores/:id"
+        component={() => (
+          <MainLayout>
+            <SellerPerformancePage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/clientes/duplicatas"
+        component={() => (
+          <MainLayout>
+            <DuplicatesPage />
+          </MainLayout>
+        )}
+      />
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
