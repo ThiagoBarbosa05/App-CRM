@@ -1,4 +1,4 @@
-import { Target, BarChart3, TrendingUp, Package, Plus, Pencil, ShoppingBag } from "lucide-react";
+import { Target, BarChart3, Package, Plus, Pencil, ShoppingBag } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -133,14 +133,9 @@ function SalesGoalCard({
   const weeklyResults = goal.weeklyResults || [];
   // Acompanhamento mensal: usar o primeiro (e único) resultado do mês
   const monthlyResult = weeklyResults[0] ?? null;
-  const totalSalesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
   const totalItemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
   const avgTicketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
 
-  const salesPercentage = calculatePercentage(
-    totalSalesAchieved,
-    Number(goal.salesGoal),
-  );
   const ticketPercentage = calculatePercentage(
     avgTicketAchieved,
     Number(goal.averageTicket),
@@ -246,18 +241,6 @@ function SalesGoalCard({
               {!sellerData && <span className="italic">Sem pedidos no período</span>}
             </div>
           </div>
-
-          {/* Sales Progress */}
-          <MetricProgress
-            label="Volume de Vendas"
-            icon={<TrendingUp className="h-3.5 w-3.5" />}
-            achieved={formatCurrency(totalSalesAchieved)}
-            goal={formatCurrency(goal.salesGoal)}
-            percentage={salesPercentage}
-            colorClass="bg-emerald-500"
-            bgClass="bg-emerald-50 dark:bg-emerald-900/20"
-            textClass="text-emerald-600 dark:text-emerald-400"
-          />
 
           {/* Average Ticket Progress */}
           <MetricProgress
