@@ -64,7 +64,6 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import bcrypt from "bcrypt";
 import { Client } from "@replit/object-storage";
 import multer, { MulterError } from "multer";
 import { nanoid } from "nanoid";
@@ -831,57 +830,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files/upload", uploadMiddleware, createFileController);
 
   app.delete("/api/files/:fileId", deleteFileController);
-
-  // Authentication routes
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      console.log("Tentativa de login:", {
-        email,
-        password: password ? "***" : "não fornecida",
-      });
-
-      if (!email || !password) {
-        return res
-          .status(400)
-          .json({ message: "Email e senha são obrigatórios" });
-      }
-
-      const user = await storage.getUserByEmail(email.toLowerCase());
-      console.log("Usuário encontrado:", user ? "Sim" : "Não");
-
-      if (!user) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
-      }
-
-      console.log("Verificando senha...");
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      console.log("Senha válida:", isValidPassword);
-
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Credenciais inválidas" });
-      }
-
-      const userWithoutPassword = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        serviceChannelId: user.serviceChannel?.id,
-      };
-
-      console.log("Login bem-sucedido para:", userWithoutPassword);
-
-      res.json({
-        user: userWithoutPassword,
-        message: "Login realizado com sucesso",
-      });
-    } catch (error) {
-      console.error("Erro no login:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
-    }
-  });
 
   // Rota da página de Acompanhamento
   app.get("/api/acompanhamento", async (req, res) => {
