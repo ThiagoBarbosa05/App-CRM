@@ -160,11 +160,11 @@
 - `/api/umbler/campaigns*`
 - `/api/client/umbler/tag` se permanecer ligado ao mesmo contexto
 
-- [ ] Migrar primeiro os endpoints simples de passthrough.
-- [ ] Depois mover os endpoints que combinam `db` + integracao (`/chats`, `/contacts/create`, `/users/channel` ja tera saido na task anterior).
-- [ ] Preservar aliases de rota (`/channels` e `/whatsapp-api/channels`).
-- [ ] Manter `/:contactId/cashback-field` por ultimo dentro do router para nao capturar rotas fixas.
-- [ ] Substituir imports dinamicos de campanhas por controllers importados estaticamente no router novo, sem mudar comportamento.
+- [x] Migrar primeiro os endpoints simples de passthrough.
+- [x] Depois mover os endpoints que combinam `db` + integracao (`/chats`, `/contacts/create`, `/users/channel` ja tera saido na task anterior).
+- [x] Preservar aliases de rota (`/channels` e `/whatsapp-api/channels`).
+- [x] Manter `/:contactId/cashback-field` por ultimo dentro do router para nao capturar rotas fixas.
+- [x] Substituir imports dinamicos de campanhas por controllers importados estaticamente no router novo, sem mudar comportamento.
 
 **Cobertura minima**
 - busca de canais nas duas URLs
