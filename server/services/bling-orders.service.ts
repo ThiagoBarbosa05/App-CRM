@@ -400,6 +400,25 @@ export class BlingOrdersService {
             cashbackError,
           );
         }
+
+        try {
+          await db
+            .delete(sales)
+            .where(
+              and(
+                eq(sales.clientId, appClientId),
+                eq(sales.invoiceNumber, order.numero.toString()),
+              ),
+            );
+          console.info(
+            `[BlingOrdersService] Venda removida para pedido excluído ${order.numero} (cliente ${appClientId})`,
+          );
+        } catch (saleError) {
+          console.error(
+            "[BlingOrdersService] Erro ao remover venda na exclusão do pedido:",
+            saleError,
+          );
+        }
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -948,7 +967,7 @@ export class BlingOrdersService {
     userId: string;
     blingOrdersDbId: string;
   }): Promise<void> {
-    const { order, blingOrdersDbId } = params;
+    const { action, order, userId, blingOrdersDbId } = params;
 
     // Somente Pessoa Física é elegível para vínculo com cliente do app
     if (order.contato.tipo !== "F") {
@@ -1017,16 +1036,46 @@ export class BlingOrdersService {
       );
     }
 
-    // TODO: cashback desabilitado temporariamente para testes.
-    // Para reativar, descomente o bloco abaixo e restaure `action`/`userId`
-    // no destructuring do params acima.
-    // if (appClient) {
-    //   try {
-    //     await this.processOrderCashback({ action, appClientId: appClient.id, order, userId });
-    //   } catch (error) {
-    //     console.error("[BlingOrdersService] Erro ao processar cashback:", error);
-    //   }
-    // }
+    if (appClient) {
+      let cashbackAmount = "0";
+      try {
+        cashbackAmount = await this.processOrderCashback({
+          action,
+          appClientId: appClient.id,
+          order,
+          userId,
+        });
+      } catch (error) {
+        console.error("[BlingOrdersService] Erro ao processar cashback:", error);
+      }
+
+      try {
+        await this.processOrderSale({
+          action,
+          appClientId: appClient.id,
+          order,
+          userId,
+          cashbackAmount,
+        });
+      } catch (error) {
+        console.error("[BlingOrdersService] Erro ao registrar venda:", error);
+      }
+
+      // TODO: Sincronização do saldo de cashback com campo customizado do Umbler
+      // Desabilitado temporariamente para testes. Para habilitar, descomentar e
+      // buscar o umblerContactId do appClient para chamar createCashback/updateCashback.
+      // if (appClient.umblerContactId && cashbackAmount !== "0") {
+      //   try {
+      //     await updateCashback({
+      //       contactId: appClient.umblerContactId,
+      //       customFieldId: "...",
+      //       value: cashbackAmount,
+      //     });
+      //   } catch (err) {
+      //     console.error("[BlingOrdersService] Erro ao sincronizar cashback no Umbler:", err);
+      //   }
+      // }
+    }
   }
 }
 
