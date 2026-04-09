@@ -216,8 +216,8 @@ function KpiCard({
   const hasHistory = previous > 0 || current > 0;
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardContent className="p-5">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className={`p-2.5 rounded-xl ${iconBg}`}>
             <span className={iconColor}>{icon}</span>
@@ -274,8 +274,8 @@ function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
         : "bg-red-50 dark:bg-red-900/20";
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardContent className="p-5">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className={`p-2.5 rounded-xl ${iconBg}`}>
             <span className={pctColor}>
@@ -414,8 +414,8 @@ function SectionCard({
   count?: number;
 }) {
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${iconBg}`}>{icon}</div>
@@ -474,7 +474,7 @@ function EvolutionTooltip({
   const valueEntry = payload.find((p) => p.name === "totalValue");
   const ordersEntry = payload.find((p) => p.name === "totalOrders");
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg px-3 py-2.5 text-xs">
+    <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-md px-3 py-2.5 text-xs">
       <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">
         {label}
       </p>
@@ -510,8 +510,8 @@ function SalesEvolutionSection({ data }: { data: SalesEvolutionPoint[] }) {
   );
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -656,8 +656,8 @@ function SellerRankingCard({ sellers }: { sellers: SellerRankingRow[] }) {
   const medalColors = ["text-amber-500", "text-slate-400", "text-amber-700"];
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900 md:col-span-2">
-      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 md:col-span-2">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
@@ -757,7 +757,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
 
   if (!goal) {
     return (
-      <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
+      <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
         <CardContent className="py-10 text-center text-sm text-slate-400">
           Nenhuma meta cadastrada para este mês.
         </CardContent>
@@ -790,8 +790,8 @@ function GoalProgressBlock({ userId }: { userId: string }) {
         : "text-red-600 dark:text-red-400";
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
@@ -814,7 +814,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent className="p-6 space-y-6">
         {/* Vendas Reais no Mês */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               Vendas Reais no Mês
@@ -895,7 +895,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           bgClass="bg-purple-50 dark:bg-purple-900/20"
           textClass="text-purple-600 dark:text-purple-400"
         />
-        <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
+        <div className="pt-4 border-t border-gray-200 dark:border-slate-800">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             <span>Resultado do Mês</span>
             <span
@@ -961,14 +961,14 @@ function IndividualSellerView({
       <div className="space-y-6 animate-pulse">
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-3xl" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-48 rounded-3xl" />
-        <Skeleton className="h-56 rounded-3xl" />
+        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-56 rounded-xl" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-72 rounded-3xl" />
+            <Skeleton key={i} className="h-72 rounded-xl" />
           ))}
         </div>
       </div>
@@ -977,7 +977,7 @@ function IndividualSellerView({
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+      <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
         Erro ao carregar dados: {String(error)}
       </div>
     );
@@ -1273,8 +1273,8 @@ function AllSellersGoalProgress({
   }, [goals, topSellers, sellerPortfolioStats]);
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
@@ -1297,7 +1297,7 @@ function AllSellersGoalProgress({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="animate-pulse rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3"
+                className="animate-pulse rounded-xl border border-gray-200 dark:border-slate-800 p-4 space-y-3"
               >
                 <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
                 <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
@@ -1339,7 +1339,7 @@ function AllSellersGoalProgress({
                 return (
                   <div
                     key={goal.id}
-                    className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
+                    className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
                   >
                     {/* Header do card */}
                     <div className="flex items-center justify-between gap-2">
@@ -1479,8 +1479,8 @@ function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
   const sorted = [...stats].sort((a, b) => b.positivacao - a.positivacao);
 
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
-      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
@@ -1514,7 +1514,7 @@ function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
             return (
               <div
                 key={s.userId}
-                className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
+                className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
@@ -1589,15 +1589,15 @@ function AggregateView({
       <div className="space-y-6 animate-pulse">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-3xl" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-56 rounded-3xl" />
-        <Skeleton className="h-72 rounded-3xl" />
-        <Skeleton className="h-56 rounded-3xl" />
+        <Skeleton className="h-56 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-56 rounded-xl" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-72 rounded-3xl" />
+            <Skeleton key={i} className="h-72 rounded-xl" />
           ))}
         </div>
       </div>
@@ -1606,7 +1606,7 @@ function AggregateView({
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+      <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
         Erro ao carregar dados: {String(error)}
       </div>
     );
@@ -1784,14 +1784,17 @@ export default function SellerDashboardPage() {
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Dashboard Vendedor
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Visão geral de performance e carteira de clientes
-          </p>
+      <div className="bg-white dark:bg-slate-950 border-b mb-6 border-gray-200 dark:border-slate-800 px-4 sm:px-6 py-4 rounded-lg shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <TrendingUp className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              Dashboard Vendedor
+            </h2>
+            <p className="text-gray-600 dark:text-slate-400 mt-1">
+              Visão geral de performance e carteira de clientes
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
@@ -1801,7 +1804,7 @@ export default function SellerDashboardPage() {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium h-9 px-3"
+                  className="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                   {dateRange?.from ? (
@@ -1846,7 +1849,7 @@ export default function SellerDashboardPage() {
                 value={selectedSellerId}
                 onValueChange={setSelectedSellerId}
               >
-                <SelectTrigger className="w-52 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium">
+                <SelectTrigger className="w-52 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
                   <SelectValue placeholder="Selecionar vendedor" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
