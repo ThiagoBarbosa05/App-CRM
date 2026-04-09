@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { systemSettings } from "../../shared/schema";
 import { eq } from "drizzle-orm";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO, differenceInCalendarDays, subDays } from "date-fns";
 
 // ─── Tipos de agregação (todos os vendedores) ─────────────────────────────────
 
@@ -114,16 +114,20 @@ const EMPTY_SUMMARY: MonthlySummary = { totalValue: 0, totalOrders: 0, avgTicket
 export async function getSellerDashboard(
   userId: string,
   blingVendedorId: string | null,
+  startDate?: string,
+  endDate?: string,
 ): Promise<SellerDashboardResult> {
   const inactiveDays = await getPurchaseStatusDays();
 
   const now = new Date();
-  const currentStart = format(startOfMonth(now), "yyyy-MM-dd");
-  const currentEnd = format(endOfMonth(now), "yyyy-MM-dd");
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
 
-  const prevMonth = subMonths(now, 1);
-  const prevStart = format(startOfMonth(prevMonth), "yyyy-MM-dd");
-  const prevEnd = format(endOfMonth(prevMonth), "yyyy-MM-dd");
+  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+  const prevEndDate = subDays(parseISO(currentStart), 1);
+  const prevStartDate = subDays(prevEndDate, duration);
+  const prevStart = format(prevStartDate, "yyyy-MM-dd");
+  const prevEnd = format(prevEndDate, "yyyy-MM-dd");
 
   const EMPTY_PORTFOLIO: ClientPortfolioStats = { total: 0, active: 0, inactive: 0, positivacao: 0 };
 
@@ -139,11 +143,11 @@ export async function getSellerDashboard(
     topProducts,
     portfolioStats,
   ] = await Promise.all([
-    fetchTopClientsByTotal(userId, blingVendedorId).catch((e) => {
+    fetchTopClientsByTotal(userId, blingVendedorId, currentStart, currentEnd).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByTotal:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopClientsByAvgTicket(userId, blingVendedorId).catch((e) => {
+    fetchTopClientsByAvgTicket(userId, blingVendedorId, currentStart, currentEnd).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByAvgTicket:", e);
       return [] as TopClientRow[];
     }),
@@ -200,8 +204,10 @@ export async function getSellerDashboard(
 async function fetchTopClientsByTotal(
   userId: string,
   blingVendedorId: string | null,
+  startDate: string,
+  endDate: string,
 ): Promise<TopClientRow[]> {
-  return buildBlingAggQuery(userId, blingVendedorId, "total_value");
+  return buildBlingAggQuery(userId, blingVendedorId, "total_value", startDate, endDate);
 }
 
 // ─── Top Clientes por ticket médio (Bling only) ───────────────────────────────
@@ -209,8 +215,10 @@ async function fetchTopClientsByTotal(
 async function fetchTopClientsByAvgTicket(
   userId: string,
   blingVendedorId: string | null,
+  startDate: string,
+  endDate: string,
 ): Promise<TopClientRow[]> {
-  return buildBlingAggQuery(userId, blingVendedorId, "avg_ticket");
+  return buildBlingAggQuery(userId, blingVendedorId, "avg_ticket", startDate, endDate);
 }
 
 // ─── Query base de agregação Bling only ──────────────────────────────────────
@@ -219,6 +227,8 @@ async function buildBlingAggQuery(
   _userId: string,
   blingVendedorId: string | null,
   sort: "total_value" | "avg_ticket",
+  startDate: string,
+  endDate: string,
 ): Promise<TopClientRow[]> {
   if (!blingVendedorId) return [];
 
@@ -246,6 +256,8 @@ async function buildBlingAggQuery(
     WHERE bo.seller_id = ${blingVendedorId}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
     GROUP BY bo.app_client_id
     ${orderClause}
     LIMIT 10
@@ -451,13 +463,19 @@ async function fetchSalesEvolution(
 
 // ─── Dashboard agregado (todos os vendedores) ────────────────────────────────
 
-export async function getAggregateDashboard(): Promise<AggregateDashboardResult> {
+export async function getAggregateDashboard(
+  startDate?: string,
+  endDate?: string,
+): Promise<AggregateDashboardResult> {
   const now = new Date();
-  const currentStart = format(startOfMonth(now), "yyyy-MM-dd");
-  const currentEnd = format(endOfMonth(now), "yyyy-MM-dd");
-  const prevMonth = subMonths(now, 1);
-  const prevStart = format(startOfMonth(prevMonth), "yyyy-MM-dd");
-  const prevEnd = format(endOfMonth(prevMonth), "yyyy-MM-dd");
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+
+  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+  const prevEndDate = subDays(parseISO(currentStart), 1);
+  const prevStartDate = subDays(prevEndDate, duration);
+  const prevStart = format(prevStartDate, "yyyy-MM-dd");
+  const prevEnd = format(prevEndDate, "yyyy-MM-dd");
 
   const inactiveDays = await getPurchaseStatusDays();
 

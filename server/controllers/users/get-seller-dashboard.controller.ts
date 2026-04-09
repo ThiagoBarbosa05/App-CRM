@@ -26,7 +26,10 @@ export async function getSellerDashboardController(req: Request, res: Response) 
       return res.status(404).json({ success: false, error: "Usuário não encontrado" });
     }
 
-    const data = await getSellerDashboard(user.id, user.blingVendedorId ?? null);
+    const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+
+    const data = await getSellerDashboard(user.id, user.blingVendedorId ?? null, startDate, endDate);
 
     return res.json({ success: true, seller: { id: user.id, name: user.name }, ...data });
   } catch (error) {

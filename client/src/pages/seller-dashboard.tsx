@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
+import { DateRange } from "react-day-picker";
 import {
   AreaChart,
   Area,
@@ -15,6 +16,7 @@ import {
 } from "recharts";
 import {
   BarChart3,
+  CalendarIcon,
   Package,
   ShoppingCart,
   TrendingDown,
@@ -29,6 +31,9 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -825,9 +830,10 @@ function GoalProgressBlock({ userId }: { userId: string }) {
 
 // ─── View de vendedor individual ──────────────────────────────────────────────
 
-function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwnView: boolean }) {
+function IndividualSellerView({ sellerId, isOwnView, startDate, endDate }: { sellerId: string; isOwnView: boolean; startDate: string; endDate: string }) {
+  const queryUrl = `/api/users/${sellerId}/seller-dashboard?startDate=${startDate}&endDate=${endDate}`;
   const { data, isLoading, isError, error } = useQuery<DashboardData>({
-    queryKey: [`/api/users/${sellerId}/seller-dashboard`],
+    queryKey: [queryUrl],
     enabled: !!sellerId,
   });
 
@@ -841,9 +847,6 @@ function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwn
   const salesEvolution = data?.salesEvolution ?? [];
   const topProducts = data?.topProducts ?? [];
   const portfolioStats = data?.portfolioStats ?? { total: 0, active: 0, inactive: 0, positivacao: 0 };
-
-  const now = new Date();
-  const prevMonthName = format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "MMMM", { locale: ptBR });
 
   if (isLoading) {
     return (
@@ -875,7 +878,7 @@ function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwn
         <KpiCard
           label="Total Vendido"
           value={formatCurrency(monthlySummary.totalValue)}
-          subValue={`vs ${prevMonthName}: ${formatCurrency(prevMonthSummary.totalValue)}`}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           iconColor="text-emerald-600 dark:text-emerald-400"
@@ -885,7 +888,7 @@ function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwn
         <KpiCard
           label="Pedidos"
           value={String(monthlySummary.totalOrders)}
-          subValue={`vs ${prevMonthName}: ${prevMonthSummary.totalOrders}`}
+          subValue={`vs período anterior: ${prevMonthSummary.totalOrders}`}
           icon={<ShoppingCart className="h-4 w-4" />}
           iconBg="bg-blue-50 dark:bg-blue-900/20"
           iconColor="text-blue-600 dark:text-blue-400"
@@ -895,7 +898,7 @@ function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwn
         <KpiCard
           label="Ticket Médio"
           value={formatCurrency(monthlySummary.avgTicket)}
-          subValue={`vs ${prevMonthName}: ${formatCurrency(prevMonthSummary.avgTicket)}`}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.avgTicket)}`}
           icon={<BarChart3 className="h-4 w-4" />}
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           iconColor="text-amber-600 dark:text-amber-400"
@@ -905,7 +908,7 @@ function IndividualSellerView({ sellerId, isOwnView }: { sellerId: string; isOwn
         <KpiCard
           label="Clientes Atendidos"
           value={String(monthlySummary.uniqueClients)}
-          subValue={`vs ${prevMonthName}: ${prevMonthSummary.uniqueClients}`}
+          subValue={`vs período anterior: ${prevMonthSummary.uniqueClients}`}
           icon={<Users className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconColor="text-purple-600 dark:text-purple-400"
@@ -1329,9 +1332,10 @@ function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
 
 // ─── View agregada (admin — todos os vendedores) ──────────────────────────────
 
-function AggregateView() {
+function AggregateView({ startDate, endDate }: { startDate: string; endDate: string }) {
+  const queryUrl = `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
   const { data, isLoading, isError, error } = useQuery<AggregateDashboardData>({
-    queryKey: ["/api/users/seller-dashboard/aggregate"],
+    queryKey: [queryUrl],
   });
 
   const monthlySummary = data?.monthlySummary ?? { totalValue: 0, totalOrders: 0, avgTicket: 0, uniqueClients: 0 };
@@ -1341,9 +1345,6 @@ function AggregateView() {
   const topClients = data?.topClients ?? [];
   const sellerRanking = data?.sellerRanking ?? [];
   const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
-
-  const now = new Date();
-  const prevMonthName = format(new Date(now.getFullYear(), now.getMonth() - 1, 1), "MMMM", { locale: ptBR });
 
   if (isLoading) {
     return (
@@ -1376,7 +1377,7 @@ function AggregateView() {
         <KpiCard
           label="Total Vendido"
           value={formatCurrency(monthlySummary.totalValue)}
-          subValue={`vs ${prevMonthName}: ${formatCurrency(prevMonthSummary.totalValue)}`}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           iconColor="text-emerald-600 dark:text-emerald-400"
@@ -1386,7 +1387,7 @@ function AggregateView() {
         <KpiCard
           label="Pedidos"
           value={String(monthlySummary.totalOrders)}
-          subValue={`vs ${prevMonthName}: ${prevMonthSummary.totalOrders}`}
+          subValue={`vs período anterior: ${prevMonthSummary.totalOrders}`}
           icon={<ShoppingCart className="h-4 w-4" />}
           iconBg="bg-blue-50 dark:bg-blue-900/20"
           iconColor="text-blue-600 dark:text-blue-400"
@@ -1396,7 +1397,7 @@ function AggregateView() {
         <KpiCard
           label="Ticket Médio"
           value={formatCurrency(monthlySummary.avgTicket)}
-          subValue={`vs ${prevMonthName}: ${formatCurrency(prevMonthSummary.avgTicket)}`}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.avgTicket)}`}
           icon={<BarChart3 className="h-4 w-4" />}
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           iconColor="text-amber-600 dark:text-amber-400"
@@ -1406,7 +1407,7 @@ function AggregateView() {
         <KpiCard
           label="Clientes Únicos"
           value={String(monthlySummary.uniqueClients)}
-          subValue={`vs ${prevMonthName}: ${prevMonthSummary.uniqueClients}`}
+          subValue={`vs período anterior: ${prevMonthSummary.uniqueClients}`}
           icon={<Users className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconColor="text-purple-600 dark:text-purple-400"
@@ -1468,6 +1469,20 @@ export default function SellerDashboardPage() {
   const isAdmin = user?.role === "admin" || user?.role === "gerente";
 
   const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const now = new Date();
+    return { from: startOfMonth(now), to: endOfMonth(now) };
+  });
+
+  const startDate = useMemo(
+    () => (dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(startOfMonth(new Date()), "yyyy-MM-dd")),
+    [dateRange?.from],
+  );
+  const endDate = useMemo(
+    () => (dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : startDate),
+    [dateRange?.to, startDate],
+  );
 
   // Busca lista de vendedores (apenas para admin/gerente)
   const { data: usersList = [] } = useQuery<UserOption[]>({
@@ -1479,55 +1494,89 @@ export default function SellerDashboardPage() {
         .sort((a, b) => a.name.localeCompare(b.name)),
   });
 
-  const now = new Date();
-  const monthLabel = format(now, "MMMM yyyy", { locale: ptBR }).replace(/^\w/, (c) => c.toUpperCase());
-
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Dashboard Vendedor
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {isAdmin
-              ? `Visão geral de performance — ${monthLabel}`
-              : "Visão geral de performance e carteira de clientes"}
+            Visão geral de performance e carteira de clientes
           </p>
         </div>
 
-        {/* Seletor de vendedor (apenas admin/gerente) */}
-        {isAdmin && (
-          <div className="flex items-center gap-2 shrink-0">
-            <Users className="h-4 w-4 text-slate-400" />
-            <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
-              <SelectTrigger className="w-52 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium">
-                <SelectValue placeholder="Selecionar vendedor" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all" className="font-semibold">
-                  Todos os vendedores
-                </SelectItem>
-                {usersList.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+          {/* Filtro de datas */}
+          <div className="flex flex-col items-start gap-1">
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium h-9 px-3">
+                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <span>{format(dateRange.from, "dd/MM/yy")} — {format(dateRange.to, "dd/MM/yy")}</span>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yy")
+                    )
+                  ) : (
+                    <span>Selecione um período</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    if (range?.from && range?.to) setIsCalendarOpen(false);
+                  }}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-slate-400">Afeta gráficos e métricas do período</p>
           </div>
-        )}
+
+          {/* Seletor de vendedor (apenas admin/gerente) */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-400" />
+              <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                <SelectTrigger className="w-52 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium">
+                  <SelectValue placeholder="Selecionar vendedor" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="font-semibold">
+                    Todos os vendedores
+                  </SelectItem>
+                  {usersList.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Conteúdo principal */}
       {isAdmin ? (
         selectedSellerId === "all" ? (
-          <AggregateView />
+          <AggregateView startDate={startDate} endDate={endDate} />
         ) : (
           <IndividualSellerView
             sellerId={selectedSellerId}
             isOwnView={selectedSellerId === user?.id}
+            startDate={startDate}
+            endDate={endDate}
           />
         )
       ) : (
@@ -1535,6 +1584,8 @@ export default function SellerDashboardPage() {
           <IndividualSellerView
             sellerId={user.id}
             isOwnView={true}
+            startDate={startDate}
+            endDate={endDate}
           />
         )
       )}

@@ -5,9 +5,12 @@ import { getAggregateDashboard } from "../../services/seller-dashboard.service";
  * GET /api/users/seller-dashboard/aggregate
  * Retorna métricas agregadas de todos os vendedores para admin/gerente.
  */
-export async function getAggregateSellerDashboardController(_req: Request, res: Response) {
+export async function getAggregateSellerDashboardController(req: Request, res: Response) {
   try {
-    const data = await getAggregateDashboard();
+    const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+
+    const data = await getAggregateDashboard(startDate, endDate);
     return res.json({ success: true, ...data });
   } catch (error) {
     console.error("[getAggregateSellerDashboardController] Erro:", error);
