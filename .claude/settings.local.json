@@ -10,7 +10,9 @@
       "Bash(printenv)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(ls -la /home/runner/workspace/server/routes*)",
-      "Bash(grep -r \"sales.*sum\\\\|revenue\\\\|total.*value\\\\|aggregat\\\\|metric\\\\|count\\\\|average\" /home/runner/workspace/server/services/*.ts)"
+      "Bash(grep -r \"sales.*sum\\\\|revenue\\\\|total.*value\\\\|aggregat\\\\|metric\\\\|count\\\\|average\" /home/runner/workspace/server/services/*.ts)",
+      "Bash(grep -E \"\\\\.tsx?$\")",
+      "Bash(grep -E \"\\\\.ts$\")"
     ]
   }
 }

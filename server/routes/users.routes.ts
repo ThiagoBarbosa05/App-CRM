@@ -17,6 +17,7 @@ import { getSellerSalesController } from "server/controllers/users/get-seller-sa
 
 import { getChannels } from "../integrations/umbler";
 import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
+import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
 
 
 /**
@@ -358,6 +359,15 @@ usersRouter.get(
   "/:id/seller-sales",
   validateParams(userParamsSchema),
   getSellerSalesController,
+);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate
+ * @description Retorna métricas agregadas de todos os vendedores (admin/gerente)
+ */
+usersRouter.get(
+  "/seller-dashboard/aggregate",
+  getAggregateSellerDashboardController,
 );
 
 /**

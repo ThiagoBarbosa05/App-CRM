@@ -336,11 +336,13 @@ export const unifiedOrdersService = {
 
     const blingFrag = sql`
       SELECT
-        COALESCE(u.id, bo.seller_id) AS seller_id,
-        COALESCE(u.name, bo.seller_name) AS seller_name,
-        bo.total_value::numeric AS v
+        COALESCE(u.id, bo.seller_id)       AS seller_id,
+        COALESCE(u.name, bo.seller_name)   AS seller_name,
+        bo.total_value::numeric            AS v
       FROM bling_orders bo
-      LEFT JOIN users u ON u.bling_vendedor_id = bo.seller_id
+      LEFT JOIN LATERAL (
+        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+      ) u ON true
       WHERE bo.deleted_at IS NULL
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
@@ -369,12 +371,12 @@ export const unifiedOrdersService = {
     const result = await db.execute(sql`
       SELECT
         seller_id,
-        seller_name,
-        COUNT(*) AS total_orders,
-        COALESCE(SUM(v), 0) AS total_value
+        MAX(seller_name)         AS seller_name,
+        COUNT(*)                 AS total_orders,
+        COALESCE(SUM(v), 0)      AS total_value
       FROM (${unionFrag}) _combined
       WHERE seller_id IS NOT NULL
-      GROUP BY seller_id, seller_name
+      GROUP BY seller_id
       ORDER BY SUM(v) DESC
       LIMIT ${limit}
     `);
