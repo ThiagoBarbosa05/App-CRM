@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/clientes", icon: Users, label: "Clientes" },
   { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
-  { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
+  // { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
   // { href: "/empresas", icon: Building2, label: "Empresas" },
   { href: "/products", icon: Wine, label: "Produtos" },
   {

@@ -1,4 +1,4 @@
-import { ShieldCheck, Mail, CreditCard, MapPin } from "lucide-react";
+import { ShieldCheck, Mail, CreditCard, MapPin, Phone } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 interface ReportsDataCoverageProps {
   totalClients: number;
   clientsWithEmail: number;
+  clientsWithPhone: number;
   clientsWithCPF: number;
   clientsWithAddress: number;
 }
@@ -41,18 +42,21 @@ function CoverageItem({
     blue: "bg-blue-500",
     emerald: "bg-emerald-500",
     violet: "bg-violet-500",
+    amber: "bg-amber-500",
   };
 
   const textColorMap: Record<string, string> = {
     blue: "text-blue-700 dark:text-blue-400",
     emerald: "text-emerald-700 dark:text-emerald-400",
     violet: "text-violet-700 dark:text-violet-400",
+    amber: "text-amber-700 dark:text-amber-400",
   };
 
   const bgColorMap: Record<string, string> = {
     blue: "bg-blue-100 dark:bg-blue-900/30",
     emerald: "bg-emerald-100 dark:bg-emerald-900/30",
     violet: "bg-violet-100 dark:bg-violet-900/30",
+    amber: "bg-amber-100 dark:bg-amber-900/30",
   };
 
   return (
@@ -113,6 +117,7 @@ function CoverageItem({
 export function ReportsDataCoverage({
   totalClients,
   clientsWithEmail,
+  clientsWithPhone,
   clientsWithCPF,
   clientsWithAddress,
 }: ReportsDataCoverageProps) {
@@ -145,13 +150,23 @@ export function ReportsDataCoverage({
         />
         <div className="border-t border-slate-50 dark:border-slate-800" />
         <CoverageItem
+          label="Telefone / Celular"
+          description="Para contato direto e WhatsApp"
+          withCount={clientsWithPhone}
+          total={totalClients}
+          icon={<Phone className="h-4 w-4" />}
+          color="amber"
+          delay={0.1}
+        />
+        <div className="border-t border-slate-50 dark:border-slate-800" />
+        <CoverageItem
           label="CPF / Documento"
           description="Para identificação e compliance"
           withCount={clientsWithCPF}
           total={totalClients}
           icon={<CreditCard className="h-4 w-4" />}
           color="emerald"
-          delay={0.1}
+          delay={0.2}
         />
         <div className="border-t border-slate-50 dark:border-slate-800" />
         <CoverageItem
@@ -161,7 +176,7 @@ export function ReportsDataCoverage({
           total={totalClients}
           icon={<MapPin className="h-4 w-4" />}
           color="violet"
-          delay={0.2}
+          delay={0.3}
         />
       </CardContent>
     </Card>

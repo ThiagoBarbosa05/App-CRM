@@ -94,6 +94,7 @@ export default function Reports() {
           <ReportsDataCoverage
             totalClients={clientReports?.totalClients ?? 0}
             clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+            clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
             clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
             clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
           />

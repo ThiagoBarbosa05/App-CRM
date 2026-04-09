@@ -45,6 +45,8 @@ export interface ClientReportsData {
   // Contact information statistics
   clientsWithEmail: number;
   clientsWithoutEmail: number;
+  clientsWithPhone: number;
+  clientsWithoutPhone: number;
   clientsWithCPF: number;
   clientsWithoutCPF: number;
   clientsWithAddress: number;
@@ -78,6 +80,7 @@ export const getClientReportsController = async (
       originStats,
       userStats,
       emailStats,
+      phoneStats,
       cpfStats,
       addressStats,
       birthdayClients,
@@ -130,6 +133,18 @@ export const getClientReportsController = async (
         .where(baseCondition)
         .groupBy(
           sql`CASE WHEN ${clients.email} IS NOT NULL AND ${clients.email} != '' THEN true ELSE false END`
+        ),
+
+      // Phone statistics (celular ou fixo)
+      db
+        .select({
+          hasPhone: sql<boolean>`CASE WHEN (${clients.phone} IS NOT NULL AND ${clients.phone} != '') OR (${clients.fixedPhone} IS NOT NULL AND ${clients.fixedPhone} != '') THEN true ELSE false END`,
+          count: count(),
+        })
+        .from(clients)
+        .where(baseCondition)
+        .groupBy(
+          sql`CASE WHEN (${clients.phone} IS NOT NULL AND ${clients.phone} != '') OR (${clients.fixedPhone} IS NOT NULL AND ${clients.fixedPhone} != '') THEN true ELSE false END`
         ),
 
       // CPF statistics
@@ -202,6 +217,17 @@ export const getClientReportsController = async (
         clientsWithEmail = stat.count;
       } else {
         clientsWithoutEmail = stat.count;
+      }
+    });
+
+    let clientsWithPhone = 0;
+    let clientsWithoutPhone = 0;
+
+    phoneStats.forEach((stat) => {
+      if (stat.hasPhone === true) {
+        clientsWithPhone = stat.count;
+      } else {
+        clientsWithoutPhone = stat.count;
       }
     });
 
@@ -311,6 +337,8 @@ export const getClientReportsController = async (
       upcomingBirthdays,
       clientsWithEmail,
       clientsWithoutEmail,
+      clientsWithPhone,
+      clientsWithoutPhone,
       clientsWithCPF,
       clientsWithoutCPF,
       clientsWithAddress,

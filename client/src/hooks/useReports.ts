@@ -57,6 +57,8 @@ export interface ClientReportsData {
   }>;
   clientsWithEmail: number;
   clientsWithoutEmail: number;
+  clientsWithPhone: number;
+  clientsWithoutPhone: number;
   clientsWithCPF: number;
   clientsWithoutCPF: number;
   clientsWithAddress: number;
