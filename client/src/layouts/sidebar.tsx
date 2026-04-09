@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   BarChart3,
   Building2,
+  Calculator,
   CalendarDays,
   ClipboardList,
   Gift,
@@ -76,6 +77,7 @@ const navItems: NavItem[] = [
     label: "Admin Metas",
     roles: ["admin", "gerente"],
   },
+  { href: "/calculadora-vinho", icon: Calculator, label: "Calculadora de Vinho" },
   { href: "/cashback", icon: Gift, label: "Cashback" },
   {
     href: "/configuracoes",

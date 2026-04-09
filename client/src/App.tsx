@@ -31,6 +31,7 @@ import SellerPerformancePage from "./pages/seller-performance";
 import SellerDashboardPage from "./pages/seller-dashboard";
 import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
+import CalculadoraVinho from "./pages/calculadora-vinho";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -217,6 +218,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <DuplicatesPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/calculadora-vinho"
+        component={() => (
+          <MainLayout>
+            <CalculadoraVinho />
           </MainLayout>
         )}
       />
