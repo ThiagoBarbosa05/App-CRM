@@ -23,6 +23,7 @@ export interface ClientPortfolioStats {
 
 export interface SellerPortfolioStats extends ClientPortfolioStats {
   userId: string;
+  sellerName: string;
 }
 
 export interface AggregateDashboardResult {
@@ -718,11 +719,13 @@ async function fetchAllSellersPortfolioStats(
 
   const result = await db.execute<{
     user_id: string;
+    seller_name: string | null;
     total: unknown;
     active_count: unknown;
   }>(sql`
     SELECT
       c.responsavel_id                                                   AS user_id,
+      u.name                                                             AS seller_name,
       COUNT(*)::int                                                      AS total,
       COUNT(*) FILTER (
         WHERE EXISTS (
@@ -733,8 +736,9 @@ async function fetchAllSellersPortfolioStats(
         )
       )::int                                                             AS active_count
     FROM clients c
+    JOIN users u ON u.id = c.responsavel_id
     WHERE c.responsavel_id IS NOT NULL
-    GROUP BY c.responsavel_id
+    GROUP BY c.responsavel_id, u.name
   `);
 
   return result.rows.map((r) => {
@@ -742,6 +746,6 @@ async function fetchAllSellersPortfolioStats(
     const active = Number(r.active_count ?? 0);
     const inactive = total - active;
     const positivacao = total > 0 ? (active / total) * 100 : 0;
-    return { userId: r.user_id, total, active, inactive, positivacao };
+    return { userId: r.user_id, sellerName: r.seller_name ?? "Desconhecido", total, active, inactive, positivacao };
   });
 }

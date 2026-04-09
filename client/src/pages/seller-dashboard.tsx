@@ -108,6 +108,7 @@ interface ClientPortfolioStats {
 
 interface SellerPortfolioStats extends ClientPortfolioStats {
   userId: string;
+  sellerName: string;
 }
 
 interface DashboardData {
@@ -1253,6 +1254,79 @@ function AllSellersGoalProgress({ sellerPortfolioStats }: { sellerPortfolioStats
   );
 }
 
+// ─── Card de Positivação por Vendedor (admin) ─────────────────────────────────
+
+function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
+  if (!stats.length) return null;
+
+  const sorted = [...stats].sort((a, b) => b.positivacao - a.positivacao);
+
+  return (
+    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl bg-white dark:bg-slate-900">
+      <CardHeader className="pb-3 border-b border-slate-50 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
+              <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Positivação por Vendedor
+            </CardTitle>
+          </div>
+          <Badge variant="secondary" className="text-xs font-bold">{sorted.length} vendedor{sorted.length !== 1 ? "es" : ""}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 pb-4 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sorted.map((s) => {
+            const posColor =
+              s.positivacao >= 70
+                ? "bg-emerald-500"
+                : s.positivacao >= 40
+                  ? "bg-amber-400"
+                  : "bg-red-500";
+            const posTextColor =
+              s.positivacao >= 70
+                ? "text-emerald-600 dark:text-emerald-400"
+                : s.positivacao >= 40
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-red-600 dark:text-red-400";
+
+            return (
+              <div
+                key={s.userId}
+                className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{s.sellerName}</p>
+                  <span className={`text-sm font-black tabular-nums shrink-0 ${posTextColor}`}>
+                    {s.positivacao.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(s.positivacao, 100)}%` }}
+                    transition={{ duration: 0.9, ease: "easeOut" }}
+                    className={`h-full rounded-full ${posColor}`}
+                  />
+                </div>
+
+                <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                  <span>{s.active} ativos</span>
+                  <span>{s.total} clientes na carteira</span>
+                  <span>{s.inactive} inativos</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── View agregada (admin — todos os vendedores) ──────────────────────────────
 
 function AggregateView() {
@@ -1346,6 +1420,9 @@ function AggregateView() {
 
       {/* Metas de todos os vendedores */}
       <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
+
+      {/* Positivação por vendedor */}
+      <SellerPositivacaoCard stats={sellerPortfolioStats} />
 
       {/* Ranking de Vendedores (ocupa 2 colunas) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
