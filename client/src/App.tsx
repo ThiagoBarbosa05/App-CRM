@@ -14,7 +14,6 @@ import Funnel from "@/pages/funnel";
 import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
-import AdminGoals from "@/pages/admin-goals";
 import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
@@ -137,14 +136,6 @@ function Router() {
         component={() => (
           <MainLayout>
             <Metas />
-          </MainLayout>
-        )}
-      />
-      <Route
-        path="/admin-metas"
-        component={() => (
-          <MainLayout>
-            <AdminGoals />
           </MainLayout>
         )}
       />

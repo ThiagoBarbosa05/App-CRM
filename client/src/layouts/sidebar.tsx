@@ -71,12 +71,6 @@ const navItems: NavItem[] = [
   },
   { href: "/assistente-ia", icon: Sparkles, label: "IA Assistente" },
   { href: "/treinamentos", icon: Video, label: "Treinamentos" },
-  {
-    href: "/admin-metas",
-    icon: Shield,
-    label: "Admin Metas",
-    roles: ["admin", "gerente"],
-  },
   { href: "/calculadora-vinho", icon: Calculator, label: "Calculadora de Vinho" },
   { href: "/cashback", icon: Gift, label: "Cashback" },
   {
