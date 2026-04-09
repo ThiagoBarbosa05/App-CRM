@@ -1,4 +1,4 @@
-import { Target, BarChart3, Package, Plus, Pencil, ShoppingBag } from "lucide-react";
+import { Target, BarChart3, Package, Plus, Pencil, ShoppingBag, Edit, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -41,6 +41,8 @@ interface SalesGoalsGridProps {
   ) => number;
   onAddResult?: (goal: UserGoal) => void;
   onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
+  onEdit?: (goal: UserGoal) => void;
+  onDelete?: (goalId: string) => void;
   isAdmin?: boolean;
   topSellersData?: TopSeller[];
 }
@@ -65,6 +67,8 @@ export function SalesGoalsGrid({
   getTotalAchieved,
   onAddResult,
   onEditResult,
+  onEdit,
+  onDelete,
   isAdmin,
   topSellersData = [],
 }: SalesGoalsGridProps) {
@@ -98,6 +102,8 @@ export function SalesGoalsGrid({
           getTotalAchieved={getTotalAchieved}
           onAddResult={onAddResult}
           onEditResult={onEditResult}
+          onEdit={onEdit}
+          onDelete={onDelete}
           isAdmin={isAdmin}
           sellerData={findSellerData(goal.userName, topSellersData)}
         />
@@ -114,6 +120,8 @@ function SalesGoalCard({
   getTotalAchieved,
   onAddResult,
   onEditResult,
+  onEdit,
+  onDelete,
   isAdmin,
   sellerData,
 }: {
@@ -127,23 +135,18 @@ function SalesGoalCard({
   ) => number;
   onAddResult?: (goal: UserGoal) => void;
   onEditResult?: (goal: UserGoal, result: WeeklyResult) => void;
+  onEdit?: (goal: UserGoal) => void;
+  onDelete?: (goalId: string) => void;
   isAdmin?: boolean;
   sellerData?: TopSeller | null;
 }) {
   const weeklyResults = goal.weeklyResults || [];
-  // Acompanhamento mensal: usar o primeiro (e único) resultado do mês
   const monthlyResult = weeklyResults[0] ?? null;
   const totalItemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
   const avgTicketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
 
-  const ticketPercentage = calculatePercentage(
-    avgTicketAchieved,
-    Number(goal.averageTicket),
-  );
-  const itemsPercentage = calculatePercentage(
-    totalItemsAchieved,
-    goal.itemsPerSale,
-  );
+  const ticketPercentage = calculatePercentage(avgTicketAchieved, Number(goal.averageTicket));
+  const itemsPercentage = calculatePercentage(totalItemsAchieved, goal.itemsPerSale);
 
   const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
   const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
@@ -167,12 +170,35 @@ function SalesGoalCard({
                 {goal.userEmail}
               </CardDescription>
             </div>
-            <Badge
-              variant="secondary"
-              className={`border-none px-2 py-0.5 h-6 text-xs font-bold whitespace-nowrap ${monthlyResult ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}
-            >
-              {monthlyResult ? "✓ REGISTRADO" : "PENDENTE"}
-            </Badge>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge
+                variant="secondary"
+                className={`border-none px-2 py-0.5 h-6 text-xs font-bold whitespace-nowrap ${monthlyResult ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"}`}
+              >
+                {monthlyResult ? "✓ REGISTRADO" : "PENDENTE"}
+              </Badge>
+              {/* Ações admin: editar e excluir meta */}
+              {isAdmin && onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(goal)}
+                  className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                >
+                  <Edit className="h-3.5 w-3.5 text-blue-500" />
+                </Button>
+              )}
+              {isAdmin && onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(goal.id)}
+                  className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -242,7 +268,7 @@ function SalesGoalCard({
             </div>
           </div>
 
-          {/* Average Ticket Progress */}
+          {/* Ticket Médio */}
           <MetricProgress
             label="Ticket Médio"
             icon={<BarChart3 className="h-3.5 w-3.5" />}
@@ -254,7 +280,7 @@ function SalesGoalCard({
             textClass="text-blue-600 dark:text-blue-400"
           />
 
-          {/* Items Per Sale Progress */}
+          {/* Itens por Venda */}
           <MetricProgress
             label="Itens por Venda"
             icon={<Package className="h-3.5 w-3.5" />}
@@ -266,7 +292,7 @@ function SalesGoalCard({
             textClass="text-purple-600 dark:text-purple-400"
           />
 
-          {/* Status Mensal + Ações */}
+          {/* Resultado do Mês — admin */}
           {isAdmin && (
             <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
               <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
