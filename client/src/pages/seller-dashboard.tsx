@@ -143,6 +143,8 @@ interface DashboardData {
   salesEvolution: SalesEvolutionPoint[];
   topProducts: TopProductRow[];
   portfolioStats: ClientPortfolioStats;
+  winePriceTier: SellerWinePriceTierRow | null;
+  winePriceTierThresholds: WinePriceTierThresholds;
 }
 
 interface SellerWinePriceTierRow {
@@ -1014,6 +1016,11 @@ export function IndividualSellerView({
     inactive: 0,
     positivacao: 0,
   };
+  const winePriceTier = data?.winePriceTier ?? null;
+  const winePriceTierThresholds = data?.winePriceTierThresholds ?? {
+    lowThreshold: 50,
+    midThreshold: 150,
+  };
 
   if (isLoading) {
     return (
@@ -1168,6 +1175,16 @@ export function IndividualSellerView({
 
       {/* Gráfico de Evolução */}
       <SalesEvolutionSection data={salesEvolution} />
+
+      {/* Perfil de Vendas por Faixa de Preço */}
+      {winePriceTier && (
+        <WinePriceTierTable
+          rows={[winePriceTier]}
+          thresholds={winePriceTierThresholds}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      )}
 
       {/* Grid 2 colunas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

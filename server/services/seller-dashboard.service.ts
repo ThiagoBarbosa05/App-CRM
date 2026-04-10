@@ -113,6 +113,8 @@ export interface SellerDashboardResult {
   salesEvolution: SalesEvolutionPoint[];
   topProducts: TopProductRow[];
   portfolioStats: ClientPortfolioStats;
+  winePriceTier: SellerWinePriceTierRow | null;
+  winePriceTierThresholds: WinePriceTierThresholds;
 }
 
 async function getPurchaseStatusDays(): Promise<number> {
@@ -146,7 +148,10 @@ export async function getSellerDashboard(
   startDate?: string,
   endDate?: string,
 ): Promise<SellerDashboardResult> {
-  const inactiveDays = await getPurchaseStatusDays();
+  const [inactiveDays, winePriceTierThresholds] = await Promise.all([
+    getPurchaseStatusDays(),
+    getWinePriceTiers(),
+  ]);
 
   const now = new Date();
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
@@ -171,6 +176,7 @@ export async function getSellerDashboard(
     salesEvolution,
     topProducts,
     portfolioStats,
+    winePriceTier,
   ] = await Promise.all([
     fetchTopClientsByTotal(userId, blingVendedorId, currentStart, currentEnd).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByTotal:", e);
@@ -212,6 +218,18 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchClientPortfolioStats:", e);
       return EMPTY_PORTFOLIO;
     }),
+    blingVendedorId
+      ? fetchSingleSellerWinePriceTier(
+          blingVendedorId,
+          currentStart,
+          currentEnd,
+          winePriceTierThresholds.lowThreshold,
+          winePriceTierThresholds.midThreshold,
+        ).catch((e) => {
+          console.error("[seller-dashboard] fetchSingleSellerWinePriceTier:", e);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
 
   return {
@@ -225,6 +243,8 @@ export async function getSellerDashboard(
     salesEvolution,
     topProducts,
     portfolioStats,
+    winePriceTier,
+    winePriceTierThresholds,
   };
 }
 
@@ -683,6 +703,76 @@ async function fetchSellerRanking(startDate: string, endDate: string): Promise<S
     totalValue: parseFloat(r.total_value ?? "0"),
     avgTicket: parseFloat(r.avg_ticket ?? "0"),
   }));
+}
+
+async function fetchSingleSellerWinePriceTier(
+  blingVendedorId: string,
+  startDate: string,
+  endDate: string,
+  lowThreshold: number,
+  midThreshold: number,
+): Promise<SellerWinePriceTierRow | null> {
+  const result = await db.execute<{
+    seller_id: string | null;
+    seller_name: string | null;
+    economico_value: string | null;
+    economico_qty: string | null;
+    intermediario_value: string | null;
+    intermediario_qty: string | null;
+    premium_value: string | null;
+    premium_qty: string | null;
+    total_value: string | null;
+  }>(sql`
+    SELECT
+      bo.seller_id                                                                                                                                                       AS seller_id,
+      MAX(COALESCE(u.name, bo.seller_name))                                                                                                                             AS seller_name,
+      COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text                                AS economico_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                                                     AS economico_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text AS intermediario_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text            AS intermediario_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text                                AS premium_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                                                     AS premium_qty,
+      COALESCE(SUM(boi.value::numeric * boi.quantity::numeric), 0)::text                                                                                               AS total_value
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN LATERAL (
+      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+    ) u ON true
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND bo.seller_id = ${blingVendedorId}
+    GROUP BY bo.seller_id
+  `);
+
+  const r = result.rows[0];
+  if (!r) return null;
+
+  const economicoValue = parseFloat(r.economico_value ?? "0");
+  const intermediarioValue = parseFloat(r.intermediario_value ?? "0");
+  const premiumValue = parseFloat(r.premium_value ?? "0");
+  const totalValue = parseFloat(r.total_value ?? "0");
+  const safeTotal = totalValue > 0 ? totalValue : 1;
+
+  return {
+    sellerId: r.seller_id ?? "",
+    sellerName: r.seller_name ?? "Desconhecido",
+    economico: {
+      totalValue: economicoValue,
+      percentage: Math.round((economicoValue / safeTotal) * 100),
+      quantity: parseFloat(r.economico_qty ?? "0"),
+    },
+    intermediario: {
+      totalValue: intermediarioValue,
+      percentage: Math.round((intermediarioValue / safeTotal) * 100),
+      quantity: parseFloat(r.intermediario_qty ?? "0"),
+    },
+    premium: {
+      totalValue: premiumValue,
+      percentage: Math.round((premiumValue / safeTotal) * 100),
+      quantity: parseFloat(r.premium_qty ?? "0"),
+    },
+  };
 }
 
 async function fetchSellerWinePriceTierStats(
