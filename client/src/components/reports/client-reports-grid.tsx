@@ -149,6 +149,7 @@ interface PieCardProps {
 }
 
 function PieCard({ title, description, items, icon, colorStart }: PieCardProps) {
+  const [open, setOpen] = useState(false);
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const total = sorted.reduce((sum, item) => sum + item.count, 0);
   const data = sorted.map((item, i) => ({
@@ -163,88 +164,78 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="h-full border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
-        <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800/50">
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+        <CardHeader
+          className="pb-3 pt-3 px-4 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+          onClick={() => setOpen((v) => !v)}
+        >
           <div className="flex items-center gap-3">
-            <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5 text-slate-600 dark:text-slate-300">
+            <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2 text-slate-600 dark:text-slate-300 shrink-0">
               {icon}
             </div>
-            <div>
-              <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
                 {title}
               </CardTitle>
-              <CardDescription className="text-slate-500 dark:text-slate-400">
+              <CardDescription className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {description}
               </CardDescription>
             </div>
+            <ChevronDown
+              className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            />
           </div>
         </CardHeader>
-        <CardContent className="p-4">
-          {data.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-sm text-slate-400 italic">
-                Nenhum dado disponível
-              </p>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              {/* Lista de itens — lado esquerdo */}
-              <div className="flex-1 space-y-1.5 min-w-0">
-                {data.map((entry) => {
-                  const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0";
-                  return (
-                    <div key={entry.name} className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="shrink-0 w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: entry.color }}
+        {open && (
+          <CardContent className="p-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+            {data.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-sm text-slate-400 italic">Nenhum dado disponível</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  {data.map((entry) => {
+                    const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0";
+                    return (
+                      <div key={entry.name} className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                        <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1">{entry.name}</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+                          {entry.value} <span className="text-slate-400">({pct}%)</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="shrink-0 w-[150px] h-[150px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={data} cx="50%" cy="50%" innerRadius={38} outerRadius={68} paddingAngle={3} dataKey="value">
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const entry = payload[0];
+                          const pct = total > 0 ? (((entry.value as number) / total) * 100).toFixed(1) : "0";
+                          return (
+                            <div style={{ borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", padding: "6px 10px", fontSize: 11 }}>
+                              <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
+                              <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
+                            </div>
+                          );
+                        }}
                       />
-                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1">
-                        {entry.name}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-                        {entry.value} <span className="text-slate-400">({pct}%)</span>
-                      </span>
-                    </div>
-                  );
-                })}
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-
-              {/* Gráfico de pizza — lado direito */}
-              <div className="shrink-0 w-[160px] h-[160px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={data}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={42}
-                      outerRadius={72}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const entry = payload[0];
-                        const pct = total > 0 ? (((entry.value as number) / total) * 100).toFixed(1) : "0";
-                        return (
-                          <div style={{ borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", padding: "6px 10px", fontSize: 11 }}>
-                            <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
-                            <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
-                          </div>
-                        );
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-        </CardContent>
+            )}
+          </CardContent>
+        )}
       </Card>
     </motion.div>
   );
