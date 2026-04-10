@@ -32,9 +32,6 @@ import {
   type ClientInteractionWithUser,
   type Sector,
   type InsertSector,
-  type WeeklyResult,
-  type EmailCampaign,
-  type UserGoal,
   type TelemarketingGoal,
   type InsertTelemarketingGoal,
   type TelemarketingWeeklyResult,
@@ -191,7 +188,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(
     id: string,
-    client: Partial<InsertClient>
+    client: Partial<InsertClient>,
   ): Promise<Client | undefined>;
   deleteClient(id: string): Promise<boolean>;
   deleteClients(ids: string[]): Promise<number>;
@@ -203,7 +200,7 @@ export interface IStorage {
     userRole?: string,
     filters?: CompanyFilters,
     page?: number,
-    pageSize?: number
+    pageSize?: number,
   ): Promise<{ data: Company[]; total: number }>;
   getCompany(id: string): Promise<Company | undefined>;
   getCompanyByCnpj(cnpj: string): Promise<Company | undefined>;
@@ -211,7 +208,7 @@ export interface IStorage {
   createCompany(company: InsertCompany): Promise<Company>;
   updateCompany(
     id: string,
-    company: Partial<InsertCompany>
+    company: Partial<InsertCompany>,
   ): Promise<Company | undefined>;
   deleteCompany(id: string): Promise<boolean>;
   deleteCompanies(ids: string[]): Promise<number>;
@@ -222,7 +219,7 @@ export interface IStorage {
   createSector(sector: InsertSector): Promise<Sector>;
   updateSector(
     id: string,
-    sector: Partial<InsertSector>
+    sector: Partial<InsertSector>,
   ): Promise<Sector | undefined>;
   deleteSector(id: string): Promise<boolean>;
 
@@ -232,7 +229,7 @@ export interface IStorage {
   createSalesFunnel(funnel: InsertSalesFunnel): Promise<SalesFunnel>;
   updateSalesFunnel(
     id: string,
-    funnel: Partial<InsertSalesFunnel>
+    funnel: Partial<InsertSalesFunnel>,
   ): Promise<SalesFunnel | undefined>;
   deleteSalesFunnel(id: string): Promise<boolean>;
 
@@ -242,23 +239,23 @@ export interface IStorage {
   createFunnelStage(stage: InsertFunnelStage): Promise<FunnelStage>;
   updateFunnelStage(
     id: string,
-    stage: Partial<InsertFunnelStage>
+    stage: Partial<InsertFunnelStage>,
   ): Promise<FunnelStage | undefined>;
   deleteFunnelStage(id: string): Promise<boolean>;
   reorderFunnelStages(
-    stageUpdates: { id: string; order: number }[]
+    stageUpdates: { id: string; order: number }[],
   ): Promise<boolean>;
 
   // Deals
   getDeals(
     funnelId?: string,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<Deal[]>;
   getDealsWithClients(
     funnelId?: string,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<DealWithClient[]>;
   getDeal(id: string): Promise<Deal | undefined>;
   createDeal(deal: InsertDeal): Promise<Deal>;
@@ -269,11 +266,11 @@ export interface IStorage {
   getBirthdayReminders(): Promise<BirthdayReminderWithClient[]>;
   getBirthdayRemindersForToday(): Promise<BirthdayReminderWithClient[]>;
   createBirthdayReminder(
-    reminder: InsertBirthdayReminder
+    reminder: InsertBirthdayReminder,
   ): Promise<BirthdayReminder>;
   updateBirthdayReminder(
     id: string,
-    reminder: Partial<InsertBirthdayReminder>
+    reminder: Partial<InsertBirthdayReminder>,
   ): Promise<BirthdayReminder | undefined>;
   deleteBirthdayReminder(id: string): Promise<boolean>;
   markReminderAsSent(id: string): Promise<boolean>;
@@ -281,7 +278,7 @@ export interface IStorage {
   // Birthday Reminder Settings methods
   getBirthdayReminderSettings(): Promise<BirthdayReminderSettings | undefined>;
   updateBirthdayReminderSettings(
-    settings: Partial<InsertBirthdayReminderSettings>
+    settings: Partial<InsertBirthdayReminderSettings>,
   ): Promise<BirthdayReminderSettings | undefined>;
 
   // Birthday utility methods
@@ -301,11 +298,11 @@ export interface IStorage {
   getClientInteractions(clientId: string): Promise<ClientInteractionWithUser[]>;
   getClientInteraction(id: string): Promise<ClientInteraction | undefined>;
   createClientInteraction(
-    interaction: InsertClientInteraction
+    interaction: InsertClientInteraction,
   ): Promise<ClientInteraction>;
   updateClientInteraction(
     id: string,
-    interaction: Partial<InsertClientInteraction>
+    interaction: Partial<InsertClientInteraction>,
   ): Promise<ClientInteraction | undefined>;
   deleteClientInteraction(id: string): Promise<boolean>;
 
@@ -316,7 +313,7 @@ export interface IStorage {
   updateEmailCampaign(id: string, campaign: any): Promise<any | undefined>;
   deleteEmailCampaign(id: string): Promise<boolean>;
   sendEmailCampaign(
-    id: string
+    id: string,
   ): Promise<{ success: boolean; sentCount: number; errors: string[] }>;
 
   // User Goals methods
@@ -335,7 +332,7 @@ export interface IStorage {
   getUserGoalByUserIdMonthYear(
     userId: string,
     month: number,
-    year: number
+    year: number,
   ): Promise<any | null>;
   getWeeklyResult(goalId: string, week: number): Promise<any | null>;
   getAllWeeklyResults(): Promise<any[]>;
@@ -347,7 +344,7 @@ export interface IStorage {
   createLearningImage(image: InsertLearningImage): Promise<LearningImage>;
   updateLearningImage(
     id: string,
-    image: Partial<InsertLearningImage>
+    image: Partial<InsertLearningImage>,
   ): Promise<LearningImage | undefined>;
   deleteLearningImage(id: string): Promise<boolean>;
 
@@ -355,38 +352,38 @@ export interface IStorage {
   getCashbackSettings(): Promise<CashbackSetting[]>;
   getCashbackSetting(id: string): Promise<CashbackSetting | undefined>;
   createCashbackSetting(
-    insertSetting: InsertCashbackSetting
+    insertSetting: InsertCashbackSetting,
   ): Promise<CashbackSetting>;
   updateCashbackSetting(
     id: string,
-    updateData: Partial<InsertCashbackSetting>
+    updateData: Partial<InsertCashbackSetting>,
   ): Promise<CashbackSetting | undefined>;
   deleteCashbackSetting(id: string): Promise<boolean>;
 
   // Cashback Transactions methods
   getCashbackTransactions(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<CashbackTransactionWithClient[]>;
   createCashbackTransaction(
-    insertTransaction: InsertCashbackTransaction
+    insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction>;
   updateCashbackTransaction(
     id: string,
-    updateData: Partial<InsertCashbackTransaction>
+    updateData: Partial<InsertCashbackTransaction>,
   ): Promise<CashbackTransaction | undefined>;
 
   // Client Cashback Balance methods
   getClientCashbackBalance(
-    clientId: string
+    clientId: string,
   ): Promise<ClientCashbackBalance | undefined>;
   getAllClientCashbackBalances(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientCashbackBalanceWithClient[]>;
   getAllCashbackBalances(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientCashbackBalanceWithClient[]>;
   updateClientCashbackBalance(clientId: string): Promise<void>;
   deleteCashbackBalance(balanceId: string): Promise<boolean>;
@@ -396,7 +393,7 @@ export interface IStorage {
   getClientCashbackUsage(clientId: string): Promise<CashbackUsage[]>;
   getAllCashbackUsage(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<CashbackUsage[]>;
 
   // Method to calculate cashback based on active rules
@@ -414,61 +411,61 @@ export interface IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<any[]>;
   createTelemarketingGoal(
-    insertGoal: InsertTelemarketingGoal
+    insertGoal: InsertTelemarketingGoal,
   ): Promise<TelemarketingGoal>;
   updateTelemarketingGoal(
     id: string,
-    updateData: Partial<InsertTelemarketingGoal>
+    updateData: Partial<InsertTelemarketingGoal>,
   ): Promise<TelemarketingGoal | undefined>;
   deleteTelemarketingGoal(id: string): Promise<boolean>;
   getTelemarketingStats(month: number, year: number): Promise<any[]>;
 
   // Telemarketing Weekly Results methods
   getTelemarketingWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<TelemarketingWeeklyResult[]>;
   createTelemarketingWeeklyResult(
-    result: InsertTelemarketingWeeklyResult
+    result: InsertTelemarketingWeeklyResult,
   ): Promise<TelemarketingWeeklyResult>;
   updateTelemarketingWeeklyResult(
     id: string,
-    result: Partial<InsertTelemarketingWeeklyResult>
+    result: Partial<InsertTelemarketingWeeklyResult>,
   ): Promise<TelemarketingWeeklyResult | undefined>;
 
   // Client Registration Goals methods
   getClientRegistrationGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]>;
   getClientRegistrationGoalsByMonthYear(
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]>;
   createClientRegistrationGoal(
-    insertGoal: InsertClientRegistrationGoal
+    insertGoal: InsertClientRegistrationGoal,
   ): Promise<ClientRegistrationGoal>;
   updateClientRegistrationGoal(
     id: string,
-    updateData: Partial<InsertClientRegistrationGoal>
+    updateData: Partial<InsertClientRegistrationGoal>,
   ): Promise<ClientRegistrationGoal | undefined>;
   deleteClientRegistrationGoal(id: string): Promise<boolean>;
   getClientRegistrationStats(month: number, year: number): Promise<any[]>;
 
   // Client Registration Weekly Results methods
   getClientRegistrationWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<ClientRegistrationWeeklyResult[]>;
   createClientRegistrationWeeklyResult(
-    result: InsertClientRegistrationWeeklyResult
+    result: InsertClientRegistrationWeeklyResult,
   ): Promise<ClientRegistrationWeeklyResult>;
   updateClientRegistrationWeeklyResult(
     id: string,
-    result: Partial<InsertClientRegistrationWeeklyResult>
+    result: Partial<InsertClientRegistrationWeeklyResult>,
   ): Promise<ClientRegistrationWeeklyResult | undefined>;
 
   // Marker Goals methods
@@ -477,17 +474,17 @@ export interface IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<MarkerGoal[]>;
   createMarkerGoal(data: InsertMarkerGoal): Promise<MarkerGoal>;
   updateMarkerGoal(
     id: string,
-    data: Partial<InsertMarkerGoal>
+    data: Partial<InsertMarkerGoal>,
   ): Promise<MarkerGoal>;
   deleteMarkerGoal(id: string): Promise<boolean>;
   getMarkerStatsByPeriod(
     month: number,
-    year: number
+    year: number,
   ): Promise<
     {
       markerName: string;
@@ -502,7 +499,7 @@ export interface IStorage {
   getClientsWithoutRecentContact(
     userId?: string,
     userRole?: string,
-    daysThreshold?: number
+    daysThreshold?: number,
   ): Promise<any[]>;
 
   // Client Debts methods
@@ -510,7 +507,7 @@ export interface IStorage {
   createClientDebt(insertDebt: InsertClientDebt): Promise<ClientDebt>;
   updateClientDebt(
     id: string,
-    updates: Partial<InsertClientDebt>
+    updates: Partial<InsertClientDebt>,
   ): Promise<ClientDebt | null>;
   deleteClientDebt(id: string): Promise<void>;
 
@@ -520,7 +517,7 @@ export interface IStorage {
   // Client Funnels methods
   getClientFunnels(clientId: string): Promise<SalesFunnel[]>;
   getCompanyInteractions(
-    companyId: string
+    companyId: string,
   ): Promise<ClientInteractionWithUser[]>;
   getCompanyFunnels(companyId: string): Promise<SalesFunnel[]>;
 
@@ -541,7 +538,7 @@ export interface IStorage {
   getProducts(
     filters?: ProductFilters,
     page?: number,
-    pageSize?: number
+    pageSize?: number,
   ): Promise<{ data: any[]; total: number }>;
   createProduct(productData: any);
   updateProduct(id: string, productData: any);
@@ -559,7 +556,7 @@ export interface IStorage {
   updateCompanyProductPrice(
     companyId: string,
     productId: string,
-    customPrice: string
+    customPrice: string,
   ): Promise<CompanyProduct | null>;
 
   // Events methods
@@ -570,18 +567,18 @@ export interface IStorage {
   updateExpiredEvents(): Promise<number>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
   addEventParticipant(
-    participantData: InsertEventParticipant
+    participantData: InsertEventParticipant,
   ): Promise<EventParticipant>;
   updateEventParticipant(
     participantId: string,
-    participantData: Partial<InsertEventParticipant>
+    participantData: Partial<InsertEventParticipant>,
   ): Promise<EventParticipant>;
   removeEventParticipant(participantId: string): Promise<boolean>;
 
   // Event Attachments methods
   getEventAttachments(eventId: string): Promise<EventAttachment[]>;
   addEventAttachment(
-    attachmentData: InsertEventAttachment
+    attachmentData: InsertEventAttachment,
   ): Promise<EventAttachment>;
   deleteEventAttachment(attachmentId: string): Promise<boolean>;
   deleteEventAttachmentsByEventId(eventId: string): Promise<boolean>;
@@ -613,7 +610,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
       .leftJoin(
         serviceChannels,
-        eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        eq(userServiceChannel.serviceChannelId, serviceChannels.id),
       )
       .orderBy(users.createdAt);
 
@@ -647,7 +644,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
       .leftJoin(
         serviceChannels,
-        eq(userServiceChannel.serviceChannelId, serviceChannels.id)
+        eq(userServiceChannel.serviceChannelId, serviceChannels.id),
       );
 
     return user || undefined;
@@ -666,7 +663,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(
     id: string,
-    updateData: Partial<InsertUser>
+    updateData: Partial<InsertUser>,
   ): Promise<User | undefined> {
     // Hash password if provided
     if (updateData.password) {
@@ -694,7 +691,7 @@ export class DatabaseStorage implements IStorage {
     userRole?: string,
     filters: ClientFilters = {},
     page: number = 1,
-    pageSize: number = 100
+    pageSize: number = 100,
   ): Promise<Client[]> {
     let query = this.db.select().from(clients);
     const conditions: any[] = [];
@@ -713,7 +710,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(
         sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
           "%" + normalizedPhone + "%"
-        }`
+        }`,
       );
     }
     if (filters.cpf) {
@@ -740,8 +737,8 @@ export class DatabaseStorage implements IStorage {
           ilike(clients.name, searchTerm),
           ilike(clients.email, searchTerm),
           ilike(clients.phone, searchTerm),
-          ilike(clients.cpf, searchTerm)
-        )
+          ilike(clients.cpf, searchTerm),
+        ),
       );
     }
 
@@ -779,7 +776,8 @@ export class DatabaseStorage implements IStorage {
     if (!client) return undefined;
     // Enriquecer com lastPurchaseDate
     const safeId = id.replace(/'/g, "");
-    const purchaseResult = await this.db.execute(sql.raw(`
+    const purchaseResult = await this.db.execute(
+      sql.raw(`
       SELECT MAX(sale_date)::text AS last_purchase_date
       FROM (
         SELECT sale_date::text AS sale_date FROM bling_orders
@@ -788,8 +786,10 @@ export class DatabaseStorage implements IStorage {
         SELECT to_char(sale_date, 'YYYY-MM-DD') AS sale_date FROM connect_orders
         WHERE app_client_id = '${safeId}'
       ) AS purchases
-    `));
-    const lastPurchaseDate = (purchaseResult.rows[0] as any)?.last_purchase_date ?? null;
+    `),
+    );
+    const lastPurchaseDate =
+      (purchaseResult.rows[0] as any)?.last_purchase_date ?? null;
     return { ...client, lastPurchaseDate } as any;
   }
 
@@ -822,7 +822,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClient(
     id: string,
-    updateData: Partial<InsertClient>
+    updateData: Partial<InsertClient>,
   ): Promise<Client | undefined> {
     const [client] = await this.db
       .update(clients)
@@ -869,7 +869,6 @@ export class DatabaseStorage implements IStorage {
 
     // Excluir vendas do cliente
     await this.db.delete(sales).where(eq(sales.clientId, id));
-
 
     // Excluir logs de jobs de mensagem do cliente
     await this.db
@@ -921,7 +920,6 @@ export class DatabaseStorage implements IStorage {
     // Excluir vendas dos clientes
     await this.db.delete(sales).where(inArray(sales.clientId, ids));
 
-
     // Excluir logs de jobs de mensagem dos clientes
     await this.db
       .delete(messageJobsLogs)
@@ -956,7 +954,7 @@ export class DatabaseStorage implements IStorage {
     userRole?: string,
     filters: CompanyFilters = {},
     page: number = 1,
-    pageSize: number = 20
+    pageSize: number = 20,
   ): Promise<{ data: Company[]; total: number }> {
     try {
       let query = this.db.select().from(companies);
@@ -968,12 +966,12 @@ export class DatabaseStorage implements IStorage {
 
       if (filters.nomeFantasia) {
         conditions.push(
-          ilike(companies.nomeFantasia, `%${filters.nomeFantasia}%`)
+          ilike(companies.nomeFantasia, `%${filters.nomeFantasia}%`),
         );
       }
       if (filters.razaoSocial) {
         conditions.push(
-          ilike(companies.razaoSocial, `%${filters.razaoSocial}%`)
+          ilike(companies.razaoSocial, `%${filters.razaoSocial}%`),
         );
       }
       if (filters.cnpj) {
@@ -985,7 +983,9 @@ export class DatabaseStorage implements IStorage {
 
       if (filters.marker) {
         const markerValue = filters.marker.replace(/'/g, "''");
-        conditions.push(sql`${companies.markers} @> ARRAY[${sql.raw(`'${markerValue}'`)}]::text[]`);
+        conditions.push(
+          sql`${companies.markers} @> ARRAY[${sql.raw(`'${markerValue}'`)}]::text[]`,
+        );
       }
 
       if (filters.search) {
@@ -994,8 +994,8 @@ export class DatabaseStorage implements IStorage {
           or(
             ilike(companies.nomeFantasia, searchTerm),
             ilike(companies.razaoSocial, searchTerm),
-            ilike(companies.cnpj, searchTerm)
-          )
+            ilike(companies.cnpj, searchTerm),
+          ),
         );
       }
 
@@ -1003,10 +1003,8 @@ export class DatabaseStorage implements IStorage {
         query = query.where(and(...conditions)) as typeof query;
       }
 
-      let totalQuery = this.db
-        .select({ count: count() })
-        .from(companies);
-      
+      let totalQuery = this.db.select({ count: count() }).from(companies);
+
       if (conditions.length > 0) {
         totalQuery = totalQuery.where(and(...conditions)) as typeof totalQuery;
       }
@@ -1070,7 +1068,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateCompany(
     id: string,
-    updateData: Partial<InsertCompany>
+    updateData: Partial<InsertCompany>,
   ): Promise<Company | undefined> {
     // Handle empty string conversion to null for foreign keys
     const processedData = {
@@ -1102,48 +1100,67 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCompany(id: string): Promise<boolean> {
     try {
-      console.log('[DELETE COMPANY] Iniciando exclusão da empresa:', id);
-      
+      console.log("[DELETE COMPANY] Iniciando exclusão da empresa:", id);
+
       // Primeiro, deletar deals associados
-      const dealsDeleted = await this.db.delete(deals).where(eq(deals.companyId, id));
-      console.log('[DELETE COMPANY] Deals deletados:', dealsDeleted.rowCount);
-      
+      const dealsDeleted = await this.db
+        .delete(deals)
+        .where(eq(deals.companyId, id));
+      console.log("[DELETE COMPANY] Deals deletados:", dealsDeleted.rowCount);
+
       // Deletar interações associadas
-      const interactionsDeleted = await this.db.delete(clientInteractions).where(eq(clientInteractions.companyId, id));
-      console.log('[DELETE COMPANY] Interações deletadas:', interactionsDeleted.rowCount);
-      
+      const interactionsDeleted = await this.db
+        .delete(clientInteractions)
+        .where(eq(clientInteractions.companyId, id));
+      console.log(
+        "[DELETE COMPANY] Interações deletadas:",
+        interactionsDeleted.rowCount,
+      );
+
       // Agora deletar a empresa
-      const result = await this.db.delete(companies).where(eq(companies.id, id));
-      console.log('[DELETE COMPANY] Empresa deletada. RowCount:', result.rowCount);
-      
+      const result = await this.db
+        .delete(companies)
+        .where(eq(companies.id, id));
+      console.log(
+        "[DELETE COMPANY] Empresa deletada. RowCount:",
+        result.rowCount,
+      );
+
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
-      console.error('[DELETE COMPANY] Erro ao deletar empresa:', error);
+      console.error("[DELETE COMPANY] Erro ao deletar empresa:", error);
       throw error;
     }
   }
 
   async deleteCompanies(ids: string[]): Promise<number> {
     try {
-      console.log('[DELETE COMPANIES] Iniciando exclusão de empresas:', ids);
-      
+      console.log("[DELETE COMPANIES] Iniciando exclusão de empresas:", ids);
+
       // Primeiro, deletar deals associados
-      const dealsDeleted = await this.db.delete(deals).where(inArray(deals.companyId, ids));
-      console.log('[DELETE COMPANIES] Deals deletados:', dealsDeleted.rowCount);
-      
+      const dealsDeleted = await this.db
+        .delete(deals)
+        .where(inArray(deals.companyId, ids));
+      console.log("[DELETE COMPANIES] Deals deletados:", dealsDeleted.rowCount);
+
       // Deletar interações associadas
-      const interactionsDeleted = await this.db.delete(clientInteractions).where(inArray(clientInteractions.companyId, ids));
-      console.log('[DELETE COMPANIES] Interações deletadas:', interactionsDeleted.rowCount);
-      
+      const interactionsDeleted = await this.db
+        .delete(clientInteractions)
+        .where(inArray(clientInteractions.companyId, ids));
+      console.log(
+        "[DELETE COMPANIES] Interações deletadas:",
+        interactionsDeleted.rowCount,
+      );
+
       // Agora deletar as empresas
       const result = await this.db
         .delete(companies)
         .where(inArray(companies.id, ids));
-      console.log('[DELETE COMPANIES] Empresas deletadas:', result.rowCount);
-      
+      console.log("[DELETE COMPANIES] Empresas deletadas:", result.rowCount);
+
       return result.rowCount || 0;
     } catch (error) {
-      console.error('[DELETE COMPANIES] Erro ao deletar empresas:', error);
+      console.error("[DELETE COMPANIES] Erro ao deletar empresas:", error);
       throw error;
     }
   }
@@ -1151,7 +1168,7 @@ export class DatabaseStorage implements IStorage {
   async getProducts(
     filters: ProductFilters = {},
     page: number = 1,
-    pageSize: number = 20
+    pageSize: number = 20,
   ): Promise<{ data: any[]; total: number }> {
     try {
       let query = this.db
@@ -1232,7 +1249,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateSector(
     id: string,
-    updateData: Partial<InsertSector>
+    updateData: Partial<InsertSector>,
   ): Promise<Sector | undefined> {
     const [sector] = await this.db
       .update(sectors)
@@ -1305,7 +1322,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSalesFunnel(
-    insertFunnel: InsertSalesFunnel
+    insertFunnel: InsertSalesFunnel,
   ): Promise<SalesFunnel> {
     const [funnel] = await this.db
       .insert(salesFunnels)
@@ -1316,7 +1333,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateSalesFunnel(
     id: string,
-    updateData: Partial<InsertSalesFunnel>
+    updateData: Partial<InsertSalesFunnel>,
   ): Promise<SalesFunnel | undefined> {
     const [funnel] = await this.db
       .update(salesFunnels)
@@ -1355,7 +1372,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFunnelStage(
-    insertStage: InsertFunnelStage
+    insertStage: InsertFunnelStage,
   ): Promise<FunnelStage> {
     const [stage] = await this.db
       .insert(funnelStages)
@@ -1366,7 +1383,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateFunnelStage(
     id: string,
-    updateData: Partial<InsertFunnelStage>
+    updateData: Partial<InsertFunnelStage>,
   ): Promise<FunnelStage | undefined> {
     const [stage] = await this.db
       .update(funnelStages)
@@ -1395,8 +1412,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(funnelStages.funnelId, stageToDelete.funnelId),
-            ne(funnelStages.id, id) // Diferente da etapa sendo excluída
-          )
+            ne(funnelStages.id, id), // Diferente da etapa sendo excluída
+          ),
         )
         .orderBy(funnelStages.order)
         .limit(1);
@@ -1426,10 +1443,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async reorderFunnelStages(
-    stageUpdates: { id: string; order: number }[]
+    stageUpdates: { id: string; order: number }[],
   ): Promise<boolean>;
   async reorderFunnelStages(
-    stageUpdates: { id: string; order: number }[]
+    stageUpdates: { id: string; order: number }[],
   ): Promise<boolean> {
     try {
       await this.db.transaction(async (tx) => {
@@ -1451,7 +1468,7 @@ export class DatabaseStorage implements IStorage {
   async getDeals(
     funnelId?: string,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<Deal[]> {
     let query = this.db.select().from(deals);
 
@@ -1471,7 +1488,7 @@ export class DatabaseStorage implements IStorage {
   async getDealsWithClients(
     funnelId?: string,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<DealWithClient[]> {
     // Usar uma única query com JOINs para otimizar performance
     let query = this.db
@@ -1534,7 +1551,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(
         "Storage: Criando deal com dados:",
-        JSON.stringify(insertDeal, null, 2)
+        JSON.stringify(insertDeal, null, 2),
       );
       const [deal] = await this.db.insert(deals).values(insertDeal).returning();
       console.log("Storage: Deal criado com sucesso:", deal.id);
@@ -1547,7 +1564,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateDeal(
     id: string,
-    updateData: Partial<InsertDeal>
+    updateData: Partial<InsertDeal>,
   ): Promise<Deal | undefined> {
     const [deal] = await this.db
       .update(deals)
@@ -1606,8 +1623,8 @@ export class DatabaseStorage implements IStorage {
         and(
           gte(birthdayReminders.reminderDate, today),
           lt(birthdayReminders.reminderDate, tomorrow),
-          eq(birthdayReminders.isSent, "false")
-        )
+          eq(birthdayReminders.isSent, "false"),
+        ),
       );
 
     const remindersWithClients: BirthdayReminderWithClient[] = [];
@@ -1635,7 +1652,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBirthdayReminder(
-    insertReminder: InsertBirthdayReminder
+    insertReminder: InsertBirthdayReminder,
   ): Promise<BirthdayReminder> {
     const [reminder] = await this.db
       .insert(birthdayReminders)
@@ -1646,7 +1663,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateBirthdayReminder(
     id: string,
-    updateData: Partial<InsertBirthdayReminder>
+    updateData: Partial<InsertBirthdayReminder>,
   ): Promise<BirthdayReminder | undefined> {
     const [reminder] = await this.db
       .update(birthdayReminders)
@@ -1688,7 +1705,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBirthdayReminderSettings(
-    updateData: Partial<InsertBirthdayReminderSettings>
+    updateData: Partial<InsertBirthdayReminderSettings>,
   ): Promise<BirthdayReminderSettings | undefined> {
     const existingSettings = await this.getBirthdayReminderSettings();
 
@@ -1711,7 +1728,7 @@ export class DatabaseStorage implements IStorage {
   // Birthday utility methods
   async getUpcomingBirthdays(
     days: number = 7,
-    responsibleId?: string
+    responsibleId?: string,
   ): Promise<any[]> {
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -1742,8 +1759,8 @@ export class DatabaseStorage implements IStorage {
             OR
             (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
              CAST(SPLIT_PART(${clients.birthday}, '/', 3) AS INTEGER) <= ${minBirthYear})
-          )`
-        )
+          )`,
+        ),
       );
 
     // Se responsibleId for fornecido, filtrar por ele
@@ -1759,8 +1776,8 @@ export class DatabaseStorage implements IStorage {
             (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
              CAST(SPLIT_PART(${clients.birthday}, '/', 3) AS INTEGER) <= ${minBirthYear})
           )`,
-          eq(clients.responsavelId, responsibleId)
-        )
+          eq(clients.responsavelId, responsibleId),
+        ),
       );
     }
 
@@ -1771,7 +1788,7 @@ export class DatabaseStorage implements IStorage {
         responsibleId
           ? "clientes do responsável " + responsibleId
           : "todos os clientes"
-      } com data de aniversário válida (idade >= 18 anos): ${allClients.length} encontrados.`
+      } com data de aniversário válida (idade >= 18 anos): ${allClients.length} encontrados.`,
     );
 
     for (const client of allClients) {
@@ -1788,18 +1805,18 @@ export class DatabaseStorage implements IStorage {
           birthday = new Date(
             parseInt(year),
             parseInt(month) - 1,
-            parseInt(day)
+            parseInt(day),
           );
         } else {
           console.log(
-            `Formato de data inválido para cliente ${client.name}: ${client.birthday}`
+            `Formato de data inválido para cliente ${client.name}: ${client.birthday}`,
           );
           continue;
         }
 
         if (isNaN(birthday.getTime())) {
           console.log(
-            `Data inválida para cliente ${client.name}: ${client.birthday}`
+            `Data inválida para cliente ${client.name}: ${client.birthday}`,
           );
           continue;
         }
@@ -1807,7 +1824,7 @@ export class DatabaseStorage implements IStorage {
         const thisYearBirthday = new Date(
           today.getFullYear(),
           birthday.getMonth(),
-          birthday.getDate()
+          birthday.getDate(),
         );
 
         // Se o aniversário já passou este ano, considere o do próximo ano
@@ -1820,7 +1837,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     return upcomingClients.sort(
-      (a, b) => a.nextBirthday.getTime() - b.nextBirthday.getTime()
+      (a, b) => a.nextBirthday.getTime() - b.nextBirthday.getTime(),
     );
   }
 
@@ -1832,7 +1849,7 @@ export class DatabaseStorage implements IStorage {
       const minBirthYear = currentYear - 18; // Idade mínima de 18 anos
 
       console.log(
-        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (idade mínima: 18 anos, nascidos até ${minBirthYear})`
+        `[Storage] Buscando clientes aniversariantes para ${targetDay}/${targetMonth} (idade mínima: 18 anos, nascidos até ${minBirthYear})`,
       );
 
       // Buscar clientes cujo aniversário é na data alvo (considerando apenas mês e dia)
@@ -1862,19 +1879,19 @@ export class DatabaseStorage implements IStorage {
               (${clients.birthday} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}' AND
                CAST(SPLIT_PART(${clients.birthday}, '/', 2) AS INTEGER) = ${targetMonth} AND
                CAST(SPLIT_PART(${clients.birthday}, '/', 1) AS INTEGER) = ${targetDay})
-            )`
-          )
+            )`,
+          ),
         );
 
       console.log(
-        `[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) válido(s) para ${targetDay}/${targetMonth} (idade >= 18 anos)`
+        `[Storage] Encontrados ${birthdayClients.length} cliente(s) aniversariante(s) válido(s) para ${targetDay}/${targetMonth} (idade >= 18 anos)`,
       );
 
       return birthdayClients;
     } catch (error) {
       console.error(
         "[Storage] Erro ao buscar clientes aniversariantes:",
-        error
+        error,
       );
       return [];
     }
@@ -1887,7 +1904,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const upcomingClients = await this.getUpcomingBirthdays(
-      settings.defaultDaysBeforeBirthday
+      settings.defaultDaysBeforeBirthday,
     );
     let remindersCreated = 0;
 
@@ -1899,7 +1916,7 @@ export class DatabaseStorage implements IStorage {
       const thisYearBirthday = new Date(
         today.getFullYear(),
         birthday.getMonth(),
-        birthday.getDate()
+        birthday.getDate(),
       );
 
       if (thisYearBirthday < today) {
@@ -1908,7 +1925,7 @@ export class DatabaseStorage implements IStorage {
 
       const reminderDate = new Date(thisYearBirthday);
       reminderDate.setDate(
-        reminderDate.getDate() - settings.defaultDaysBeforeBirthday
+        reminderDate.getDate() - settings.defaultDaysBeforeBirthday,
       );
 
       // Verificar se já existe um lembrete para este cliente nesta data
@@ -1921,9 +1938,9 @@ export class DatabaseStorage implements IStorage {
             gte(birthdayReminders.reminderDate, reminderDate),
             lt(
               birthdayReminders.reminderDate,
-              new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000)
-            )
-          )
+              new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000),
+            ),
+          ),
         )
         .limit(1);
 
@@ -1982,12 +1999,7 @@ export class DatabaseStorage implements IStorage {
     const [marker] = await this.db
       .select()
       .from(tags)
-      .where(
-        and(
-          eq(tags.type, "marcador"),
-          ilike(tags.name, `%${pattern}%`)
-        )
-      )
+      .where(and(eq(tags.type, "marcador"), ilike(tags.name, `%${pattern}%`)))
       .limit(1);
     return marker || undefined;
   }
@@ -1999,7 +2011,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTag(
     id: string,
-    updateData: Partial<InsertTag>
+    updateData: Partial<InsertTag>,
   ): Promise<Tag | undefined> {
     try {
       const [tag] = await this.db
@@ -2021,10 +2033,10 @@ export class DatabaseStorage implements IStorage {
 
   // Client Interactions methods
   async getClientInteractions(
-    clientId: string
+    clientId: string,
   ): Promise<ClientInteractionWithUser[]>;
   async getClientInteractions(
-    clientId: string
+    clientId: string,
   ): Promise<ClientInteractionWithUser[]> {
     const interactions = await this.db
       .select({
@@ -2062,7 +2074,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClientInteraction(
-    id: string
+    id: string,
   ): Promise<ClientInteraction | undefined> {
     const [interaction] = await this.db
       .select()
@@ -2072,7 +2084,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClientInteraction(
-    insertInteraction: InsertClientInteraction
+    insertInteraction: InsertClientInteraction,
   ): Promise<ClientInteraction> {
     // Convert date string to Date object if needed
     const processedData = {
@@ -2098,7 +2110,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientInteraction(
     id: string,
-    updateData: Partial<InsertClientInteraction>
+    updateData: Partial<InsertClientInteraction>,
   ): Promise<ClientInteraction | undefined> {
     // Convert date string to Date object if needed
     const processedData = {
@@ -2195,7 +2207,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateEmailCampaign(
     id: string,
-    updateData: any
+    updateData: any,
   ): Promise<any | undefined> {
     const [campaign] = await this.db
       .update(emailCampaigns)
@@ -2213,7 +2225,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async sendEmailCampaign(
-    id: string
+    id: string,
   ): Promise<{ success: boolean; sentCount: number; errors: string[] }> {
     // Simula o envio de email (sem SendGrid)
     const campaign = await this.getEmailCampaign(id);
@@ -2232,23 +2244,23 @@ export class DatabaseStorage implements IStorage {
       recipients = await this.getClients();
     } else if (campaign.targetType === "category" && campaign.targetCriteria) {
       recipients = (await this.getClients()).filter(
-        (c) => c.categoria === campaign.targetCriteria
+        (c) => c.categoria === campaign.targetCriteria,
       );
     } else if (campaign.targetType === "origin" && campaign.targetCriteria) {
       recipients = (await this.getClients()).filter(
-        (c) => c.origem === campaign.targetCriteria
+        (c) => c.origem === campaign.targetCriteria,
       );
     } else if (campaign.targetType === "markers" && campaign.targetCriteria) {
       recipients = (await this.getClients()).filter(
         (c) =>
           c.markers &&
-          c.markers.some((m) => m.includes(campaign.targetCriteria))
+          c.markers.some((m) => m.includes(campaign.targetCriteria)),
       );
     }
 
     // Filtrar apenas clientes com email
     const recipientsWithEmail = recipients.filter(
-      (c) => c.email && c.email.trim() !== ""
+      (c) => c.email && c.email.trim() !== "",
     );
     const sentCount = recipientsWithEmail.length;
 
@@ -2326,7 +2338,7 @@ export class DatabaseStorage implements IStorage {
   async getUserGoalByUserIdMonthYear(
     userId: string,
     month: number,
-    year: number
+    year: number,
   ): Promise<any | null> {
     const [result] = await this.db
       .select()
@@ -2335,8 +2347,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(userGoals.userId, userId),
           eq(userGoals.month, month),
-          eq(userGoals.year, year)
-        )
+          eq(userGoals.year, year),
+        ),
       );
 
     return result || null;
@@ -2392,7 +2404,7 @@ export class DatabaseStorage implements IStorage {
           ...goal,
           weeklyResults: weeklyResultsData,
         };
-      })
+      }),
     );
 
     return goalsWithResults;
@@ -2434,7 +2446,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(weeklyResults)
       .where(
-        and(eq(weeklyResults.goalId, goalId), eq(weeklyResults.week, week))
+        and(eq(weeklyResults.goalId, goalId), eq(weeklyResults.week, week)),
       );
 
     return result || null;
@@ -2479,7 +2491,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLearningImage(
-    insertImage: InsertLearningImage
+    insertImage: InsertLearningImage,
   ): Promise<LearningImage> {
     const [image] = await this.db
       .insert(learningImages)
@@ -2490,7 +2502,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateLearningImage(
     id: string,
-    updateData: Partial<InsertLearningImage>
+    updateData: Partial<InsertLearningImage>,
   ): Promise<LearningImage | undefined> {
     const [image] = await this.db
       .update(learningImages)
@@ -2527,7 +2539,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCashbackSetting(
-    insertSetting: InsertCashbackSetting
+    insertSetting: InsertCashbackSetting,
   ): Promise<CashbackSetting> {
     const [setting] = await this.db
       .insert(cashbackSettings)
@@ -2538,7 +2550,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateCashbackSetting(
     id: string,
-    updateData: Partial<InsertCashbackSetting>
+    updateData: Partial<InsertCashbackSetting>,
   ): Promise<CashbackSetting | undefined> {
     const [setting] = await this.db
       .update(cashbackSettings)
@@ -2559,11 +2571,11 @@ export class DatabaseStorage implements IStorage {
   // Cashback Transactions methods
   async getCashbackTransactions(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<CashbackTransactionWithClient[]>;
   async getCashbackTransactions(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<CashbackTransactionWithClient[]> {
     // Sempre fazer join com clientes para mostrar o nome e responsável
     let baseQuery = this.db
@@ -2599,7 +2611,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const rawTransactions = await baseQuery.orderBy(
-      cashbackTransactions.createdAt
+      cashbackTransactions.createdAt,
     );
 
     // Transformar os dados para o formato esperado
@@ -2636,7 +2648,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCashbackTransaction(
-    insertTransaction: InsertCashbackTransaction
+    insertTransaction: InsertCashbackTransaction,
   ): Promise<CashbackTransaction> {
     // Se não foi fornecida data de validade, calcular baseado na configuração da regra
     if (!insertTransaction.expiresAt) {
@@ -2672,7 +2684,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateCashbackTransaction(
     id: string,
-    updateData: Partial<InsertCashbackTransaction>
+    updateData: Partial<InsertCashbackTransaction>,
   ): Promise<CashbackTransaction | undefined> {
     const [transaction] = await this.db
       .update(cashbackTransactions)
@@ -2690,7 +2702,7 @@ export class DatabaseStorage implements IStorage {
 
   // Client Cashback Balance methods
   async getClientCashbackBalance(
-    clientId: string
+    clientId: string,
   ): Promise<ClientCashbackBalance | undefined> {
     const [balance] = await this.db
       .select()
@@ -2701,7 +2713,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllClientCashbackBalances(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientCashbackBalanceWithClient[]> {
     let balancesQuery = this.db
       .select({
@@ -2743,12 +2755,12 @@ export class DatabaseStorage implements IStorage {
     // Se for vendedor, filtrar apenas saldos de clientes sob sua responsabilidade
     if (userRole === "vendedor" && userId) {
       balancesQuery = balancesQuery.where(
-        eq(clients.responsavelId, userId)
+        eq(clients.responsavelId, userId),
       ) as typeof balancesQuery;
     }
 
     const balances = await balancesQuery.orderBy(
-      clientCashbackBalance.currentBalance
+      clientCashbackBalance.currentBalance,
     );
 
     // Para cada saldo, buscar informações das transações de cashback
@@ -2761,8 +2773,8 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(cashbackTransactions.clientId, balance.clientId),
-              eq(cashbackTransactions.status, "approved")
-            )
+              eq(cashbackTransactions.status, "approved"),
+            ),
           )
           .orderBy(cashbackTransactions.createdAt)
           .limit(1);
@@ -2775,8 +2787,8 @@ export class DatabaseStorage implements IStorage {
             and(
               eq(cashbackTransactions.clientId, balance.clientId),
               eq(cashbackTransactions.status, "approved"),
-              gt(cashbackTransactions.expiresAt, new Date())
-            )
+              gt(cashbackTransactions.expiresAt, new Date()),
+            ),
           )
           .orderBy(cashbackTransactions.expiresAt)
           .limit(1);
@@ -2793,7 +2805,7 @@ export class DatabaseStorage implements IStorage {
           firstCashbackDate: firstTransaction?.createdAt || null,
           nextExpiryDate: nextExpiring?.expiresAt || null,
         };
-      })
+      }),
     );
 
     return balancesWithDates;
@@ -2809,13 +2821,13 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(cashbackTransactions.clientId, clientId),
-          eq(cashbackTransactions.status, "approved")
-        )
+          eq(cashbackTransactions.status, "approved"),
+        ),
       );
 
     const totalEarned = allEarnedTransactions.reduce(
       (sum, transaction) => sum + Number(transaction.cashbackAmount),
-      0
+      0,
     );
 
     // Calcular total ganho válido (apenas cashbacks não expirados)
@@ -2826,13 +2838,13 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(cashbackTransactions.clientId, clientId),
           eq(cashbackTransactions.status, "approved"),
-          gt(cashbackTransactions.expiresAt, now) // Apenas não expirados
-        )
+          gt(cashbackTransactions.expiresAt, now), // Apenas não expirados
+        ),
       );
 
     const totalValidEarned = validEarnedTransactions.reduce(
       (sum, transaction) => sum + Number(transaction.cashbackAmount),
-      0
+      0,
     );
 
     // Calcular total usado
@@ -2843,7 +2855,7 @@ export class DatabaseStorage implements IStorage {
 
     const totalUsed = usageTransactions.reduce(
       (sum, usage) => sum + Number(usage.usedAmount),
-      0
+      0,
     );
 
     // Saldo atual = cashback válido - total usado
@@ -2875,7 +2887,7 @@ export class DatabaseStorage implements IStorage {
   async updateCompanyProductPrice(
     companyId: string,
     productId: string,
-    customPrice: string
+    customPrice: string,
   ): Promise<CompanyProduct | null> {
     try {
       const [updated] = await this.db
@@ -2887,8 +2899,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(companyProducts.companyId, companyId),
-            eq(companyProducts.productId, productId)
-          )
+            eq(companyProducts.productId, productId),
+          ),
         )
         .returning();
 
@@ -2901,7 +2913,7 @@ export class DatabaseStorage implements IStorage {
 
   // Cashback Usage methods
   async createCashbackUsage(
-    insertUsage: InsertCashbackUsage
+    insertUsage: InsertCashbackUsage,
   ): Promise<CashbackUsage> {
     const [usage] = await this.db
       .insert(cashbackUsage)
@@ -2925,7 +2937,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllCashbackBalances(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientCashbackBalanceWithClient[]> {
     return this.getAllClientCashbackBalances(userId, userRole);
   }
@@ -2968,7 +2980,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllCashbackUsage(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<CashbackUsage[]> {
     // Sempre fazer join com clientes para mostrar o nome
     let usageQuery = this.db
@@ -3012,9 +3024,9 @@ export class DatabaseStorage implements IStorage {
           eq(cashbackSettings.isActive, "true"),
           or(
             isNull(cashbackSettings.validUntil),
-            gte(cashbackSettings.validUntil, new Date())
-          )
-        )
+            gte(cashbackSettings.validUntil, new Date()),
+          ),
+        ),
       )
       .orderBy(sql`${cashbackSettings.percentageRate} DESC`);
 
@@ -3053,7 +3065,7 @@ export class DatabaseStorage implements IStorage {
         userName: users.name,
         userEmail: users.email,
         registrationCount: sql<number>`count(${clients.id})`.as(
-          "registrationCount"
+          "registrationCount",
         ),
       })
       .from(clients)
@@ -3068,7 +3080,7 @@ export class DatabaseStorage implements IStorage {
   // Telemarketing Goals methods
   async getTelemarketingGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<any[]> {
     let query = this.db
       .select({
@@ -3089,7 +3101,7 @@ export class DatabaseStorage implements IStorage {
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
       query = query.where(
-        eq(telemarketingGoals.userId, userId)
+        eq(telemarketingGoals.userId, userId),
       ) as typeof query;
     }
 
@@ -3101,7 +3113,7 @@ export class DatabaseStorage implements IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<any[]> {
     let query = this.db
       .select({
@@ -3122,14 +3134,14 @@ export class DatabaseStorage implements IStorage {
     // Aplicar filtros
     let whereConditions = and(
       eq(telemarketingGoals.month, month),
-      eq(telemarketingGoals.year, year)
+      eq(telemarketingGoals.year, year),
     );
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
       whereConditions = and(
         whereConditions,
-        eq(telemarketingGoals.userId, userId)
+        eq(telemarketingGoals.userId, userId),
       );
     }
 
@@ -3140,7 +3152,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTelemarketingGoal(
-    insertGoal: InsertTelemarketingGoal
+    insertGoal: InsertTelemarketingGoal,
   ): Promise<TelemarketingGoal> {
     const [goal] = await this.db
       .insert(telemarketingGoals)
@@ -3151,7 +3163,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTelemarketingGoal(
     id: string,
-    updateData: Partial<InsertTelemarketingGoal>
+    updateData: Partial<InsertTelemarketingGoal>,
   ): Promise<TelemarketingGoal | undefined> {
     const [goal] = await this.db
       .update(telemarketingGoals)
@@ -3170,10 +3182,10 @@ export class DatabaseStorage implements IStorage {
 
   // Telemarketing Weekly Results methods
   async getTelemarketingWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<TelemarketingWeeklyResult[]>;
   async getTelemarketingWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<TelemarketingWeeklyResult[]> {
     return await this.db
       .select()
@@ -3183,7 +3195,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTelemarketingWeeklyResult(
-    insertResult: InsertTelemarketingWeeklyResult
+    insertResult: InsertTelemarketingWeeklyResult,
   ): Promise<TelemarketingWeeklyResult> {
     const [result] = await this.db
       .insert(telemarketingWeeklyResults)
@@ -3194,7 +3206,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTelemarketingWeeklyResult(
     id: string,
-    updateData: Partial<InsertTelemarketingWeeklyResult>
+    updateData: Partial<InsertTelemarketingWeeklyResult>,
   ): Promise<TelemarketingWeeklyResult | undefined> {
     const [result] = await this.db
       .update(telemarketingWeeklyResults)
@@ -3214,7 +3226,7 @@ export class DatabaseStorage implements IStorage {
   // Telemarketing Statistics methods
   async getTelemarketingStatsByPeriod(
     month: number,
-    year: number
+    year: number,
   ): Promise<any[]> {
     // Buscar todas as interações de telemarketing no período especificado
     const startDate = new Date(year, month - 1, 1);
@@ -3235,14 +3247,14 @@ export class DatabaseStorage implements IStorage {
           eq(clientInteractions.type, "telemarketing"),
           gte(clientInteractions.date, startDate),
           lte(clientInteractions.date, endDate),
-          isNotNull(clientInteractions.callResult)
-        )
+          isNotNull(clientInteractions.callResult),
+        ),
       )
       .groupBy(
         clientInteractions.userId,
         users.name,
         users.email,
-        clientInteractions.callResult
+        clientInteractions.callResult,
       );
 
     // Agrupar por usuário e somar os resultados
@@ -3282,11 +3294,11 @@ export class DatabaseStorage implements IStorage {
   // Client Registration Goals methods
   async getClientRegistrationGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]>;
   async getClientRegistrationGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]> {
     let query = this.db.select().from(clientRegistrationGoals);
 
@@ -3301,13 +3313,13 @@ export class DatabaseStorage implements IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]>;
   async getClientRegistrationGoalsByMonthYear(
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<ClientRegistrationGoal[]> {
     let query = this.db
       .select()
@@ -3315,8 +3327,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(clientRegistrationGoals.month, month),
-          eq(clientRegistrationGoals.year, year)
-        )
+          eq(clientRegistrationGoals.year, year),
+        ),
       );
 
     // Vendedores só veem suas próprias metas
@@ -3328,7 +3340,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClientRegistrationGoal(
-    insertGoal: InsertClientRegistrationGoal
+    insertGoal: InsertClientRegistrationGoal,
   ): Promise<ClientRegistrationGoal> {
     const [goal] = await this.db
       .insert(clientRegistrationGoals)
@@ -3339,7 +3351,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientRegistrationGoal(
     id: string,
-    updateData: Partial<InsertClientRegistrationGoal>
+    updateData: Partial<InsertClientRegistrationGoal>,
   ): Promise<ClientRegistrationGoal | undefined> {
     const [goal] = await this.db
       .update(clientRegistrationGoals)
@@ -3359,7 +3371,7 @@ export class DatabaseStorage implements IStorage {
   // Client Registration Statistics methods
   async getClientRegistrationStatsByPeriod(
     month: number,
-    year: number
+    year: number,
   ): Promise<any[]> {
     // Buscar todos os clientes cadastrados no período especificado
     const startDate = new Date(year, month - 1, 1);
@@ -3378,8 +3390,8 @@ export class DatabaseStorage implements IStorage {
         and(
           gte(clients.createdAt, startDate),
           lt(clients.createdAt, endDate),
-          isNotNull(clients.responsavelId)
-        )
+          isNotNull(clients.responsavelId),
+        ),
       )
       .groupBy(clients.responsavelId, users.name, users.email);
 
@@ -3408,17 +3420,17 @@ export class DatabaseStorage implements IStorage {
 
   async getClientRegistrationStats(
     month: number,
-    year: number
+    year: number,
   ): Promise<any[]> {
     return this.getClientRegistrationStatsByPeriod(month, year);
   }
 
   // Client Registration Weekly Results methods
   async getClientRegistrationWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<ClientRegistrationWeeklyResult[]>;
   async getClientRegistrationWeeklyResults(
-    goalId: string
+    goalId: string,
   ): Promise<ClientRegistrationWeeklyResult[]> {
     const results = await this.db
       .select()
@@ -3429,7 +3441,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createClientRegistrationWeeklyResult(
-    result: InsertClientRegistrationWeeklyResult
+    result: InsertClientRegistrationWeeklyResult,
   ): Promise<ClientRegistrationWeeklyResult> {
     const [newResult] = await this.db
       .insert(clientRegistrationWeeklyResults)
@@ -3440,7 +3452,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientRegistrationWeeklyResult(
     id: string,
-    result: Partial<InsertClientRegistrationWeeklyResult>
+    result: Partial<InsertClientRegistrationWeeklyResult>,
   ): Promise<ClientRegistrationWeeklyResult | undefined> {
     const [updatedResult] = await this.db
       .update(clientRegistrationWeeklyResults)
@@ -3452,7 +3464,7 @@ export class DatabaseStorage implements IStorage {
 
   // Telemarketing Weekly Results methods
   async createTelemarketingWeeklyResult(
-    result: InsertTelemarketingWeeklyResult
+    result: InsertTelemarketingWeeklyResult,
   ): Promise<TelemarketingWeeklyResult> {
     const [newResult] = await this.db
       .insert(telemarketingWeeklyResults)
@@ -3463,7 +3475,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTelemarketingWeeklyResult(
     id: string,
-    result: Partial<InsertTelemarketingWeeklyResult>
+    result: Partial<InsertTelemarketingWeeklyResult>,
   ): Promise<TelemarketingWeeklyResult | undefined> {
     const [updatedResult] = await this.db
       .update(telemarketingWeeklyResults)
@@ -3476,7 +3488,7 @@ export class DatabaseStorage implements IStorage {
   // Marker Goals methods
   async getMarkerGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<MarkerGoal[]> {
     let query = this.db
       .select({
@@ -3507,7 +3519,7 @@ export class DatabaseStorage implements IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<MarkerGoal[]> {
     let query = this.db
       .select({
@@ -3528,7 +3540,7 @@ export class DatabaseStorage implements IStorage {
     // Aplicar filtros
     let whereConditions = and(
       eq(markerGoals.month, month),
-      eq(markerGoals.year, year)
+      eq(markerGoals.year, year),
     );
 
     // Vendedores só veem suas próprias metas
@@ -3549,7 +3561,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateMarkerGoal(
     id: string,
-    data: Partial<InsertMarkerGoal>
+    data: Partial<InsertMarkerGoal>,
   ): Promise<MarkerGoal> {
     const [goal] = await this.db
       .update(markerGoals)
@@ -3569,7 +3581,7 @@ export class DatabaseStorage implements IStorage {
   // Interaction Goals CRUD operations
   async getInteractionGoals(
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<InteractionGoal[]> {
     let query = this.db
       .select({
@@ -3600,7 +3612,7 @@ export class DatabaseStorage implements IStorage {
     month: number,
     year: number,
     userId?: string,
-    userRole?: string
+    userRole?: string,
   ): Promise<InteractionGoal[]> {
     let query = this.db
       .select({
@@ -3621,14 +3633,14 @@ export class DatabaseStorage implements IStorage {
     // Aplicar filtros
     let whereConditions = and(
       eq(interactionGoals.month, month),
-      eq(interactionGoals.year, year)
+      eq(interactionGoals.year, year),
     );
 
     // Vendedores só veem suas próprias metas
     if (userRole === "vendedor" && userId) {
       whereConditions = and(
         whereConditions,
-        eq(interactionGoals.userId, userId)
+        eq(interactionGoals.userId, userId),
       );
     }
 
@@ -3639,7 +3651,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInteractionGoal(
-    data: InsertInteractionGoal
+    data: InsertInteractionGoal,
   ): Promise<InteractionGoal> {
     const [goal] = await this.db
       .insert(interactionGoals)
@@ -3650,7 +3662,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateInteractionGoal(
     id: string,
-    data: Partial<InsertInteractionGoal>
+    data: Partial<InsertInteractionGoal>,
   ): Promise<InteractionGoal> {
     const [goal] = await this.db
       .update(interactionGoals)
@@ -3669,7 +3681,7 @@ export class DatabaseStorage implements IStorage {
 
   async getInteractionStatsByPeriod(
     month: number,
-    year: number
+    year: number,
   ): Promise<
     {
       interactionType: string;
@@ -3696,8 +3708,8 @@ export class DatabaseStorage implements IStorage {
           and(
             isNotNull(clientInteractions.userId),
             sql`extract(month from ${clientInteractions.createdAt}) = ${month}`,
-            sql`extract(year from ${clientInteractions.createdAt}) = ${year}`
-          )
+            sql`extract(year from ${clientInteractions.createdAt}) = ${year}`,
+          ),
         );
 
       // Process the results in JavaScript to count interactions per user and type
@@ -3736,7 +3748,7 @@ export class DatabaseStorage implements IStorage {
 
   async getMarkerStatsByPeriod(
     month: number,
-    year: number
+    year: number,
   ): Promise<
     {
       markerName: string;
@@ -3765,8 +3777,8 @@ export class DatabaseStorage implements IStorage {
             sql`array_length(${clients.markers}, 1) > 0`,
             isNotNull(clients.responsavelId),
             sql`extract(month from ${clients.createdAt}) = ${month}`,
-            sql`extract(year from ${clients.createdAt}) = ${year}`
-          )
+            sql`extract(year from ${clients.createdAt}) = ${year}`,
+          ),
         );
 
       // Process the results in JavaScript to count markers per user
@@ -3839,13 +3851,13 @@ export class DatabaseStorage implements IStorage {
       .from(trainings)
       .leftJoin(
         trainingAttachments,
-        eq(trainings.id, trainingAttachments.trainingId)
+        eq(trainings.id, trainingAttachments.trainingId),
       )
       .where(type ? eq(trainings.type, type) : undefined)
       .orderBy(
         sql`CASE WHEN ${trainings.displayOrder} IS NULL THEN 1 ELSE 0 END`,
         asc(trainings.displayOrder),
-        asc(trainings.createdAt)
+        asc(trainings.createdAt),
       );
 
     const trainingWithAttachments = trainingsList.map((training) => ({
@@ -3874,7 +3886,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(trainings.id, trainingId))
       .leftJoin(
         trainingAttachments,
-        eq(trainings.id, trainingAttachments.trainingId)
+        eq(trainings.id, trainingAttachments.trainingId),
       );
     return training;
   }
@@ -3905,7 +3917,7 @@ export class DatabaseStorage implements IStorage {
   async reorderTrainings(
     trainingId: string,
     direction: "up" | "down",
-    type: string
+    type: string,
   ) {
     // Get all trainings of the same type ordered by current position
     const allTrainings = await this.db
@@ -3914,7 +3926,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(trainings.type, type))
       .orderBy(
         sql`CASE WHEN ${trainings.displayOrder} IS NULL THEN 999999 ELSE ${trainings.displayOrder} END`,
-        asc(trainings.createdAt)
+        asc(trainings.createdAt),
       );
 
     // Initialize displayOrder for trainings that don't have it
@@ -3994,7 +4006,7 @@ export class DatabaseStorage implements IStorage {
   async getClientsWithoutRecentContact(
     userId?: string,
     userRole?: string,
-    daysThreshold: number = 1
+    daysThreshold: number = 1,
   ) {
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
@@ -4042,7 +4054,7 @@ export class DatabaseStorage implements IStorage {
         const today = new Date();
 
         const daysSinceCreated = Math.floor(
-          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+          (today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
         );
 
         // Determinar se o cliente precisa ser contactado
@@ -4055,7 +4067,7 @@ export class DatabaseStorage implements IStorage {
           // Se a última interação foi há mais de X dias
           const daysSinceLastContact = Math.floor(
             (today.getTime() - new Date(lastInteractionDate).getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           );
           needsContact = daysSinceLastContact >= daysThreshold;
         }
@@ -4068,11 +4080,11 @@ export class DatabaseStorage implements IStorage {
           daysSinceLastContact: lastInteractionDate
             ? Math.floor(
                 (today.getTime() - new Date(lastInteractionDate).getTime()) /
-                  (1000 * 60 * 60 * 24)
+                  (1000 * 60 * 60 * 24),
               )
             : null,
         };
-      })
+      }),
     );
 
     // Filtrar apenas clientes que precisam ser contactados
@@ -4123,7 +4135,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateClientDebt(
     id: string,
-    updates: Partial<InsertClientDebt>
+    updates: Partial<InsertClientDebt>,
   ): Promise<ClientDebt | null> {
     const [debt] = await this.db
       .update(clientDebts)
@@ -4149,7 +4161,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(deals)
       .where(
-        and(eq(deals.assignedTo, userId), ne(deals.stageId, "fechamento"))
+        and(eq(deals.assignedTo, userId), ne(deals.stageId, "fechamento")),
       );
 
     // Buscar dívidas pendentes
@@ -4160,8 +4172,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(clients.responsavelId, userId),
-          eq(clientDebts.status, "pending")
-        )
+          eq(clientDebts.status, "pending"),
+        ),
       );
 
     // Buscar dívidas vencidas
@@ -4173,8 +4185,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(clients.responsavelId, userId),
           eq(clientDebts.status, "pending"),
-          sql`${clientDebts.dueDate} < CURRENT_DATE`
-        )
+          sql`${clientDebts.dueDate} < CURRENT_DATE`,
+        ),
       );
 
     return {
@@ -4255,7 +4267,7 @@ export class DatabaseStorage implements IStorage {
       if (saleData.useCashback === true && parseFloat(sale.cashbackUsed) > 0) {
         // Buscar saldo do cliente
         const clientBalance = await this.getClientCashbackBalance(
-          sale.clientId
+          sale.clientId,
         );
         if (clientBalance) {
           // Criar registro de uso de cashback
@@ -4384,7 +4396,7 @@ export class DatabaseStorage implements IStorage {
 
   // Get interactions for a company (through company deals and interactions)
   async getCompanyInteractions(
-    companyId: string
+    companyId: string,
   ): Promise<ClientInteractionWithUser[]> {
     const results = await this.db
       .select({
@@ -4535,13 +4547,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(companyProducts.productId, productId));
 
       console.log(
-        `Storage: Found ${companiesWithProduct.length} companies for product ${productId}`
+        `Storage: Found ${companiesWithProduct.length} companies for product ${productId}`,
       );
       return companiesWithProduct;
     } catch (error) {
       console.error(
         `Storage error fetching companies for product ${productId}:`,
-        error
+        error,
       );
       throw error;
     }
@@ -4549,9 +4561,10 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsStatistics(startDate?: string, endDate?: string) {
     try {
-      const dateCondition = startDate && endDate
-        ? sql`AND ${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`
-        : sql``;
+      const dateCondition =
+        startDate && endDate
+          ? sql`AND ${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`
+          : sql``;
 
       // Top products by revenue — sem filtro de data (visão histórica)
       const topProductsByRevenue = await this.db
@@ -4567,16 +4580,31 @@ export class DatabaseStorage implements IStorage {
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
         .where(isNull(blingOrders.deletedAt))
-        .groupBy(products.id, products.name, products.country, products.volume, products.type)
-        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`)
+        .groupBy(
+          products.id,
+          products.name,
+          products.country,
+          products.volume,
+          products.type,
+        )
+        .orderBy(
+          sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`,
+        )
         .limit(8);
 
       // Revenue by type — com filtro de data quando fornecido
-      const revenueByTypeConditions = startDate && endDate
-        ? and(isNull(blingOrders.deletedAt), sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`)
-        : isNull(blingOrders.deletedAt);
+      const revenueByTypeConditions =
+        startDate && endDate
+          ? and(
+              isNull(blingOrders.deletedAt),
+              sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
+            )
+          : isNull(blingOrders.deletedAt);
 
       const revenueByType = await this.db
         .select({
@@ -4586,10 +4614,15 @@ export class DatabaseStorage implements IStorage {
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
         .where(revenueByTypeConditions)
         .groupBy(products.type)
-        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
+        .orderBy(
+          sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`,
+        );
 
       return { topProductsByRevenue, revenueByType };
     } catch (error) {
@@ -4623,8 +4656,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(companyProducts.companyId, companyId),
-            eq(companyProducts.isActive, "true")
-          )
+            eq(companyProducts.isActive, "true"),
+          ),
         )
         .orderBy(asc(products.name));
 
@@ -4644,8 +4677,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(companyProducts.companyId, data.companyId),
-          eq(companyProducts.productId, data.productId)
-        )
+          eq(companyProducts.productId, data.productId),
+        ),
       )
       .limit(1);
 
@@ -4675,8 +4708,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(companyProducts.companyId, companyId),
-          eq(companyProducts.productId, productId)
-        )
+          eq(companyProducts.productId, productId),
+        ),
       )
       .returning();
   }
@@ -4689,8 +4722,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(companyProducts.companyId, companyId),
-          eq(companyProducts.isActive, "true")
-        )
+          eq(companyProducts.isActive, "true"),
+        ),
       );
 
     return await this.db
@@ -4703,7 +4736,7 @@ export class DatabaseStorage implements IStorage {
   async updateCompanyProductPrice(
     companyId: string,
     productId: string,
-    customPrice: string
+    customPrice: string,
   ): Promise<CompanyProduct | null> {
     try {
       const [updated] = await this.db
@@ -4714,8 +4747,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(companyProducts.companyId, companyId),
-            eq(companyProducts.productId, productId)
-          )
+            eq(companyProducts.productId, productId),
+          ),
         )
         .returning();
 
@@ -4775,7 +4808,7 @@ export class DatabaseStorage implements IStorage {
             ...event,
             attachments,
           };
-        })
+        }),
       );
 
       return eventsWithAttachments;
@@ -4800,7 +4833,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateEvent(
     eventId: string,
-    eventData: Partial<InsertEvent>
+    eventData: Partial<InsertEvent>,
   ): Promise<Event> {
     try {
       const [updatedEvent] = await this.db
@@ -4842,7 +4875,7 @@ export class DatabaseStorage implements IStorage {
       // Obter a data de hoje no formato YYYY-MM-DD
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split("T")[0];
 
       // Atualizar eventos cuja data já passou e ainda não estão finalizados ou cancelados
       // Usando SQL raw completo para evitar problemas com conversão de timestamp
@@ -4855,7 +4888,9 @@ export class DatabaseStorage implements IStorage {
       `);
 
       const affectedRows = result.rowCount || 0;
-      console.log(`[Auto-Update] ${affectedRows} evento(s) atualizado(s) para "finalizado"`);
+      console.log(
+        `[Auto-Update] ${affectedRows} evento(s) atualizado(s) para "finalizado"`,
+      );
       return affectedRows;
     } catch (error) {
       console.error("Error updating expired events:", error);
@@ -4906,7 +4941,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addEventParticipant(
-    participantData: InsertEventParticipant
+    participantData: InsertEventParticipant,
   ): Promise<EventParticipant> {
     try {
       // Verificar se o cliente já está inscrito no evento
@@ -4916,8 +4951,8 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(eventParticipants.eventId, participantData.eventId),
-            eq(eventParticipants.clientId, participantData.clientId)
-          )
+            eq(eventParticipants.clientId, participantData.clientId),
+          ),
         );
 
       if (existingParticipant.length > 0) {
@@ -4937,8 +4972,8 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(eventParticipants.eventId, participantData.eventId),
-              eq(eventParticipants.status, "confirmado")
-            )
+              eq(eventParticipants.status, "confirmado"),
+            ),
           );
 
         if (
@@ -4962,7 +4997,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateEventParticipant(
     participantId: string,
-    participantData: Partial<InsertEventParticipant>
+    participantData: Partial<InsertEventParticipant>,
   ): Promise<EventParticipant> {
     try {
       const [updatedParticipant] = await this.db
@@ -4977,7 +5012,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getEventParticipantById(participantId: string): Promise<EventParticipant | null> {
+  async getEventParticipantById(
+    participantId: string,
+  ): Promise<EventParticipant | null> {
     try {
       const [participant] = await this.db
         .select()
@@ -5020,7 +5057,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addEventAttachment(
-    attachmentData: InsertEventAttachment
+    attachmentData: InsertEventAttachment,
   ): Promise<EventAttachment> {
     try {
       const [newAttachment] = await this.db
@@ -5106,7 +5143,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateDealQuestion(
     id: string,
-    data: UpdateDealQuestion
+    data: UpdateDealQuestion,
   ): Promise<DealQuestion | null> {
     try {
       const [question] = await this.db
@@ -5190,7 +5227,7 @@ export class DatabaseStorage implements IStorage {
       console.error("Error fetching deal answers:", error);
       console.error(
         "Stack trace:",
-        error instanceof Error ? error.stack : error
+        error instanceof Error ? error.stack : error,
       );
 
       // Verificar se o erro é específico sobre o campo createdBy
@@ -5204,7 +5241,7 @@ export class DatabaseStorage implements IStorage {
 
   async saveDealAnswers(
     dealId: string,
-    answers: InsertDealAnswer[]
+    answers: InsertDealAnswer[],
   ): Promise<DealAnswer[]> {
     try {
       const results: DealAnswer[] = [];
@@ -5217,8 +5254,8 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(dealAnswers.dealId, dealId),
-              eq(dealAnswers.questionId, answerData.questionId)
-            )
+              eq(dealAnswers.questionId, answerData.questionId),
+            ),
           );
 
         if (existingAnswer) {

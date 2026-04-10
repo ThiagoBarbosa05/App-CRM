@@ -678,11 +678,16 @@ export const userGoals = pgTable(
       .default("0.00"), // Ticket médio em reais
     itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
     ordersGoal: integer("orders_goal").notNull().default(0), // Meta: total de GRFs no mês
-    avgBottleValueGoal: decimal("avg_bottle_value_goal", { precision: 12, scale: 2 })
+    avgBottleValueGoal: decimal("avg_bottle_value_goal", {
+      precision: 12,
+      scale: 2,
+    })
       .notNull()
       .default("0.00"), // Meta: valor médio por garrafa vendida
     economicoGoalQty: integer("economico_goal_qty").notNull().default(0),
-    intermediarioGoalQty: integer("intermediario_goal_qty").notNull().default(0),
+    intermediarioGoalQty: integer("intermediario_goal_qty")
+      .notNull()
+      .default(0),
     premiumGoalQty: integer("premium_goal_qty").notNull().default(0),
     month: integer("month").notNull(), // Mês da meta (1-12)
     year: integer("year").notNull(), // Ano da meta
@@ -695,7 +700,7 @@ export const userGoals = pgTable(
   }),
 );
 
-// Tabela de resultados semanais das metas
+// Tabela de resultados semanais das metas.
 export const weeklyResults = pgTable("weekly_results", {
   id: varchar("id")
     .primaryKey()

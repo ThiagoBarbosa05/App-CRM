@@ -22,7 +22,7 @@ export interface UnifiedOrder {
   sellerName: string | null;
   sellerId: string | null;
   appClientId: string | null;
-  // bling-only
+  // bling-only bbbb
   orderNumber: string | null;
   blingOrderId: string | null;
   situationValue: string | null;

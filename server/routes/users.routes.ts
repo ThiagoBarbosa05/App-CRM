@@ -8,7 +8,11 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
-import { serviceChannels, userServiceChannel, users } from "../../shared/schema";
+import {
+  serviceChannels,
+  userServiceChannel,
+  users,
+} from "../../shared/schema";
 import { updateUserController } from "server/controllers/users/put-user.controller";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
@@ -20,7 +24,6 @@ import { getSellerDashboardController } from "server/controllers/users/get-selle
 import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
 import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
 import { getSellerTierCountsController } from "server/controllers/users/get-seller-tier-counts.controller";
-
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -202,7 +205,9 @@ usersRouter.get("/by-email/:email", async (req, res) => {
     return res.json(user);
   } catch (error) {
     console.error("Erro ao buscar usuário por email:", error);
-    return res.status(500).json({ message: "Erro ao buscar usuário por email" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário por email" });
   }
 });
 
@@ -261,7 +266,7 @@ usersRouter.put(
   "/:id",
   validateParams(userParamsSchema),
   validateBody(insertUserSchema.partial()),
-  updateUserController
+  updateUserController,
 );
 
 /**
@@ -289,7 +294,7 @@ usersRouter.put(
 usersRouter.delete(
   "/:id",
   validateParams(userParamsSchema),
-  deleteUserController
+  deleteUserController,
 );
 
 /**
@@ -326,7 +331,7 @@ usersRouter.patch(
   "/:id/toggle-status",
   validateParams(userParamsSchema),
   validateBody(toggleStatusBodySchema),
-  toggleUserStatusController
+  toggleUserStatusController,
 );
 
 const syncBlingVendorsSchema = z.object({
@@ -364,7 +369,7 @@ usersRouter.get(
 );
 
 /**
- * @route GET /api/users/seller-dashboard/aggregate
+ * @route GET /api/users/seller-dashboard/aggregate.
  * @description Retorna métricas agregadas de todos os vendedores (admin/gerente)
  */
 usersRouter.get(

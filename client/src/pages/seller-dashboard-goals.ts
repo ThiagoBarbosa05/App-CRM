@@ -19,7 +19,6 @@ export function getBottleGoalProgress(
   return {
     achieved,
     goal: safeGoal,
-    percentage:
-      safeGoal > 0 ? Math.min((achieved / safeGoal) * 100, 100) : 0,
+    percentage: safeGoal > 0 ? Math.min((achieved / safeGoal) * 100, 100) : 0,
   };
 }

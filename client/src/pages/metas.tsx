@@ -1,7 +1,15 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { BarChart3, DollarSign, Package, Target, Users, Phone, MessageSquare } from "lucide-react";
+import {
+  BarChart3,
+  DollarSign,
+  Package,
+  Target,
+  Users,
+  Phone,
+  MessageSquare,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +42,9 @@ export default function Metas() {
 
   // Período selecionado
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.getMonth() + 1,
+  );
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Filtro de vendedor (admin)
@@ -48,23 +58,28 @@ export default function Metas() {
   const [editingSalesGoal, setEditingSalesGoal] = useState<any>(null);
 
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
-  const [selectedGoalForResults, setSelectedGoalForResults] = useState<any>(null);
+  const [selectedGoalForResults, setSelectedGoalForResults] =
+    useState<any>(null);
   const [selectedResultForEdit, setSelectedResultForEdit] = useState<any>(null);
 
-  const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] = useState(false);
-  const [editingTelemarketingGoal, setEditingTelemarketingGoal] = useState<any>(null);
+  const [isTelemarketingModalOpen, setIsTelemarketingModalOpen] =
+    useState(false);
+  const [editingTelemarketingGoal, setEditingTelemarketingGoal] =
+    useState<any>(null);
 
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
-  const [editingRegistrationGoal, setEditingRegistrationGoal] = useState<any>(null);
+  const [editingRegistrationGoal, setEditingRegistrationGoal] =
+    useState<any>(null);
 
   const [isMarkerModalOpen, setIsMarkerModalOpen] = useState(false);
   const [editingMarkerGoal, setEditingMarkerGoal] = useState<any>(null);
 
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
-  const [editingInteractionGoal, setEditingInteractionGoal] = useState<any>(null);
+  const [editingInteractionGoal, setEditingInteractionGoal] =
+    useState<any>(null);
 
   // -------------------------------------------------------------------------
-  // Queries
+  // Queries.
   // -------------------------------------------------------------------------
 
   const { data: users = [] } = useQuery<any[]>({
@@ -77,7 +92,9 @@ export default function Metas() {
     enabled: isManager,
   });
 
-  const { data: userGoals = [], isLoading: isUserGoalsLoading } = useQuery<any[]>({
+  const { data: userGoals = [], isLoading: isUserGoalsLoading } = useQuery<
+    any[]
+  >({
     queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
   });
 
@@ -90,11 +107,15 @@ export default function Metas() {
   });
 
   const { data: clientRegistrationGoals = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+    queryKey: [
+      `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+    ],
   });
 
   const { data: clientRegistrationStats = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-registration-stats/${selectedMonth}/${selectedYear}`],
+    queryKey: [
+      `/api/client-registration-stats/${selectedMonth}/${selectedYear}`,
+    ],
   });
 
   const { data: markerGoals = [] } = useQuery<any[]>({
@@ -114,14 +135,22 @@ export default function Metas() {
   });
 
   // Vendas reais Bling/Connect
-  const startDate = format(startOfMonth(new Date(selectedYear, selectedMonth - 1, 1)), "yyyy-MM-dd");
-  const endDate = format(endOfMonth(new Date(selectedYear, selectedMonth - 1, 1)), "yyyy-MM-dd");
+  const startDate = format(
+    startOfMonth(new Date(selectedYear, selectedMonth - 1, 1)),
+    "yyyy-MM-dd",
+  );
+  const endDate = format(
+    endOfMonth(new Date(selectedYear, selectedMonth - 1, 1)),
+    "yyyy-MM-dd",
+  );
 
   const { data: topSellers = [] } = useQuery<any[]>({
     queryKey: ["unified-top-sellers", startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate, limit: "100" });
-      const res = await fetch(`/api/unified-orders/statistics/top-sellers?${params}`);
+      const res = await fetch(
+        `/api/unified-orders/statistics/top-sellers?${params}`,
+      );
       if (!res.ok) return [];
       const j = await res.json();
       return j.data ?? [];
@@ -135,18 +164,29 @@ export default function Metas() {
 
   const deleteSalesGoalMutation = useMutation({
     mutationFn: async (goalId: string) => {
-      const response = await fetch(`/api/user-goals/${goalId}`, { method: "DELETE" });
+      const response = await fetch(`/api/user-goals/${goalId}`, {
+        method: "DELETE",
+      });
       if (!response.ok) throw new Error("Falha ao excluir meta");
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
+        queryKey: [
+          `/api/user-goals-with-results/${selectedMonth}/${selectedYear}`,
+        ],
       });
-      toast({ title: "Meta excluída", description: "Meta de vendas excluída com sucesso." });
+      toast({
+        title: "Meta excluída",
+        description: "Meta de vendas excluída com sucesso.",
+      });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -156,7 +196,8 @@ export default function Metas() {
 
   const filterGoals = (items: any[]) => {
     if (!isManager) return items.filter((i) => i.userId === user?.id);
-    if (selectedSellerId !== "all") return items.filter((i) => i.userId === selectedSellerId);
+    if (selectedSellerId !== "all")
+      return items.filter((i) => i.userId === selectedSellerId);
     return items;
   };
 
@@ -164,15 +205,19 @@ export default function Metas() {
   // Stats (admin)
   // -------------------------------------------------------------------------
 
-  const stats = useMemo(() => ({
-    totalUsers: users.length,
-    metasDefinidas: userGoals.length,
-    metaTotal: userGoals.reduce((sum, g) => sum + Number(g.salesGoal), 0),
-    ticketMedio:
-      userGoals.length > 0
-        ? userGoals.reduce((sum, g) => sum + Number(g.averageTicket), 0) / userGoals.length
-        : 0,
-  }), [userGoals, users]);
+  const stats = useMemo(
+    () => ({
+      totalUsers: users.length,
+      metasDefinidas: userGoals.length,
+      metaTotal: userGoals.reduce((sum, g) => sum + Number(g.salesGoal), 0),
+      ticketMedio:
+        userGoals.length > 0
+          ? userGoals.reduce((sum, g) => sum + Number(g.averageTicket), 0) /
+            userGoals.length
+          : 0,
+    }),
+    [userGoals, users],
+  );
 
   const usersWithoutGoals = useMemo(
     () => users.filter((u) => !userGoals.find((g) => g.userId === u.id)),
@@ -200,7 +245,10 @@ export default function Metas() {
   };
 
   const formatCurrency = (value: string | number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number(value));
 
   const getInteractionTypeLabel = (type: string) => {
     const types: Record<string, string> = {
@@ -254,7 +302,10 @@ export default function Metas() {
         <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            <div
+              key={i}
+              className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl"
+            />
           ))}
         </div>
       </div>
@@ -279,7 +330,9 @@ export default function Metas() {
         onYearChange={setSelectedYear}
         isAdmin={isManager}
         onNewGoal={isManager ? handleNewGoal : undefined}
-        sellers={isManager ? users.map((u) => ({ id: u.id, name: u.name })) : undefined}
+        sellers={
+          isManager ? users.map((u) => ({ id: u.id, name: u.name })) : undefined
+        }
         selectedSellerId={selectedSellerId}
         onSellerChange={isManager ? setSelectedSellerId : undefined}
       />
@@ -291,7 +344,8 @@ export default function Metas() {
             <BarChart3 className="h-4 w-4" />
           </div>
           <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
-            Os resultados mensais são cadastrados pelos gerentes e administradores do sistema.
+            Os resultados mensais são cadastrados pelos gerentes e
+            administradores do sistema.
           </p>
         </div>
       )}
@@ -300,10 +354,34 @@ export default function Metas() {
       {isManager && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Usuários", value: stats.totalUsers, icon: Users, color: "blue", sub: "cadastrados" },
-            { label: "Metas Definidas", value: stats.metasDefinidas, icon: Target, color: "emerald", sub: "no período" },
-            { label: "Meta Total", value: formatCurrency(stats.metaTotal), icon: DollarSign, color: "indigo", sub: "soma das metas" },
-            { label: "Ticket Médio", value: formatCurrency(stats.ticketMedio), icon: Package, color: "amber", sub: "média do período" },
+            {
+              label: "Usuários",
+              value: stats.totalUsers,
+              icon: Users,
+              color: "blue",
+              sub: "cadastrados",
+            },
+            {
+              label: "Metas Definidas",
+              value: stats.metasDefinidas,
+              icon: Target,
+              color: "emerald",
+              sub: "no período",
+            },
+            {
+              label: "Meta Total",
+              value: formatCurrency(stats.metaTotal),
+              icon: DollarSign,
+              color: "indigo",
+              sub: "soma das metas",
+            },
+            {
+              label: "Ticket Médio",
+              value: formatCurrency(stats.ticketMedio),
+              icon: Package,
+              color: "amber",
+              sub: "média do período",
+            },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -316,13 +394,19 @@ export default function Metas() {
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     {stat.label}
                   </CardTitle>
-                  <div className={`p-2 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400`}>
+                  <div
+                    className={`p-2 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 text-${stat.color}-600 dark:text-${stat.color}-400`}
+                  >
                     <stat.icon className="h-4 w-4" />
                   </div>
                 </CardHeader>
                 <CardContent className="px-5 pb-4">
-                  <p className="text-xl font-black text-slate-900 dark:text-white">{stat.value}</p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tight">{stat.sub}</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white">
+                    {stat.value}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tight">
+                    {stat.sub}
+                  </p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -331,7 +415,11 @@ export default function Metas() {
       )}
 
       {/* Tabs de tipos de meta */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="flex items-center justify-start gap-2 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar flex-wrap">
           {TABS.map((tab) => (
             <TabsTrigger

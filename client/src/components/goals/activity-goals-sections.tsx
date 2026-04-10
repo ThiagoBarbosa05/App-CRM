@@ -1,10 +1,5 @@
 import { Users, Tag, MessageSquare, ArrowUpRight } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 
@@ -42,7 +37,9 @@ export function ActivityGoalsSections({
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {registrationGoals.map((goal, index) => {
-              const stats = registrationStats.find((s) => s.userId === goal.userId);
+              const stats = registrationStats.find(
+                (s) => s.userId === goal.userId,
+              );
               const achieved = stats?.totalRegistrations || 0;
               return (
                 <ActivityGoalCard
@@ -51,7 +48,10 @@ export function ActivityGoalsSections({
                   subtitle="Novos Cadastros"
                   achieved={achieved}
                   goal={goal.targetQuantity}
-                  percentage={calculatePercentage(achieved, goal.targetQuantity)}
+                  percentage={calculatePercentage(
+                    achieved,
+                    goal.targetQuantity,
+                  )}
                   index={index}
                   color="emerald"
                 />
@@ -73,7 +73,8 @@ export function ActivityGoalsSections({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {markerGoals.map((goal, index) => {
               const stats = markerStats.find(
-                (s) => s.markerName === goal.markerName && s.userId === goal.userId
+                (s) =>
+                  s.markerName === goal.markerName && s.userId === goal.userId,
               );
               const achieved = stats?.totalClients || 0;
               return (
@@ -83,7 +84,10 @@ export function ActivityGoalsSections({
                   subtitle={`Marcador: ${goal.markerName}`}
                   achieved={achieved}
                   goal={goal.targetQuantity}
-                  percentage={calculatePercentage(achieved, goal.targetQuantity)}
+                  percentage={calculatePercentage(
+                    achieved,
+                    goal.targetQuantity,
+                  )}
                   index={index}
                   color="amber"
                 />
@@ -105,7 +109,9 @@ export function ActivityGoalsSections({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {interactionGoals.map((goal, index) => {
               const stats = interactionStats.find(
-                (s) => s.interactionType === goal.interactionType && s.userId === goal.userId
+                (s) =>
+                  s.interactionType === goal.interactionType &&
+                  s.userId === goal.userId,
               );
               const achieved = stats?.totalInteractions || 0;
               return (
@@ -115,7 +121,10 @@ export function ActivityGoalsSections({
                   subtitle={getInteractionTypeLabel(goal.interactionType)}
                   achieved={achieved}
                   goal={goal.targetQuantity}
-                  percentage={calculatePercentage(achieved, goal.targetQuantity)}
+                  percentage={calculatePercentage(
+                    achieved,
+                    goal.targetQuantity,
+                  )}
                   index={index}
                   color="blue"
                 />
@@ -128,15 +137,31 @@ export function ActivityGoalsSections({
   );
 }
 
-function SectionHeader({ icon, title, description, color }: { icon: any, title: string, description: string, color: string }) {
+function SectionHeader({
+  icon,
+  title,
+  description,
+  color,
+}: {
+  icon: any;
+  title: string;
+  description: string;
+  color: string;
+}) {
   return (
     <div className="flex items-center gap-3">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 dark:text-${color}-400 shadow-inner`}>
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 dark:text-${color}-400 shadow-inner`}
+      >
         {icon}
       </div>
       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          {title}
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
       </div>
     </div>
   );
@@ -175,7 +200,9 @@ function ActivityGoalCard({
               {subtitle}
             </p>
           </div>
-          <div className={`h-8 w-8 rounded-full bg-${color}-500/10 flex items-center justify-center text-${color}-600`}>
+          <div
+            className={`h-8 w-8 rounded-full bg-${color}-500/10 flex items-center justify-center text-${color}-600`}
+          >
             <ArrowUpRight className="h-4 w-4" />
           </div>
         </CardHeader>
@@ -190,7 +217,9 @@ function ActivityGoalCard({
               </p>
             </div>
             <div className="text-right space-y-1">
-              <span className={`text-lg font-bold text-${color}-600 dark:text-${color}-400 leading-none`}>
+              <span
+                className={`text-lg font-bold text-${color}-600 dark:text-${color}-400 leading-none`}
+              >
                 {percentage.toFixed(0)}%
               </span>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -208,7 +237,10 @@ function ActivityGoalCard({
           </div>
 
           <div className="flex justify-center">
-            <Badge variant="outline" className="text-[10px] bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500">
+            <Badge
+              variant="outline"
+              className="text-[10px] bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500"
+            >
               META: {goal}
             </Badge>
           </div>

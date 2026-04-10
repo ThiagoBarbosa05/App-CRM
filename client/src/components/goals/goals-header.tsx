@@ -79,7 +79,12 @@ export function GoalsHeader({
           )}
 
           <div className="flex items-center gap-3">
-            <Label htmlFor="month-select" className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mês</Label>
+            <Label
+              htmlFor="month-select"
+              className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider"
+            >
+              Mês
+            </Label>
             <select
               id="month-select"
               value={selectedMonth}
@@ -88,22 +93,34 @@ export function GoalsHeader({
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
                 <option key={month} value={month}>
-                  {new Date(0, month - 1).toLocaleDateString("pt-BR", { month: "long" })}
+                  {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                    month: "long",
+                  })}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="flex items-center gap-3">
-            <Label htmlFor="year-select" className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ano</Label>
+            <Label
+              htmlFor="year-select"
+              className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider"
+            >
+              Ano
+            </Label>
             <select
               id="year-select"
               value={selectedYear}
               onChange={(e) => onYearChange(Number(e.target.value))}
               className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
             >
-              {Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i).map((year) => (
-                <option key={year} value={year}>{year}</option>
+              {Array.from(
+                { length: 5 },
+                (_, i) => currentDate.getFullYear() - 2 + i,
+              ).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>

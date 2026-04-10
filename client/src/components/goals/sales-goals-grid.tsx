@@ -1,4 +1,14 @@
-import { Target, BarChart3, Plus, Pencil, ShoppingBag, ShoppingCart, Wine, Edit, Trash2 } from "lucide-react";
+import {
+  Target,
+  BarChart3,
+  Plus,
+  Pencil,
+  ShoppingBag,
+  ShoppingCart,
+  Wine,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -50,16 +60,29 @@ interface SalesGoalsGridProps {
 }
 
 function normalizeName(name: string) {
-  return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
-function findSellerData(userName: string, topSellers: TopSeller[]): TopSeller | null {
+function findSellerData(
+  userName: string,
+  topSellers: TopSeller[],
+): TopSeller | null {
   const normUser = normalizeName(userName);
-  return topSellers.find((s) => {
-    if (!s.sellerName) return false;
-    const normSeller = normalizeName(s.sellerName);
-    return normUser === normSeller || normUser.startsWith(normSeller) || normSeller.startsWith(normUser);
-  }) ?? null;
+  return (
+    topSellers.find((s) => {
+      if (!s.sellerName) return false;
+      const normSeller = normalizeName(s.sellerName);
+      return (
+        normUser === normSeller ||
+        normUser.startsWith(normSeller) ||
+        normSeller.startsWith(normUser)
+      );
+    }) ?? null
+  );
 }
 
 export function SalesGoalsGrid({
@@ -144,12 +167,20 @@ function SalesGoalCard({
 }) {
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
-  const avgTicketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
-  const ticketPercentage = calculatePercentage(avgTicketAchieved, Number(goal.averageTicket));
+  const avgTicketAchieved = monthlyResult
+    ? Number(monthlyResult.ticketAchieved)
+    : 0;
+  const ticketPercentage = calculatePercentage(
+    avgTicketAchieved,
+    Number(goal.averageTicket),
+  );
 
   const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
   const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
-  const realSalesPercentage = calculatePercentage(realSalesValue, Number(goal.salesGoal));
+  const realSalesPercentage = calculatePercentage(
+    realSalesValue,
+    Number(goal.salesGoal),
+  );
 
   const ordersGoalValue = goal.ordersGoal ?? 0;
   const totalItemsSold = sellerData?.totalItems ?? 0;
@@ -157,9 +188,13 @@ function SalesGoalCard({
     { totalItems: totalItemsSold, totalOrders: realSalesOrders },
     ordersGoalValue,
   );
-  const avgBottleValue = totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
+  const avgBottleValue =
+    totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
   const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
-  const avgBottlePercentage = calculatePercentage(avgBottleValue, avgBottleGoalValue);
+  const avgBottlePercentage = calculatePercentage(
+    avgBottleValue,
+    avgBottleGoalValue,
+  );
 
   return (
     <motion.div
@@ -211,46 +246,63 @@ function SalesGoalCard({
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
-
           {/* Vendas Reais no Mês (Bling/Connect) */}
-          <div className={`rounded-2xl p-4 border ${
-            realSalesPercentage >= 100
-              ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40"
-              : realSalesPercentage >= 50
-                ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40"
-                : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/40"
-          }`}>
+          <div
+            className={`rounded-2xl p-4 border ${
+              realSalesPercentage >= 100
+                ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40"
+                : realSalesPercentage >= 50
+                  ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40"
+                  : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/40"
+            }`}
+          >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${
-                  realSalesPercentage >= 100 ? "bg-emerald-100 dark:bg-emerald-900/30" :
-                  realSalesPercentage >= 50 ? "bg-amber-100 dark:bg-amber-900/30" :
-                  "bg-rose-100 dark:bg-rose-900/30"
-                }`}>
-                  <ShoppingBag className={`h-3.5 w-3.5 ${
-                    realSalesPercentage >= 100 ? "text-emerald-600 dark:text-emerald-400" :
-                    realSalesPercentage >= 50 ? "text-amber-600 dark:text-amber-400" :
-                    "text-rose-600 dark:text-rose-400"
-                  }`} />
+                <div
+                  className={`p-1.5 rounded-lg ${
+                    realSalesPercentage >= 100
+                      ? "bg-emerald-100 dark:bg-emerald-900/30"
+                      : realSalesPercentage >= 50
+                        ? "bg-amber-100 dark:bg-amber-900/30"
+                        : "bg-rose-100 dark:bg-rose-900/30"
+                  }`}
+                >
+                  <ShoppingBag
+                    className={`h-3.5 w-3.5 ${
+                      realSalesPercentage >= 100
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : realSalesPercentage >= 50
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-rose-600 dark:text-rose-400"
+                    }`}
+                  />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                   Vendas Reais no Mês
                 </span>
               </div>
-              <span className={`text-xs font-black ${
-                realSalesPercentage >= 100 ? "text-emerald-600 dark:text-emerald-400" :
-                realSalesPercentage >= 50 ? "text-amber-600 dark:text-amber-400" :
-                "text-rose-600 dark:text-rose-400"
-              }`}>
+              <span
+                className={`text-xs font-black ${
+                  realSalesPercentage >= 100
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : realSalesPercentage >= 50
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
                 {realSalesPercentage.toFixed(1)}%
               </span>
             </div>
             <div className="mb-2">
-              <span className={`text-xl font-black ${
-                realSalesPercentage >= 100 ? "text-emerald-700 dark:text-emerald-300" :
-                realSalesPercentage >= 50 ? "text-amber-700 dark:text-amber-300" :
-                "text-rose-700 dark:text-rose-300"
-              }`}>
+              <span
+                className={`text-xl font-black ${
+                  realSalesPercentage >= 100
+                    ? "text-emerald-700 dark:text-emerald-300"
+                    : realSalesPercentage >= 50
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-rose-700 dark:text-rose-300"
+                }`}
+              >
                 {sellerData ? formatCurrency(realSalesValue) : "—"}
               </span>
               {sellerData && (
@@ -265,15 +317,19 @@ function SalesGoalCard({
                 animate={{ width: `${Math.min(realSalesPercentage, 100)}%` }}
                 transition={{ duration: 1.2, ease: "easeOut" }}
                 className={`h-full rounded-full ${
-                  realSalesPercentage >= 100 ? "bg-emerald-500" :
-                  realSalesPercentage >= 50 ? "bg-amber-500" :
-                  "bg-rose-500"
+                  realSalesPercentage >= 100
+                    ? "bg-emerald-500"
+                    : realSalesPercentage >= 50
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
                 }`}
               />
             </div>
             <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
               <span>Meta: {formatCurrency(goal.salesGoal)}</span>
-              {!sellerData && <span className="italic">Sem pedidos no período</span>}
+              {!sellerData && (
+                <span className="italic">Sem pedidos no período</span>
+              )}
             </div>
           </div>
 
@@ -318,7 +374,11 @@ function SalesGoalCard({
             <div className="pt-4 border-t border-slate-50 dark:border-slate-800">
               <div className="flex items-center justify-between mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 <span>Resultado do Mês</span>
-                <span className={monthlyResult ? "text-emerald-500" : "text-slate-400"}>
+                <span
+                  className={
+                    monthlyResult ? "text-emerald-500" : "text-slate-400"
+                  }
+                >
                   {monthlyResult ? "Registrado" : "Pendente"}
                 </span>
               </div>

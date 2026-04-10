@@ -3886,9 +3886,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get products statistics
   app.get("/api/products/statistics", async (req, res) => {
     try {
-      const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
-      const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
-      const statistics = await storage.getProductsStatistics(startDate, endDate);
+      const startDate =
+        typeof req.query.startDate === "string"
+          ? req.query.startDate
+          : undefined;
+      const endDate =
+        typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+      const statistics = await storage.getProductsStatistics(
+        startDate,
+        endDate,
+      );
 
       res.json(statistics);
     } catch (error) {
@@ -4431,7 +4438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
   app.use("/api/umbler-sync", umblerSyncRoutes.default);
 
-  // Middleware de tratamento de erros deve ser o último
+  // Middleware de tratamento de erros deve ser o último.
   app.use(errorHandler);
 
   const httpServer = createServer(app);

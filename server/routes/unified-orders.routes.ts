@@ -24,7 +24,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/unified-orders/statistics/sales-comparison
+ * @route   GET /api/unified-orders/statistics/sales-comparison.
  * @desc    Comparação das estatísticas do período atual vs período anterior
  * @query   startDate, endDate, source?
  */

@@ -127,7 +127,7 @@ const userGoalsWithResultsRouter = Router();
  */
 userGoalsWithResultsRouter.get(
   "/:month/:year",
-  getUserGoalsWithResultsController
+  getUserGoalsWithResultsController,
 );
 
 export { userGoalsWithResultsRouter };
@@ -148,7 +148,7 @@ const userRegistrationStatsRouter = Router();
  * GET /api/user-registration-stats
  *
  * @notes
- * - Mantém o mesmo comportamento da rota monolítica
+ * - Mantém o mesmo comportamento da rota monolítica.
  */
 userRegistrationStatsRouter.get("/", getUserRegistrationStatsController);
 

@@ -209,7 +209,7 @@ function delta(current: number, previous: number): number {
   return ((current - previous) / previous) * 100;
 }
 
-// ─── Componentes auxiliares ───────────────────────────────────────────────────
+// ─── Componentes auxiliares ───────────────────────────────────────────────────-
 
 function KpiCard({
   label,
@@ -999,9 +999,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                   <span>Volume vendido</span>
-                  <p
-                    className={`font-black tabular-nums ${realTextColor}`}
-                  >
+                  <p className={`font-black tabular-nums ${realTextColor}`}>
                     {formatCurrency(realValue)} / {formatCurrency(salesGoalNum)}
                   </p>
                 </div>
@@ -1019,7 +1017,8 @@ function GoalProgressBlock({ userId }: { userId: string }) {
                   <span className="font-bold text-slate-700 dark:text-slate-200">
                     {realItems}
                   </span>{" "}
-                  garrafa{realItems !== 1 ? "s" : ""} vendida{realItems !== 1 ? "s" : ""}
+                  garrafa{realItems !== 1 ? "s" : ""} vendida
+                  {realItems !== 1 ? "s" : ""}
                 </div>
                 <div className="rounded-xl border border-white/70 bg-white/75 px-3 py-2 text-right text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
                   <span className="font-bold text-slate-700 dark:text-slate-200">
@@ -1034,44 +1033,47 @@ function GoalProgressBlock({ userId }: { userId: string }) {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <GoalMetricCard
-          label="Meta de Vendas (mensal)"
-          icon={<TrendingUp className="h-3.5 w-3.5" />}
-          achieved={formatCurrency(salesAchieved)}
-          goal={formatCurrency(goal.salesGoal)}
-          percentage={pct(salesAchieved, Number(goal.salesGoal))}
-          colorClass="bg-emerald-500"
-          bgClass="bg-emerald-50 dark:bg-emerald-900/20"
-          textClass="text-emerald-600 dark:text-emerald-400"
+            label="Meta de Vendas (mensal)"
+            icon={<TrendingUp className="h-3.5 w-3.5" />}
+            achieved={formatCurrency(salesAchieved)}
+            goal={formatCurrency(goal.salesGoal)}
+            percentage={pct(salesAchieved, Number(goal.salesGoal))}
+            colorClass="bg-emerald-500"
+            bgClass="bg-emerald-50 dark:bg-emerald-900/20"
+            textClass="text-emerald-600 dark:text-emerald-400"
           />
           <GoalMetricCard
-          label="Total de GRFs no Mês"
-          icon={<ShoppingCart className="h-3.5 w-3.5" />}
-          achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
-          goal={`${bottleGoalProgress.goal} GRF${bottleGoalProgress.goal !== 1 ? "s" : ""}`}
-          percentage={bottleGoalProgress.percentage}
-          colorClass="bg-indigo-500"
-          bgClass="bg-indigo-50 dark:bg-indigo-900/20"
-          textClass="text-indigo-600 dark:text-indigo-400"
+            label="Total de GRFs no Mês"
+            icon={<ShoppingCart className="h-3.5 w-3.5" />}
+            achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
+            goal={`${bottleGoalProgress.goal} GRF${bottleGoalProgress.goal !== 1 ? "s" : ""}`}
+            percentage={bottleGoalProgress.percentage}
+            colorClass="bg-indigo-500"
+            bgClass="bg-indigo-50 dark:bg-indigo-900/20"
+            textClass="text-indigo-600 dark:text-indigo-400"
           />
           <GoalMetricCard
-          label="Ticket Médio"
-          icon={<BarChart3 className="h-3.5 w-3.5" />}
-          achieved={formatCurrency(realAvgTicket)}
-          goal={formatCurrency(goal.averageTicket)}
-          percentage={pct(realAvgTicket, Number(goal.averageTicket))}
-          colorClass="bg-blue-500"
-          bgClass="bg-blue-50 dark:bg-blue-900/20"
-          textClass="text-blue-600 dark:text-blue-400"
+            label="Ticket Médio"
+            icon={<BarChart3 className="h-3.5 w-3.5" />}
+            achieved={formatCurrency(realAvgTicket)}
+            goal={formatCurrency(goal.averageTicket)}
+            percentage={pct(realAvgTicket, Number(goal.averageTicket))}
+            colorClass="bg-blue-500"
+            bgClass="bg-blue-50 dark:bg-blue-900/20"
+            textClass="text-blue-600 dark:text-blue-400"
           />
           <GoalMetricCard
-          label="Valor Médio por Garrafa"
-          icon={<Wine className="h-3.5 w-3.5" />}
-          achieved={realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
-          goal={formatCurrency(goal.avgBottleValueGoal ?? "0")}
-          percentage={pct(realAvgBottle, Number(goal.avgBottleValueGoal ?? "0"))}
-          colorClass="bg-rose-500"
-          bgClass="bg-rose-50 dark:bg-rose-900/20"
-          textClass="text-rose-600 dark:text-rose-400"
+            label="Valor Médio por Garrafa"
+            icon={<Wine className="h-3.5 w-3.5" />}
+            achieved={realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
+            goal={formatCurrency(goal.avgBottleValueGoal ?? "0")}
+            percentage={pct(
+              realAvgBottle,
+              Number(goal.avgBottleValueGoal ?? "0"),
+            )}
+            colorClass="bg-rose-500"
+            bgClass="bg-rose-50 dark:bg-rose-900/20"
+            textClass="text-rose-600 dark:text-rose-400"
           />
         </div>
         <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 px-4 py-3">
@@ -1089,7 +1091,9 @@ function GoalProgressBlock({ userId }: { userId: string }) {
                 Melhor avanço
               </p>
               <p className="mt-1 font-bold text-slate-700 dark:text-slate-200">
-                {realPct >= 100 ? "Meta mensal concluida" : "Meta mensal em andamento"}
+                {realPct >= 100
+                  ? "Meta mensal concluida"
+                  : "Meta mensal em andamento"}
               </p>
             </div>
             <div className="text-right">
@@ -1516,7 +1520,10 @@ function AllSellersGoalProgress({
             : 0;
         const ticketPct = pct(realAvgTicket, Number(goal.averageTicket));
         const ordersPct = bottleGoalProgress.percentage;
-        const avgBottlePct = pct(realAvgBottle, Number(goal.avgBottleValueGoal ?? "0"));
+        const avgBottlePct = pct(
+          realAvgBottle,
+          Number(goal.avgBottleValueGoal ?? "0"),
+        );
         const monthlyResult = goal.weeklyResults?.[0] ?? null;
         const portfolio =
           sellerPortfolioStats.find((s) => s.userId === goal.userId) ?? null;
@@ -1661,7 +1668,8 @@ function AllSellersGoalProgress({
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
                         <span>
-                          GRFs — {bottleGoalProgress.achieved}/{bottleGoalProgress.goal}
+                          GRFs — {bottleGoalProgress.achieved}/
+                          {bottleGoalProgress.goal}
                         </span>
                         <span className="font-bold">
                           {ordersPct.toFixed(0)}%
