@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import type { TopSeller } from "@/hooks/use-bling-orders";
+import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
 
 interface WeeklyResult {
   id: string;
@@ -151,9 +152,11 @@ function SalesGoalCard({
   const realSalesPercentage = calculatePercentage(realSalesValue, Number(goal.salesGoal));
 
   const ordersGoalValue = goal.ordersGoal ?? 0;
-  const ordersPercentage = calculatePercentage(realSalesOrders, ordersGoalValue);
-
   const totalItemsSold = sellerData?.totalItems ?? 0;
+  const bottleGoalProgress = getBottleGoalProgress(
+    { totalItems: totalItemsSold, totalOrders: realSalesOrders },
+    ordersGoalValue,
+  );
   const avgBottleValue = totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
   const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
   const avgBottlePercentage = calculatePercentage(avgBottleValue, avgBottleGoalValue);
@@ -278,9 +281,9 @@ function SalesGoalCard({
           <MetricProgress
             label="Total de GRFs no Mês"
             icon={<ShoppingCart className="h-3.5 w-3.5" />}
-            achieved={`${realSalesOrders} GRF${realSalesOrders !== 1 ? "s" : ""}`}
+            achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
             goal={`${ordersGoalValue} GRF${ordersGoalValue !== 1 ? "s" : ""}`}
-            percentage={ordersGoalValue > 0 ? ordersPercentage : 0}
+            percentage={bottleGoalProgress.percentage}
             colorClass="bg-indigo-500"
             bgClass="bg-indigo-50 dark:bg-indigo-900/20"
             textClass="text-indigo-600 dark:text-indigo-400"
