@@ -25,6 +25,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  Wine,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
@@ -50,6 +51,7 @@ import { useClientReports, useGeneralReports } from "@/hooks/useReports";
 import { ReportsBirthdayList } from "@/components/reports/reports-birthday-list";
 import { ReportsStatistics } from "@/components/reports/reports-statistics";
 import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
+import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -189,7 +191,8 @@ interface UserGoal {
   userId: string;
   salesGoal: string;
   averageTicket: string;
-  itemsPerSale: number;
+  ordersGoal: number;
+  avgBottleValueGoal: string;
   userName: string;
   weeklyResults: WeeklyResult[];
 }
@@ -785,11 +788,16 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const results = goal.weeklyResults ?? [];
   const monthlyResult = results[0] ?? null;
   const salesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
-  const itemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
 
   const realValue = realSalesData?.totalValue ?? 0;
   const realOrders = realSalesData?.totalOrders ?? 0;
+  const realItems = realSalesData?.totalItems ?? 0;
+  const bottleGoalProgress = getBottleGoalProgress(
+    { totalItems: realItems, totalOrders: realOrders },
+    goal.ordersGoal ?? 0,
+  );
   const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
+  const realAvgBottle = realItems > 0 ? realValue / realItems : 0;
   const salesGoalNum = Number(goal.salesGoal);
   const realPct =
     salesGoalNum > 0 ? Math.min((realValue / salesGoalNum) * 100, 100) : 0;
@@ -893,6 +901,16 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           textClass="text-emerald-600 dark:text-emerald-400"
         />
         <ProgressBar
+          label="Total de GRFs no Mês"
+          icon={<ShoppingCart className="h-3.5 w-3.5" />}
+          achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
+          goal={`${bottleGoalProgress.goal} GRF${bottleGoalProgress.goal !== 1 ? "s" : ""}`}
+          percentage={bottleGoalProgress.percentage}
+          colorClass="bg-indigo-500"
+          bgClass="bg-indigo-50 dark:bg-indigo-900/20"
+          textClass="text-indigo-600 dark:text-indigo-400"
+        />
+        <ProgressBar
           label="Ticket Médio"
           icon={<BarChart3 className="h-3.5 w-3.5" />}
           achieved={formatCurrency(realAvgTicket)}
@@ -903,14 +921,14 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           textClass="text-blue-600 dark:text-blue-400"
         />
         <ProgressBar
-          label="Itens por Venda"
-          icon={<Package className="h-3.5 w-3.5" />}
-          achieved={`${itemsAchieved} itens`}
-          goal={`${goal.itemsPerSale} itens`}
-          percentage={pct(itemsAchieved, goal.itemsPerSale)}
-          colorClass="bg-purple-500"
-          bgClass="bg-purple-50 dark:bg-purple-900/20"
-          textClass="text-purple-600 dark:text-purple-400"
+          label="Valor Médio por Garrafa"
+          icon={<Wine className="h-3.5 w-3.5" />}
+          achieved={realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
+          goal={formatCurrency(goal.avgBottleValueGoal ?? "0")}
+          percentage={pct(realAvgBottle, Number(goal.avgBottleValueGoal ?? "0"))}
+          colorClass="bg-rose-500"
+          bgClass="bg-rose-50 dark:bg-rose-900/20"
+          textClass="text-rose-600 dark:text-rose-400"
         />
         <div className="pt-4 border-t border-gray-200 dark:border-slate-800">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1322,30 +1340,36 @@ function AllSellersGoalProgress({
           null;
         const realValue = realData?.totalValue ?? 0;
         const realOrders = realData?.totalOrders ?? 0;
+        const realItems = realData?.totalItems ?? 0;
+        const bottleGoalProgress = getBottleGoalProgress(
+          { totalItems: realItems, totalOrders: realOrders },
+          goal.ordersGoal ?? 0,
+        );
         const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
+        const realAvgBottle = realItems > 0 ? realValue / realItems : 0;
         const salesGoalNum = Number(goal.salesGoal);
         const salesPct =
           salesGoalNum > 0
             ? Math.min((realValue / salesGoalNum) * 100, 100)
             : 0;
-        const ticketGoalNum = Number(goal.averageTicket);
-        const ticketPct = pct(realAvgTicket, ticketGoalNum);
+        const ticketPct = pct(realAvgTicket, Number(goal.averageTicket));
+        const ordersPct = bottleGoalProgress.percentage;
+        const avgBottlePct = pct(realAvgBottle, Number(goal.avgBottleValueGoal ?? "0"));
         const monthlyResult = goal.weeklyResults?.[0] ?? null;
-        const itemsAchieved = monthlyResult
-          ? Number(monthlyResult.itemsAchieved)
-          : 0;
-        const itemsPct = pct(itemsAchieved, goal.itemsPerSale);
         const portfolio =
           sellerPortfolioStats.find((s) => s.userId === goal.userId) ?? null;
         return {
           goal,
           realValue,
           realOrders,
+          realItems,
+          bottleGoalProgress,
           realAvgTicket,
+          realAvgBottle,
           salesPct,
           ticketPct,
-          itemsAchieved,
-          itemsPct,
+          ordersPct,
+          avgBottlePct,
           monthlyResult,
           portfolio,
         };
@@ -1396,11 +1420,14 @@ function AllSellersGoalProgress({
                 goal,
                 realValue,
                 realOrders,
+                realItems,
+                bottleGoalProgress,
                 realAvgTicket,
+                realAvgBottle,
                 salesPct,
                 ticketPct,
-                itemsAchieved,
-                itemsPct,
+                ordersPct,
+                avgBottlePct,
                 monthlyResult,
                 portfolio,
               }) => {
@@ -1468,6 +1495,30 @@ function AllSellersGoalProgress({
                       />
                     </div>
 
+                    {/* Total de GRFs */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                        <span>
+                          GRFs — {bottleGoalProgress.achieved}/{bottleGoalProgress.goal}
+                        </span>
+                        <span className="font-bold">
+                          {ordersPct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${ordersPct}%` }}
+                          transition={{
+                            duration: 0.9,
+                            ease: "easeOut",
+                            delay: 0.1,
+                          }}
+                          className="h-full bg-indigo-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+
                     {/* Ticket médio */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
@@ -1483,35 +1534,53 @@ function AllSellersGoalProgress({
                           transition={{
                             duration: 0.9,
                             ease: "easeOut",
-                            delay: 0.1,
+                            delay: 0.2,
                           }}
                           className="h-full bg-blue-500 rounded-full"
                         />
                       </div>
                     </div>
 
-                    {/* Itens por venda */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                        <span>
-                          Itens — {itemsAchieved}/{goal.itemsPerSale}
-                        </span>
-                        <span className="font-bold">
-                          {itemsPct.toFixed(0)}%
+                    {/* Valor médio por garrafa */}
+                    <div className="space-y-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 p-2.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Wine className="h-3 w-3 text-rose-500 shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 truncate">
+                            Valor Médio / Garrafa
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[11px] font-black shrink-0 ${avgBottlePct >= 100 ? "text-emerald-600 dark:text-emerald-400" : avgBottlePct >= 50 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}
+                        >
+                          {avgBottlePct.toFixed(0)}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <span className="text-sm font-black text-slate-800 dark:text-slate-200 tabular-nums">
+                          {realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          meta {formatCurrency(goal.avgBottleValueGoal ?? "0")}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-rose-100 dark:bg-rose-900/30 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${itemsPct}%` }}
+                          animate={{ width: `${Math.min(avgBottlePct, 100)}%` }}
                           transition={{
                             duration: 0.9,
                             ease: "easeOut",
-                            delay: 0.2,
+                            delay: 0.3,
                           }}
-                          className="h-full bg-purple-500 rounded-full"
+                          className={`h-full rounded-full ${avgBottlePct >= 100 ? "bg-emerald-500" : avgBottlePct >= 50 ? "bg-amber-400" : "bg-rose-500"}`}
                         />
                       </div>
+                      <p className="text-[10px] text-slate-400">
+                        {realItems > 0
+                          ? `${realItems} garrafa${realItems !== 1 ? "s" : ""} vendida${realItems !== 1 ? "s" : ""}`
+                          : "Sem garrafas no período"}
+                      </p>
                     </div>
 
                     {/* Carteira + Positivação */}
@@ -1534,7 +1603,7 @@ function AllSellersGoalProgress({
                             transition={{
                               duration: 0.9,
                               ease: "easeOut",
-                              delay: 0.3,
+                              delay: 0.4,
                             }}
                             className={`h-full rounded-full ${portfolio.positivacao >= 70 ? "bg-emerald-500" : portfolio.positivacao >= 40 ? "bg-amber-400" : "bg-red-500"}`}
                           />

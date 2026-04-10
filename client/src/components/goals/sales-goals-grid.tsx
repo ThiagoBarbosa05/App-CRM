@@ -303,7 +303,7 @@ function SalesGoalCard({
             label="Valor Médio por Garrafa"
             icon={<Wine className="h-3.5 w-3.5" />}
             achieved={totalItemsSold > 0 ? formatCurrency(avgBottleValue) : "—"}
-            goal={formatCurrency(goal.avgBottleValueGoal)}
+            goal={formatCurrency(goal.avgBottleValueGoal ?? "0")}
             percentage={avgBottleGoalValue > 0 ? avgBottlePercentage : 0}
             colorClass="bg-rose-500"
             bgClass="bg-rose-50 dark:bg-rose-900/20"
