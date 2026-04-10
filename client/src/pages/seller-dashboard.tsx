@@ -1036,7 +1036,7 @@ export function IndividualSellerView({
     return (
       <div className="space-y-6">
         {/* KPI Cards skeleton */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card
               key={i}
@@ -1132,7 +1132,7 @@ export function IndividualSellerView({
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard
           label="Total Vendido"
           value={formatCurrency(monthlySummary.totalValue)}
@@ -2146,7 +2146,7 @@ export function AggregateView({
     return (
       <div className="space-y-6">
         {/* KPI Cards skeleton */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card
               key={i}
@@ -2176,7 +2176,7 @@ export function AggregateView({
               <Skeleton className="h-7 w-7 rounded-lg" />
               <Skeleton className="h-5 w-48" />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="space-y-2">
                   <Skeleton className="h-3 w-20" />
@@ -2306,7 +2306,7 @@ export function AggregateView({
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total Vendido"
           value={formatCurrency(monthlySummary.totalValue)}
