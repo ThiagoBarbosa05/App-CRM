@@ -165,41 +165,62 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
               </p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const entry = payload[0];
-                    const pct = total > 0 ? ((entry.value as number / total) * 100).toFixed(1) : "0";
-                    return (
-                      <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", padding: "8px 12px", fontSize: 12 }}>
-                        <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
-                        <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
-                      </div>
-                    );
-                  }}
-                />
-                <Legend
-                  iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="flex items-center gap-2">
+              {/* Lista de itens — lado esquerdo */}
+              <div className="flex-1 space-y-1.5 min-w-0">
+                {data.map((entry) => {
+                  const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0";
+                  return (
+                    <div key={entry.name} className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="shrink-0 w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                      />
+                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1">
+                        {entry.name}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+                        {entry.value} <span className="text-slate-400">({pct}%)</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Gráfico de pizza — lado direito */}
+              <div className="shrink-0 w-[160px] h-[160px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={72}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const entry = payload[0];
+                        const pct = total > 0 ? (((entry.value as number) / total) * 100).toFixed(1) : "0";
+                        return (
+                          <div style={{ borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", padding: "6px 10px", fontSize: 11 }}>
+                            <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
+                            <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
+                          </div>
+                        );
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
