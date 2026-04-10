@@ -227,17 +227,17 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchNewClientsThisMonth:", e);
       return [] as NewClientRow[];
     }),
-    fetchMonthlySummary(blingVendedorId, currentStart, currentEnd).catch(
+    fetchMonthlySummary(blingVendedorId, userId, currentStart, currentEnd).catch(
       (e) => {
         console.error("[seller-dashboard] fetchMonthlySummary:", e);
         return EMPTY_SUMMARY;
       },
     ),
-    fetchMonthlySummary(blingVendedorId, prevStart, prevEnd).catch((e) => {
+    fetchMonthlySummary(blingVendedorId, userId, prevStart, prevEnd).catch((e) => {
       console.error("[seller-dashboard] fetchPrevMonthSummary:", e);
       return EMPTY_SUMMARY;
     }),
-    fetchSalesEvolution(blingVendedorId, currentStart, currentEnd).catch(
+    fetchSalesEvolution(blingVendedorId, userId, currentStart, currentEnd).catch(
       (e) => {
         console.error("[seller-dashboard] fetchSalesEvolution:", e);
         return [] as SalesEvolutionPoint[];
@@ -606,37 +606,68 @@ async function fetchNewClientsThisMonth(
 
 async function fetchMonthlySummary(
   blingVendedorId: string | null,
+  userId: string,
   startDate: string,
   endDate: string,
 ): Promise<MonthlySummary> {
-  if (!blingVendedorId) return EMPTY_SUMMARY;
+  const [blingResult, connectResult] = await Promise.all([
+    blingVendedorId
+      ? db.execute<{
+          total_orders: unknown;
+          total_value: string | null;
+          avg_ticket: string | null;
+          unique_clients: unknown;
+        }>(sql`
+          SELECT
+            COUNT(*)::int                                                    AS total_orders,
+            COALESCE(SUM(total_value::numeric), 0)::text                    AS total_value,
+            COALESCE(AVG(total_value::numeric), 0)::text                    AS avg_ticket,
+            COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
+          FROM bling_orders
+          WHERE seller_id = ${blingVendedorId}
+            AND deleted_at IS NULL
+            AND sale_date >= ${startDate}
+            AND sale_date <= ${endDate}
+        `)
+      : Promise.resolve({ rows: [] as any[] }),
+    db.execute<{
+      total_orders: unknown;
+      total_value: string | null;
+      avg_ticket: string | null;
+    }>(sql`
+      SELECT
+        COUNT(*)::int                                AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)::text AS total_value,
+        COALESCE(AVG(total_value::numeric), 0)::text AS avg_ticket
+      FROM connect_orders
+      WHERE seller_id = ${userId}
+        AND sale_date::date >= ${startDate}::date
+        AND sale_date::date <= ${endDate}::date
+    `),
+  ]);
 
-  const result = await db.execute<{
-    total_orders: unknown;
-    total_value: string | null;
-    avg_ticket: string | null;
-    unique_clients: unknown;
-  }>(sql`
-    SELECT
-      COUNT(*)::int                                                    AS total_orders,
-      COALESCE(SUM(total_value::numeric), 0)::text                    AS total_value,
-      COALESCE(AVG(total_value::numeric), 0)::text                    AS avg_ticket,
-      COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
-    FROM bling_orders
-    WHERE seller_id = ${blingVendedorId}
-      AND deleted_at IS NULL
-      AND sale_date >= ${startDate}
-      AND sale_date <= ${endDate}
-  `);
+  const blingRow = blingResult.rows[0];
+  const connectRow = connectResult.rows[0];
 
-  const row = result.rows[0];
-  if (!row) return EMPTY_SUMMARY;
+  const blingTotal = parseFloat((blingRow as any)?.total_value ?? "0");
+  const blingOrders = Number((blingRow as any)?.total_orders ?? 0);
+  const blingClients = Number((blingRow as any)?.unique_clients ?? 0);
+
+  const connectTotal = parseFloat((connectRow as any)?.total_value ?? "0");
+  const connectOrders = Number((connectRow as any)?.total_orders ?? 0);
+
+  const totalValue = blingTotal + connectTotal;
+  const totalOrders = blingOrders + connectOrders;
+  const avgTicket = totalOrders > 0 ? totalValue / totalOrders : 0;
+  const uniqueClients = blingClients;
+
+  if (totalOrders === 0 && blingClients === 0) return EMPTY_SUMMARY;
 
   return {
-    totalValue: parseFloat(row.total_value ?? "0"),
-    totalOrders: Number(row.total_orders ?? 0),
-    avgTicket: parseFloat(row.avg_ticket ?? "0"),
-    uniqueClients: Number(row.unique_clients ?? 0),
+    totalValue,
+    totalOrders,
+    avgTicket,
+    uniqueClients,
   };
 }
 
@@ -644,27 +675,47 @@ async function fetchMonthlySummary(
 
 async function fetchSalesEvolution(
   blingVendedorId: string | null,
+  userId: string,
   startDate: string,
   endDate: string,
 ): Promise<SalesEvolutionPoint[]> {
-  if (!blingVendedorId) return [];
-
   const result = await db.execute<{
     date: string;
     total_orders: unknown;
     total_value: string | null;
   }>(sql`
     SELECT
-      sale_date                                  AS date,
-      COUNT(*)::int                              AS total_orders,
-      COALESCE(SUM(total_value::numeric), 0)::text AS total_value
-    FROM bling_orders
-    WHERE seller_id = ${blingVendedorId}
-      AND deleted_at IS NULL
-      AND sale_date >= ${startDate}
-      AND sale_date <= ${endDate}
-    GROUP BY sale_date
-    ORDER BY sale_date
+      date,
+      SUM(total_orders)::int                         AS total_orders,
+      COALESCE(SUM(total_value), 0)::text            AS total_value
+    FROM (
+      ${blingVendedorId
+        ? sql`
+          SELECT
+            sale_date::text                              AS date,
+            COUNT(*)                                     AS total_orders,
+            COALESCE(SUM(total_value::numeric), 0)       AS total_value
+          FROM bling_orders
+          WHERE seller_id = ${blingVendedorId}
+            AND deleted_at IS NULL
+            AND sale_date >= ${startDate}
+            AND sale_date <= ${endDate}
+          GROUP BY sale_date
+          UNION ALL
+        `
+        : sql``}
+      SELECT
+        sale_date::date::text                          AS date,
+        COUNT(*)                                       AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)         AS total_value
+      FROM connect_orders
+      WHERE seller_id = ${userId}
+        AND sale_date::date >= ${startDate}::date
+        AND sale_date::date <= ${endDate}::date
+      GROUP BY sale_date::date
+    ) combined
+    GROUP BY date
+    ORDER BY date
   `);
 
   return result.rows.map((r) => ({
@@ -772,29 +823,54 @@ async function fetchAggregateSummary(
   startDate: string,
   endDate: string,
 ): Promise<MonthlySummary> {
-  const result = await db.execute<{
-    total_orders: unknown;
-    total_value: string | null;
-    avg_ticket: string | null;
-    unique_clients: unknown;
-  }>(sql`
-    SELECT
-      COUNT(*)::int                                                    AS total_orders,
-      COALESCE(SUM(total_value::numeric), 0)::text                    AS total_value,
-      COALESCE(AVG(total_value::numeric), 0)::text                    AS avg_ticket,
-      COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
-    FROM bling_orders
-    WHERE deleted_at IS NULL
-      AND sale_date >= ${startDate}
-      AND sale_date <= ${endDate}
-  `);
-  const row = result.rows[0];
-  if (!row) return EMPTY_SUMMARY;
+  const [blingResult, connectResult] = await Promise.all([
+    db.execute<{
+      total_orders: unknown;
+      total_value: string | null;
+      avg_ticket: string | null;
+      unique_clients: unknown;
+    }>(sql`
+      SELECT
+        COUNT(*)::int                                                    AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)::text                    AS total_value,
+        COALESCE(AVG(total_value::numeric), 0)::text                    AS avg_ticket,
+        COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
+      FROM bling_orders
+      WHERE deleted_at IS NULL
+        AND sale_date >= ${startDate}
+        AND sale_date <= ${endDate}
+    `),
+    db.execute<{
+      total_orders: unknown;
+      total_value: string | null;
+    }>(sql`
+      SELECT
+        COUNT(*)::int                                AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)::text AS total_value
+      FROM connect_orders
+      WHERE sale_date::date >= ${startDate}::date
+        AND sale_date::date <= ${endDate}::date
+    `),
+  ]);
+
+  const blingRow = blingResult.rows[0];
+  const connectRow = connectResult.rows[0];
+
+  const blingTotal = parseFloat((blingRow as any)?.total_value ?? "0");
+  const blingOrders = Number((blingRow as any)?.total_orders ?? 0);
+  const blingClients = Number((blingRow as any)?.unique_clients ?? 0);
+  const connectTotal = parseFloat((connectRow as any)?.total_value ?? "0");
+  const connectOrders = Number((connectRow as any)?.total_orders ?? 0);
+
+  const totalValue = blingTotal + connectTotal;
+  const totalOrders = blingOrders + connectOrders;
+  const avgTicket = totalOrders > 0 ? totalValue / totalOrders : 0;
+
   return {
-    totalValue: parseFloat(row.total_value ?? "0"),
-    totalOrders: Number(row.total_orders ?? 0),
-    avgTicket: parseFloat(row.avg_ticket ?? "0"),
-    uniqueClients: Number(row.unique_clients ?? 0),
+    totalValue,
+    totalOrders,
+    avgTicket,
+    uniqueClients: blingClients,
   };
 }
 
@@ -808,15 +884,31 @@ async function fetchAggregateSalesEvolution(
     total_value: string | null;
   }>(sql`
     SELECT
-      sale_date                                       AS date,
-      COUNT(*)::int                                   AS total_orders,
-      COALESCE(SUM(total_value::numeric), 0)::text   AS total_value
-    FROM bling_orders
-    WHERE deleted_at IS NULL
-      AND sale_date >= ${startDate}
-      AND sale_date <= ${endDate}
-    GROUP BY sale_date
-    ORDER BY sale_date
+      date,
+      SUM(total_orders)::int                          AS total_orders,
+      COALESCE(SUM(total_value), 0)::text             AS total_value
+    FROM (
+      SELECT
+        sale_date                                     AS date,
+        COUNT(*)                                      AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)        AS total_value
+      FROM bling_orders
+      WHERE deleted_at IS NULL
+        AND sale_date >= ${startDate}
+        AND sale_date <= ${endDate}
+      GROUP BY sale_date
+      UNION ALL
+      SELECT
+        sale_date::date::text                         AS date,
+        COUNT(*)                                      AS total_orders,
+        COALESCE(SUM(total_value::numeric), 0)        AS total_value
+      FROM connect_orders
+      WHERE sale_date::date >= ${startDate}::date
+        AND sale_date::date <= ${endDate}::date
+      GROUP BY sale_date::date
+    ) combined
+    GROUP BY date
+    ORDER BY date
   `);
   return result.rows.map((r) => ({
     date: r.date,
