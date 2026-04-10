@@ -1,4 +1,4 @@
-import { Target, BarChart3, Package, Plus, Pencil, ShoppingBag, Edit, Trash2 } from "lucide-react";
+import { Target, BarChart3, Plus, Pencil, ShoppingBag, ShoppingCart, Wine, Edit, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -25,7 +25,8 @@ interface UserGoal {
   userId: string;
   salesGoal: string;
   averageTicket: string;
-  itemsPerSale: number;
+  ordersGoal: number;
+  avgBottleValueGoal: string;
   userName: string;
   userEmail: string;
   weeklyResults: WeeklyResult[];
@@ -142,15 +143,20 @@ function SalesGoalCard({
 }) {
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
-  const totalItemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved) : 0;
   const avgTicketAchieved = monthlyResult ? Number(monthlyResult.ticketAchieved) : 0;
-
   const ticketPercentage = calculatePercentage(avgTicketAchieved, Number(goal.averageTicket));
-  const itemsPercentage = calculatePercentage(totalItemsAchieved, goal.itemsPerSale);
 
   const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
   const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
   const realSalesPercentage = calculatePercentage(realSalesValue, Number(goal.salesGoal));
+
+  const ordersGoalValue = goal.ordersGoal ?? 0;
+  const ordersPercentage = calculatePercentage(realSalesOrders, ordersGoalValue);
+
+  const totalItemsSold = sellerData?.totalItems ?? 0;
+  const avgBottleValue = totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
+  const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
+  const avgBottlePercentage = calculatePercentage(avgBottleValue, avgBottleGoalValue);
 
   return (
     <motion.div
@@ -268,6 +274,18 @@ function SalesGoalCard({
             </div>
           </div>
 
+          {/* Total de GRFs no Mês */}
+          <MetricProgress
+            label="Total de GRFs no Mês"
+            icon={<ShoppingCart className="h-3.5 w-3.5" />}
+            achieved={`${realSalesOrders} GRF${realSalesOrders !== 1 ? "s" : ""}`}
+            goal={`${ordersGoalValue} GRF${ordersGoalValue !== 1 ? "s" : ""}`}
+            percentage={ordersGoalValue > 0 ? ordersPercentage : 0}
+            colorClass="bg-indigo-500"
+            bgClass="bg-indigo-50 dark:bg-indigo-900/20"
+            textClass="text-indigo-600 dark:text-indigo-400"
+          />
+
           {/* Ticket Médio */}
           <MetricProgress
             label="Ticket Médio"
@@ -280,16 +298,16 @@ function SalesGoalCard({
             textClass="text-blue-600 dark:text-blue-400"
           />
 
-          {/* Itens por Venda */}
+          {/* Valor Médio por Garrafa */}
           <MetricProgress
-            label="Itens por Venda"
-            icon={<Package className="h-3.5 w-3.5" />}
-            achieved={`${totalItemsAchieved} itens`}
-            goal={`${goal.itemsPerSale} itens`}
-            percentage={itemsPercentage}
-            colorClass="bg-purple-500"
-            bgClass="bg-purple-50 dark:bg-purple-900/20"
-            textClass="text-purple-600 dark:text-purple-400"
+            label="Valor Médio por Garrafa"
+            icon={<Wine className="h-3.5 w-3.5" />}
+            achieved={totalItemsSold > 0 ? formatCurrency(avgBottleValue) : "—"}
+            goal={formatCurrency(goal.avgBottleValueGoal)}
+            percentage={avgBottleGoalValue > 0 ? avgBottlePercentage : 0}
+            colorClass="bg-rose-500"
+            bgClass="bg-rose-50 dark:bg-rose-900/20"
+            textClass="text-rose-600 dark:text-rose-400"
           />
 
           {/* Resultado do Mês — admin */}

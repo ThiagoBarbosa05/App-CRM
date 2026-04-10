@@ -68,6 +68,7 @@ export interface TopSeller {
   sellerName: string;
   totalOrders: number;
   totalValue: string;
+  totalItems?: number;
 }
 
 export interface TopProduct {

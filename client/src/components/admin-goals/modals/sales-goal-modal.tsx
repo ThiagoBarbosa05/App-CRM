@@ -34,9 +34,17 @@ const goalSchema = z.object({
         !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
       "Deve ser um valor positivo",
     ),
-  itemsPerSale: z.coerce
+  ordersGoal: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
-    .min(1, "Mínimo de 1 item"),
+    .min(0, "Mínimo 0"),
+  avgBottleValueGoal: z
+    .string()
+    .min(1, "Valor médio por garrafa é obrigatório")
+    .refine(
+      (val) =>
+        !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo",
+    ),
   month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
   year: z.coerce.number().min(2000, "Ano inválido"),
 });
@@ -79,7 +87,11 @@ export function SalesGoalModal({
       setValue("userId", editingGoal.userId);
       setValue("salesGoal", formatCurrencyInput(editingGoal.salesGoal));
       setValue("averageTicket", formatCurrencyInput(editingGoal.averageTicket));
-      setValue("itemsPerSale", editingGoal.itemsPerSale);
+      setValue("ordersGoal", editingGoal.ordersGoal ?? 0);
+      setValue(
+        "avgBottleValueGoal",
+        formatCurrencyInput(editingGoal.avgBottleValueGoal ?? "0"),
+      );
       setValue("month", editingGoal.month);
       setValue("year", editingGoal.year);
     } else {
@@ -87,7 +99,8 @@ export function SalesGoalModal({
         userId: "",
         salesGoal: "0,00",
         averageTicket: "0,00",
-        itemsPerSale: 1,
+        ordersGoal: 0,
+        avgBottleValueGoal: "0,00",
         month: selectedMonth,
         year: selectedYear,
       });
@@ -96,11 +109,11 @@ export function SalesGoalModal({
 
   const goalMutation = useMutation({
     mutationFn: async (data: GoalFormData) => {
-      // Garantir que os dados numéricos sejam enviados corretamente sem formatação
       const payload = {
         ...data,
         salesGoal: parseCurrency(data.salesGoal),
         averageTicket: parseCurrency(data.averageTicket),
+        avgBottleValueGoal: parseCurrency(data.avgBottleValueGoal),
       };
 
       if (editingGoal) {
@@ -233,22 +246,45 @@ export function SalesGoalModal({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Itens por Venda
-            </Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="1"
-              {...register("itemsPerSale")}
-              className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
-            />
-            {errors.itemsPerSale && (
-              <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
-                {errors.itemsPerSale.message}
-              </p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Total de GRFs no Mês
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                {...register("ordersGoal")}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              />
+              {errors.ordersGoal && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.ordersGoal.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Valor Médio por Garrafa (R$)
+              </Label>
+              <Input
+                placeholder="0,00"
+                {...register("avgBottleValueGoal")}
+                onChange={(e) => {
+                  const formatted = formatCurrencyInput(e.target.value);
+                  setValue("avgBottleValueGoal", formatted, {
+                    shouldValidate: true,
+                  });
+                }}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              />
+              {errors.avgBottleValueGoal && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.avgBottleValueGoal.message}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -49,6 +49,7 @@ export interface UnifiedTopSeller {
   sellerName: string;
   totalOrders: number;
   totalValue: number;
+  totalItems: number;
 }
 
 export interface UnifiedOrdersFilters {
