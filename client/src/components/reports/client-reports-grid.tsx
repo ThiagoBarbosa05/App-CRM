@@ -1,4 +1,5 @@
-import { Users, PieChart as PieIcon, Tag, MapPin } from "lucide-react";
+import { useState } from "react";
+import { Users, PieChart as PieIcon, Tag, MapPin, ChevronDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -35,15 +36,33 @@ export function ClientReportsGrid({
   clientsByUser,
   clientsByMarkers,
 }: ClientReportsGridProps) {
-  return (
-    <div className="space-y-8">
-      <SectionHeader
-        icon={<Users className="h-5 w-5" />}
-        title="Análise de Clientes"
-        description="Distribuição e segmentação da base de clientes"
-      />
+  const [open, setOpen] = useState(false);
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-4 p-4 bg-gradient-to-r from-emerald-50/50 to-green-50/50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-xl p-3 text-emerald-600 dark:text-emerald-400 shadow-sm">
+            <Users className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              Análise de Clientes
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Distribuição e segmentação da base de clientes
+            </p>
+          </div>
+        </div>
+        <ChevronDown
+          className={`h-5 w-5 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <PieCard
           title="Por Categoria"
           description="Segmentação por tipo de cliente"
@@ -87,7 +106,7 @@ export function ClientReportsGrid({
           icon={<Tag className="h-5 w-5" />}
           colorStart={9}
         />
-      </div>
+      </div>}
     </div>
   );
 }

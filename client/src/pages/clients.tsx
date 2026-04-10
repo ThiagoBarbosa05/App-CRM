@@ -26,6 +26,8 @@ import { ClientsHeader } from "@/components/clients/clients-header";
 import { ClientsActions } from "@/components/clients/clients-actions";
 import { type Client } from "@shared/schema";
 import { useLocation } from "wouter";
+import { useClientReports } from "@/hooks/useReports";
+import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -152,6 +154,7 @@ export default function Clients() {
   const companiesArray = useMemo(() => companiesData || [], [companiesData]);
 
   const [, navigate] = useLocation();
+  const { data: clientReports } = useClientReports();
 
   const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
     useQuery({
@@ -208,6 +211,14 @@ export default function Clients() {
           totalItems={totalItems}
           onImportClick={() => setIsImportModalOpen(true)}
           onNewClientClick={() => setIsClientModalOpen(true)}
+        />
+
+        {/* Análise de Clientes */}
+        <ClientReportsGrid
+          clientsByCategory={clientReports?.clientsByCategory ?? []}
+          clientsByOrigin={clientReports?.clientsByOrigin ?? []}
+          clientsByUser={clientReports?.clientsByUser ?? []}
+          clientsByMarkers={clientReports?.clientsByMarkers ?? []}
         />
 
         <ClientsActions

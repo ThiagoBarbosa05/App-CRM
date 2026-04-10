@@ -49,7 +49,6 @@ import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
 import { useClientReports, useGeneralReports } from "@/hooks/useReports";
 import { ReportsBirthdayList } from "@/components/reports/reports-birthday-list";
 import { ReportsStatistics } from "@/components/reports/reports-statistics";
-import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
 import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -1727,13 +1726,6 @@ export function AggregateView({
         </SectionCard>
       </div>
 
-      {/* Segmentação de Clientes */}
-      <ClientReportsGrid
-        clientsByCategory={clientReports?.clientsByCategory ?? []}
-        clientsByOrigin={clientReports?.clientsByOrigin ?? []}
-        clientsByUser={clientReports?.clientsByUser ?? []}
-        clientsByMarkers={clientReports?.clientsByMarkers ?? []}
-      />
     </div>
   );
 }
