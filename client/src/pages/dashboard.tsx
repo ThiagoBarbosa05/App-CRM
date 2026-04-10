@@ -34,10 +34,7 @@ import { ClientDebt, DashboardStats } from "@/types/dashboard";
 import { DashboardStatsCards } from "@/components/dashboard/dashboard-stats-cards";
 import { DashboardDebtsTab } from "@/components/dashboard/dashboard-debts-tab";
 import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-tab";
-import {
-  AggregateView,
-  IndividualSellerView,
-} from "@/pages/seller-dashboard";
+import { AggregateView, IndividualSellerView } from "@/pages/seller-dashboard";
 
 // ---------------------------------------------------------------------------
 
@@ -107,10 +104,9 @@ export default function DashboardPage() {
   const { data: clientDebts = [] } = useQuery<ClientDebt[]>({
     queryKey: [`/api/client-debts`, user?.id, user?.role],
     queryFn: async () => {
-      const url =
-        isAdmin
-          ? `/api/client-debts`
-          : `/api/client-debts?responsibleId=${user?.id}`;
+      const url = isAdmin
+        ? `/api/client-debts`
+        : `/api/client-debts?responsibleId=${user?.id}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch client debts");
       return res.json();
@@ -148,7 +144,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-start gap-3 shrink-0">
           {/* Date range picker */}
           <div className="flex flex-col items-start gap-1">
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
