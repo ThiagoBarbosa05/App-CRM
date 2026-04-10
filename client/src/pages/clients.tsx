@@ -28,6 +28,7 @@ import { type Client } from "@shared/schema";
 import { useLocation } from "wouter";
 import { useClientReports } from "@/hooks/useReports";
 import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
+import { ClientCommercialGrid } from "@/components/reports/client-commercial-grid";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -217,18 +218,21 @@ export default function Clients() {
           onNewClientClick={() => setIsClientModalOpen(true)}
         />
 
-        {/* Análise de Clientes */}
-        <ClientReportsGrid
-          clientsByCategory={clientReports?.clientsByCategory ?? []}
-          clientsByOrigin={clientReports?.clientsByOrigin ?? []}
-          clientsByUser={clientReports?.clientsByUser ?? []}
-          clientsByMarkers={clientReports?.clientsByMarkers ?? []}
-          totalClients={clientReports?.totalClients ?? 0}
-          clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
-          clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
-          clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
-          clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
-        />
+        {/* Análise de Clientes + Análise Comercial */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <ClientReportsGrid
+            clientsByCategory={clientReports?.clientsByCategory ?? []}
+            clientsByOrigin={clientReports?.clientsByOrigin ?? []}
+            clientsByUser={clientReports?.clientsByUser ?? []}
+            clientsByMarkers={clientReports?.clientsByMarkers ?? []}
+            totalClients={clientReports?.totalClients ?? 0}
+            clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+            clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+            clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+            clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+          />
+          <ClientCommercialGrid />
+        </div>
 
         <ClientsActions
           searchQuery={searchQuery}
