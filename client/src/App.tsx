@@ -27,7 +27,6 @@ import CampaignsDashboardPage from "./pages/campaigns-dashboard";
 import CampaignDetailsPage from "./pages/campaign-details";
 import BlingSalesPage from "./pages/bling-sales";
 import SellerPerformancePage from "./pages/seller-performance";
-import SellerDashboardPage from "./pages/seller-dashboard";
 import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
 import CalculadoraVinho from "./pages/calculadora-vinho";
@@ -193,14 +192,6 @@ function Router() {
         component={() => (
           <MainLayout>
             <SellerPerformancePage />
-          </MainLayout>
-        )}
-      />
-      <Route
-        path="/dashboard-vendedor"
-        component={() => (
-          <MainLayout>
-            <SellerDashboardPage />
           </MainLayout>
         )}
       />

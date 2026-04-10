@@ -912,7 +912,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
 
 // ─── View de vendedor individual ──────────────────────────────────────────────
 
-function IndividualSellerView({
+export function IndividualSellerView({
   sellerId,
   isOwnView,
   startDate,
@@ -1552,7 +1552,7 @@ function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
 
 // ─── View agregada (admin — todos os vendedores) ──────────────────────────────
 
-function AggregateView({
+export function AggregateView({
   startDate,
   endDate,
 }: {
