@@ -129,14 +129,6 @@ export default function Metas() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const aggregateUrl = `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
-  const { data: aggregateData } = useQuery<any>({
-    queryKey: [aggregateUrl],
-    enabled: isManager,
-    staleTime: 5 * 60 * 1000,
-  });
-  const wineTierData = aggregateData?.sellerWinePriceTiers ?? [];
-
   // -------------------------------------------------------------------------
   // Mutations (admin)
   // -------------------------------------------------------------------------
@@ -370,7 +362,6 @@ export default function Metas() {
             getTotalAchieved={getTotalAchieved}
             isAdmin={isManager}
             topSellersData={topSellers}
-            wineTierData={wineTierData}
             onAddResult={
               isManager
                 ? (goal) => {

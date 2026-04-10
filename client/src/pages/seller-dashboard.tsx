@@ -196,9 +196,6 @@ interface UserGoal {
   salesGoal: string;
   averageTicket: string;
   itemsPerSale: number;
-  economicoGoalQty: number;
-  intermediarioGoalQty: number;
-  premiumGoalQty: number;
   userName: string;
   weeklyResults: WeeklyResult[];
 }
@@ -769,15 +766,6 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const { data: topSellers = [], isLoading: isTopSellersLoading } =
     useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
 
-  const tierUrl = `/api/users/${userId}/tier-counts?startDate=${monthStart}&endDate=${monthEnd}`;
-  const { data: tierCounts } = useQuery<{
-    economico: number;
-    intermediario: number;
-    premium: number;
-  }>({
-    queryKey: [tierUrl],
-  });
-
   const goal = useMemo(
     () => goals.find((g) => g.userId === userId),
     [goals, userId],
@@ -929,42 +917,6 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-purple-500"
           bgClass="bg-purple-50 dark:bg-purple-900/20"
           textClass="text-purple-600 dark:text-purple-400"
-        />
-        <ProgressBar
-          label="Econômico"
-          icon={<Package className="h-3.5 w-3.5" />}
-          achieved={`${tierCounts?.economico ?? 0} un`}
-          goal={`${goal.economicoGoalQty ?? 0} un`}
-          percentage={pct(
-            tierCounts?.economico ?? 0,
-            goal.economicoGoalQty ?? 0,
-          )}
-          colorClass="bg-emerald-500"
-          bgClass="bg-emerald-50 dark:bg-emerald-900/20"
-          textClass="text-emerald-600 dark:text-emerald-400"
-        />
-        <ProgressBar
-          label="Intermediário"
-          icon={<Package className="h-3.5 w-3.5" />}
-          achieved={`${tierCounts?.intermediario ?? 0} un`}
-          goal={`${goal.intermediarioGoalQty ?? 0} un`}
-          percentage={pct(
-            tierCounts?.intermediario ?? 0,
-            goal.intermediarioGoalQty ?? 0,
-          )}
-          colorClass="bg-blue-500"
-          bgClass="bg-blue-50 dark:bg-blue-900/20"
-          textClass="text-blue-600 dark:text-blue-400"
-        />
-        <ProgressBar
-          label="Premium"
-          icon={<Package className="h-3.5 w-3.5" />}
-          achieved={`${tierCounts?.premium ?? 0} un`}
-          goal={`${goal.premiumGoalQty ?? 0} un`}
-          percentage={pct(tierCounts?.premium ?? 0, goal.premiumGoalQty ?? 0)}
-          colorClass="bg-amber-500"
-          bgClass="bg-amber-50 dark:bg-amber-900/20"
-          textClass="text-amber-600 dark:text-amber-400"
         />
         <div className="pt-4 border-t border-gray-200 dark:border-slate-800">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1354,10 +1306,8 @@ export function IndividualSellerView({
 
 function AllSellersGoalProgress({
   sellerPortfolioStats,
-  sellerWinePriceTiers,
 }: {
   sellerPortfolioStats: SellerPortfolioStats[];
-  sellerWinePriceTiers: SellerWinePriceTierRow[];
 }) {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -1402,23 +1352,6 @@ function AllSellersGoalProgress({
         const itemsPct = pct(itemsAchieved, goal.itemsPerSale);
         const portfolio =
           sellerPortfolioStats.find((s) => s.userId === goal.userId) ?? null;
-        const tierData =
-          sellerWinePriceTiers.find((t) => t.sellerId === goal.userId) ?? null;
-        const economicoAchieved = tierData?.economico.quantity ?? 0;
-        const intermediarioAchieved = tierData?.intermediario.quantity ?? 0;
-        const premiumAchieved = tierData?.premium.quantity ?? 0;
-        const economicoPct = pct(
-          economicoAchieved,
-          Number(goal.economicoGoalQty ?? 0),
-        );
-        const intermediarioPct = pct(
-          intermediarioAchieved,
-          Number(goal.intermediarioGoalQty ?? 0),
-        );
-        const premiumPct = pct(
-          premiumAchieved,
-          Number(goal.premiumGoalQty ?? 0),
-        );
         return {
           goal,
           realValue,
@@ -1430,12 +1363,6 @@ function AllSellersGoalProgress({
           itemsPct,
           monthlyResult,
           portfolio,
-          economicoAchieved,
-          intermediarioAchieved,
-          premiumAchieved,
-          economicoPct,
-          intermediarioPct,
-          premiumPct,
         };
       })
       .sort((a, b) => b.salesPct - a.salesPct);
@@ -1491,12 +1418,6 @@ function AllSellersGoalProgress({
                 itemsPct,
                 monthlyResult,
                 portfolio,
-                economicoAchieved,
-                intermediarioAchieved,
-                premiumAchieved,
-                economicoPct,
-                intermediarioPct,
-                premiumPct,
               }) => {
                 const salesColor =
                   salesPct >= 100
@@ -1605,88 +1526,6 @@ function AllSellersGoalProgress({
                           }}
                           className="h-full bg-purple-500 rounded-full"
                         />
-                      </div>
-                    </div>
-
-                    {/* Faixas de preço */}
-                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-emerald-600 dark:text-emerald-400">
-                            Econ. — {economicoAchieved}/
-                            {goal.economicoGoalQty ?? 0} un
-                          </span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                            {isNaN(economicoPct) ? 0 : economicoPct.toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${isNaN(economicoPct) ? 0 : economicoPct}%`,
-                            }}
-                            transition={{
-                              duration: 0.9,
-                              ease: "easeOut",
-                              delay: 0.3,
-                            }}
-                            className="h-full bg-emerald-500 rounded-full"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-blue-600 dark:text-blue-400">
-                            Inter. — {intermediarioAchieved}/
-                            {goal.intermediarioGoalQty ?? 0} un
-                          </span>
-                          <span className="font-bold text-blue-600 dark:text-blue-400">
-                            {isNaN(intermediarioPct)
-                              ? 0
-                              : intermediarioPct.toFixed(0)}
-                            %
-                          </span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${isNaN(intermediarioPct) ? 0 : intermediarioPct}%`,
-                            }}
-                            transition={{
-                              duration: 0.9,
-                              ease: "easeOut",
-                              delay: 0.4,
-                            }}
-                            className="h-full bg-blue-500 rounded-full"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-amber-600 dark:text-amber-400">
-                            Prem. — {premiumAchieved}/{goal.premiumGoalQty ?? 0}{" "}
-                            un
-                          </span>
-                          <span className="font-bold text-amber-600 dark:text-amber-400">
-                            {isNaN(premiumPct) ? 0 : premiumPct.toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${isNaN(premiumPct) ? 0 : premiumPct}%`,
-                            }}
-                            transition={{
-                              duration: 0.9,
-                              ease: "easeOut",
-                              delay: 0.5,
-                            }}
-                            className="h-full bg-amber-500 rounded-full"
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -2164,7 +2003,6 @@ export function AggregateView({
   const topClients = data?.topClients ?? [];
   const sellerRanking = data?.sellerRanking ?? [];
   const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
-  const sellerWinePriceTiers = data?.sellerWinePriceTiers ?? [];
   const winePriceTierThresholds = data?.winePriceTierThresholds ?? {
     lowThreshold: 50,
     midThreshold: 150,
@@ -2399,10 +2237,7 @@ export function AggregateView({
       <SalesEvolutionSection data={salesEvolution} />
 
       {/* Metas de todos os vendedores */}
-      <AllSellersGoalProgress
-        sellerPortfolioStats={sellerPortfolioStats}
-        sellerWinePriceTiers={sellerWinePriceTiers}
-      />
+      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
 
       {/* Positivação por vendedor */}
       <SellerPositivacaoCard stats={sellerPortfolioStats} />

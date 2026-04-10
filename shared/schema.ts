@@ -1242,6 +1242,9 @@ export const insertUserGoalSchema = createInsertSchema(userGoals)
     id: true,
     createdAt: true,
     updatedAt: true,
+    economicoGoalQty: true,
+    intermediarioGoalQty: true,
+    premiumGoalQty: true,
   })
   .extend({
     salesGoal: z
