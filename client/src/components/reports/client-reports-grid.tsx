@@ -1,4 +1,4 @@
-import { Users, PieChart, Tag, MapPin } from "lucide-react";
+import { Users, PieChart as PieIcon, Tag, MapPin } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,8 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface ClientReportsGridProps {
   clientsByCategory: Array<{ category: string | null; count: number }>;
@@ -15,6 +22,12 @@ interface ClientReportsGridProps {
   clientsByUser: Array<{ userId: string | null; userName: string; count: number }>;
   clientsByMarkers: Array<{ marker: string; count: number }>;
 }
+
+const PALETTE = [
+  "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
+  "#f97316", "#eab308", "#22c55e", "#14b8a6",
+  "#06b6d4", "#3b82f6", "#a855f7", "#84cc16",
+];
 
 export function ClientReportsGrid({
   clientsByCategory,
@@ -31,18 +44,18 @@ export function ClientReportsGrid({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <DistributionCard
+        <PieCard
           title="Por Categoria"
           description="Segmentação por tipo de cliente"
           items={clientsByCategory.map((d) => ({
             label: d.category ?? "Sem categoria",
             count: d.count,
           }))}
-          icon={<PieChart className="h-5 w-5" />}
-          color="purple"
+          icon={<PieIcon className="h-5 w-5" />}
+          colorStart={0}
         />
 
-        <DistributionCard
+        <PieCard
           title="Por Origem"
           description="Como os clientes chegaram até você"
           items={clientsByOrigin.map((d) => ({
@@ -50,10 +63,10 @@ export function ClientReportsGrid({
             count: d.count,
           }))}
           icon={<MapPin className="h-5 w-5" />}
-          color="cyan"
+          colorStart={3}
         />
 
-        <DistributionCard
+        <PieCard
           title="Por Responsável"
           description="Distribuição da carteira entre a equipe"
           items={clientsByUser.map((d) => ({
@@ -61,11 +74,10 @@ export function ClientReportsGrid({
             count: d.count,
           }))}
           icon={<Users className="h-5 w-5" />}
-          color="indigo"
-          solidBadge
+          colorStart={6}
         />
 
-        <DistributionCard
+        <PieCard
           title="Por Marcadores"
           description="Classificação por etiquetas e tags"
           items={clientsByMarkers.map((d) => ({
@@ -73,7 +85,7 @@ export function ClientReportsGrid({
             count: d.count,
           }))}
           icon={<Tag className="h-5 w-5" />}
-          color="rose"
+          colorStart={9}
         />
       </div>
     </div>
@@ -106,25 +118,22 @@ function SectionHeader({
   );
 }
 
-interface DistributionCardProps {
+interface PieCardProps {
   title: string;
   description: string;
   items: Array<{ label: string; count: number }>;
   icon: React.ReactNode;
-  color: string;
-  solidBadge?: boolean;
+  colorStart: number;
 }
 
-function DistributionCard({
-  title,
-  description,
-  items,
-  icon,
-  color,
-  solidBadge,
-}: DistributionCardProps) {
+function PieCard({ title, description, items, icon, colorStart }: PieCardProps) {
   const sorted = [...items].sort((a, b) => b.count - a.count);
-  const total = items.reduce((sum, item) => sum + item.count, 0);
+  const total = sorted.reduce((sum, item) => sum + item.count, 0);
+  const data = sorted.map((item, i) => ({
+    name: item.label,
+    value: item.count,
+    color: PALETTE[(colorStart + i) % PALETTE.length],
+  }));
 
   return (
     <motion.div
@@ -132,14 +141,10 @@ function DistributionCard({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="group h-full border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
-        <CardHeader
-          className={`pb-4 border-b border-slate-50 dark:border-slate-800/50 bg-${color}-50/30 dark:bg-${color}-900/10`}
-        >
+      <Card className="h-full border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
+        <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800/50">
           <div className="flex items-center gap-3">
-            <div
-              className={`bg-${color}-100 dark:bg-${color}-900/30 rounded-xl p-2.5 text-${color}-600 dark:text-${color}-400 group-hover:scale-110 transition-transform`}
-            >
+            <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5 text-slate-600 dark:text-slate-300">
               {icon}
             </div>
             <div>
@@ -152,57 +157,49 @@ function DistributionCard({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 space-y-2">
-          {sorted.length === 0 ? (
+        <CardContent className="p-4">
+          {data.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-slate-400 italic">
                 Nenhum dado disponível
               </p>
             </div>
           ) : (
-            sorted.map(({ label, count }) => {
-              const percentage = total > 0 ? (count / total) * 100 : 0;
-              return (
-                <div
-                  key={label}
-                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="45%"
+                  innerRadius={55}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  dataKey="value"
                 >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <Badge
-                      variant={solidBadge ? "default" : "secondary"}
-                      className={`px-2.5 py-0.5 font-bold text-[11px] truncate max-w-[140px] ${
-                        solidBadge
-                          ? `bg-${color}-600 hover:bg-${color}-700 text-white border-none shadow-sm`
-                          : `bg-${color}-50 dark:bg-${color}-900/20 text-${color}-600 dark:text-${color}-400 border-${color}-100 dark:border-${color}-800/30`
-                      }`}
-                    >
-                      {label}
-                    </Badge>
-                    <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden max-w-[100px] hidden sm:block">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        className={`h-full bg-${color}-500/50`}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                      {percentage.toFixed(0)}%
-                    </span>
-                    <div
-                      className={`min-w-[40px] text-center bg-${color}-100 dark:bg-${color}-900/30 px-2 py-1 rounded-lg`}
-                    >
-                      <span
-                        className={`font-black text-${color}-700 dark:text-${color}-400 text-sm`}
-                      >
-                        {count}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const entry = payload[0];
+                    const pct = total > 0 ? ((entry.value as number / total) * 100).toFixed(1) : "0";
+                    return (
+                      <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", padding: "8px 12px", fontSize: 12 }}>
+                        <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
+                        <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
