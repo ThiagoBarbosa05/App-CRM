@@ -33,7 +33,6 @@ import EventsDashboard from "@/components/events-dashboard";
 import { ClientDebt, DashboardStats } from "@/types/dashboard";
 import { DashboardStatsCards } from "@/components/dashboard/dashboard-stats-cards";
 import { DashboardDebtsTab } from "@/components/dashboard/dashboard-debts-tab";
-import { DashboardBirthdaysTab } from "@/components/dashboard/dashboard-birthdays-tab";
 import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-tab";
 import {
   AggregateView,
@@ -119,7 +118,7 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  // ── Query de aniversários ──────────────────────────────────────────────────
+  // ── Query de aniversários (usada no resumo de cobranças) ──────────────────
   const { data: upcomingBirthdays = [] } = useQuery({
     queryKey: [`/api/birthdays/upcoming`, user?.id, user?.role],
     queryFn: async () => {
@@ -262,7 +261,7 @@ export default function DashboardPage() {
         className="space-y-6"
       >
         <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
+          <TabsList className="grid w-full grid-cols-3 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
             <TabsTrigger
               value="desempenho"
               className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
@@ -281,16 +280,6 @@ export default function DashboardPage() {
             >
               <CreditCard className="h-4 w-4 shrink-0" />
               <span className="truncate">Cobranças</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="aniversarios"
-              className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
-                hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-            >
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span className="truncate">Aniversários</span>
             </TabsTrigger>
 
             <TabsTrigger
@@ -342,17 +331,6 @@ export default function DashboardPage() {
               upcomingBirthdays={upcomingBirthdays}
             />
           </div>
-        </TabsContent>
-
-        {/* Aba Aniversários ───────────────────────────────────────────────── */}
-        <TabsContent
-          value="aniversarios"
-          className="m-0 outline-none rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm"
-        >
-          <DashboardBirthdaysTab
-            upcomingBirthdays={upcomingBirthdays}
-            setSelectedClient={(client) => navigate(`/clientes/${client.id}`)}
-          />
         </TabsContent>
 
         {/* Aba Eventos ────────────────────────────────────────────────────── */}
