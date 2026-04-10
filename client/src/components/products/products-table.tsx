@@ -48,6 +48,7 @@ interface Product {
   createdByName: string;
   createdAt: string;
   clientCount: number;
+  imageUrl?: string | null;
 }
 
 interface ProductsTableProps {
@@ -56,6 +57,7 @@ interface ProductsTableProps {
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
   onViewClients: (product: Product) => void;
+  onViewDetail: (product: Product) => void;
   getCountryFlag: (country: string) => string;
   getTypeColor: (type: string) => string;
   currentPage: number;
@@ -70,6 +72,7 @@ export function ProductsTable({
   onEdit,
   onDelete,
   onViewClients,
+  onViewDetail,
   getCountryFlag,
   getTypeColor,
   currentPage,
@@ -155,12 +158,19 @@ export function ProductsTable({
                     className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 border-b border-slate-50 dark:border-slate-800 transition-colors group"
                   >
                     <TableCell className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-blue-50 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-blue-100/50 dark:border-slate-700 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                          <Wine className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                      <div
+                        className="flex items-center gap-3 cursor-pointer"
+                        onClick={() => onViewDetail(product)}
+                      >
+                        <div className="h-9 w-9 rounded-lg bg-blue-50 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-blue-100/50 dark:border-slate-700 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors overflow-hidden">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
+                          ) : (
+                            <Wine className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                          )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                          <p className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {product.name}
                           </p>
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">

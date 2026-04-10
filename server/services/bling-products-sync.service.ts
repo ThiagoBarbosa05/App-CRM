@@ -135,6 +135,7 @@ export async function syncBlingProducts(
           .set({
             blingProductId: String(blingProduct.id),
             ...(blingProduct.preco > 0 ? { negotiatedPrice: blingProduct.preco.toFixed(2) } : {}),
+            ...(blingProduct.imagemURL ? { imageUrl: blingProduct.imagemURL } : {}),
             updatedAt: new Date(),
           })
           .where(eq(products.id, match.id));
@@ -156,6 +157,7 @@ export async function syncBlingProducts(
             negotiatedPrice: blingProduct.preco.toFixed(2),
             createdBy: defaults.createdBy,
             blingProductId: String(blingProduct.id),
+            ...(blingProduct.imagemURL ? { imageUrl: blingProduct.imagemURL } : {}),
           })
           .returning({ id: products.id, name: products.name });
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { DateRange } from "react-day-picker";
@@ -1193,14 +1193,7 @@ export function IndividualSellerView({
       <SalesEvolutionSection data={salesEvolution} />
 
       {/* Perfil de Vendas por Faixa de Preço */}
-      {winePriceTier && (
-        <WinePriceTierTable
-          rows={[winePriceTier]}
-          thresholds={winePriceTierThresholds}
-          startDate={startDate}
-          endDate={endDate}
-        />
-      )}
+      <WinePriceTierTable sellerId={sellerId} />
 
       {/* Grid 2 colunas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1950,24 +1943,41 @@ function WineTierItemsModal({
   );
 }
 
-function WinePriceTierTable({
-  rows,
-  thresholds,
-  startDate,
-  endDate,
-}: {
-  rows: SellerWinePriceTierRow[];
-  thresholds: WinePriceTierThresholds;
-  startDate: string;
-  endDate: string;
-}) {
+type WinePeriod = "mes_atual" | "ultimos_12";
+
+function WinePriceTierTable({ sellerId }: { sellerId?: string | null }) {
+  const [period, setPeriod] = useState<WinePeriod>("mes_atual");
   const [selected, setSelected] = useState<{
     sellerId: string;
     sellerName: string;
     tier: TierKey;
   } | null>(null);
 
-  if (!rows.length) return null;
+  const now = new Date();
+  const startDate = period === "mes_atual"
+    ? format(startOfMonth(now), "yyyy-MM-dd")
+    : format(subMonths(now, 12), "yyyy-MM-dd");
+  const endDate = format(endOfMonth(now), "yyyy-MM-dd");
+
+  const queryUrl = sellerId
+    ? `/api/users/${sellerId}/seller-dashboard?startDate=${startDate}&endDate=${endDate}`
+    : `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
+
+  const { data, isLoading } = useQuery<DashboardData | AggregateDashboardData>({
+    queryKey: [queryUrl],
+  });
+
+  const rawTiers = (data as AggregateDashboardData)?.sellerWinePriceTiers;
+  const rows: SellerWinePriceTierRow[] = sellerId
+    ? ((data as DashboardData)?.winePriceTier ? [(data as DashboardData).winePriceTier!] : [])
+    : (Array.isArray(rawTiers) ? rawTiers : []);
+
+  const thresholds: WinePriceTierThresholds = data?.winePriceTierThresholds ?? {
+    lowThreshold: 50,
+    midThreshold: 150,
+  };
+
+  if (!isLoading && rows.length === 0) return null;
 
   const { lowThreshold, midThreshold } = thresholds;
 
@@ -1975,13 +1985,31 @@ function WinePriceTierTable({
     <>
       <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
         <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
-              <Package className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
+                <Package className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              </div>
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                Perfil de Vendas por Faixa de Preço
+              </CardTitle>
             </div>
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-              Perfil de Vendas por Faixa de Preço
-            </CardTitle>
+            {/* Filtro de período */}
+            <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
+              {(["mes_atual", "ultimos_12"] as WinePeriod[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    period === p
+                      ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                      : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {p === "mes_atual" ? "Mês Atual" : "12 Meses"}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -2385,12 +2413,7 @@ export function AggregateView({
       </div>
 
       {/* Perfil de vendas por faixa de preço */}
-      <WinePriceTierTable
-        rows={sellerWinePriceTiers}
-        thresholds={winePriceTierThresholds}
-        startDate={startDate}
-        endDate={endDate}
-      />
+      <WinePriceTierTable />
 
       {/* Qualidade dos Dados */}
       <ReportsDataCoverage

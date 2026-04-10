@@ -1165,6 +1165,7 @@ export class DatabaseStorage implements IStorage {
           createdBy: products.createdBy,
           createdAt: products.createdAt,
           createdByName: users.name,
+          imageUrl: products.imageUrl,
           clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
         })
         .from(products)
@@ -4544,9 +4545,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProductsStatistics() {
+  async getProductsStatistics(startDate?: string, endDate?: string) {
     try {
-      // Top products by revenue from Bling orders linked to app clients
+      const dateCondition = startDate && endDate
+        ? sql`AND ${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`
+        : sql``;
+
+      // Top products by revenue — sem filtro de data (visão histórica)
       const topProductsByRevenue = await this.db
         .select({
           productId: products.id,
@@ -4562,17 +4567,15 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
         .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
         .where(isNull(blingOrders.deletedAt))
-        .groupBy(
-          products.id,
-          products.name,
-          products.country,
-          products.volume,
-          products.type
-        )
+        .groupBy(products.id, products.name, products.country, products.volume, products.type)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`)
         .limit(8);
 
-      // Revenue distribution by wine type from Bling orders
+      // Revenue by type — com filtro de data quando fornecido
+      const revenueByTypeConditions = startDate && endDate
+        ? and(isNull(blingOrders.deletedAt), sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`)
+        : isNull(blingOrders.deletedAt);
+
       const revenueByType = await this.db
         .select({
           productType: products.type,
@@ -4582,14 +4585,11 @@ export class DatabaseStorage implements IStorage {
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
         .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
-        .where(isNull(blingOrders.deletedAt))
+        .where(revenueByTypeConditions)
         .groupBy(products.type)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
 
-      return {
-        topProductsByRevenue,
-        revenueByType,
-      };
+      return { topProductsByRevenue, revenueByType };
     } catch (error) {
       console.error("Error fetching products statistics:", error);
       throw error;

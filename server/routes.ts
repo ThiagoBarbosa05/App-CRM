@@ -3886,8 +3886,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get products statistics
   app.get("/api/products/statistics", async (req, res) => {
     try {
-      console.log("Fetching products statistics...");
-      const statistics = await storage.getProductsStatistics();
+      const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
+      const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+      const statistics = await storage.getProductsStatistics(startDate, endDate);
 
       res.json(statistics);
     } catch (error) {
