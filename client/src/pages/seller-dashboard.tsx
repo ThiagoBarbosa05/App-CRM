@@ -1292,7 +1292,7 @@ export function IndividualSellerView({
             <EmptyState message="Nenhum cliente inativo." />
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800 max-h-80 overflow-y-auto">
-              {inactiveClients.map((c, i) => (
+              {inactiveClients.slice(0, 20).map((c, i) => (
                 <ClientRow
                   key={c.clientId}
                   rank={i + 1}

@@ -232,7 +232,7 @@ export function ClientCommercialGrid({ startDate, endDate, userId }: ClientComme
           <EmptyState message="Nenhum cliente inativo." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            {inactiveClients.map((c) => (
+            {inactiveClients.slice(0, 20).map((c) => (
               <ClientLink key={c.clientId} clientId={c.clientId}>
                 <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
                   <div className="flex-1 min-w-0">
