@@ -57,12 +57,6 @@ const navItems: NavItem[] = [
   { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
   { href: "/metas", icon: Target, label: "Metas" },
   {
-    href: "/relatorios",
-    icon: BarChart3,
-    label: "Relatórios",
-    hideForRoles: ["vendedor"],
-  },
-  {
     href: "/vendas",
     icon: ShoppingCart,
     label: "Vendas (BETA)",

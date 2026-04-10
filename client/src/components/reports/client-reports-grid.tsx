@@ -21,12 +21,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
 
 interface ClientReportsGridProps {
   clientsByCategory: Array<{ category: string | null; count: number }>;
   clientsByOrigin: Array<{ origin: string | null; count: number }>;
   clientsByUser: Array<{ userId: string | null; userName: string; count: number }>;
   clientsByMarkers: Array<{ marker: string; count: number }>;
+  totalClients?: number;
+  clientsWithEmail?: number;
+  clientsWithPhone?: number;
+  clientsWithCPF?: number;
+  clientsWithAddress?: number;
 }
 
 const PALETTE = [
@@ -40,6 +46,11 @@ export function ClientReportsGrid({
   clientsByOrigin,
   clientsByUser,
   clientsByMarkers,
+  totalClients = 0,
+  clientsWithEmail = 0,
+  clientsWithPhone = 0,
+  clientsWithCPF = 0,
+  clientsWithAddress = 0,
 }: ClientReportsGridProps) {
   const [open, setOpen] = useState(false);
 
@@ -115,7 +126,16 @@ export function ClientReportsGrid({
             />
           </div>
 
-          <TopClientesCard />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TopClientesCard />
+            <ReportsDataCoverage
+              totalClients={totalClients}
+              clientsWithEmail={clientsWithEmail}
+              clientsWithPhone={clientsWithPhone}
+              clientsWithCPF={clientsWithCPF}
+              clientsWithAddress={clientsWithAddress}
+            />
+          </div>
         </div>
       )}
     </div>
