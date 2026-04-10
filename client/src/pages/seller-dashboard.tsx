@@ -770,7 +770,11 @@ function GoalProgressBlock({ userId }: { userId: string }) {
     useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
 
   const tierUrl = `/api/users/${userId}/tier-counts?startDate=${monthStart}&endDate=${monthEnd}`;
-  const { data: tierCounts } = useQuery<{ economico: number; intermediario: number; premium: number }>({
+  const { data: tierCounts } = useQuery<{
+    economico: number;
+    intermediario: number;
+    premium: number;
+  }>({
     queryKey: [tierUrl],
   });
 
@@ -931,7 +935,10 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           icon={<Package className="h-3.5 w-3.5" />}
           achieved={`${tierCounts?.economico ?? 0} un`}
           goal={`${goal.economicoGoalQty ?? 0} un`}
-          percentage={pct(tierCounts?.economico ?? 0, goal.economicoGoalQty ?? 0)}
+          percentage={pct(
+            tierCounts?.economico ?? 0,
+            goal.economicoGoalQty ?? 0,
+          )}
           colorClass="bg-emerald-500"
           bgClass="bg-emerald-50 dark:bg-emerald-900/20"
           textClass="text-emerald-600 dark:text-emerald-400"
@@ -941,7 +948,10 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           icon={<Package className="h-3.5 w-3.5" />}
           achieved={`${tierCounts?.intermediario ?? 0} un`}
           goal={`${goal.intermediarioGoalQty ?? 0} un`}
-          percentage={pct(tierCounts?.intermediario ?? 0, goal.intermediarioGoalQty ?? 0)}
+          percentage={pct(
+            tierCounts?.intermediario ?? 0,
+            goal.intermediarioGoalQty ?? 0,
+          )}
           colorClass="bg-blue-500"
           bgClass="bg-blue-50 dark:bg-blue-900/20"
           textClass="text-blue-600 dark:text-blue-400"
@@ -1028,7 +1038,10 @@ export function IndividualSellerView({
         {/* KPI Cards skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col gap-4 w-full">
@@ -1079,7 +1092,10 @@ export function IndividualSellerView({
         {/* 2-col section cards skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-7 w-7 rounded-lg" />
@@ -1398,9 +1414,18 @@ function AllSellersGoalProgress({
         const economicoAchieved = tierData?.economico.quantity ?? 0;
         const intermediarioAchieved = tierData?.intermediario.quantity ?? 0;
         const premiumAchieved = tierData?.premium.quantity ?? 0;
-        const economicoPct = pct(economicoAchieved, Number(goal.economicoGoalQty ?? 0));
-        const intermediarioPct = pct(intermediarioAchieved, Number(goal.intermediarioGoalQty ?? 0));
-        const premiumPct = pct(premiumAchieved, Number(goal.premiumGoalQty ?? 0));
+        const economicoPct = pct(
+          economicoAchieved,
+          Number(goal.economicoGoalQty ?? 0),
+        );
+        const intermediarioPct = pct(
+          intermediarioAchieved,
+          Number(goal.intermediarioGoalQty ?? 0),
+        );
+        const premiumPct = pct(
+          premiumAchieved,
+          Number(goal.premiumGoalQty ?? 0),
+        );
         return {
           goal,
           realValue,
@@ -1594,29 +1619,80 @@ function AllSellersGoalProgress({
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-emerald-600 dark:text-emerald-400">Econ. — {economicoAchieved}/{goal.economicoGoalQty ?? 0} un</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{isNaN(economicoPct) ? 0 : economicoPct.toFixed(0)}%</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            Econ. — {economicoAchieved}/
+                            {goal.economicoGoalQty ?? 0} un
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {isNaN(economicoPct) ? 0 : economicoPct.toFixed(0)}%
+                          </span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(economicoPct) ? 0 : economicoPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }} className="h-full bg-emerald-500 rounded-full" />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${isNaN(economicoPct) ? 0 : economicoPct}%`,
+                            }}
+                            transition={{
+                              duration: 0.9,
+                              ease: "easeOut",
+                              delay: 0.3,
+                            }}
+                            className="h-full bg-emerald-500 rounded-full"
+                          />
                         </div>
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-blue-600 dark:text-blue-400">Inter. — {intermediarioAchieved}/{goal.intermediarioGoalQty ?? 0} un</span>
-                          <span className="font-bold text-blue-600 dark:text-blue-400">{isNaN(intermediarioPct) ? 0 : intermediarioPct.toFixed(0)}%</span>
+                          <span className="text-blue-600 dark:text-blue-400">
+                            Inter. — {intermediarioAchieved}/
+                            {goal.intermediarioGoalQty ?? 0} un
+                          </span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            {isNaN(intermediarioPct)
+                              ? 0
+                              : intermediarioPct.toFixed(0)}
+                            %
+                          </span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(intermediarioPct) ? 0 : intermediarioPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.4 }} className="h-full bg-blue-500 rounded-full" />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${isNaN(intermediarioPct) ? 0 : intermediarioPct}%`,
+                            }}
+                            transition={{
+                              duration: 0.9,
+                              ease: "easeOut",
+                              delay: 0.4,
+                            }}
+                            className="h-full bg-blue-500 rounded-full"
+                          />
                         </div>
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="text-amber-600 dark:text-amber-400">Prem. — {premiumAchieved}/{goal.premiumGoalQty ?? 0} un</span>
-                          <span className="font-bold text-amber-600 dark:text-amber-400">{isNaN(premiumPct) ? 0 : premiumPct.toFixed(0)}%</span>
+                          <span className="text-amber-600 dark:text-amber-400">
+                            Prem. — {premiumAchieved}/{goal.premiumGoalQty ?? 0}{" "}
+                            un
+                          </span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            {isNaN(premiumPct) ? 0 : premiumPct.toFixed(0)}%
+                          </span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(premiumPct) ? 0 : premiumPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.5 }} className="h-full bg-amber-500 rounded-full" />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${isNaN(premiumPct) ? 0 : premiumPct}%`,
+                            }}
+                            transition={{
+                              duration: 0.9,
+                              ease: "easeOut",
+                              delay: 0.5,
+                            }}
+                            className="h-full bg-amber-500 rounded-full"
+                          />
                         </div>
                       </div>
                     </div>
@@ -2072,7 +2148,10 @@ export function AggregateView({
         {/* KPI Cards skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col gap-4 w-full">
@@ -2187,7 +2266,10 @@ export function AggregateView({
         {/* Top Produtos + Top Clientes skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
-            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-7 w-7 rounded-lg" />
@@ -2289,7 +2371,10 @@ export function AggregateView({
       <SalesEvolutionSection data={salesEvolution} />
 
       {/* Metas de todos os vendedores */}
-      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} sellerWinePriceTiers={sellerWinePriceTiers} />
+      <AllSellersGoalProgress
+        sellerPortfolioStats={sellerPortfolioStats}
+        sellerWinePriceTiers={sellerWinePriceTiers}
+      />
 
       {/* Positivação por vendedor */}
       <SellerPositivacaoCard stats={sellerPortfolioStats} />
@@ -2298,8 +2383,6 @@ export function AggregateView({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SellerRankingCard sellers={sellerRanking} />
       </div>
-
-      
 
       {/* Perfil de vendas por faixa de preço */}
       <WinePriceTierTable

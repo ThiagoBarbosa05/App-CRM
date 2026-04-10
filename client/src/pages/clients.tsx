@@ -15,7 +15,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
@@ -27,7 +26,6 @@ import {
   MapPin,
   ExternalLink,
   BarChart3,
-  TrendingUp,
   CalendarIcon,
   ChevronDown,
 } from "lucide-react";
@@ -304,51 +302,22 @@ export default function Clients() {
             )}
           </div>
 
-          {/* Conteúdo expansível com abas */}
+          {/* Conteúdo expansível */}
           {analyticsOpen && (
-            <Tabs defaultValue="analise-clientes" className="space-y-4">
-              <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
-                <TabsList className="grid w-full grid-cols-2 rounded-lg bg-slate-50 dark:bg-slate-900">
-                  <TabsTrigger
-                    value="analise-clientes"
-                    className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-emerald-200 dark:data-[state=active]:border-emerald-800
-                      hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-                  >
-                    <BarChart3 className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Análise de Clientes</span>
-                  </TabsTrigger>
-
-                  <TabsTrigger
-                    value="analise-comercial"
-                    className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
-                      hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-                  >
-                    <TrendingUp className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Análise Comercial</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="analise-clientes" className="m-0 outline-none">
-                <ClientReportsGrid
-                  clientsByCategory={clientReports?.clientsByCategory ?? []}
-                  clientsByOrigin={clientReports?.clientsByOrigin ?? []}
-                  clientsByUser={clientReports?.clientsByUser ?? []}
-                  clientsByMarkers={clientReports?.clientsByMarkers ?? []}
-                  totalClients={clientReports?.totalClients ?? 0}
-                  clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
-                  clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
-                  clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
-                  clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
-                />
-              </TabsContent>
-
-              <TabsContent value="analise-comercial" className="m-0 outline-none">
-                <ClientCommercialGrid startDate={startDate} endDate={endDate} />
-              </TabsContent>
-            </Tabs>
+            <div className="space-y-6">
+              <ClientReportsGrid
+                clientsByCategory={clientReports?.clientsByCategory ?? []}
+                clientsByOrigin={clientReports?.clientsByOrigin ?? []}
+                clientsByUser={clientReports?.clientsByUser ?? []}
+                clientsByMarkers={clientReports?.clientsByMarkers ?? []}
+                totalClients={clientReports?.totalClients ?? 0}
+                clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+                clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+                clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+                clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+              />
+              <ClientCommercialGrid startDate={startDate} endDate={endDate} />
+            </div>
           )}
         </div>
 
