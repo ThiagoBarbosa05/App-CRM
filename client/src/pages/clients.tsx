@@ -223,6 +223,11 @@ export default function Clients() {
           clientsByOrigin={clientReports?.clientsByOrigin ?? []}
           clientsByUser={clientReports?.clientsByUser ?? []}
           clientsByMarkers={clientReports?.clientsByMarkers ?? []}
+          totalClients={clientReports?.totalClients ?? 0}
+          clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+          clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+          clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+          clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
         />
 
         <ClientsActions

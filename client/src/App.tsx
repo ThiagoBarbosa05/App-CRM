@@ -11,7 +11,6 @@ import Login from "@/pages/login";
 import Clients from "@/pages/clients";
 import Companies from "@/pages/companies";
 import Funnel from "@/pages/funnel";
-import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
 import AIAssistant from "@/pages/ai-assistant";
@@ -114,14 +113,6 @@ function Router() {
         )}
       />
 
-      <Route
-        path="/relatorios"
-        component={() => (
-          <MainLayout>
-            <Reports />
-          </MainLayout>
-        )}
-      />
       <Route
         path="/calendario"
         component={() => (
