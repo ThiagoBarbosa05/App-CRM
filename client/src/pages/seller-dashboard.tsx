@@ -1199,10 +1199,6 @@ export function IndividualSellerView({
         </SectionCard>
       )}
 
-      {/* Aniversariantes */}
-      <ReportsBirthdayList
-        upcomingBirthdays={clientReports?.upcomingBirthdays ?? []}
-      />
     </div>
   );
 }
@@ -1691,19 +1687,14 @@ export function AggregateView({
         <SellerRankingCard sellers={sellerRanking} />
       </div>
 
-      {/* Qualidade dos Dados + Aniversariantes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ReportsDataCoverage
-          totalClients={clientReports?.totalClients ?? 0}
-          clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
-          clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
-          clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
-          clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
-        />
-        <ReportsBirthdayList
-          upcomingBirthdays={clientReports?.upcomingBirthdays ?? []}
-        />
-      </div>
+      {/* Qualidade dos Dados */}
+      <ReportsDataCoverage
+        totalClients={clientReports?.totalClients ?? 0}
+        clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+        clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+        clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+        clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+      />
 
       {/* Top Produtos + Top Clientes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
