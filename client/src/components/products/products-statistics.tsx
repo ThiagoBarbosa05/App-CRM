@@ -5,9 +5,9 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, PieChart as PieChartIcon, ChevronDown } from "lucide-react";
+import { DollarSign, PieChart as PieChartIcon, ChevronDown, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState } from "react";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
@@ -159,34 +159,32 @@ export function ProductsStatistics({
       animate="visible"
       className="space-y-4"
     >
-      {/* Section header */}
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 w-full group"
-      >
-        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700 transition-colors" />
-        <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors px-1 select-none">
-          Análise de Produtos
+      {/* Cabeçalho retrátil — mesmo padrão de Análise de Clientes */}
+      <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 py-3 rounded-xl shadow-md">
+        <button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Análise de Produtos
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Faturamento e distribuição de receita por tipo de vinho
+            </p>
+          </div>
           <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 transition-transform duration-300",
-              isOpen ? "rotate-0" : "-rotate-90"
-            )}
+            className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           />
-        </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700 transition-colors" />
-      </button>
+        </button>
+      </div>
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      {/* Conteúdo expansível */}
+      {isOpen && (
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
       {/* Card 1 — Faturamento por Vinho */}
       <motion.div variants={itemVariants}>
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
@@ -392,9 +390,7 @@ export function ProductsStatistics({
         </Card>
       </motion.div>
       </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      )}
     </motion.div>
   );
 }

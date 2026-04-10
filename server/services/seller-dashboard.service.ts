@@ -207,26 +207,16 @@ export async function getSellerDashboard(
     portfolioStats,
     winePriceTier,
   ] = await Promise.all([
-    fetchTopClientsByTotal(
-      userId,
-      blingVendedorId,
-      currentStart,
-      currentEnd,
-    ).catch((e) => {
-      console.error("[seller-dashboard] fetchTopClientsByTotal:", e);
+    fetchTopClientsByTotalForSeller(userId, currentStart, currentEnd).catch((e) => {
+      console.error("[seller-dashboard] fetchTopClientsByTotalForSeller:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopClientsByAvgTicket(
-      userId,
-      blingVendedorId,
-      currentStart,
-      currentEnd,
-    ).catch((e) => {
-      console.error("[seller-dashboard] fetchTopClientsByAvgTicket:", e);
+    fetchTopClientsByAvgTicketForSeller(userId, currentStart, currentEnd).catch((e) => {
+      console.error("[seller-dashboard] fetchTopClientsByAvgTicketForSeller:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopItemValue(blingVendedorId).catch((e) => {
-      console.error("[seller-dashboard] fetchTopItemValue:", e);
+    fetchTopItemValueForSeller(userId, currentStart, currentEnd).catch((e) => {
+      console.error("[seller-dashboard] fetchTopItemValueForSeller:", e);
       return [] as TopItemValueRow[];
     }),
     fetchInactiveClients(userId, inactiveDays).catch((e) => {
@@ -409,6 +399,119 @@ async function fetchTopItemValue(
     LIMIT 10
   `);
 
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    avgItemValue: parseFloat(r.avg_item_value ?? "0"),
+    itemCount: Number(r.item_count ?? 0),
+  }));
+}
+
+// ─── Top Clientes por carteira do vendedor (responsavel_id) ──────────────────
+// Fallback quando blingVendedorId é nulo ou não há dados pelo seller_id
+
+async function fetchTopClientsByTotalForSeller(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<TopClientRow[]> {
+  const result = await db.execute<{
+    client_id: string | null;
+    client_name: string | null;
+    order_count: unknown;
+    total_value: string | null;
+    avg_ticket: string | null;
+  }>(sql`
+    SELECT
+      bo.app_client_id                              AS client_id,
+      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+      COUNT(*)::int                                 AS order_count,
+      SUM(bo.total_value::numeric)::text            AS total_value,
+      AVG(bo.total_value::numeric)::text            AS avg_ticket
+    FROM bling_orders bo
+    JOIN clients c ON c.id = bo.app_client_id
+    WHERE c.responsavel_id = ${userId}
+      AND bo.deleted_at IS NULL
+      AND bo.app_client_id IS NOT NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+    GROUP BY bo.app_client_id
+    ORDER BY SUM(bo.total_value::numeric) DESC
+    LIMIT 10
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    orderCount: Number(r.order_count ?? 0),
+    totalValue: parseFloat(r.total_value ?? "0"),
+    avgTicket: parseFloat(r.avg_ticket ?? "0"),
+  }));
+}
+
+async function fetchTopClientsByAvgTicketForSeller(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<TopClientRow[]> {
+  const result = await db.execute<{
+    client_id: string | null;
+    client_name: string | null;
+    order_count: unknown;
+    total_value: string | null;
+    avg_ticket: string | null;
+  }>(sql`
+    SELECT
+      bo.app_client_id                              AS client_id,
+      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+      COUNT(*)::int                                 AS order_count,
+      SUM(bo.total_value::numeric)::text            AS total_value,
+      AVG(bo.total_value::numeric)::text            AS avg_ticket
+    FROM bling_orders bo
+    JOIN clients c ON c.id = bo.app_client_id
+    WHERE c.responsavel_id = ${userId}
+      AND bo.deleted_at IS NULL
+      AND bo.app_client_id IS NOT NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+    GROUP BY bo.app_client_id
+    ORDER BY AVG(bo.total_value::numeric) DESC
+    LIMIT 10
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    orderCount: Number(r.order_count ?? 0),
+    totalValue: parseFloat(r.total_value ?? "0"),
+    avgTicket: parseFloat(r.avg_ticket ?? "0"),
+  }));
+}
+
+async function fetchTopItemValueForSeller(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<TopItemValueRow[]> {
+  const result = await db.execute<{
+    client_id: string | null;
+    client_name: string | null;
+    avg_item_value: string | null;
+    item_count: unknown;
+  }>(sql`
+    SELECT
+      bo.app_client_id                              AS client_id,
+      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+      AVG(boi.value::numeric)::text                 AS avg_item_value,
+      COUNT(boi.id)::int                            AS item_count
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    JOIN clients c ON c.id = bo.app_client_id
+    WHERE c.responsavel_id = ${userId}
+      AND bo.deleted_at IS NULL
+      AND bo.app_client_id IS NOT NULL
+    GROUP BY bo.app_client_id
+    ORDER BY AVG(boi.value::numeric) DESC
+    LIMIT 10
+  `);
   return result.rows.map((r) => ({
     clientId: r.client_id,
     clientName: r.client_name,
