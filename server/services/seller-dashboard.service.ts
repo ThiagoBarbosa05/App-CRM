@@ -438,23 +438,23 @@ async function fetchInactiveClients(
       c.phone,
       GREATEST(
         (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
       )::text AS last_purchase_date,
       (
         CURRENT_DATE - GREATEST(
           (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
         )
       ) AS days_since_purchase
     FROM clients c
     WHERE c.responsavel_id = ${userId}
       AND (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
-        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
       )
       AND GREATEST(
         (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
       ) < CURRENT_DATE - (${daysStr} || ' days')::interval
     ORDER BY days_since_purchase DESC NULLS LAST
   `);
@@ -880,22 +880,22 @@ async function fetchAggregateInactiveClients(
       c.phone,
       GREATEST(
         (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
       )::text AS last_purchase_date,
       (
         CURRENT_DATE - GREATEST(
           (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
         )
       ) AS days_since_purchase
     FROM clients c
     WHERE (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
-        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
       )
       AND GREATEST(
         (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
       ) < CURRENT_DATE - (${daysStr} || ' days')::interval
     ORDER BY days_since_purchase DESC NULLS LAST
   `);

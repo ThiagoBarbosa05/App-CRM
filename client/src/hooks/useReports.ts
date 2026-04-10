@@ -133,13 +133,16 @@ export const useGeneralReports = () => {
  * Hook to fetch client reports data
  * Optimized query for client-specific statistics
  */
-export const useClientReports = () => {
+export const useClientReports = (filterUserId?: string | null) => {
   const { user } = useAuth();
 
   return useQuery<ClientReportsData>({
-    queryKey: ["reports", "clients", user?.id, user?.role],
+    queryKey: ["reports", "clients", user?.id, user?.role, filterUserId],
     queryFn: async () => {
-      const response = await fetch("/api/reports/clients", {
+      const params = new URLSearchParams();
+      if (filterUserId) params.set("filterUserId", filterUserId);
+      const url = `/api/reports/clients${params.size ? `?${params}` : ""}`;
+      const response = await fetch(url, {
         headers: {
           "x-user-id": user?.id || "",
           "x-user-role": user?.role || "",

@@ -64,13 +64,17 @@ export const getClientReportsController = async (
   try {
     const userId = req.headers["x-user-id"] as string;
     const userRole = req.headers["x-user-role"] as string;
+    const filterUserId = req.query.filterUserId as string | undefined;
 
     // Base condition for clients based on user role
     let baseCondition = sql`1=1`;
 
-    // If not admin, filter by responsible user
+    // If not admin, filter by own clients only
     if (userRole !== "admin" && userId) {
       baseCondition = eq(clients.responsavelId, userId);
+    } else if (filterUserId) {
+      // Admin filtering by a specific seller
+      baseCondition = eq(clients.responsavelId, filterUserId);
     }
 
     // Execute all queries in parallel for better performance

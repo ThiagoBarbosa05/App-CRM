@@ -5,9 +5,10 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, PieChart as PieChartIcon } from "lucide-react";
+import { DollarSign, PieChart as PieChartIcon, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   PieChart,
@@ -102,6 +103,8 @@ export function ProductsStatistics({
   getCountryFlag,
   getTypeColor,
 }: ProductsStatisticsProps) {
+  const [isOpen, setIsOpen] = useState(true);
+
   if (error) {
     return (
       <Card className="border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/20">
@@ -154,8 +157,36 @@ export function ProductsStatistics({
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
+      className="space-y-4"
     >
+      {/* Section header */}
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-3 w-full group"
+      >
+        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700 transition-colors" />
+        <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors px-1 select-none">
+          Análise de Produtos
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 transition-transform duration-300",
+              isOpen ? "rotate-0" : "-rotate-90"
+            )}
+          />
+        </span>
+        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700 transition-colors" />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
       {/* Card 1 — Faturamento por Vinho */}
       <motion.div variants={itemVariants}>
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
@@ -360,6 +391,10 @@ export function ProductsStatistics({
           </CardContent>
         </Card>
       </motion.div>
+      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

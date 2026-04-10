@@ -68,6 +68,7 @@ interface AggregateData {
 interface ClientCommercialGridProps {
   startDate: string;
   endDate: string;
+  userId?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,9 +134,13 @@ function SectionCard({ icon, title, badge, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function ClientCommercialGrid({ startDate, endDate }: ClientCommercialGridProps) {
+export function ClientCommercialGrid({ startDate, endDate, userId }: ClientCommercialGridProps) {
+  const params = new URLSearchParams({ startDate, endDate });
+  if (userId) params.set("userId", userId);
+  const queryKey = `/api/users/seller-dashboard/aggregate?${params}`;
+
   const { data, isLoading } = useQuery<AggregateData>({
-    queryKey: [`/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`],
+    queryKey: [queryKey],
   });
 
   const topClients = data?.topClients ?? [];

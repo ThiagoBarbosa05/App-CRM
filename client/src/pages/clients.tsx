@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -171,7 +178,16 @@ export default function Clients() {
   const companiesArray = useMemo(() => companiesData || [], [companiesData]);
 
   const [, navigate] = useLocation();
-  const { data: clientReports } = useClientReports();
+
+  // ── Filtro de vendedor para o setor de análises ───────────────────────────
+  // Vendedor vê apenas seus próprios dados; admin pode selecionar qualquer vendedor
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
+  const filterUserId = useMemo(() => {
+    if (!isAdmin) return user?.id ?? null;          // vendedor: sempre os próprios
+    return selectedSellerId === "all" ? null : selectedSellerId; // admin: selecionado ou todos
+  }, [isAdmin, user?.id, selectedSellerId]);
+
+  const { data: clientReports } = useClientReports(filterUserId);
 
   // ── Retrátil + Date range para setor de análises ──────────────────────────
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -268,37 +284,58 @@ export default function Clients() {
               <ChevronDown className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${analyticsOpen ? "rotate-180" : ""}`} />
             </button>
 
-            {/* Date picker */}
+            {/* Controles visíveis apenas quando aberto */}
             {analyticsOpen && (
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="shrink-0 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <span>{format(dateRange.from, "dd/MM/yy")} — {format(dateRange.to, "dd/MM/yy")}</span>
-                      ) : format(dateRange.from, "dd/MM/yy")
-                    ) : <span>Período</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <CalendarComponent
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={(range) => {
-                      setDateRange(range);
-                      if (range?.from && range?.to) setIsCalendarOpen(false);
-                    }}
-                    numberOfMonths={2}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Seletor de vendedor — visível só para admin */}
+                {isAdmin && (
+                  <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                    <SelectTrigger className="shrink-0 w-44 h-9 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm">
+                      <Users className="mr-2 h-4 w-4 text-slate-400 shrink-0" />
+                      <SelectValue placeholder="Todos os vendedores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os vendedores</SelectItem>
+                      {usersArray
+                        .filter((u: any) => u.role === "vendedor" || u.role === "gerente")
+                        .map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Date picker */}
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="shrink-0 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <span>{format(dateRange.from, "dd/MM/yy")} — {format(dateRange.to, "dd/MM/yy")}</span>
+                        ) : format(dateRange.from, "dd/MM/yy")
+                      ) : <span>Período</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <CalendarComponent
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={(range) => {
+                        setDateRange(range);
+                        if (range?.from && range?.to) setIsCalendarOpen(false);
+                      }}
+                      numberOfMonths={2}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             )}
           </div>
 
@@ -316,7 +353,7 @@ export default function Clients() {
                 clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
                 clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
               />
-              <ClientCommercialGrid startDate={startDate} endDate={endDate} />
+              <ClientCommercialGrid startDate={startDate} endDate={endDate} userId={filterUserId} />
             </div>
           )}
         </div>
