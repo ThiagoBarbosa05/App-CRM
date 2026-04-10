@@ -1017,17 +1017,81 @@ export function IndividualSellerView({
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6">
+        {/* KPI Cards skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-4 w-full">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-8 w-28" />
+                  </div>
+                  <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
-        <Skeleton className="h-48 rounded-xl" />
-        <Skeleton className="h-56 rounded-xl" />
+
+        {/* GoalProgressBlock skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* SalesEvolution skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <Skeleton className="h-48 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+
+        {/* 2-col section cards skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-72 rounded-xl" />
+            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-7 w-7 rounded-lg" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-0 divide-y divide-slate-50 dark:divide-slate-800">
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <div key={j} className="flex items-center gap-3 py-3">
+                    <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-36" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
@@ -1987,18 +2051,145 @@ export function AggregateView({
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6">
+        {/* KPI Cards skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-4 w-full">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-8 w-28" />
+                  </div>
+                  <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
-        <Skeleton className="h-56 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-56 rounded-xl" />
+
+        {/* ReportsStatistics skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SalesEvolution skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <Skeleton className="h-48 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+
+        {/* AllSellersGoalProgress skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-52" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* SellerPositivacaoCard skeleton */}
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-10" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Seller Ranking + Wine Price Tier skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-72 rounded-xl" />
+          <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-7 rounded-lg" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
+              {[1, 2, 3, 4, 5].map((j) => (
+                <div key={j} className="flex items-center gap-3 py-3">
+                  <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Top Produtos + Top Clientes skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <Card key={i} className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-7 w-7 rounded-lg" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <div key={j} className="flex items-center gap-3 py-3">
+                    <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-36" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
