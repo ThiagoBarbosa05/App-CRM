@@ -43,7 +43,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/metas", icon: Target, label: "Metas" },
   { href: "/clientes", icon: Users, label: "Clientes" },
+  { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
   { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
   // { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
   // { href: "/empresas", icon: Building2, label: "Empresas" },
@@ -54,8 +56,6 @@ const navItems: NavItem[] = [
     label: "Funil de Vendas",
     roles: ["admin", "vendedor"],
   },
-  { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
-  { href: "/metas", icon: Target, label: "Metas" },
   {
     href: "/vendas",
     icon: ShoppingCart,

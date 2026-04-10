@@ -16,7 +16,11 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git tag:*)",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(ls -1 /home/runner/workspace/server/jobs/*.ts)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep:*)",
+      "Bash(curl -s \"http://localhost:5000/api/users/seller-dashboard/aggregate?startDate=2026-04-01&endDate=2026-04-30\")"
     ]
   }
 }

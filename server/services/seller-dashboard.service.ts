@@ -627,12 +627,14 @@ export async function getAggregateDashboard(
     fetchAggregateTopItemValue(currentStart, currentEnd).catch(
       () => [] as TopItemValueRow[],
     ),
-    fetchAggregateInactiveClients(inactiveDays).catch(
-      () => [] as InactiveClientRow[],
-    ),
-    fetchAggregateNewClients().catch(
-      () => [] as NewClientRow[],
-    ),
+    fetchAggregateInactiveClients(inactiveDays).catch((e) => {
+      console.error("[aggregate] fetchAggregateInactiveClients:", e);
+      return [] as InactiveClientRow[];
+    }),
+    fetchAggregateNewClients().catch((e) => {
+      console.error("[aggregate] fetchAggregateNewClients:", e);
+      return [] as NewClientRow[];
+    }),
     fetchSellerRanking(currentStart, currentEnd).catch(
       () => [] as SellerRankingRow[],
     ),
