@@ -2,7 +2,14 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { systemSettings } from "../../shared/schema";
 import { eq, inArray } from "drizzle-orm";
-import { format, startOfMonth, endOfMonth, parseISO, differenceInCalendarDays, subDays } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  parseISO,
+  differenceInCalendarDays,
+  subDays,
+} from "date-fns";
 
 // ─── Tipos de agregação (todos os vendedores) ─────────────────────────────────
 
@@ -130,7 +137,12 @@ async function getWinePriceTiers(): Promise<WinePriceTierThresholds> {
   const rows = await db
     .select({ key: systemSettings.key, value: systemSettings.value })
     .from(systemSettings)
-    .where(inArray(systemSettings.key, ["wine_price_tier_low", "wine_price_tier_mid"]));
+    .where(
+      inArray(systemSettings.key, [
+        "wine_price_tier_low",
+        "wine_price_tier_mid",
+      ]),
+    );
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   const low = parseFloat(map["wine_price_tier_low"] ?? "50");
   const mid = parseFloat(map["wine_price_tier_mid"] ?? "150");
@@ -140,7 +152,12 @@ async function getWinePriceTiers(): Promise<WinePriceTierThresholds> {
   };
 }
 
-const EMPTY_SUMMARY: MonthlySummary = { totalValue: 0, totalOrders: 0, avgTicket: 0, uniqueClients: 0 };
+const EMPTY_SUMMARY: MonthlySummary = {
+  totalValue: 0,
+  totalOrders: 0,
+  avgTicket: 0,
+  uniqueClients: 0,
+};
 
 export async function getSellerDashboard(
   userId: string,
@@ -157,13 +174,21 @@ export async function getSellerDashboard(
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
   const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
 
-  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+  const duration = differenceInCalendarDays(
+    parseISO(currentEnd),
+    parseISO(currentStart),
+  );
   const prevEndDate = subDays(parseISO(currentStart), 1);
   const prevStartDate = subDays(prevEndDate, duration);
   const prevStart = format(prevStartDate, "yyyy-MM-dd");
   const prevEnd = format(prevEndDate, "yyyy-MM-dd");
 
-  const EMPTY_PORTFOLIO: ClientPortfolioStats = { total: 0, active: 0, inactive: 0, positivacao: 0 };
+  const EMPTY_PORTFOLIO: ClientPortfolioStats = {
+    total: 0,
+    active: 0,
+    inactive: 0,
+    positivacao: 0,
+  };
 
   const [
     topClients,
@@ -178,11 +203,21 @@ export async function getSellerDashboard(
     portfolioStats,
     winePriceTier,
   ] = await Promise.all([
-    fetchTopClientsByTotal(userId, blingVendedorId, currentStart, currentEnd).catch((e) => {
+    fetchTopClientsByTotal(
+      userId,
+      blingVendedorId,
+      currentStart,
+      currentEnd,
+    ).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByTotal:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopClientsByAvgTicket(userId, blingVendedorId, currentStart, currentEnd).catch((e) => {
+    fetchTopClientsByAvgTicket(
+      userId,
+      blingVendedorId,
+      currentStart,
+      currentEnd,
+    ).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByAvgTicket:", e);
       return [] as TopClientRow[];
     }),
@@ -198,18 +233,22 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchNewClientsThisMonth:", e);
       return [] as NewClientRow[];
     }),
-    fetchMonthlySummary(blingVendedorId, currentStart, currentEnd).catch((e) => {
-      console.error("[seller-dashboard] fetchMonthlySummary:", e);
-      return EMPTY_SUMMARY;
-    }),
+    fetchMonthlySummary(blingVendedorId, currentStart, currentEnd).catch(
+      (e) => {
+        console.error("[seller-dashboard] fetchMonthlySummary:", e);
+        return EMPTY_SUMMARY;
+      },
+    ),
     fetchMonthlySummary(blingVendedorId, prevStart, prevEnd).catch((e) => {
       console.error("[seller-dashboard] fetchPrevMonthSummary:", e);
       return EMPTY_SUMMARY;
     }),
-    fetchSalesEvolution(blingVendedorId, currentStart, currentEnd).catch((e) => {
-      console.error("[seller-dashboard] fetchSalesEvolution:", e);
-      return [] as SalesEvolutionPoint[];
-    }),
+    fetchSalesEvolution(blingVendedorId, currentStart, currentEnd).catch(
+      (e) => {
+        console.error("[seller-dashboard] fetchSalesEvolution:", e);
+        return [] as SalesEvolutionPoint[];
+      },
+    ),
     fetchTopProducts(blingVendedorId, currentStart, currentEnd).catch((e) => {
       console.error("[seller-dashboard] fetchTopProducts:", e);
       return [] as TopProductRow[];
@@ -226,7 +265,10 @@ export async function getSellerDashboard(
           winePriceTierThresholds.lowThreshold,
           winePriceTierThresholds.midThreshold,
         ).catch((e) => {
-          console.error("[seller-dashboard] fetchSingleSellerWinePriceTier:", e);
+          console.error(
+            "[seller-dashboard] fetchSingleSellerWinePriceTier:",
+            e,
+          );
           return null;
         })
       : Promise.resolve(null),
@@ -256,7 +298,13 @@ async function fetchTopClientsByTotal(
   startDate: string,
   endDate: string,
 ): Promise<TopClientRow[]> {
-  return buildBlingAggQuery(userId, blingVendedorId, "total_value", startDate, endDate);
+  return buildBlingAggQuery(
+    userId,
+    blingVendedorId,
+    "total_value",
+    startDate,
+    endDate,
+  );
 }
 
 // ─── Top Clientes por ticket médio (Bling only) ───────────────────────────────
@@ -267,7 +315,13 @@ async function fetchTopClientsByAvgTicket(
   startDate: string,
   endDate: string,
 ): Promise<TopClientRow[]> {
-  return buildBlingAggQuery(userId, blingVendedorId, "avg_ticket", startDate, endDate);
+  return buildBlingAggQuery(
+    userId,
+    blingVendedorId,
+    "avg_ticket",
+    startDate,
+    endDate,
+  );
 }
 
 // ─── Query base de agregação Bling only ──────────────────────────────────────
@@ -289,9 +343,10 @@ async function buildBlingAggQuery(
     avg_ticket: string | null;
   };
 
-  const orderClause = sort === "total_value"
-    ? sql`ORDER BY SUM(bo.total_value::numeric) DESC`
-    : sql`ORDER BY AVG(bo.total_value::numeric) DESC`;
+  const orderClause =
+    sort === "total_value"
+      ? sql`ORDER BY SUM(bo.total_value::numeric) DESC`
+      : sql`ORDER BY AVG(bo.total_value::numeric) DESC`;
 
   const result = await db.execute<Row>(sql`
     SELECT
@@ -406,13 +461,16 @@ async function fetchInactiveClients(
     clientName: r.client_name,
     phone: r.phone,
     lastPurchaseDate: r.last_purchase_date,
-    daysSincePurchase: r.days_since_purchase != null ? Number(r.days_since_purchase) : null,
+    daysSincePurchase:
+      r.days_since_purchase != null ? Number(r.days_since_purchase) : null,
   }));
 }
 
 // ─── Últimos 18 Clientes Cadastrados ─────────────────────────────────────────
 
-async function fetchNewClientsThisMonth(userId: string): Promise<NewClientRow[]> {
+async function fetchNewClientsThisMonth(
+  userId: string,
+): Promise<NewClientRow[]> {
   const result = await db.execute<{
     client_id: string;
     client_name: string;
@@ -520,7 +578,10 @@ export async function getAggregateDashboard(
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
   const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
 
-  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+  const duration = differenceInCalendarDays(
+    parseISO(currentEnd),
+    parseISO(currentStart),
+  );
   const prevEndDate = subDays(parseISO(currentStart), 1);
   const prevStartDate = subDays(prevEndDate, duration);
   const prevStart = format(prevStartDate, "yyyy-MM-dd");
@@ -543,18 +604,46 @@ export async function getAggregateDashboard(
   ] = await Promise.all([
     fetchAggregateSummary(currentStart, currentEnd).catch(() => EMPTY_SUMMARY),
     fetchAggregateSummary(prevStart, prevEnd).catch(() => EMPTY_SUMMARY),
-    fetchAggregateSalesEvolution(currentStart, currentEnd).catch(() => [] as SalesEvolutionPoint[]),
-    fetchAggregateTopProducts(currentStart, currentEnd).catch(() => [] as TopProductRow[]),
-    fetchAggregateTopClients(currentStart, currentEnd).catch(() => [] as TopClientRow[]),
-    fetchSellerRanking(currentStart, currentEnd).catch(() => [] as SellerRankingRow[]),
-    fetchAllSellersPortfolioStats(inactiveDays).catch(() => [] as SellerPortfolioStats[]),
-    fetchSellerWinePriceTierStats(currentStart, currentEnd, winePriceTierThresholds.lowThreshold, winePriceTierThresholds.midThreshold).catch(() => [] as SellerWinePriceTierRow[]),
+    fetchAggregateSalesEvolution(currentStart, currentEnd).catch(
+      () => [] as SalesEvolutionPoint[],
+    ),
+    fetchAggregateTopProducts(currentStart, currentEnd).catch(
+      () => [] as TopProductRow[],
+    ),
+    fetchAggregateTopClients(currentStart, currentEnd).catch(
+      () => [] as TopClientRow[],
+    ),
+    fetchSellerRanking(currentStart, currentEnd).catch(
+      () => [] as SellerRankingRow[],
+    ),
+    fetchAllSellersPortfolioStats(inactiveDays).catch(
+      () => [] as SellerPortfolioStats[],
+    ),
+    fetchSellerWinePriceTierStats(
+      currentStart,
+      currentEnd,
+      winePriceTierThresholds.lowThreshold,
+      winePriceTierThresholds.midThreshold,
+    ).catch(() => [] as SellerWinePriceTierRow[]),
   ]);
 
-  return { monthlySummary, prevMonthSummary, salesEvolution, topProducts, topClients, sellerRanking, sellerPortfolioStats, sellerWinePriceTiers, winePriceTierThresholds };
+  return {
+    monthlySummary,
+    prevMonthSummary,
+    salesEvolution,
+    topProducts,
+    topClients,
+    sellerRanking,
+    sellerPortfolioStats,
+    sellerWinePriceTiers,
+    winePriceTierThresholds,
+  };
 }
 
-async function fetchAggregateSummary(startDate: string, endDate: string): Promise<MonthlySummary> {
+async function fetchAggregateSummary(
+  startDate: string,
+  endDate: string,
+): Promise<MonthlySummary> {
   const result = await db.execute<{
     total_orders: unknown;
     total_value: string | null;
@@ -581,7 +670,10 @@ async function fetchAggregateSummary(startDate: string, endDate: string): Promis
   };
 }
 
-async function fetchAggregateSalesEvolution(startDate: string, endDate: string): Promise<SalesEvolutionPoint[]> {
+async function fetchAggregateSalesEvolution(
+  startDate: string,
+  endDate: string,
+): Promise<SalesEvolutionPoint[]> {
   const result = await db.execute<{
     date: string;
     total_orders: unknown;
@@ -605,7 +697,10 @@ async function fetchAggregateSalesEvolution(startDate: string, endDate: string):
   }));
 }
 
-async function fetchAggregateTopProducts(startDate: string, endDate: string): Promise<TopProductRow[]> {
+async function fetchAggregateTopProducts(
+  startDate: string,
+  endDate: string,
+): Promise<TopProductRow[]> {
   const result = await db.execute<{
     product_code: string | null;
     description: string | null;
@@ -637,7 +732,10 @@ async function fetchAggregateTopProducts(startDate: string, endDate: string): Pr
   }));
 }
 
-async function fetchAggregateTopClients(startDate: string, endDate: string): Promise<TopClientRow[]> {
+async function fetchAggregateTopClients(
+  startDate: string,
+  endDate: string,
+): Promise<TopClientRow[]> {
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -670,7 +768,10 @@ async function fetchAggregateTopClients(startDate: string, endDate: string): Pro
   }));
 }
 
-async function fetchSellerRanking(startDate: string, endDate: string): Promise<SellerRankingRow[]> {
+async function fetchSellerRanking(
+  startDate: string,
+  endDate: string,
+): Promise<SellerRankingRow[]> {
   const result = await db.execute<{
     seller_id: string | null;
     seller_name: string | null;
@@ -1060,6 +1161,13 @@ async function fetchAllSellersPortfolioStats(
     const active = Number(r.active_count ?? 0);
     const inactive = total - active;
     const positivacao = total > 0 ? (active / total) * 100 : 0;
-    return { userId: r.user_id, sellerName: r.seller_name ?? "Desconhecido", total, active, inactive, positivacao };
+    return {
+      userId: r.user_id,
+      sellerName: r.seller_name ?? "Desconhecido",
+      total,
+      active,
+      inactive,
+      positivacao,
+    };
   });
 }
