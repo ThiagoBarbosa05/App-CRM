@@ -9,6 +9,13 @@ import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
@@ -19,7 +26,14 @@ import {
   Phone,
   MapPin,
   ExternalLink,
+  BarChart3,
+  TrendingUp,
+  CalendarIcon,
+  ChevronDown,
 } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { ClientsHeader } from "@/components/clients/clients-header";
@@ -161,6 +175,22 @@ export default function Clients() {
   const [, navigate] = useLocation();
   const { data: clientReports } = useClientReports();
 
+  // ── Retrátil + Date range para setor de análises ──────────────────────────
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const now = new Date();
+    return { from: startOfMonth(now), to: endOfMonth(now) };
+  });
+  const startDate = useMemo(
+    () => dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(startOfMonth(new Date()), "yyyy-MM-dd"),
+    [dateRange?.from],
+  );
+  const endDate = useMemo(
+    () => dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : startDate,
+    [dateRange?.to, startDate],
+  );
+
   const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
     useQuery({
       queryKey: [
@@ -218,20 +248,108 @@ export default function Clients() {
           onNewClientClick={() => setIsClientModalOpen(true)}
         />
 
-        {/* Análise de Clientes + Análise Comercial */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <ClientReportsGrid
-            clientsByCategory={clientReports?.clientsByCategory ?? []}
-            clientsByOrigin={clientReports?.clientsByOrigin ?? []}
-            clientsByUser={clientReports?.clientsByUser ?? []}
-            clientsByMarkers={clientReports?.clientsByMarkers ?? []}
-            totalClients={clientReports?.totalClients ?? 0}
-            clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
-            clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
-            clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
-            clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
-          />
-          <ClientCommercialGrid />
+        {/* Análise de Clientes + Análise Comercial — retrátil + abas */}
+        <div className="space-y-4">
+          {/* Cabeçalho retrátil */}
+          <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 py-3 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              onClick={() => setAnalyticsOpen((v) => !v)}
+              className="flex-1 flex items-center gap-3 text-left"
+            >
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  Análises
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Segmentação e performance comercial dos clientes
+                </p>
+              </div>
+              <ChevronDown className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${analyticsOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Date picker */}
+            {analyticsOpen && (
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="shrink-0 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <span>{format(dateRange.from, "dd/MM/yy")} — {format(dateRange.to, "dd/MM/yy")}</span>
+                      ) : format(dateRange.from, "dd/MM/yy")
+                    ) : <span>Período</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={(range) => {
+                      setDateRange(range);
+                      if (range?.from && range?.to) setIsCalendarOpen(false);
+                    }}
+                    numberOfMonths={2}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          {/* Conteúdo expansível com abas */}
+          {analyticsOpen && (
+            <Tabs defaultValue="analise-clientes" className="space-y-4">
+              <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
+                <TabsList className="grid w-full grid-cols-2 rounded-lg bg-slate-50 dark:bg-slate-900">
+                  <TabsTrigger
+                    value="analise-clientes"
+                    className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-emerald-200 dark:data-[state=active]:border-emerald-800
+                      hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                  >
+                    <BarChart3 className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Análise de Clientes</span>
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="analise-comercial"
+                    className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
+                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
+                      hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                  >
+                    <TrendingUp className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Análise Comercial</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="analise-clientes" className="m-0 outline-none">
+                <ClientReportsGrid
+                  clientsByCategory={clientReports?.clientsByCategory ?? []}
+                  clientsByOrigin={clientReports?.clientsByOrigin ?? []}
+                  clientsByUser={clientReports?.clientsByUser ?? []}
+                  clientsByMarkers={clientReports?.clientsByMarkers ?? []}
+                  totalClients={clientReports?.totalClients ?? 0}
+                  clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+                  clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+                  clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+                  clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+                />
+              </TabsContent>
+
+              <TabsContent value="analise-comercial" className="m-0 outline-none">
+                <ClientCommercialGrid startDate={startDate} endDate={endDate} />
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
 
         <ClientsActions

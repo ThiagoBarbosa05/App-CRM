@@ -2299,6 +2299,8 @@ export function AggregateView({
         <SellerRankingCard sellers={sellerRanking} />
       </div>
 
+      
+
       {/* Perfil de vendas por faixa de preço */}
       <WinePriceTierTable
         rows={sellerWinePriceTiers}

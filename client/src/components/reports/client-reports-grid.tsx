@@ -52,92 +52,64 @@ export function ClientReportsGrid({
   clientsWithCPF = 0,
   clientsWithAddress = 0,
 }: ClientReportsGridProps) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="space-y-4">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-4 p-4 bg-gradient-to-r from-emerald-50/50 to-green-50/50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
-      >
-        <div className="flex items-center gap-4">
-          <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-xl p-3 text-emerald-600 dark:text-emerald-400 shadow-sm">
-            <Users className="h-5 w-5" />
-          </div>
-          <div className="text-left">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              Análise de Clientes
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Distribuição e segmentação da base de clientes
-            </p>
-          </div>
-        </div>
-        <ChevronDown
-          className={`h-5 w-5 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <PieCard
+          title="Por Categoria"
+          description="Segmentação por tipo de cliente"
+          items={clientsByCategory.map((d) => ({
+            label: d.category ?? "Sem categoria",
+            count: d.count,
+          }))}
+          icon={<PieIcon className="h-5 w-5" />}
+          colorStart={0}
         />
-      </button>
 
-      {open && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PieCard
-              title="Por Categoria"
-              description="Segmentação por tipo de cliente"
-              items={clientsByCategory.map((d) => ({
-                label: d.category ?? "Sem categoria",
-                count: d.count,
-              }))}
-              icon={<PieIcon className="h-5 w-5" />}
-              colorStart={0}
-            />
+        <PieCard
+          title="Por Origem"
+          description="Como os clientes chegaram até você"
+          items={clientsByOrigin.map((d) => ({
+            label: d.origin ?? "Sem origem",
+            count: d.count,
+          }))}
+          icon={<MapPin className="h-5 w-5" />}
+          colorStart={3}
+        />
 
-            <PieCard
-              title="Por Origem"
-              description="Como os clientes chegaram até você"
-              items={clientsByOrigin.map((d) => ({
-                label: d.origin ?? "Sem origem",
-                count: d.count,
-              }))}
-              icon={<MapPin className="h-5 w-5" />}
-              colorStart={3}
-            />
+        <PieCard
+          title="Por Responsável"
+          description="Distribuição da carteira entre a equipe"
+          items={clientsByUser.map((d) => ({
+            label: d.userName || "Sem responsável",
+            count: d.count,
+          }))}
+          icon={<Users className="h-5 w-5" />}
+          colorStart={6}
+        />
 
-            <PieCard
-              title="Por Responsável"
-              description="Distribuição da carteira entre a equipe"
-              items={clientsByUser.map((d) => ({
-                label: d.userName || "Sem responsável",
-                count: d.count,
-              }))}
-              icon={<Users className="h-5 w-5" />}
-              colorStart={6}
-            />
+        <PieCard
+          title="Por Marcadores"
+          description="Classificação por etiquetas e tags"
+          items={clientsByMarkers.map((d) => ({
+            label: d.marker || "Sem marcador",
+            count: d.count,
+          }))}
+          icon={<Tag className="h-5 w-5" />}
+          colorStart={9}
+        />
+      </div>
 
-            <PieCard
-              title="Por Marcadores"
-              description="Classificação por etiquetas e tags"
-              items={clientsByMarkers.map((d) => ({
-                label: d.marker || "Sem marcador",
-                count: d.count,
-              }))}
-              icon={<Tag className="h-5 w-5" />}
-              colorStart={9}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TopClientesCard />
-            <ReportsDataCoverage
-              totalClients={totalClients}
-              clientsWithEmail={clientsWithEmail}
-              clientsWithPhone={clientsWithPhone}
-              clientsWithCPF={clientsWithCPF}
-              clientsWithAddress={clientsWithAddress}
-            />
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <TopClientesCard />
+        <ReportsDataCoverage
+          totalClients={totalClients}
+          clientsWithEmail={clientsWithEmail}
+          clientsWithPhone={clientsWithPhone}
+          clientsWithCPF={clientsWithCPF}
+          clientsWithAddress={clientsWithAddress}
+        />
+      </div>
     </div>
   );
 }
