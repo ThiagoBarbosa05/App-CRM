@@ -1,4 +1,11 @@
-import { Users, Gift, UserPlus, MessageSquare, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Users,
+  Gift,
+  UserPlus,
+  MessageSquare,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 
@@ -49,8 +56,7 @@ export function ReportsStatistics({
       subLabel: "vs. mês anterior",
       icon: <Users className="h-5 w-5" />,
       color: "emerald",
-      gradient:
-        "from-emerald-50 to-green-50 dark:from-emerald-900/40 dark:to-green-900/20",
+      iconBg: "bg-emerald-50 dark:bg-emerald-900/20",
     },
     {
       label: "Aniversariantes",
@@ -60,8 +66,7 @@ export function ReportsStatistics({
       subLabel: "oportunidade de contato",
       icon: <Gift className="h-5 w-5" />,
       color: "amber",
-      gradient:
-        "from-amber-50 to-orange-50 dark:from-amber-900/40 dark:to-orange-900/20",
+      iconBg: "bg-amber-50 dark:bg-amber-900/20",
     },
     {
       label: "Novos Este Mês",
@@ -71,8 +76,7 @@ export function ReportsStatistics({
       subLabel: "vs. mês anterior",
       icon: <UserPlus className="h-5 w-5" />,
       color: "blue",
-      gradient:
-        "from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/20",
+      iconBg: "bg-blue-50 dark:bg-blue-900/20",
     },
     {
       label: "Interações Este Mês",
@@ -82,8 +86,7 @@ export function ReportsStatistics({
       subLabel: "vs. mês anterior",
       icon: <MessageSquare className="h-5 w-5" />,
       color: "violet",
-      gradient:
-        "from-violet-50 to-purple-50 dark:from-violet-900/40 dark:to-purple-900/20",
+      iconBg: "bg-violet-50 dark:bg-violet-900/20",
     },
   ];
 
@@ -97,41 +100,34 @@ export function ReportsStatistics({
           transition={{ delay: index * 0.1 }}
           whileHover={{ y: -4 }}
         >
-          <Card
-            className={`group relative overflow-hidden border-none shadow-md bg-gradient-to-br ${stat.gradient} h-full`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {stat.label}
-              </CardTitle>
-              <div
-                className={`p-2 rounded-xl bg-white/50 dark:bg-slate-800/50 text-${stat.color}-600 dark:text-${stat.color}-400 shadow-sm sm:hidden lg:flex`}
-              >
-                {stat.icon}
+          <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 h-full">
+            <CardContent className="p-6 flex flex-col justify-between h-full">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+                    {stat.label}
+                  </span>
+                  <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white">
+                    {stat.value}
+                  </span>
+                </div>
+                <div
+                  className={`p-2.5 rounded-xl ${stat.iconBg} text-${stat.color}-600 dark:text-${stat.color}-400`}
+                >
+                  {stat.icon}
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-3xl font-black text-${stat.color}-700 dark:text-${stat.color}-400 mb-1`}
-              >
-                {stat.value}
-              </div>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                {stat.description}
-              </p>
-              {stat.sub && (
-                <div className="flex items-center gap-1.5">
-                  {stat.sub}
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
+              <div className="mt-auto">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {stat.description}
+                </p>
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {stat.sub && stat.sub}
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
                     {stat.subLabel}
                   </span>
                 </div>
-              )}
-              {!stat.sub && (
-                <div className="text-[10px] text-slate-400 dark:text-slate-500 italic">
-                  {stat.subLabel}
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </motion.div>

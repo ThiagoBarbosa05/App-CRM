@@ -219,34 +219,33 @@ function KpiCard({
     <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+              {label}
+            </span>
+            <p className="text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
+              {value}
+            </p>
+          </div>
           <div className={`p-2.5 rounded-xl ${iconBg}`}>
             <span className={iconColor}>{icon}</span>
           </div>
+        </div>
+        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+          <span>{subValue}</span>
           {hasHistory && (
             <div
-              className={`flex items-center gap-1 text-xs font-bold ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}
+              className={`flex items-center gap-1 font-bold ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}
             >
               {isUp ? (
                 <TrendingUp className="h-3.5 w-3.5" />
               ) : (
                 <TrendingDown className="h-3.5 w-3.5" />
               )}
+              {isUp ? "+" : ""}
               {Math.abs(d).toFixed(1)}%
             </div>
           )}
-        </div>
-        <div className="mt-4">
-          <p className="text-2xl font-black tabular-nums text-slate-900 dark:text-white truncate">
-            {value}
-          </p>
-          {subValue && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {subValue}
-            </p>
-          )}
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-            {label}
-          </p>
         </div>
       </CardContent>
     </Card>
@@ -277,16 +276,21 @@ function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
     <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
-          <div className={`p-2.5 rounded-xl ${iconBg}`}>
-            <span className={pctColor}>
-              <TrendingUp className="h-4 w-4" />
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+              Positivação
+            </span>
+            <span className={`text-3xl font-black tabular-nums ${pctColor}`}>
+              {stats.positivacao.toFixed(1)}%
             </span>
           </div>
-          <span className={`text-xs font-bold ${pctColor}`}>
-            {stats.positivacao.toFixed(1)}%
-          </span>
+          <div className={`p-2.5 rounded-xl ${iconBg}`}>
+            <span className={pctColor}>
+              <TrendingUp className="h-5 w-5" />
+            </span>
+          </div>
         </div>
-        <div className="mt-3 space-y-2">
+        <div className="mt-4 space-y-2">
           <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
@@ -303,9 +307,6 @@ function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
               {stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}
             </span>
           </div>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Positivação
-          </p>
         </div>
       </CardContent>
     </Card>
