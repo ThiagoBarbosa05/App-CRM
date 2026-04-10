@@ -52,6 +52,10 @@ export interface AggregateDashboardResult {
   salesEvolution: SalesEvolutionPoint[];
   topProducts: TopProductRow[];
   topClients: TopClientRow[];
+  highestAvgTicket: TopClientRow[];
+  highestAvgItemValue: TopItemValueRow[];
+  inactiveClients: InactiveClientRow[];
+  newClientsThisMonth: NewClientRow[];
   sellerRanking: SellerRankingRow[];
   sellerPortfolioStats: SellerPortfolioStats[];
   sellerWinePriceTiers: SellerWinePriceTierRow[];
@@ -598,6 +602,10 @@ export async function getAggregateDashboard(
     salesEvolution,
     topProducts,
     topClients,
+    highestAvgTicket,
+    highestAvgItemValue,
+    inactiveClients,
+    newClientsThisMonth,
     sellerRanking,
     sellerPortfolioStats,
     sellerWinePriceTiers,
@@ -612,6 +620,18 @@ export async function getAggregateDashboard(
     ),
     fetchAggregateTopClients(currentStart, currentEnd).catch(
       () => [] as TopClientRow[],
+    ),
+    fetchAggregateTopClientsByAvgTicket(currentStart, currentEnd).catch(
+      () => [] as TopClientRow[],
+    ),
+    fetchAggregateTopItemValue(currentStart, currentEnd).catch(
+      () => [] as TopItemValueRow[],
+    ),
+    fetchAggregateInactiveClients(inactiveDays).catch(
+      () => [] as InactiveClientRow[],
+    ),
+    fetchAggregateNewClients().catch(
+      () => [] as NewClientRow[],
     ),
     fetchSellerRanking(currentStart, currentEnd).catch(
       () => [] as SellerRankingRow[],
@@ -633,6 +653,10 @@ export async function getAggregateDashboard(
     salesEvolution,
     topProducts,
     topClients,
+    highestAvgTicket,
+    highestAvgItemValue,
+    inactiveClients,
+    newClientsThisMonth,
     sellerRanking,
     sellerPortfolioStats,
     sellerWinePriceTiers,
@@ -765,6 +789,150 @@ async function fetchAggregateTopClients(
     orderCount: Number(r.order_count ?? 0),
     totalValue: parseFloat(r.total_value ?? "0"),
     avgTicket: parseFloat(r.avg_ticket ?? "0"),
+  }));
+}
+
+async function fetchAggregateTopClientsByAvgTicket(
+  startDate: string,
+  endDate: string,
+): Promise<TopClientRow[]> {
+  const result = await db.execute<{
+    client_id: string | null;
+    client_name: string | null;
+    order_count: unknown;
+    total_value: string | null;
+    avg_ticket: string | null;
+  }>(sql`
+    SELECT
+      bo.app_client_id                              AS client_id,
+      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+      COUNT(*)::int                                 AS order_count,
+      SUM(bo.total_value::numeric)::text            AS total_value,
+      AVG(bo.total_value::numeric)::text            AS avg_ticket
+    FROM bling_orders bo
+    LEFT JOIN clients c ON c.id = bo.app_client_id
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND bo.app_client_id IS NOT NULL
+    GROUP BY bo.app_client_id
+    ORDER BY AVG(bo.total_value::numeric) DESC
+    LIMIT 10
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    orderCount: Number(r.order_count ?? 0),
+    totalValue: parseFloat(r.total_value ?? "0"),
+    avgTicket: parseFloat(r.avg_ticket ?? "0"),
+  }));
+}
+
+async function fetchAggregateTopItemValue(
+  startDate: string,
+  endDate: string,
+): Promise<TopItemValueRow[]> {
+  const result = await db.execute<{
+    client_id: string | null;
+    client_name: string | null;
+    avg_item_value: string | null;
+    item_count: unknown;
+  }>(sql`
+    SELECT
+      bo.app_client_id                              AS client_id,
+      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+      AVG(boi.value::numeric)::text                 AS avg_item_value,
+      COUNT(boi.id)::int                            AS item_count
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN clients c ON c.id = bo.app_client_id
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND bo.app_client_id IS NOT NULL
+    GROUP BY bo.app_client_id
+    ORDER BY AVG(boi.value::numeric) DESC
+    LIMIT 10
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    avgItemValue: parseFloat(r.avg_item_value ?? "0"),
+    itemCount: Number(r.item_count ?? 0),
+  }));
+}
+
+async function fetchAggregateInactiveClients(
+  inactiveDays: number,
+): Promise<InactiveClientRow[]> {
+  const daysStr = String(inactiveDays);
+  const result = await db.execute<{
+    client_id: string;
+    client_name: string;
+    phone: string | null;
+    last_purchase_date: string | null;
+    days_since_purchase: unknown;
+  }>(sql`
+    SELECT
+      c.id   AS client_id,
+      c.name AS client_name,
+      c.phone,
+      (
+        SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))::text
+        FROM bling_orders bo2
+        WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+      ) AS last_purchase_date,
+      (
+        CURRENT_DATE - (
+          SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))
+          FROM bling_orders bo2
+          WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+        )
+      ) AS days_since_purchase
+    FROM clients c
+    WHERE NOT EXISTS (
+        SELECT 1 FROM bling_orders bo3
+        WHERE bo3.app_client_id = c.id
+          AND bo3.deleted_at IS NULL
+          AND TO_DATE(bo3.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+      )
+      AND EXISTS (
+        SELECT 1 FROM bling_orders bo4
+        WHERE bo4.app_client_id = c.id AND bo4.deleted_at IS NULL
+      )
+    ORDER BY days_since_purchase DESC NULLS LAST
+    LIMIT 50
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    phone: r.phone,
+    lastPurchaseDate: r.last_purchase_date,
+    daysSincePurchase: r.days_since_purchase != null ? Number(r.days_since_purchase) : null,
+  }));
+}
+
+async function fetchAggregateNewClients(): Promise<NewClientRow[]> {
+  const result = await db.execute<{
+    client_id: string;
+    client_name: string;
+    phone: string | null;
+    created_at: string;
+  }>(sql`
+    SELECT
+      id         AS client_id,
+      name       AS client_name,
+      phone,
+      created_at::text
+    FROM clients
+    ORDER BY created_at DESC
+    LIMIT 18
+  `);
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    phone: r.phone,
+    createdAt: r.created_at,
   }));
 }
 
