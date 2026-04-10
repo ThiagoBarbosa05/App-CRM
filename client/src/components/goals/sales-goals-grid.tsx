@@ -26,9 +26,20 @@ interface UserGoal {
   salesGoal: string;
   averageTicket: string;
   itemsPerSale: number;
+  economicoGoalQty: number;
+  intermediarioGoalQty: number;
+  premiumGoalQty: number;
   userName: string;
   userEmail: string;
   weeklyResults: WeeklyResult[];
+}
+
+interface WineTierData {
+  sellerId: string;
+  sellerName: string;
+  economico: { quantity: number };
+  intermediario: { quantity: number };
+  premium: { quantity: number };
 }
 
 interface SalesGoalsGridProps {
@@ -45,6 +56,7 @@ interface SalesGoalsGridProps {
   onDelete?: (goalId: string) => void;
   isAdmin?: boolean;
   topSellersData?: TopSeller[];
+  wineTierData?: WineTierData[];
 }
 
 function normalizeName(name: string) {
@@ -71,6 +83,7 @@ export function SalesGoalsGrid({
   onDelete,
   isAdmin,
   topSellersData = [],
+  wineTierData = [],
 }: SalesGoalsGridProps) {
   if (goals.length === 0) {
     return (
@@ -106,6 +119,7 @@ export function SalesGoalsGrid({
           onDelete={onDelete}
           isAdmin={isAdmin}
           sellerData={findSellerData(goal.userName, topSellersData)}
+          tierData={wineTierData.find((t) => t.sellerId === goal.userId) ?? null}
         />
       ))}
     </div>
@@ -124,6 +138,7 @@ function SalesGoalCard({
   onDelete,
   isAdmin,
   sellerData,
+  tierData,
 }: {
   goal: UserGoal;
   index: number;
@@ -139,6 +154,7 @@ function SalesGoalCard({
   onDelete?: (goalId: string) => void;
   isAdmin?: boolean;
   sellerData?: TopSeller | null;
+  tierData?: WineTierData | null;
 }) {
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
@@ -290,6 +306,38 @@ function SalesGoalCard({
             colorClass="bg-purple-500"
             bgClass="bg-purple-50 dark:bg-purple-900/20"
             textClass="text-purple-600 dark:text-purple-400"
+          />
+
+          {/* Faixas de preço */}
+          <MetricProgress
+            label="Econômico"
+            icon={<Package className="h-3.5 w-3.5" />}
+            achieved={`${tierData?.economico.quantity ?? 0} un`}
+            goal={`${goal.economicoGoalQty ?? 0} un`}
+            percentage={calculatePercentage(tierData?.economico.quantity ?? 0, goal.economicoGoalQty ?? 0)}
+            colorClass="bg-emerald-500"
+            bgClass="bg-emerald-50 dark:bg-emerald-900/20"
+            textClass="text-emerald-600 dark:text-emerald-400"
+          />
+          <MetricProgress
+            label="Intermediário"
+            icon={<Package className="h-3.5 w-3.5" />}
+            achieved={`${tierData?.intermediario.quantity ?? 0} un`}
+            goal={`${goal.intermediarioGoalQty ?? 0} un`}
+            percentage={calculatePercentage(tierData?.intermediario.quantity ?? 0, goal.intermediarioGoalQty ?? 0)}
+            colorClass="bg-blue-500"
+            bgClass="bg-blue-50 dark:bg-blue-900/20"
+            textClass="text-blue-600 dark:text-blue-400"
+          />
+          <MetricProgress
+            label="Premium"
+            icon={<Package className="h-3.5 w-3.5" />}
+            achieved={`${tierData?.premium.quantity ?? 0} un`}
+            goal={`${goal.premiumGoalQty ?? 0} un`}
+            percentage={calculatePercentage(tierData?.premium.quantity ?? 0, goal.premiumGoalQty ?? 0)}
+            colorClass="bg-amber-500"
+            bgClass="bg-amber-50 dark:bg-amber-900/20"
+            textClass="text-amber-600 dark:text-amber-400"
           />
 
           {/* Resultado do Mês — admin */}

@@ -677,6 +677,9 @@ export const userGoals = pgTable(
       .notNull()
       .default("0.00"), // Ticket médio em reais
     itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
+    economicoGoalQty: integer("economico_goal_qty").notNull().default(0),
+    intermediarioGoalQty: integer("intermediario_goal_qty").notNull().default(0),
+    premiumGoalQty: integer("premium_goal_qty").notNull().default(0),
     month: integer("month").notNull(), // Mês da meta (1-12)
     year: integer("year").notNull(), // Ano da meta
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -19,6 +19,7 @@ import { getChannels } from "../integrations/umbler";
 import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
 import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
 import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
+import { getSellerTierCountsController } from "server/controllers/users/get-seller-tier-counts.controller";
 
 
 /**
@@ -378,6 +379,16 @@ usersRouter.get(
 usersRouter.get(
   "/seller-dashboard/wine-tier-items",
   getWineTierItemsController,
+);
+
+/**
+ * @route GET /api/users/:id/tier-counts
+ * @description Retorna contagem de itens por faixa de preço para um vendedor
+ */
+usersRouter.get(
+  "/:id/tier-counts",
+  validateParams(userParamsSchema),
+  getSellerTierCountsController,
 );
 
 /**

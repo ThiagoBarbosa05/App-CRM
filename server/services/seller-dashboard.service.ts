@@ -762,6 +762,47 @@ export interface WinePriceTierItemRow {
   totalValue: number;
 }
 
+export interface SellerTierCounts {
+  economico: number;
+  intermediario: number;
+  premium: number;
+}
+
+export async function getSellerTierCounts(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<SellerTierCounts> {
+  const { lowThreshold, midThreshold } = await getWinePriceTiers();
+
+  const result = await db.execute<{
+    economico_qty: string | null;
+    intermediario_qty: string | null;
+    premium_qty: string | null;
+  }>(sql`
+    SELECT
+      COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text AS economico_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text AS intermediario_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text AS premium_qty
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN LATERAL (
+      SELECT id FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+    ) u ON true
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND COALESCE(u.id, bo.seller_id) = ${userId}
+  `);
+
+  const row = result.rows[0];
+  return {
+    economico: parseFloat(row?.economico_qty ?? "0"),
+    intermediario: parseFloat(row?.intermediario_qty ?? "0"),
+    premium: parseFloat(row?.premium_qty ?? "0"),
+  };
+}
+
 export async function getWinePriceTierItems(
   sellerId: string,
   startDate: string,

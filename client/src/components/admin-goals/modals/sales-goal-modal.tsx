@@ -37,6 +37,9 @@ const goalSchema = z.object({
   itemsPerSale: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
     .min(1, "Mínimo de 1 item"),
+  economicoGoalQty: z.coerce.number({ invalid_type_error: "Deve ser um número" }).min(0, "Mínimo 0").default(0),
+  intermediarioGoalQty: z.coerce.number({ invalid_type_error: "Deve ser um número" }).min(0, "Mínimo 0").default(0),
+  premiumGoalQty: z.coerce.number({ invalid_type_error: "Deve ser um número" }).min(0, "Mínimo 0").default(0),
   month: z.coerce.number().min(1, "Mês inválido").max(12, "Mês inválido"),
   year: z.coerce.number().min(2000, "Ano inválido"),
 });
@@ -80,6 +83,9 @@ export function SalesGoalModal({
       setValue("salesGoal", formatCurrencyInput(editingGoal.salesGoal));
       setValue("averageTicket", formatCurrencyInput(editingGoal.averageTicket));
       setValue("itemsPerSale", editingGoal.itemsPerSale);
+      setValue("economicoGoalQty", editingGoal.economicoGoalQty ?? 0);
+      setValue("intermediarioGoalQty", editingGoal.intermediarioGoalQty ?? 0);
+      setValue("premiumGoalQty", editingGoal.premiumGoalQty ?? 0);
       setValue("month", editingGoal.month);
       setValue("year", editingGoal.year);
     } else {
@@ -88,6 +94,9 @@ export function SalesGoalModal({
         salesGoal: "0,00",
         averageTicket: "0,00",
         itemsPerSale: 1,
+        economicoGoalQty: 0,
+        intermediarioGoalQty: 0,
+        premiumGoalQty: 0,
         month: selectedMonth,
         year: selectedYear,
       });
@@ -249,6 +258,65 @@ export function SalesGoalModal({
                 {errors.itemsPerSale.message}
               </p>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Meta de Itens por Faixa de Preço
+            </Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 ml-1">
+                  Econômico
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  {...register("economicoGoalQty")}
+                  className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+                />
+                {errors.economicoGoalQty && (
+                  <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                    {errors.economicoGoalQty.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-blue-500 ml-1">
+                  Intermediário
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  {...register("intermediarioGoalQty")}
+                  className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+                />
+                {errors.intermediarioGoalQty && (
+                  <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                    {errors.intermediarioGoalQty.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-amber-500 ml-1">
+                  Premium
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  {...register("premiumGoalQty")}
+                  className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+                />
+                {errors.premiumGoalQty && (
+                  <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                    {errors.premiumGoalQty.message}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

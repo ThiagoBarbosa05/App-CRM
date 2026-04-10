@@ -194,6 +194,9 @@ interface UserGoal {
   salesGoal: string;
   averageTicket: string;
   itemsPerSale: number;
+  economicoGoalQty: number;
+  intermediarioGoalQty: number;
+  premiumGoalQty: number;
   userName: string;
   weeklyResults: WeeklyResult[];
 }
@@ -764,6 +767,11 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const { data: topSellers = [], isLoading: isTopSellersLoading } =
     useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
 
+  const tierUrl = `/api/users/${userId}/tier-counts?startDate=${monthStart}&endDate=${monthEnd}`;
+  const { data: tierCounts } = useQuery<{ economico: number; intermediario: number; premium: number }>({
+    queryKey: [tierUrl],
+  });
+
   const goal = useMemo(
     () => goals.find((g) => g.userId === userId),
     [goals, userId],
@@ -915,6 +923,36 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-purple-500"
           bgClass="bg-purple-50 dark:bg-purple-900/20"
           textClass="text-purple-600 dark:text-purple-400"
+        />
+        <ProgressBar
+          label="Econômico"
+          icon={<Package className="h-3.5 w-3.5" />}
+          achieved={`${tierCounts?.economico ?? 0} un`}
+          goal={`${goal.economicoGoalQty ?? 0} un`}
+          percentage={pct(tierCounts?.economico ?? 0, goal.economicoGoalQty ?? 0)}
+          colorClass="bg-emerald-500"
+          bgClass="bg-emerald-50 dark:bg-emerald-900/20"
+          textClass="text-emerald-600 dark:text-emerald-400"
+        />
+        <ProgressBar
+          label="Intermediário"
+          icon={<Package className="h-3.5 w-3.5" />}
+          achieved={`${tierCounts?.intermediario ?? 0} un`}
+          goal={`${goal.intermediarioGoalQty ?? 0} un`}
+          percentage={pct(tierCounts?.intermediario ?? 0, goal.intermediarioGoalQty ?? 0)}
+          colorClass="bg-blue-500"
+          bgClass="bg-blue-50 dark:bg-blue-900/20"
+          textClass="text-blue-600 dark:text-blue-400"
+        />
+        <ProgressBar
+          label="Premium"
+          icon={<Package className="h-3.5 w-3.5" />}
+          achieved={`${tierCounts?.premium ?? 0} un`}
+          goal={`${goal.premiumGoalQty ?? 0} un`}
+          percentage={pct(tierCounts?.premium ?? 0, goal.premiumGoalQty ?? 0)}
+          colorClass="bg-amber-500"
+          bgClass="bg-amber-50 dark:bg-amber-900/20"
+          textClass="text-amber-600 dark:text-amber-400"
         />
         <div className="pt-4 border-t border-gray-200 dark:border-slate-800">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1218,7 +1256,6 @@ export function IndividualSellerView({
           )}
         </SectionCard>
       )}
-
     </div>
   );
 }
@@ -1227,8 +1264,10 @@ export function IndividualSellerView({
 
 function AllSellersGoalProgress({
   sellerPortfolioStats,
+  sellerWinePriceTiers,
 }: {
   sellerPortfolioStats: SellerPortfolioStats[];
+  sellerWinePriceTiers: SellerWinePriceTierRow[];
 }) {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -1273,6 +1312,14 @@ function AllSellersGoalProgress({
         const itemsPct = pct(itemsAchieved, goal.itemsPerSale);
         const portfolio =
           sellerPortfolioStats.find((s) => s.userId === goal.userId) ?? null;
+        const tierData =
+          sellerWinePriceTiers.find((t) => t.sellerId === goal.userId) ?? null;
+        const economicoAchieved = tierData?.economico.quantity ?? 0;
+        const intermediarioAchieved = tierData?.intermediario.quantity ?? 0;
+        const premiumAchieved = tierData?.premium.quantity ?? 0;
+        const economicoPct = pct(economicoAchieved, Number(goal.economicoGoalQty ?? 0));
+        const intermediarioPct = pct(intermediarioAchieved, Number(goal.intermediarioGoalQty ?? 0));
+        const premiumPct = pct(premiumAchieved, Number(goal.premiumGoalQty ?? 0));
         return {
           goal,
           realValue,
@@ -1284,6 +1331,12 @@ function AllSellersGoalProgress({
           itemsPct,
           monthlyResult,
           portfolio,
+          economicoAchieved,
+          intermediarioAchieved,
+          premiumAchieved,
+          economicoPct,
+          intermediarioPct,
+          premiumPct,
         };
       })
       .sort((a, b) => b.salesPct - a.salesPct);
@@ -1339,6 +1392,12 @@ function AllSellersGoalProgress({
                 itemsPct,
                 monthlyResult,
                 portfolio,
+                economicoAchieved,
+                intermediarioAchieved,
+                premiumAchieved,
+                economicoPct,
+                intermediarioPct,
+                premiumPct,
               }) => {
                 const salesColor =
                   salesPct >= 100
@@ -1447,6 +1506,37 @@ function AllSellersGoalProgress({
                           }}
                           className="h-full bg-purple-500 rounded-full"
                         />
+                      </div>
+                    </div>
+
+                    {/* Faixas de preço */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <span className="text-emerald-600 dark:text-emerald-400">Econ. — {economicoAchieved}/{goal.economicoGoalQty ?? 0} un</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{isNaN(economicoPct) ? 0 : economicoPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(economicoPct) ? 0 : economicoPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }} className="h-full bg-emerald-500 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <span className="text-blue-600 dark:text-blue-400">Inter. — {intermediarioAchieved}/{goal.intermediarioGoalQty ?? 0} un</span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{isNaN(intermediarioPct) ? 0 : intermediarioPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(intermediarioPct) ? 0 : intermediarioPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.4 }} className="h-full bg-blue-500 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <span className="text-amber-600 dark:text-amber-400">Prem. — {premiumAchieved}/{goal.premiumGoalQty ?? 0} un</span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">{isNaN(premiumPct) ? 0 : premiumPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${isNaN(premiumPct) ? 0 : premiumPct}%` }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.5 }} className="h-full bg-amber-500 rounded-full" />
+                        </div>
                       </div>
                     </div>
 
@@ -1618,10 +1708,17 @@ function WineTierItemsModal({
   const items = data?.items ?? [];
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className={`flex items-center gap-2 ${TIER_COLORS[tier]}`}>
+          <DialogTitle
+            className={`flex items-center gap-2 ${TIER_COLORS[tier]}`}
+          >
             {TIER_LABELS[tier]} — {sellerName}
           </DialogTitle>
         </DialogHeader>
@@ -1631,23 +1728,40 @@ function WineTierItemsModal({
             <Skeleton className="h-6 w-48" />
           </div>
         ) : !items.length ? (
-          <p className="text-sm text-slate-500 py-6 text-center">Nenhum item encontrado.</p>
+          <p className="text-sm text-slate-500 py-6 text-center">
+            Nenhum item encontrado.
+          </p>
         ) : (
           <div className="overflow-auto flex-1">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white dark:bg-slate-900">
                 <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="text-left px-3 py-2 font-medium text-slate-500">Data</th>
-                  <th className="text-left px-3 py-2 font-medium text-slate-500">Cliente</th>
-                  <th className="text-left px-3 py-2 font-medium text-slate-500">Produto</th>
-                  <th className="text-right px-3 py-2 font-medium text-slate-500">Preço un.</th>
-                  <th className="text-right px-3 py-2 font-medium text-slate-500">Qtd</th>
-                  <th className="text-right px-3 py-2 font-medium text-slate-500">Total</th>
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">
+                    Data
+                  </th>
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">
+                    Cliente
+                  </th>
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">
+                    Produto
+                  </th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">
+                    Preço un.
+                  </th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">
+                    Qtd
+                  </th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {items.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <tr
+                    key={i}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  >
                     <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                       {format(parseISO(item.orderDate), "dd/MM/yy")}
                     </td>
@@ -1663,7 +1777,9 @@ function WineTierItemsModal({
                     <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">
                       {item.quantity}
                     </td>
-                    <td className={`px-3 py-2 text-right font-medium ${TIER_COLORS[tier]}`}>
+                    <td
+                      className={`px-3 py-2 text-right font-medium ${TIER_COLORS[tier]}`}
+                    >
                       {formatCurrency(item.totalValue)}
                     </td>
                   </tr>
@@ -1688,7 +1804,11 @@ function WinePriceTierTable({
   startDate: string;
   endDate: string;
 }) {
-  const [selected, setSelected] = useState<{ sellerId: string; sellerName: string; tier: TierKey } | null>(null);
+  const [selected, setSelected] = useState<{
+    sellerId: string;
+    sellerName: string;
+    tier: TierKey;
+  } | null>(null);
 
   if (!rows.length) return null;
 
@@ -1696,23 +1816,28 @@ function WinePriceTierTable({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <Package className="h-4 w-4 text-wine-600" />
-            Perfil de Vendas por Faixa de Preço
-          </CardTitle>
-          <div className="flex flex-wrap gap-3 mt-1">
-            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
+      <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+        <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
+              <Package className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Perfil de Vendas por Faixa de Preço
+            </CardTitle>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Econômico ≤ {formatCurrency(lowThreshold)}
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
-              Intermediário {formatCurrency(lowThreshold)} – {formatCurrency(midThreshold)}
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Intermediário {formatCurrency(lowThreshold)} –{" "}
+              {formatCurrency(midThreshold)}
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
               Premium &gt; {formatCurrency(midThreshold)}
             </span>
           </div>
@@ -1721,37 +1846,82 @@ function WinePriceTierTable({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">Vendedor</th>
-                  <th className="text-right px-4 py-3 font-medium text-emerald-600 dark:text-emerald-400">Econômico</th>
-                  <th className="text-right px-4 py-3 font-medium text-blue-600 dark:text-blue-400">Intermediário</th>
-                  <th className="text-right px-4 py-3 font-medium text-amber-600 dark:text-amber-400">Premium</th>
+                <tr className="border-b border-gray-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20">
+                  <th className="text-left px-5 py-3 font-semibold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Vendedor
+                  </th>
+                  <th className="text-right px-5 py-3 font-semibold text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Econômico
+                  </th>
+                  <th className="text-right px-5 py-3 font-semibold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Intermediário
+                  </th>
+                  <th className="text-right px-5 py-3 font-semibold text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    Premium
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {rows.map((row) => (
-                  <tr key={row.sellerId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.sellerName}</td>
-                    <td
-                      className="px-4 py-3 text-right cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "economico" })}
-                    >
-                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.economico.totalValue)}</div>
-                      <div className="text-xs text-emerald-600 dark:text-emerald-400">{row.economico.percentage}% · {row.economico.quantity} un</div>
+                  <tr
+                    key={row.sellerId}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                  >
+                    <td className="px-5 py-3.5 font-bold text-slate-800 dark:text-slate-200">
+                      {row.sellerName}
                     </td>
                     <td
-                      className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "intermediario" })}
+                      className="px-5 py-3.5 text-right cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                      onClick={() =>
+                        setSelected({
+                          sellerId: row.sellerId,
+                          sellerName: row.sellerName,
+                          tier: "economico",
+                        })
+                      }
                     >
-                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.intermediario.totalValue)}</div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400">{row.intermediario.percentage}% · {row.intermediario.quantity} un</div>
+                      <div className="text-sm font-black tabular-nums text-slate-800 dark:text-slate-200 mb-0.5">
+                        {formatCurrency(row.economico.totalValue)}
+                      </div>
+                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        {row.economico.percentage}% · {row.economico.quantity}{" "}
+                        un
+                      </div>
                     </td>
                     <td
-                      className="px-4 py-3 text-right cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "premium" })}
+                      className="px-5 py-3.5 text-right cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      onClick={() =>
+                        setSelected({
+                          sellerId: row.sellerId,
+                          sellerName: row.sellerName,
+                          tier: "intermediario",
+                        })
+                      }
                     >
-                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.premium.totalValue)}</div>
-                      <div className="text-xs text-amber-600 dark:text-amber-400">{row.premium.percentage}% · {row.premium.quantity} un</div>
+                      <div className="text-sm font-black tabular-nums text-slate-800 dark:text-slate-200 mb-0.5">
+                        {formatCurrency(row.intermediario.totalValue)}
+                      </div>
+                      <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                        {row.intermediario.percentage}% ·{" "}
+                        {row.intermediario.quantity} un
+                      </div>
+                    </td>
+                    <td
+                      className="px-5 py-3.5 text-right cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                      onClick={() =>
+                        setSelected({
+                          sellerId: row.sellerId,
+                          sellerName: row.sellerName,
+                          tier: "premium",
+                        })
+                      }
+                    >
+                      <div className="text-sm font-black tabular-nums text-slate-800 dark:text-slate-200 mb-0.5">
+                        {formatCurrency(row.premium.totalValue)}
+                      </div>
+                      <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        {row.premium.percentage}% · {row.premium.quantity} un
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1810,7 +1980,10 @@ export function AggregateView({
   const sellerRanking = data?.sellerRanking ?? [];
   const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
   const sellerWinePriceTiers = data?.sellerWinePriceTiers ?? [];
-  const winePriceTierThresholds = data?.winePriceTierThresholds ?? { lowThreshold: 50, midThreshold: 150 };
+  const winePriceTierThresholds = data?.winePriceTierThresholds ?? {
+    lowThreshold: 50,
+    midThreshold: 150,
+  };
 
   if (isLoading) {
     return (
@@ -1908,7 +2081,7 @@ export function AggregateView({
       <SalesEvolutionSection data={salesEvolution} />
 
       {/* Metas de todos os vendedores */}
-      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
+      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} sellerWinePriceTiers={sellerWinePriceTiers} />
 
       {/* Positivação por vendedor */}
       <SellerPositivacaoCard stats={sellerPortfolioStats} />
@@ -1919,7 +2092,12 @@ export function AggregateView({
       </div>
 
       {/* Perfil de vendas por faixa de preço */}
-      <WinePriceTierTable rows={sellerWinePriceTiers} thresholds={winePriceTierThresholds} startDate={startDate} endDate={endDate} />
+      <WinePriceTierTable
+        rows={sellerWinePriceTiers}
+        thresholds={winePriceTierThresholds}
+        startDate={startDate}
+        endDate={endDate}
+      />
 
       {/* Qualidade dos Dados */}
       <ReportsDataCoverage
@@ -1960,7 +2138,6 @@ export function AggregateView({
           )}
         </SectionCard>
       </div>
-
     </div>
   );
 }
