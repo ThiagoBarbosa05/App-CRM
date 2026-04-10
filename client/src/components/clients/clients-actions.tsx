@@ -1,6 +1,13 @@
-import { Search, Briefcase, Download } from "lucide-react";
+import { Search, Briefcase, Download, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ClientFilters, { ClientFilters as ClientFiltersType } from "@/components/client-filters";
 
 interface ClientsActionsProps {
@@ -13,6 +20,8 @@ interface ClientsActionsProps {
   onBulkDealClick: () => void;
   onExportClick: () => void;
   isExporting: boolean;
+  isAdmin?: boolean;
+  users?: { id: string; name: string }[];
 }
 
 export function ClientsActions({
@@ -25,10 +34,39 @@ export function ClientsActions({
   onBulkDealClick,
   onExportClick,
   isExporting,
+  isAdmin,
+  users = [],
 }: ClientsActionsProps) {
   return (
     <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
       <div className="flex flex-col lg:flex-row gap-2">
+        {/* Seletor de vendedor — admin/gerente */}
+        {isAdmin && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Users className="h-4 w-4 text-slate-400" />
+            <Select
+              value={clientFilters.responsavelId}
+              onValueChange={(val) =>
+                onFiltersChange({ ...clientFilters, responsavelId: val })
+              }
+            >
+              <SelectTrigger className="w-48 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
+                <SelectValue placeholder="Todos os vendedores" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="font-semibold">
+                  Todos os vendedores
+                </SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
           <Input

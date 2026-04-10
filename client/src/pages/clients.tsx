@@ -41,6 +41,10 @@ const useDebounce = (value: any, delay: number): any => {
 
 export default function Clients() {
   const { user } = useAuth();
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "gerente" ||
+    user?.role === "administrador";
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -235,6 +239,8 @@ export default function Clients() {
             selectedClients.length === 0 &&
             isFetchingAllForExport
           }
+          isAdmin={isAdmin}
+          users={usersArray.filter((u: any) => u.isActive === "true").sort((a: any, b: any) => a.name.localeCompare(b.name))}
         />
 
         {/* Clients Table */}
