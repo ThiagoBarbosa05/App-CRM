@@ -18,6 +18,7 @@ import {
   Calculator,
   FileDown,
   GlassWater,
+  Grape,
   Info,
   PartyPopper,
   RotateCcw,
@@ -117,11 +118,34 @@ const PROFILE_LABELS: Record<Profile, string> = {
   intenso: "Intenso",
 };
 
-const WINE_META: Record<WineKey, { label: string; color: string; dot: string; printColor: string }> = {
-  espumante: { label: "Espumante", color: "text-purple-600 dark:text-purple-400", dot: "bg-purple-500", printColor: "#7c3aed" },
-  branco: { label: "Branco", color: "text-yellow-600 dark:text-yellow-400", dot: "bg-yellow-500", printColor: "#ca8a04" },
-  rose: { label: "Rosé", color: "text-pink-500 dark:text-pink-400", dot: "bg-pink-400", printColor: "#ec4899" },
-  tinto: { label: "Tinto", color: "text-red-700 dark:text-red-400", dot: "bg-red-700", printColor: "#b91c1c" },
+const WINE_META: Record<
+  WineKey,
+  { label: string; color: string; dot: string; printColor: string }
+> = {
+  espumante: {
+    label: "Espumante",
+    color: "text-purple-600 dark:text-purple-400",
+    dot: "bg-purple-500",
+    printColor: "#7c3aed",
+  },
+  branco: {
+    label: "Branco",
+    color: "text-yellow-600 dark:text-yellow-400",
+    dot: "bg-yellow-500",
+    printColor: "#ca8a04",
+  },
+  rose: {
+    label: "Rosé",
+    color: "text-pink-500 dark:text-pink-400",
+    dot: "bg-pink-400",
+    printColor: "#ec4899",
+  },
+  tinto: {
+    label: "Tinto",
+    color: "text-red-700 dark:text-red-400",
+    dot: "bg-red-700",
+    printColor: "#b91c1c",
+  },
 };
 
 const EVENT_OBSERVATIONS: Record<EventType, string[]> = {
@@ -232,14 +256,37 @@ export default function CalculadoraVinho() {
         };
         return acc;
       },
-      {} as Record<WineKey, { bottles: number; withMargin: number; pct: number }>,
+      {} as Record<
+        WineKey,
+        { bottles: number; withMargin: number; pct: number }
+      >,
     );
 
-    const totalBottles = Object.values(perWine).reduce((a, b) => a + b.bottles, 0);
-    const totalWithMargin = Object.values(perWine).reduce((a, b) => a + b.withMargin, 0);
+    const totalBottles = Object.values(perWine).reduce(
+      (a, b) => a + b.bottles,
+      0,
+    );
+    const totalWithMargin = Object.values(perWine).reduce(
+      (a, b) => a + b.withMargin,
+      0,
+    );
 
-    return { perWine, totalBottles, totalWithMargin, reducerPct: Math.round(reducer * 100) };
-  }, [eventType, guests, duration, profile, hasBeer, hasDrinks, hasSpirits, wines]);
+    return {
+      perWine,
+      totalBottles,
+      totalWithMargin,
+      reducerPct: Math.round(reducer * 100),
+    };
+  }, [
+    eventType,
+    guests,
+    duration,
+    profile,
+    hasBeer,
+    hasDrinks,
+    hasSpirits,
+    wines,
+  ]);
 
   const config = EVENT_CONFIGS[eventType];
   const guestsNum = parseInt(guests) || 0;
@@ -283,31 +330,96 @@ export default function CalculadoraVinho() {
       {/* ------------------------------------------------------------------ */}
       <div id="wine-print-area">
         {result && guestsNum > 0 && (
-          <div style={{ fontFamily: "Arial, sans-serif", color: "#1e293b", maxWidth: 680, margin: "0 auto" }}>
+          <div
+            style={{
+              fontFamily: "Arial, sans-serif",
+              color: "#1e293b",
+              maxWidth: 680,
+              margin: "0 auto",
+            }}
+          >
             {/* Cabeçalho */}
-            <div style={{ borderBottom: "3px solid #7c3aed", paddingBottom: 16, marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                borderBottom: "3px solid #7c3aed",
+                paddingBottom: 16,
+                marginBottom: 24,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
               <div style={{ fontSize: 28 }}>🍷</div>
               <div>
-                <div style={{ fontSize: 20, fontWeight: "bold", color: "#7c3aed" }}>CRM - Grand Cru</div>
-                <div style={{ fontSize: 14, color: "#64748b" }}>Previsão de Consumo de Vinhos</div>
+                <div
+                  style={{ fontSize: 20, fontWeight: "bold", color: "#7c3aed" }}
+                >
+                  CRM - Grand Cru
+                </div>
+                <div style={{ fontSize: 14, color: "#64748b" }}>
+                  Previsão de Consumo de Vinhos
+                </div>
               </div>
             </div>
 
             {/* Dados do evento */}
-            <div style={{ background: "#f8f5ff", border: "1px solid #e9d5ff", borderRadius: 8, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: "bold", color: "#7c3aed", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+            <div
+              style={{
+                background: "#f8f5ff",
+                border: "1px solid #e9d5ff",
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  color: "#7c3aed",
+                  marginBottom: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                }}
+              >
                 Dados do Evento
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px", fontSize: 13 }}>
-                <div><span style={{ color: "#64748b" }}>Tipo:</span> <strong>{config.label}</strong></div>
-                <div><span style={{ color: "#64748b" }}>Convidados:</span> <strong>{guestsNum} pessoas</strong></div>
-                <div><span style={{ color: "#64748b" }}>Duração:</span> <strong>{DURATION_LABELS[duration]}</strong></div>
-                <div><span style={{ color: "#64748b" }}>Perfil:</span> <strong>{PROFILE_LABELS[profile]}</strong></div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "6px 24px",
+                  fontSize: 13,
+                }}
+              >
+                <div>
+                  <span style={{ color: "#64748b" }}>Tipo:</span>{" "}
+                  <strong>{config.label}</strong>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>Convidados:</span>{" "}
+                  <strong>{guestsNum} pessoas</strong>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>Duração:</span>{" "}
+                  <strong>{DURATION_LABELS[duration]}</strong>
+                </div>
+                <div>
+                  <span style={{ color: "#64748b" }}>Perfil:</span>{" "}
+                  <strong>{PROFILE_LABELS[profile]}</strong>
+                </div>
                 {otherBeverages.length > 0 && (
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <span style={{ color: "#64748b" }}>Outras bebidas:</span> <strong>{otherBeverages.join(", ")}</strong>
+                    <span style={{ color: "#64748b" }}>Outras bebidas:</span>{" "}
+                    <strong>{otherBeverages.join(", ")}</strong>
                     {result.reducerPct > 0 && (
-                      <span style={{ color: "#b45309", fontSize: 12, marginLeft: 6 }}>
+                      <span
+                        style={{
+                          color: "#b45309",
+                          fontSize: 12,
+                          marginLeft: 6,
+                        }}
+                      >
                         (redução de {result.reducerPct}% no consumo de vinho)
                       </span>
                     )}
@@ -318,68 +430,199 @@ export default function CalculadoraVinho() {
 
             {/* Tabela de vinhos */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: "bold", color: "#7c3aed", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  color: "#7c3aed",
+                  marginBottom: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                }}
+              >
                 Estimativa por Tipo de Vinho
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 13,
+                }}
+              >
                 <thead>
                   <tr style={{ background: "#7c3aed", color: "white" }}>
-                    <th style={{ padding: "10px 14px", textAlign: "left", borderRadius: "4px 0 0 0" }}>Vinho</th>
-                    <th style={{ padding: "10px 14px", textAlign: "center" }}>Proporção</th>
-                    <th style={{ padding: "10px 14px", textAlign: "center" }}>Mínimo recomendado</th>
-                    <th style={{ padding: "10px 14px", textAlign: "center", borderRadius: "0 4px 0 0" }}>Com margem +10%</th>
+                    <th
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: "left",
+                        borderRadius: "4px 0 0 0",
+                      }}
+                    >
+                      Vinho
+                    </th>
+                    <th style={{ padding: "10px 14px", textAlign: "center" }}>
+                      Proporção
+                    </th>
+                    <th style={{ padding: "10px 14px", textAlign: "center" }}>
+                      Mínimo recomendado
+                    </th>
+                    <th
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: "center",
+                        borderRadius: "0 4px 0 0",
+                      }}
+                    >
+                      Com margem +10%
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {WINE_ORDER.filter((key) => wines[key] && result.perWine[key]).map((key, i) => {
+                  {WINE_ORDER.filter(
+                    (key) => wines[key] && result.perWine[key],
+                  ).map((key, i) => {
                     const wine = result.perWine[key];
                     const meta = WINE_META[key];
                     return (
-                      <tr key={key} style={{ background: i % 2 === 0 ? "#fafafa" : "white" }}>
-                        <td style={{ padding: "10px 14px", fontWeight: "bold", color: meta.printColor }}>
+                      <tr
+                        key={key}
+                        style={{
+                          background: i % 2 === 0 ? "#fafafa" : "white",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "10px 14px",
+                            fontWeight: "bold",
+                            color: meta.printColor,
+                          }}
+                        >
                           {meta.label}
                         </td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", color: "#64748b" }}>
+                        <td
+                          style={{
+                            padding: "10px 14px",
+                            textAlign: "center",
+                            color: "#64748b",
+                          }}
+                        >
                           {wine.pct}%
                         </td>
-                        <td style={{ padding: "10px 14px", textAlign: "center" }}>
-                          <strong>{wine.bottles}</strong> {wine.bottles === 1 ? "garrafa" : "garrafas"}
+                        <td
+                          style={{ padding: "10px 14px", textAlign: "center" }}
+                        >
+                          <strong>{wine.bottles}</strong>{" "}
+                          {wine.bottles === 1 ? "garrafa" : "garrafas"}
                         </td>
-                        <td style={{ padding: "10px 14px", textAlign: "center", color: meta.printColor, fontWeight: "bold" }}>
-                          {wine.withMargin} {wine.withMargin === 1 ? "garrafa" : "garrafas"}
+                        <td
+                          style={{
+                            padding: "10px 14px",
+                            textAlign: "center",
+                            color: meta.printColor,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {wine.withMargin}{" "}
+                          {wine.withMargin === 1 ? "garrafa" : "garrafas"}
                         </td>
                       </tr>
                     );
                   })}
-                  <tr style={{ background: "#f0fdf4", borderTop: "2px solid #7c3aed" }}>
-                    <td style={{ padding: "12px 14px", fontWeight: "bold", fontSize: 14 }}>TOTAL</td>
-                    <td style={{ padding: "12px 14px", textAlign: "center", color: "#64748b" }}>100%</td>
-                    <td style={{ padding: "12px 14px", textAlign: "center", fontWeight: "bold", fontSize: 14 }}>
+                  <tr
+                    style={{
+                      background: "#f0fdf4",
+                      borderTop: "2px solid #7c3aed",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                      }}
+                    >
+                      TOTAL
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        textAlign: "center",
+                        color: "#64748b",
+                      }}
+                    >
+                      100%
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                      }}
+                    >
                       {result.totalBottles} garrafas
                     </td>
-                    <td style={{ padding: "12px 14px", textAlign: "center", fontWeight: "bold", fontSize: 14, color: "#7c3aed" }}>
+                    <td
+                      style={{
+                        padding: "12px 14px",
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                        color: "#7c3aed",
+                      }}
+                    >
                       {result.totalWithMargin} garrafas
                     </td>
                   </tr>
                 </tbody>
               </table>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
-                Média: {(result.totalWithMargin / guestsNum).toFixed(2)} garrafas por pessoa (com margem)
+                Média: {(result.totalWithMargin / guestsNum).toFixed(2)}{" "}
+                garrafas por pessoa (com margem)
               </div>
             </div>
 
             {/* Observações */}
-            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: "bold", color: "#92400e", marginBottom: 8 }}>
+            <div
+              style={{
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  color: "#92400e",
+                  marginBottom: 8,
+                }}
+              >
                 Observações para {config.label}
               </div>
               {EVENT_OBSERVATIONS[eventType].map((obs, i) => (
-                <div key={i} style={{ fontSize: 12, color: "#78350f", marginBottom: 4 }}>• {obs}</div>
+                <div
+                  key={i}
+                  style={{ fontSize: 12, color: "#78350f", marginBottom: 4 }}
+                >
+                  • {obs}
+                </div>
               ))}
             </div>
 
             {/* Rodapé */}
-            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 12, fontSize: 11, color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
+            <div
+              style={{
+                borderTop: "1px solid #e2e8f0",
+                paddingTop: 12,
+                fontSize: 11,
+                color: "#94a3b8",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
               <span>Gerado em {today} · CRM Grand Cru</span>
               <span>* Estimativas baseadas em médias de mercado.</span>
             </div>
@@ -390,35 +633,38 @@ export default function CalculadoraVinho() {
       {/* ------------------------------------------------------------------ */}
       {/* INTERFACE PRINCIPAL (visível na tela)                               */}
       {/* ------------------------------------------------------------------ */}
-      <div id="wine-screen-content" className="max-w-5xl mx-auto space-y-6 p-4 sm:p-6">
+      <div id="wine-screen-content" className="mx-auto space-y-6 pb-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-purple-100 dark:bg-purple-900/30 rounded-xl p-2.5">
-              <Wine className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
+        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 sm:px-6 py-4 rounded-lg shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Wine className="size-6 shrink-0 text-purple-600 dark:text-purple-400" />
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                 Calculadora de Vinho
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              </h2>
+              <p className="text-gray-600 dark:text-slate-400 mt-1">
                 Dimensione o consumo de vinhos para o seu evento
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 shrink-0">
             {result && guestsNum > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePrint}
-                className="gap-2 text-purple-600 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                className="gap-2 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-950 dark:hover:bg-purple-900/20"
               >
                 <FileDown className="h-4 w-4" />
                 Gerar PDF
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={reset} className="gap-2 text-slate-500">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={reset}
+              className="gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
               <RotateCcw className="h-4 w-4" />
               Limpar
             </Button>
@@ -431,18 +677,27 @@ export default function CalculadoraVinho() {
           {/* ---------------------------------------------------------------- */}
           <div className="space-y-5">
             {/* Dados do evento */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <PartyPopper className="h-4 w-4 text-purple-500" />
-                  Dados do Evento
-                </CardTitle>
+            <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-900/20">
+                    <PartyPopper className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                    Dados do Evento
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Tipo de evento</Label>
-                  <Select value={eventType} onValueChange={(v) => setEventType(v as EventType)}>
-                    <SelectTrigger>
+              <CardContent className="space-y-5 pt-5">
+                <div className="space-y-1.5 flex flex-col">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Tipo de evento
+                  </Label>
+                  <Select
+                    value={eventType}
+                    onValueChange={(v) => setEventType(v as EventType)}
+                  >
+                    <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -472,7 +727,10 @@ export default function CalculadoraVinho() {
                       placeholder="Ex: 100"
                     />
                     {guestsNum > 0 && (
-                      <Badge variant="outline" className="shrink-0 text-purple-600 border-purple-300">
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 text-purple-600 border-purple-300"
+                      >
                         {guestsNum} pessoas
                       </Badge>
                     )}
@@ -481,13 +739,20 @@ export default function CalculadoraVinho() {
 
                 <div className="space-y-1.5">
                   <Label>Duração do evento</Label>
-                  <Select value={duration} onValueChange={(v) => setDuration(v as Duration)}>
+                  <Select
+                    value={duration}
+                    onValueChange={(v) => setDuration(v as Duration)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.entries(DURATION_LABELS) as [Duration, string][]).map(([val, label]) => (
-                        <SelectItem key={val} value={val}>{label}</SelectItem>
+                      {(
+                        Object.entries(DURATION_LABELS) as [Duration, string][]
+                      ).map(([val, label]) => (
+                        <SelectItem key={val} value={val}>
+                          {label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -495,14 +760,21 @@ export default function CalculadoraVinho() {
 
                 <div className="space-y-1.5">
                   <Label>Perfil de consumo dos convidados</Label>
-                  <Select value={profile} onValueChange={(v) => setProfile(v as Profile)}>
+                  <Select
+                    value={profile}
+                    onValueChange={(v) => setProfile(v as Profile)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="leve">Leve — bebem pouco</SelectItem>
-                      <SelectItem value="moderado">Moderado — consumo médio</SelectItem>
-                      <SelectItem value="intenso">Intenso — apreciadores de vinho</SelectItem>
+                      <SelectItem value="moderado">
+                        Moderado — consumo médio
+                      </SelectItem>
+                      <SelectItem value="intenso">
+                        Intenso — apreciadores de vinho
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -510,62 +782,91 @@ export default function CalculadoraVinho() {
             </Card>
 
             {/* Outras bebidas */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Beer className="h-4 w-4 text-amber-500" />
-                  Outras Bebidas no Evento
-                </CardTitle>
+            <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+                    <Beer className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                    Outras Bebidas no Evento
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  A presença de outras bebidas reduz o consumo estimado de vinho.
+              <CardContent className="space-y-4 pt-5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1 mb-4">
+                  A presença de outras bebidas reduz o consumo estimado de
+                  vinho.
                 </p>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Cerveja</p>
-                      <p className="text-xs text-slate-400">Reduz 15% no consumo de vinho</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        Cerveja
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Reduz 15% no consumo de vinho
+                      </p>
                     </div>
                     <Switch checked={hasBeer} onCheckedChange={setHasBeer} />
                   </div>
-                  <Separator />
+                  <Separator className="bg-slate-100 dark:bg-slate-800" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Bar de Drinks / Coquetéis</p>
-                      <p className="text-xs text-slate-400">Reduz 15% no consumo de vinho</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        Bar de Drinks / Coquetéis
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Reduz 15% no consumo de vinho
+                      </p>
                     </div>
-                    <Switch checked={hasDrinks} onCheckedChange={setHasDrinks} />
+                    <Switch
+                      checked={hasDrinks}
+                      onCheckedChange={setHasDrinks}
+                    />
                   </div>
-                  <Separator />
+                  <Separator className="bg-slate-100 dark:bg-slate-800" />
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Destilados (whisky, vodka…)</p>
-                      <p className="text-xs text-slate-400">Reduz 10% no consumo de vinho</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        Destilados (whisky, vodka…)
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Reduz 10% no consumo de vinho
+                      </p>
                     </div>
-                    <Switch checked={hasSpirits} onCheckedChange={setHasSpirits} />
+                    <Switch
+                      checked={hasSpirits}
+                      onCheckedChange={setHasSpirits}
+                    />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Seleção de vinhos */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <GlassWater className="h-4 w-4 text-purple-500" />
-                  Vinhos do Evento
-                </CardTitle>
+            <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+              <CardHeader className="pb-4 border-b border-gray-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-900/20">
+                    <Grape className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                    Vinhos do Evento
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Desative os vinhos que o cliente não deseja incluir. A proporção é redistribuída automaticamente.
+              <CardContent className="space-y-4 pt-5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 -mt-1 mb-4">
+                  Desative os vinhos que o cliente não deseja incluir. A
+                  proporção é redistribuída automaticamente.
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   {WINE_ORDER.map((key) => {
                     const meta = WINE_META[key];
                     const isActive = wines[key];
-                    const activeCount = Object.values(wines).filter(Boolean).length;
+                    const activeCount =
+                      Object.values(wines).filter(Boolean).length;
                     const isLastActive = isActive && activeCount === 1;
 
                     return (
@@ -582,12 +883,24 @@ export default function CalculadoraVinho() {
                           !isLastActive && "hover:scale-[1.02] cursor-pointer",
                         )}
                       >
-                        <span className={cn("w-3 h-3 rounded-full shrink-0", meta.dot)} />
+                        <span
+                          className={cn(
+                            "w-3 h-3 rounded-full shrink-0",
+                            meta.dot,
+                          )}
+                        />
                         <div>
-                          <p className={cn("text-sm font-semibold", isActive ? meta.color : "text-slate-400")}>
+                          <p
+                            className={cn(
+                              "text-sm font-semibold",
+                              isActive ? meta.color : "text-slate-400",
+                            )}
+                          >
                             {meta.label}
                           </p>
-                          <p className="text-xs text-slate-400">{isActive ? "Incluído" : "Excluído"}</p>
+                          <p className="text-xs text-slate-400">
+                            {isActive ? "Incluído" : "Excluído"}
+                          </p>
                         </div>
                       </button>
                     );
@@ -602,50 +915,63 @@ export default function CalculadoraVinho() {
           {/* ---------------------------------------------------------------- */}
           <div className="space-y-5">
             {!result || guestsNum === 0 ? (
-              <Card className="h-full flex items-center justify-center min-h-[300px]">
+              <Card className="h-full flex items-center justify-center min-h-[300px] border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
                 <div className="text-center space-y-3 p-8">
-                  <Calculator className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto" />
-                  <p className="text-slate-400 dark:text-slate-500 text-sm">
-                    Preencha os dados do evento para ver a estimativa
+                  <div className="mx-auto w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                    <Calculator className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Preencha os dados do evento para ver a estimativa de consumo
                   </p>
                 </div>
               </Card>
             ) : (
               <>
                 {/* Resumo geral */}
-                <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base text-purple-700 dark:text-purple-300 flex items-center gap-2">
-                      <Wine className="h-4 w-4" />
-                      Resumo do Evento
-                    </CardTitle>
+                <Card className="border-purple-200 dark:border-purple-800/60 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 shadow-md rounded-xl">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/40">
+                        <Wine className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <CardTitle className="text-base font-bold text-purple-900 dark:text-purple-100">
+                        Resumo do Evento
+                      </CardTitle>
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-3xl font-bold text-purple-700 dark:text-purple-300">
+                    <div className="grid grid-cols-3 gap-4 text-center divide-x divide-purple-200/50 dark:divide-purple-800/50">
+                      <div className="flex flex-col items-center justify-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-purple-600/70 dark:text-purple-400/70 mb-1">
+                          Recomendado
+                        </p>
+                        <p className="text-3xl font-black text-purple-700 dark:text-purple-300">
                           {result.totalBottles}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">garrafas mínimo</p>
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-indigo-700 dark:text-indigo-300">
+                      <div className="flex flex-col items-center justify-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70 mb-1">
+                          Com margem 10%
+                        </p>
+                        <p className="text-3xl font-black text-indigo-700 dark:text-indigo-300">
                           {result.totalWithMargin}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">com margem +10%</p>
                       </div>
-                      <div>
-                        <p className="text-3xl font-bold text-slate-700 dark:text-slate-300">
+                      <div className="flex flex-col items-center justify-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600/70 dark:text-slate-400/70 mb-1">
+                          Garrafas / Pessoa
+                        </p>
+                        <p className="text-3xl font-black text-slate-700 dark:text-slate-300">
                           {(result.totalWithMargin / guestsNum).toFixed(1)}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">garrafas / pessoa</p>
                       </div>
                     </div>
 
                     {result.reducerPct > 0 && (
-                      <div className="mt-4 flex items-center gap-2 text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 text-amber-700 dark:text-amber-400">
-                        <Info className="h-3.5 w-3.5 shrink-0" />
-                        Estimativa reduzida em {result.reducerPct}% pela presença de outras bebidas
+                      <div className="mt-5 flex items-center gap-2 text-xs bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg px-3 py-2.5 text-amber-700 dark:text-amber-400 font-medium">
+                        <Info className="h-4 w-4 shrink-0" />
+                        Estimativa reduzida em {result.reducerPct}% pela
+                        presença de outras bebidas
                       </div>
                     )}
                   </CardContent>
@@ -653,49 +979,83 @@ export default function CalculadoraVinho() {
 
                 {/* Cards por tipo de vinho — na ordem correta */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {WINE_ORDER.filter((key) => wines[key] && result.perWine[key]).map((key) => {
+                  {WINE_ORDER.filter(
+                    (key) => wines[key] && result.perWine[key],
+                  ).map((key) => {
                     const val = result.perWine[key];
                     const meta = WINE_META[key];
 
                     return (
-                      <Card key={key} className="border-slate-200 dark:border-slate-700">
-                        <CardContent className="pt-4 pb-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className={cn("w-3 h-3 rounded-full", meta.dot)} />
-                              <span className={cn("font-semibold text-sm", meta.color)}>
+                      <Card
+                        key={key}
+                        className="border-gray-200 dark:border-slate-800 shadow-sm rounded-xl bg-white dark:bg-slate-950 hover:shadow-md transition-shadow"
+                      >
+                        <CardContent className="p-4 sm:p-5">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className={cn(
+                                  "w-3.5 h-3.5 rounded-full shadow-sm",
+                                  meta.dot,
+                                )}
+                              />
+                              <span
+                                className={cn(
+                                  "font-bold text-sm uppercase tracking-wide",
+                                  meta.color,
+                                )}
+                              >
                                 {meta.label}
                               </span>
                             </div>
-                            <Badge variant="secondary" className="text-xs">
-                              {val.pct}% do total
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            >
+                              {val.pct}% DO TOTAL
                             </Badge>
                           </div>
 
-                          <div className="space-y-1">
+                          <div className="space-y-2">
                             <div className="flex items-end justify-between">
-                              <span className="text-xs text-slate-500">Mínimo recomendado</span>
-                              <span className="text-xl font-bold text-slate-800 dark:text-slate-200">
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                Mínimo Rec.
+                              </span>
+                              <span className="text-xl font-black text-slate-800 dark:text-slate-200 tabular-nums">
                                 {val.bottles}
-                                <span className="text-xs font-normal text-slate-400 ml-1">
-                                  {val.bottles === 1 ? "garrafa" : "garrafas"}
+                                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 ml-1.5 uppercase">
+                                  {val.bottles === 1 ? "un" : "uns"}
                                 </span>
                               </span>
                             </div>
                             <div className="flex items-end justify-between">
-                              <span className="text-xs text-slate-500">Com margem de segurança</span>
-                              <span className={cn("text-base font-semibold", meta.color)}>
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                Com margem
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-lg font-black tabular-nums",
+                                  meta.color,
+                                )}
+                              >
                                 {val.withMargin}
-                                <span className="text-xs font-normal text-slate-400 ml-1">
-                                  {val.withMargin === 1 ? "garrafa" : "garrafas"}
+                                <span
+                                  className={cn(
+                                    "text-xs font-semibold ml-1.5 uppercase opacity-70",
+                                  )}
+                                >
+                                  {val.withMargin === 1 ? "un" : "uns"}
                                 </span>
                               </span>
                             </div>
                           </div>
 
-                          <div className="mt-3 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="mt-4 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
-                              className={cn("h-full rounded-full", meta.dot)}
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                meta.dot,
+                              )}
                               style={{ width: `${val.pct}%` }}
                             />
                           </div>
@@ -706,19 +1066,25 @@ export default function CalculadoraVinho() {
                 </div>
 
                 {/* Observações */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                      <Info className="h-4 w-4" />
-                      Observações para este evento
-                    </CardTitle>
+                <Card className="border-gray-200 dark:border-slate-800 shadow-sm rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Info className="h-4 w-4 text-slate-500" />
+                      <CardTitle className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Observações para este evento
+                      </CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
+                  <CardContent className="space-y-2 text-xs font-medium text-slate-600 dark:text-slate-400">
                     {EVENT_OBSERVATIONS[eventType].map((obs, i) => (
-                      <p key={i}>• {obs}</p>
+                      <p key={i} className="flex gap-2">
+                        <span className="text-slate-400 mt-0.5">•</span>
+                        <span>{obs}</span>
+                      </p>
                     ))}
-                    <p className="pt-1 text-slate-400">
-                      * Estimativas baseadas em médias de mercado. Ajuste conforme o perfil real dos convidados.
+                    <p className="pt-2 mt-2 border-t border-slate-200 dark:border-slate-800 text-slate-500">
+                      * Estimativas baseadas em médias de mercado. Ajuste
+                      conforme o perfil real dos convidados.
                     </p>
                   </CardContent>
                 </Card>
