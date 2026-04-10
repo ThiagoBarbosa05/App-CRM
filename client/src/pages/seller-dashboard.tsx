@@ -31,6 +31,12 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -139,6 +145,19 @@ interface DashboardData {
   portfolioStats: ClientPortfolioStats;
 }
 
+interface SellerWinePriceTierRow {
+  sellerId: string;
+  sellerName: string;
+  economico: { totalValue: number; percentage: number; quantity: number };
+  intermediario: { totalValue: number; percentage: number; quantity: number };
+  premium: { totalValue: number; percentage: number; quantity: number };
+}
+
+interface WinePriceTierThresholds {
+  lowThreshold: number;
+  midThreshold: number;
+}
+
 interface AggregateDashboardData {
   success: boolean;
   monthlySummary: MonthlySummary;
@@ -148,6 +167,8 @@ interface AggregateDashboardData {
   topClients: TopClientRow[];
   sellerRanking: SellerRankingRow[];
   sellerPortfolioStats: SellerPortfolioStats[];
+  sellerWinePriceTiers: SellerWinePriceTierRow[];
+  winePriceTierThresholds: WinePriceTierThresholds;
 }
 
 interface UserOption {
@@ -1546,6 +1567,215 @@ function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
   );
 }
 
+// ─── Tabela de faixas de preço de vinhos por vendedor ────────────────────────
+
+interface WineTierItemRow {
+  orderDate: string;
+  clientName: string | null;
+  description: string;
+  unitPrice: number;
+  quantity: number;
+  totalValue: number;
+}
+
+type TierKey = "economico" | "intermediario" | "premium";
+
+const TIER_LABELS: Record<TierKey, string> = {
+  economico: "Econômico",
+  intermediario: "Intermediário",
+  premium: "Premium",
+};
+
+const TIER_COLORS: Record<TierKey, string> = {
+  economico: "text-emerald-600 dark:text-emerald-400",
+  intermediario: "text-blue-600 dark:text-blue-400",
+  premium: "text-amber-600 dark:text-amber-400",
+};
+
+function WineTierItemsModal({
+  open,
+  onClose,
+  sellerId,
+  sellerName,
+  tier,
+  startDate,
+  endDate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  sellerId: string;
+  sellerName: string;
+  tier: TierKey;
+  startDate: string;
+  endDate: string;
+}) {
+  const url = `/api/users/seller-dashboard/wine-tier-items?sellerId=${sellerId}&startDate=${startDate}&endDate=${endDate}&tier=${tier}`;
+  const { data, isLoading } = useQuery<{ items: WineTierItemRow[] }>({
+    queryKey: [url],
+    enabled: open,
+  });
+
+  const items = data?.items ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className={`flex items-center gap-2 ${TIER_COLORS[tier]}`}>
+            {TIER_LABELS[tier]} — {sellerName}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Skeleton className="h-6 w-48" />
+          </div>
+        ) : !items.length ? (
+          <p className="text-sm text-slate-500 py-6 text-center">Nenhum item encontrado.</p>
+        ) : (
+          <div className="overflow-auto flex-1">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white dark:bg-slate-900">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">Data</th>
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">Cliente</th>
+                  <th className="text-left px-3 py-2 font-medium text-slate-500">Produto</th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">Preço un.</th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">Qtd</th>
+                  <th className="text-right px-3 py-2 font-medium text-slate-500">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                {items.map((item, i) => (
+                  <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-3 py-2 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      {format(parseISO(item.orderDate), "dd/MM/yy")}
+                    </td>
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                      {item.clientName ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                      {item.description}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">
+                      {formatCurrency(item.unitPrice)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">
+                      {item.quantity}
+                    </td>
+                    <td className={`px-3 py-2 text-right font-medium ${TIER_COLORS[tier]}`}>
+                      {formatCurrency(item.totalValue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function WinePriceTierTable({
+  rows,
+  thresholds,
+  startDate,
+  endDate,
+}: {
+  rows: SellerWinePriceTierRow[];
+  thresholds: WinePriceTierThresholds;
+  startDate: string;
+  endDate: string;
+}) {
+  const [selected, setSelected] = useState<{ sellerId: string; sellerName: string; tier: TierKey } | null>(null);
+
+  if (!rows.length) return null;
+
+  const { lowThreshold, midThreshold } = thresholds;
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Package className="h-4 w-4 text-wine-600" />
+            Perfil de Vendas por Faixa de Preço
+          </CardTitle>
+          <div className="flex flex-wrap gap-3 mt-1">
+            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              Econômico ≤ {formatCurrency(lowThreshold)}
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
+              Intermediário {formatCurrency(lowThreshold)} – {formatCurrency(midThreshold)}
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
+              Premium &gt; {formatCurrency(midThreshold)}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">Vendedor</th>
+                  <th className="text-right px-4 py-3 font-medium text-emerald-600 dark:text-emerald-400">Econômico</th>
+                  <th className="text-right px-4 py-3 font-medium text-blue-600 dark:text-blue-400">Intermediário</th>
+                  <th className="text-right px-4 py-3 font-medium text-amber-600 dark:text-amber-400">Premium</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                {rows.map((row) => (
+                  <tr key={row.sellerId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.sellerName}</td>
+                    <td
+                      className="px-4 py-3 text-right cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "economico" })}
+                    >
+                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.economico.totalValue)}</div>
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400">{row.economico.percentage}% · {row.economico.quantity} un</div>
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "intermediario" })}
+                    >
+                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.intermediario.totalValue)}</div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400">{row.intermediario.percentage}% · {row.intermediario.quantity} un</div>
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                      onClick={() => setSelected({ sellerId: row.sellerId, sellerName: row.sellerName, tier: "premium" })}
+                    >
+                      <div className="text-slate-800 dark:text-slate-200">{formatCurrency(row.premium.totalValue)}</div>
+                      <div className="text-xs text-amber-600 dark:text-amber-400">{row.premium.percentage}% · {row.premium.quantity} un</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {selected && (
+        <WineTierItemsModal
+          open={true}
+          onClose={() => setSelected(null)}
+          sellerId={selected.sellerId}
+          sellerName={selected.sellerName}
+          tier={selected.tier}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── View agregada (admin — todos os vendedores) ──────────────────────────────
 
 export function AggregateView({
@@ -1579,6 +1809,8 @@ export function AggregateView({
   const topClients = data?.topClients ?? [];
   const sellerRanking = data?.sellerRanking ?? [];
   const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
+  const sellerWinePriceTiers = data?.sellerWinePriceTiers ?? [];
+  const winePriceTierThresholds = data?.winePriceTierThresholds ?? { lowThreshold: 50, midThreshold: 150 };
 
   if (isLoading) {
     return (
@@ -1685,6 +1917,9 @@ export function AggregateView({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SellerRankingCard sellers={sellerRanking} />
       </div>
+
+      {/* Perfil de vendas por faixa de preço */}
+      <WinePriceTierTable rows={sellerWinePriceTiers} thresholds={winePriceTierThresholds} startDate={startDate} endDate={endDate} />
 
       {/* Qualidade dos Dados */}
       <ReportsDataCoverage

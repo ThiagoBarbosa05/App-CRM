@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { systemSettings } from "../../shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { format, startOfMonth, endOfMonth, parseISO, differenceInCalendarDays, subDays } from "date-fns";
 
 // ─── Tipos de agregação (todos os vendedores) ─────────────────────────────────
@@ -26,6 +26,19 @@ export interface SellerPortfolioStats extends ClientPortfolioStats {
   sellerName: string;
 }
 
+export interface SellerWinePriceTierRow {
+  sellerId: string;
+  sellerName: string;
+  economico: { totalValue: number; percentage: number; quantity: number };
+  intermediario: { totalValue: number; percentage: number; quantity: number };
+  premium: { totalValue: number; percentage: number; quantity: number };
+}
+
+export interface WinePriceTierThresholds {
+  lowThreshold: number;
+  midThreshold: number;
+}
+
 export interface AggregateDashboardResult {
   monthlySummary: MonthlySummary;
   prevMonthSummary: MonthlySummary;
@@ -34,6 +47,8 @@ export interface AggregateDashboardResult {
   topClients: TopClientRow[];
   sellerRanking: SellerRankingRow[];
   sellerPortfolioStats: SellerPortfolioStats[];
+  sellerWinePriceTiers: SellerWinePriceTierRow[];
+  winePriceTierThresholds: WinePriceTierThresholds;
 }
 
 export interface TopClientRow {
@@ -107,6 +122,20 @@ async function getPurchaseStatusDays(): Promise<number> {
     .where(eq(systemSettings.key, "purchase_status_days"));
   const days = parseInt(row?.value ?? "60", 10);
   return isNaN(days) || days <= 0 ? 60 : days;
+}
+
+async function getWinePriceTiers(): Promise<WinePriceTierThresholds> {
+  const rows = await db
+    .select({ key: systemSettings.key, value: systemSettings.value })
+    .from(systemSettings)
+    .where(inArray(systemSettings.key, ["wine_price_tier_low", "wine_price_tier_mid"]));
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const low = parseFloat(map["wine_price_tier_low"] ?? "50");
+  const mid = parseFloat(map["wine_price_tier_mid"] ?? "150");
+  return {
+    lowThreshold: isNaN(low) || low <= 0 ? 50 : low,
+    midThreshold: isNaN(mid) || mid <= 0 ? 150 : mid,
+  };
 }
 
 const EMPTY_SUMMARY: MonthlySummary = { totalValue: 0, totalOrders: 0, avgTicket: 0, uniqueClients: 0 };
@@ -477,7 +506,10 @@ export async function getAggregateDashboard(
   const prevStart = format(prevStartDate, "yyyy-MM-dd");
   const prevEnd = format(prevEndDate, "yyyy-MM-dd");
 
-  const inactiveDays = await getPurchaseStatusDays();
+  const [inactiveDays, winePriceTierThresholds] = await Promise.all([
+    getPurchaseStatusDays(),
+    getWinePriceTiers(),
+  ]);
 
   const [
     monthlySummary,
@@ -487,6 +519,7 @@ export async function getAggregateDashboard(
     topClients,
     sellerRanking,
     sellerPortfolioStats,
+    sellerWinePriceTiers,
   ] = await Promise.all([
     fetchAggregateSummary(currentStart, currentEnd).catch(() => EMPTY_SUMMARY),
     fetchAggregateSummary(prevStart, prevEnd).catch(() => EMPTY_SUMMARY),
@@ -495,9 +528,10 @@ export async function getAggregateDashboard(
     fetchAggregateTopClients(currentStart, currentEnd).catch(() => [] as TopClientRow[]),
     fetchSellerRanking(currentStart, currentEnd).catch(() => [] as SellerRankingRow[]),
     fetchAllSellersPortfolioStats(inactiveDays).catch(() => [] as SellerPortfolioStats[]),
+    fetchSellerWinePriceTierStats(currentStart, currentEnd, winePriceTierThresholds.lowThreshold, winePriceTierThresholds.midThreshold).catch(() => [] as SellerWinePriceTierRow[]),
   ]);
 
-  return { monthlySummary, prevMonthSummary, salesEvolution, topProducts, topClients, sellerRanking, sellerPortfolioStats };
+  return { monthlySummary, prevMonthSummary, salesEvolution, topProducts, topClients, sellerRanking, sellerPortfolioStats, sellerWinePriceTiers, winePriceTierThresholds };
 }
 
 async function fetchAggregateSummary(startDate: string, endDate: string): Promise<MonthlySummary> {
@@ -648,6 +682,137 @@ async function fetchSellerRanking(startDate: string, endDate: string): Promise<S
     totalOrders: Number(r.total_orders ?? 0),
     totalValue: parseFloat(r.total_value ?? "0"),
     avgTicket: parseFloat(r.avg_ticket ?? "0"),
+  }));
+}
+
+async function fetchSellerWinePriceTierStats(
+  startDate: string,
+  endDate: string,
+  lowThreshold: number,
+  midThreshold: number,
+): Promise<SellerWinePriceTierRow[]> {
+  const result = await db.execute<{
+    seller_id: string | null;
+    seller_name: string | null;
+    economico_value: string | null;
+    economico_qty: string | null;
+    intermediario_value: string | null;
+    intermediario_qty: string | null;
+    premium_value: string | null;
+    premium_qty: string | null;
+    total_value: string | null;
+  }>(sql`
+    SELECT
+      COALESCE(u.id, bo.seller_id)                                                                                AS seller_id,
+      MAX(COALESCE(u.name, bo.seller_name))                                                                       AS seller_name,
+      COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text  AS economico_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                       AS economico_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text  AS intermediario_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                       AS intermediario_qty,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text  AS premium_value,
+      COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                       AS premium_qty,
+      COALESCE(SUM(boi.value::numeric * boi.quantity::numeric), 0)::text                                          AS total_value
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN LATERAL (
+      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+    ) u ON true
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND bo.seller_id IS NOT NULL
+    GROUP BY COALESCE(u.id, bo.seller_id)
+    ORDER BY SUM(boi.value::numeric * boi.quantity::numeric) DESC
+  `);
+
+  return result.rows.map((r) => {
+    const economicoValue = parseFloat(r.economico_value ?? "0");
+    const intermediarioValue = parseFloat(r.intermediario_value ?? "0");
+    const premiumValue = parseFloat(r.premium_value ?? "0");
+    const totalValue = parseFloat(r.total_value ?? "0");
+    const safeTotal = totalValue > 0 ? totalValue : 1;
+    return {
+      sellerId: r.seller_id ?? "",
+      sellerName: r.seller_name ?? "Desconhecido",
+      economico: {
+        totalValue: economicoValue,
+        percentage: Math.round((economicoValue / safeTotal) * 100),
+        quantity: parseFloat(r.economico_qty ?? "0"),
+      },
+      intermediario: {
+        totalValue: intermediarioValue,
+        percentage: Math.round((intermediarioValue / safeTotal) * 100),
+        quantity: parseFloat(r.intermediario_qty ?? "0"),
+      },
+      premium: {
+        totalValue: premiumValue,
+        percentage: Math.round((premiumValue / safeTotal) * 100),
+        quantity: parseFloat(r.premium_qty ?? "0"),
+      },
+    };
+  });
+}
+
+export interface WinePriceTierItemRow {
+  orderDate: string;
+  clientName: string | null;
+  description: string;
+  unitPrice: number;
+  quantity: number;
+  totalValue: number;
+}
+
+export async function getWinePriceTierItems(
+  sellerId: string,
+  startDate: string,
+  endDate: string,
+  tier: "economico" | "intermediario" | "premium",
+): Promise<WinePriceTierItemRow[]> {
+  const { lowThreshold, midThreshold } = await getWinePriceTiers();
+
+  const tierCondition =
+    tier === "economico"
+      ? sql`boi.value::numeric <= ${lowThreshold}`
+      : tier === "intermediario"
+        ? sql`boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold}`
+        : sql`boi.value::numeric > ${midThreshold}`;
+
+  const result = await db.execute<{
+    order_date: string;
+    client_name: string | null;
+    description: string | null;
+    unit_price: string | null;
+    quantity: string | null;
+    total_value: string | null;
+  }>(sql`
+    SELECT
+      bo.sale_date                                            AS order_date,
+      COALESCE(c.name, bo.contact_name)                      AS client_name,
+      boi.description,
+      boi.value::text                                        AS unit_price,
+      boi.quantity::text                                     AS quantity,
+      (boi.value::numeric * boi.quantity::numeric)::text     AS total_value
+    FROM bling_orders bo
+    JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN LATERAL (
+      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+    ) u ON true
+    LEFT JOIN clients c ON c.id = bo.app_client_id
+    WHERE bo.deleted_at IS NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
+      AND COALESCE(u.id, bo.seller_id) = ${sellerId}
+      AND ${tierCondition}
+    ORDER BY bo.sale_date DESC, total_value DESC
+  `);
+
+  return result.rows.map((r) => ({
+    orderDate: r.order_date,
+    clientName: r.client_name,
+    description: r.description ?? "Produto desconhecido",
+    unitPrice: parseFloat(r.unit_price ?? "0"),
+    quantity: parseFloat(r.quantity ?? "0"),
+    totalValue: parseFloat(r.total_value ?? "0"),
   }));
 }
 

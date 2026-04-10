@@ -18,6 +18,7 @@ import { getSellerSalesController } from "server/controllers/users/get-seller-sa
 import { getChannels } from "../integrations/umbler";
 import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
 import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
+import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
 
 
 /**
@@ -368,6 +369,15 @@ usersRouter.get(
 usersRouter.get(
   "/seller-dashboard/aggregate",
   getAggregateSellerDashboardController,
+);
+
+/**
+ * @route GET /api/users/seller-dashboard/wine-tier-items
+ * @description Retorna itens individuais de uma faixa de preço para um vendedor
+ */
+usersRouter.get(
+  "/seller-dashboard/wine-tier-items",
+  getWineTierItemsController,
 );
 
 /**

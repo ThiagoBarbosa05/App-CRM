@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, ShoppingCart, Loader2 } from "lucide-react";
+import { Settings, ShoppingCart, Loader2, Wine } from "lucide-react";
 import UsersManagement from "./users-management";
 import CategoriesManagement from "./categories-management";
 import MarkersManagement from "./markers-management";
@@ -98,7 +98,8 @@ function PurchaseStatusSettings() {
             {currentDays} dias
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-            Clientes sem compra há mais de {currentDays} dias são marcados como INATIVO
+            Clientes sem compra há mais de {currentDays} dias são marcados como
+            INATIVO
           </p>
         </div>
 
@@ -116,10 +117,7 @@ function PurchaseStatusSettings() {
               onChange={(e) => setDays(e.target.value)}
               className="w-32"
             />
-            <Button
-              onClick={handleSave}
-              disabled={mutation.isPending || !days}
-            >
+            <Button onClick={handleSave} disabled={mutation.isPending || !days}>
               {mutation.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
@@ -129,6 +127,215 @@ function PurchaseStatusSettings() {
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Recomendado: 60 dias (padrão do sistema)
           </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function WinePriceTierSettings() {
+  const { toast } = useToast();
+  const { data: settings, isLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+
+  const [lowValue, setLowValue] = useState<string>("");
+  const [midValue, setMidValue] = useState<string>("");
+
+  const currentLow = settings?.wine_price_tier_low ?? "50";
+  const currentMid = settings?.wine_price_tier_mid ?? "150";
+
+  const saveLow = useMutation({
+    mutationFn: async (value: string) =>
+      apiRequest("PUT", "/api/system-settings/wine_price_tier_low", {
+        value,
+        description: "Limite superior da faixa Econômica de vinhos (R$)",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/system-settings"] });
+      toast({
+        title: "Configuração salva",
+        description: "Limite econômico atualizado.",
+      });
+      setLowValue("");
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveMid = useMutation({
+    mutationFn: async (value: string) =>
+      apiRequest("PUT", "/api/system-settings/wine_price_tier_mid", {
+        value,
+        description: "Limite superior da faixa Intermediária de vinhos (R$)",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/system-settings"] });
+      toast({
+        title: "Configuração salva",
+        description: "Limite intermediário atualizado.",
+      });
+      setMidValue("");
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveLow = () => {
+    const parsed = parseFloat(lowValue);
+    const parsedMid = parseFloat(midValue || currentMid);
+    if (isNaN(parsed) || parsed <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "Digite um valor maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (parsed >= parsedMid) {
+      toast({
+        title: "Valor inválido",
+        description: "O limite econômico deve ser menor que o intermediário.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveLow.mutate(lowValue);
+  };
+
+  const handleSaveMid = () => {
+    const parsed = parseFloat(midValue);
+    const parsedLow = parseFloat(lowValue || currentLow);
+    if (isNaN(parsed) || parsed <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "Digite um valor maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (parsed <= parsedLow) {
+      toast({
+        title: "Valor inválido",
+        description: "O limite intermediário deve ser maior que o econômico.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveMid.mutate(midValue);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Wine className="h-5 w-5 text-wine-600" />
+          Faixas de Preço de Vinhos
+        </CardTitle>
+        <CardDescription>
+          Configure os limites de preço por unidade que definem cada faixa de
+          vinho. Usado no dashboard para mostrar o perfil de vendas por
+          vendedor.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+              Econômico
+            </p>
+            <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-200 mt-1">
+              até R$ {currentLow}
+            </p>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+            <p className="text-xs font-medium text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+              Intermediário
+            </p>
+            <p className="text-2xl font-bold text-blue-800 dark:text-blue-200 mt-1">
+              R$ {currentLow} – R$ {currentMid}
+            </p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+              Premium
+            </p>
+            <p className="text-2xl font-bold text-amber-800 dark:text-amber-200 mt-1">
+              acima de R$ {currentMid}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-lg">
+          <div className="space-y-2">
+            <Label htmlFor="wine-tier-low" className="text-sm font-medium">
+              Limite Econômico (R$)
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="wine-tier-low"
+                type="number"
+                min="1"
+                placeholder={`Ex: ${currentLow}`}
+                value={lowValue}
+                onChange={(e) => setLowValue(e.target.value)}
+                className="w-32"
+              />
+              <Button
+                onClick={handleSaveLow}
+                disabled={saveLow.isPending || !lowValue}
+              >
+                {saveLow.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Salvar
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="wine-tier-mid" className="text-sm font-medium">
+              Limite Intermediário (R$)
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="wine-tier-mid"
+                type="number"
+                min="1"
+                placeholder={`Ex: ${currentMid}`}
+                value={midValue}
+                onChange={(e) => setMidValue(e.target.value)}
+                className="w-32"
+              />
+              <Button
+                onClick={handleSaveMid}
+                disabled={saveMid.isPending || !midValue}
+              >
+                {saveMid.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Salvar
+              </Button>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -147,7 +354,7 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="markers">Marcadores</TabsTrigger>
@@ -155,6 +362,7 @@ export default function SettingsManagement() {
           <TabsTrigger value="sectors">Setores</TabsTrigger>
           <TabsTrigger value="learning-images">Imagens</TabsTrigger>
           <TabsTrigger value="purchase-status">Status Compra</TabsTrigger>
+          <TabsTrigger value="wine-price-tiers">Faixas de Preço</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -183,6 +391,10 @@ export default function SettingsManagement() {
 
         <TabsContent value="purchase-status">
           <PurchaseStatusSettings />
+        </TabsContent>
+
+        <TabsContent value="wine-price-tiers">
+          <WinePriceTierSettings />
         </TabsContent>
       </Tabs>
     </div>

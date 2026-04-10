@@ -15,7 +15,8 @@
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
     ]
   }
 }
