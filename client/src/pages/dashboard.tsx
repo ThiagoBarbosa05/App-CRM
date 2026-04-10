@@ -118,41 +118,6 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  // ── Query de aniversários (usada no resumo de cobranças) ──────────────────
-  const { data: upcomingBirthdays = [] } = useQuery({
-    queryKey: [`/api/birthdays/upcoming`, user?.id, user?.role],
-    queryFn: async () => {
-      const url =
-        isAdmin
-          ? `/api/birthdays/upcoming`
-          : `/api/birthdays/upcoming?responsibleId=${user?.id}`;
-      const res = await fetch(url, {
-        headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
-        },
-      });
-      if (!res.ok) throw new Error("Failed to fetch birthdays");
-      const data = await res.json();
-      return data
-        .map((client: any) => {
-          if (!client.nextBirthday) return { ...client, daysUntil: 365 };
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const next = new Date(client.nextBirthday);
-          next.setHours(0, 0, 0, 0);
-          const daysUntil = Math.max(
-            0,
-            Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
-          );
-          return { ...client, daysUntil };
-        })
-        .sort((a: any, b: any) => a.daysUntil - b.daysUntil)
-        .slice(0, 15);
-    },
-    enabled: !!user,
-  });
-
   // ── Derivados ─────────────────────────────────────────────────────────────
   const pendingDebts = clientDebts.filter((d) => d.status === "pending");
   const overdueDebts = clientDebts.filter(
@@ -328,7 +293,6 @@ export default function DashboardPage() {
               clientDebts={clientDebts}
               pendingDebts={pendingDebts}
               overdueDebts={overdueDebts}
-              upcomingBirthdays={upcomingBirthdays}
             />
           </div>
         </TabsContent>
