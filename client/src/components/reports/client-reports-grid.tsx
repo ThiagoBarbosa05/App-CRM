@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, PieChart as PieIcon, Tag, MapPin, ChevronDown } from "lucide-react";
+import { Users, PieChart as PieIcon, Tag, MapPin, ChevronDown, Trophy } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
   PieChart,
@@ -16,6 +17,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { formatCurrency } from "@/lib/utils";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 interface ClientReportsGridProps {
   clientsByCategory: Array<{ category: string | null; count: number }>;
@@ -62,51 +67,57 @@ export function ClientReportsGrid({
         />
       </button>
 
-      {open && <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <PieCard
-          title="Por Categoria"
-          description="Segmentação por tipo de cliente"
-          items={clientsByCategory.map((d) => ({
-            label: d.category ?? "Sem categoria",
-            count: d.count,
-          }))}
-          icon={<PieIcon className="h-5 w-5" />}
-          colorStart={0}
-        />
+      {open && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PieCard
+              title="Por Categoria"
+              description="Segmentação por tipo de cliente"
+              items={clientsByCategory.map((d) => ({
+                label: d.category ?? "Sem categoria",
+                count: d.count,
+              }))}
+              icon={<PieIcon className="h-5 w-5" />}
+              colorStart={0}
+            />
 
-        <PieCard
-          title="Por Origem"
-          description="Como os clientes chegaram até você"
-          items={clientsByOrigin.map((d) => ({
-            label: d.origin ?? "Sem origem",
-            count: d.count,
-          }))}
-          icon={<MapPin className="h-5 w-5" />}
-          colorStart={3}
-        />
+            <PieCard
+              title="Por Origem"
+              description="Como os clientes chegaram até você"
+              items={clientsByOrigin.map((d) => ({
+                label: d.origin ?? "Sem origem",
+                count: d.count,
+              }))}
+              icon={<MapPin className="h-5 w-5" />}
+              colorStart={3}
+            />
 
-        <PieCard
-          title="Por Responsável"
-          description="Distribuição da carteira entre a equipe"
-          items={clientsByUser.map((d) => ({
-            label: d.userName || "Sem responsável",
-            count: d.count,
-          }))}
-          icon={<Users className="h-5 w-5" />}
-          colorStart={6}
-        />
+            <PieCard
+              title="Por Responsável"
+              description="Distribuição da carteira entre a equipe"
+              items={clientsByUser.map((d) => ({
+                label: d.userName || "Sem responsável",
+                count: d.count,
+              }))}
+              icon={<Users className="h-5 w-5" />}
+              colorStart={6}
+            />
 
-        <PieCard
-          title="Por Marcadores"
-          description="Classificação por etiquetas e tags"
-          items={clientsByMarkers.map((d) => ({
-            label: d.marker || "Sem marcador",
-            count: d.count,
-          }))}
-          icon={<Tag className="h-5 w-5" />}
-          colorStart={9}
-        />
-      </div>}
+            <PieCard
+              title="Por Marcadores"
+              description="Classificação por etiquetas e tags"
+              items={clientsByMarkers.map((d) => ({
+                label: d.marker || "Sem marcador",
+                count: d.count,
+              }))}
+              icon={<Tag className="h-5 w-5" />}
+              colorStart={9}
+            />
+          </div>
+
+          <TopClientesCard />
+        </div>
+      )}
     </div>
   );
 }
@@ -244,5 +255,85 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+// ─── Top Clientes ─────────────────────────────────────────────────────────��───
+
+interface TopClientRow {
+  clientId: string | null;
+  clientName: string | null;
+  orderCount: number;
+  totalValue: number;
+}
+
+function TopClientesCard() {
+  const now = new Date();
+  const startDate = format(startOfMonth(now), "yyyy-MM-dd");
+  const endDate = format(endOfMonth(now), "yyyy-MM-dd");
+
+  const { data, isLoading } = useQuery<{ topClients: TopClientRow[] }>({
+    queryKey: [`/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`],
+  });
+
+  const topClients = data?.topClients ?? [];
+
+  return (
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+              <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Top Clientes do Mês
+            </CardTitle>
+          </div>
+          {topClients.length > 0 && (
+            <Badge variant="secondary" className="text-xs font-bold">
+              {topClients.length}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-3 pb-4 px-4">
+        {isLoading ? (
+          <p className="text-sm text-slate-400 text-center py-6">Carregando...</p>
+        ) : !topClients.length ? (
+          <p className="text-sm text-slate-400 text-center py-6">Nenhuma venda registrada.</p>
+        ) : (
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
+            {topClients.map((c, i) => {
+              const content = (
+                <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <span className="w-6 text-center text-xs font-black text-slate-400">
+                    #{i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {c.clientName ?? "—"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {c.orderCount} pedido{c.orderCount !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs shrink-0">
+                    {formatCurrency(c.totalValue)}
+                  </Badge>
+                </div>
+              );
+              return c.clientId ? (
+                <Link key={c.clientId ?? i} href={`/clientes/${c.clientId}`}>
+                  {content}
+                </Link>
+              ) : (
+                <div key={i}>{content}</div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
