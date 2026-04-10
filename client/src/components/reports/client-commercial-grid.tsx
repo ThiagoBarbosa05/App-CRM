@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -8,9 +9,9 @@ import {
   UserPlus,
   Phone,
   TrendingUp,
+  ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -107,16 +108,25 @@ function SectionCard({ icon, title, badge, children }: {
   badge?: number;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="bg-white dark:bg-slate-950 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="bg-white dark:bg-slate-950 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
         {icon}
-        <h3 className="text-base font-bold text-slate-900 dark:text-white flex-1">{title}</h3>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex-1">{title}</h3>
         {badge !== undefined && badge > 0 && (
-          <Badge variant="secondary" className="text-xs">{badge}</Badge>
+          <Badge variant="secondary" className="text-xs shrink-0">{badge}</Badge>
         )}
+        <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </div>
-      {children}
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-slate-800">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -281,6 +291,7 @@ function PortfolioKpiCard({
   stats: { total: number; active: number; inactive: number; positivacao: number };
   newClientsCount: number;
 }) {
+  const [open, setOpen] = useState(false);
   const pctColor =
     stats.positivacao >= 70
       ? "text-emerald-600 dark:text-emerald-400"
@@ -301,52 +312,60 @@ function PortfolioKpiCard({
         : "bg-red-50 dark:bg-red-900/20";
 
   return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardContent className="p-5">
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="text-center">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total</p>
-            <p className="text-xl font-black text-slate-800 dark:text-slate-100">{stats.total}</p>
+    <div className="bg-white dark:bg-slate-950 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className={`p-2 rounded-xl ${iconBg} shrink-0`}>
+          <TrendingUp className={`h-4 w-4 ${pctColor}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-900 dark:text-white">Carteira de Clientes</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Positivação e distribuição da base</p>
+        </div>
+        <span className={`text-sm font-black tabular-nums shrink-0 ${pctColor}`}>
+          {stats.positivacao.toFixed(1)}%
+        </span>
+        <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </div>
+      {open && (
+        <div className="px-4 pb-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total</p>
+              <p className="text-xl font-black text-slate-800 dark:text-slate-100">{stats.total}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-red-500 dark:text-red-400 mb-1">Inativos</p>
+              <p className="text-xl font-black text-red-600 dark:text-red-400">{stats.inactive}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-green-600 dark:text-green-400 mb-1">Novos</p>
+              <p className="text-xl font-black text-green-600 dark:text-green-400">{newClientsCount}</p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-red-500 dark:text-red-400 mb-1">Inativos</p>
-            <p className="text-xl font-black text-red-600 dark:text-red-400">{stats.inactive}</p>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Positivação</span>
+            <div className={`flex items-center gap-1.5 ${iconBg} px-2.5 py-1 rounded-lg`}>
+              <TrendingUp className={`h-3.5 w-3.5 ${pctColor}`} />
+              <span className={`text-sm font-black tabular-nums ${pctColor}`}>{stats.positivacao.toFixed(1)}%</span>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-green-600 dark:text-green-400 mb-1">Novos</p>
-            <p className="text-xl font-black text-green-600 dark:text-green-400">{newClientsCount}</p>
+          <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(stats.positivacao, 100)}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className={`h-full rounded-full ${barColor}`}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{stats.active} ativo{stats.active !== 1 ? "s" : ""}</span>
+            <span className="text-red-500 dark:text-red-400 font-semibold">{stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}</span>
           </div>
         </div>
-
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Positivação
-          </span>
-          <div className={`flex items-center gap-1.5 ${iconBg} px-2.5 py-1 rounded-lg`}>
-            <TrendingUp className={`h-3.5 w-3.5 ${pctColor}`} />
-            <span className={`text-sm font-black tabular-nums ${pctColor}`}>
-              {stats.positivacao.toFixed(1)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(stats.positivacao, 100)}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className={`h-full rounded-full ${barColor}`}
-          />
-        </div>
-        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-            {stats.active} ativo{stats.active !== 1 ? "s" : ""}
-          </span>
-          <span className="text-red-500 dark:text-red-400 font-semibold">
-            {stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

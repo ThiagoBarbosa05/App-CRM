@@ -251,6 +251,7 @@ interface TopClientRow {
 }
 
 function TopClientesCard() {
+  const [open, setOpen] = useState(false);
   const now = new Date();
   const startDate = format(startOfMonth(now), "yyyy-MM-dd");
   const endDate = format(endOfMonth(now), "yyyy-MM-dd");
@@ -262,61 +263,58 @@ function TopClientesCard() {
   const topClients = data?.topClients ?? [];
 
   return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
-              <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-sm rounded-2xl bg-white dark:bg-slate-950">
+      <CardHeader
+        className="pb-3 pt-3 px-4 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 shrink-0">
+            <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
               Top Clientes do Mês
             </CardTitle>
+            <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
+              Clientes com maior valor no mês atual
+            </CardDescription>
           </div>
           {topClients.length > 0 && (
-            <Badge variant="secondary" className="text-xs font-bold">
-              {topClients.length}
-            </Badge>
+            <Badge variant="secondary" className="text-xs font-bold shrink-0">{topClients.length}</Badge>
           )}
+          <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </div>
       </CardHeader>
-      <CardContent className="pt-3 pb-4 px-4">
-        {isLoading ? (
-          <p className="text-sm text-slate-400 text-center py-6">Carregando...</p>
-        ) : !topClients.length ? (
-          <p className="text-sm text-slate-400 text-center py-6">Nenhuma venda registrada.</p>
-        ) : (
-          <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            {topClients.map((c, i) => {
-              const content = (
-                <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <span className="w-6 text-center text-xs font-black text-slate-400">
-                    #{i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
-                      {c.clientName ?? "—"}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {c.orderCount} pedido{c.orderCount !== 1 ? "s" : ""}
-                    </p>
+      {open && (
+        <CardContent className="pt-2 pb-4 px-4 border-t border-slate-100 dark:border-slate-800">
+          {isLoading ? (
+            <p className="text-sm text-slate-400 text-center py-6">Carregando...</p>
+          ) : !topClients.length ? (
+            <p className="text-sm text-slate-400 text-center py-6">Nenhuma venda registrada.</p>
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {topClients.map((c, i) => {
+                const content = (
+                  <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <span className="w-6 text-center text-xs font-black text-slate-400">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.clientName ?? "—"}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{c.orderCount} pedido{c.orderCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-xs shrink-0">{formatCurrency(c.totalValue)}</Badge>
                   </div>
-                  <Badge variant="secondary" className="text-xs shrink-0">
-                    {formatCurrency(c.totalValue)}
-                  </Badge>
-                </div>
-              );
-              return c.clientId ? (
-                <Link key={c.clientId ?? i} href={`/clientes/${c.clientId}`}>
-                  {content}
-                </Link>
-              ) : (
-                <div key={i}>{content}</div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
+                );
+                return c.clientId ? (
+                  <Link key={c.clientId ?? i} href={`/clientes/${c.clientId}`}>{content}</Link>
+                ) : (
+                  <div key={i}>{content}</div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }
