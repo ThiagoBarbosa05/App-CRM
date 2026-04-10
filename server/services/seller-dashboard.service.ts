@@ -49,6 +49,8 @@ export interface AggregateDashboardResult {
   sellerPortfolioStats: SellerPortfolioStats[];
   sellerWinePriceTiers: SellerWinePriceTierRow[];
   winePriceTierThresholds: WinePriceTierThresholds;
+  inactiveClients: InactiveClientRow[];
+  newClientsThisMonth: NewClientRow[];
 }
 
 export interface TopClientRow {
@@ -438,6 +440,80 @@ async function fetchNewClientsThisMonth(userId: string): Promise<NewClientRow[]>
   }));
 }
 
+// ─── Clientes Inativos (todos os vendedores) ─────────────────────────────────
+
+async function fetchAggregateInactiveClients(inactiveDays: number): Promise<InactiveClientRow[]> {
+  const daysStr = String(inactiveDays);
+  const result = await db.execute<{
+    client_id: string;
+    client_name: string;
+    phone: string | null;
+    last_purchase_date: string | null;
+    days_since_purchase: unknown;
+  }>(sql`
+    SELECT
+      c.id   AS client_id,
+      c.name AS client_name,
+      c.phone,
+      (
+        SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))::text
+        FROM bling_orders bo2
+        WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+      ) AS last_purchase_date,
+      (
+        CURRENT_DATE - (
+          SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))
+          FROM bling_orders bo2
+          WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+        )
+      ) AS days_since_purchase
+    FROM clients c
+    WHERE NOT EXISTS (
+      SELECT 1 FROM bling_orders bo3
+      WHERE bo3.app_client_id = c.id
+        AND bo3.deleted_at IS NULL
+        AND TO_DATE(bo3.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+    )
+    ORDER BY days_since_purchase DESC NULLS LAST
+    LIMIT 50
+  `);
+
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    phone: r.phone,
+    lastPurchaseDate: r.last_purchase_date,
+    daysSincePurchase: r.days_since_purchase != null ? Number(r.days_since_purchase) : null,
+  }));
+}
+
+// ─── Novos Clientes (todos os vendedores) ────────────────────────────────────
+
+async function fetchAggregateNewClients(): Promise<NewClientRow[]> {
+  const result = await db.execute<{
+    client_id: string;
+    client_name: string;
+    phone: string | null;
+    created_at: string;
+  }>(sql`
+    SELECT
+      id         AS client_id,
+      name       AS client_name,
+      phone,
+      created_at::text
+    FROM clients
+    ORDER BY created_at DESC
+    LIMIT 18
+  `);
+
+  return result.rows.map((r) => ({
+    clientId: r.client_id,
+    clientName: r.client_name,
+    phone: r.phone,
+    createdAt: r.created_at,
+  }));
+}
+
 // ─── Resumo mensal (Bling only) ───────────────────────────────────────────────
 
 async function fetchMonthlySummary(
@@ -540,6 +616,8 @@ export async function getAggregateDashboard(
     sellerRanking,
     sellerPortfolioStats,
     sellerWinePriceTiers,
+    inactiveClients,
+    newClientsThisMonth,
   ] = await Promise.all([
     fetchAggregateSummary(currentStart, currentEnd).catch(() => EMPTY_SUMMARY),
     fetchAggregateSummary(prevStart, prevEnd).catch(() => EMPTY_SUMMARY),
@@ -549,9 +627,11 @@ export async function getAggregateDashboard(
     fetchSellerRanking(currentStart, currentEnd).catch(() => [] as SellerRankingRow[]),
     fetchAllSellersPortfolioStats(inactiveDays).catch(() => [] as SellerPortfolioStats[]),
     fetchSellerWinePriceTierStats(currentStart, currentEnd, winePriceTierThresholds.lowThreshold, winePriceTierThresholds.midThreshold).catch(() => [] as SellerWinePriceTierRow[]),
+    fetchAggregateInactiveClients(inactiveDays).catch(() => [] as InactiveClientRow[]),
+    fetchAggregateNewClients().catch(() => [] as NewClientRow[]),
   ]);
 
-  return { monthlySummary, prevMonthSummary, salesEvolution, topProducts, topClients, sellerRanking, sellerPortfolioStats, sellerWinePriceTiers, winePriceTierThresholds };
+  return { monthlySummary, prevMonthSummary, salesEvolution, topProducts, topClients, sellerRanking, sellerPortfolioStats, sellerWinePriceTiers, winePriceTierThresholds, inactiveClients, newClientsThisMonth };
 }
 
 async function fetchAggregateSummary(startDate: string, endDate: string): Promise<MonthlySummary> {

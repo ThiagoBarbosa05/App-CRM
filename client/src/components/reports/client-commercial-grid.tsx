@@ -7,10 +7,13 @@ import {
   UserX,
   UserPlus,
   Phone,
+  TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +47,22 @@ interface NewClientRow {
   createdAt: string;
 }
 
+interface SellerPortfolioStats {
+  userId: string;
+  sellerName: string;
+  total: number;
+  active: number;
+  inactive: number;
+  positivacao: number;
+}
+
 interface AggregateData {
   topClients: TopClientRow[];
   highestAvgTicket: TopClientRow[];
   highestAvgItemValue: TopItemValueRow[];
   inactiveClients: InactiveClientRow[];
   newClientsThisMonth: NewClientRow[];
+  sellerPortfolioStats: SellerPortfolioStats[];
 }
 
 interface ClientCommercialGridProps {
@@ -121,6 +134,20 @@ export function ClientCommercialGrid({ startDate, endDate }: ClientCommercialGri
   const highestAvgItemValue = data?.highestAvgItemValue ?? [];
   const inactiveClients = data?.inactiveClients ?? [];
   const newClients = data?.newClientsThisMonth ?? [];
+
+  // Soma os stats de carteira de todos os vendedores
+  const portfolioStats = (data?.sellerPortfolioStats ?? []).reduce(
+    (acc, s) => ({
+      total: acc.total + s.total,
+      active: acc.active + s.active,
+      inactive: acc.inactive + s.inactive,
+      positivacao: 0,
+    }),
+    { total: 0, active: 0, inactive: 0, positivacao: 0 },
+  );
+  if (portfolioStats.total > 0) {
+    portfolioStats.positivacao = (portfolioStats.active / portfolioStats.total) * 100;
+  }
 
   return (
     <Tabs defaultValue="ranking" className="space-y-4">
@@ -217,6 +244,8 @@ export function ClientCommercialGrid({ startDate, endDate }: ClientCommercialGri
 
       {/* ── Carteira ────────────────────────────────────────────────────────── */}
       <TabsContent value="carteira" className="m-0 outline-none space-y-4">
+        <PortfolioKpiCard stats={portfolioStats} newClientsCount={newClients.length} />
+
         <SectionCard
           icon={<div className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20"><UserX className="h-4 w-4 text-red-600 dark:text-red-400" /></div>}
           title="Clientes Inativos"
@@ -278,5 +307,84 @@ export function ClientCommercialGrid({ startDate, endDate }: ClientCommercialGri
         </SectionCard>
       </TabsContent>
     </Tabs>
+  );
+}
+
+// ─── PortfolioKpiCard ─────────────────────────────────────────────────────────
+
+function PortfolioKpiCard({
+  stats,
+  newClientsCount,
+}: {
+  stats: { total: number; active: number; inactive: number; positivacao: number };
+  newClientsCount: number;
+}) {
+  const pctColor =
+    stats.positivacao >= 70
+      ? "text-emerald-600 dark:text-emerald-400"
+      : stats.positivacao >= 40
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-red-400";
+  const barColor =
+    stats.positivacao >= 70
+      ? "bg-emerald-500"
+      : stats.positivacao >= 40
+        ? "bg-amber-400"
+        : "bg-red-500";
+  const iconBg =
+    stats.positivacao >= 70
+      ? "bg-emerald-50 dark:bg-emerald-900/20"
+      : stats.positivacao >= 40
+        ? "bg-amber-50 dark:bg-amber-900/20"
+        : "bg-red-50 dark:bg-red-900/20";
+
+  return (
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardContent className="p-5">
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="text-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total</p>
+            <p className="text-xl font-black text-slate-800 dark:text-slate-100">{stats.total}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-red-500 dark:text-red-400 mb-1">Inativos</p>
+            <p className="text-xl font-black text-red-600 dark:text-red-400">{stats.inactive}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-green-600 dark:text-green-400 mb-1">Novos</p>
+            <p className="text-xl font-black text-green-600 dark:text-green-400">{newClientsCount}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Positivação
+          </span>
+          <div className={`flex items-center gap-1.5 ${iconBg} px-2.5 py-1 rounded-lg`}>
+            <TrendingUp className={`h-3.5 w-3.5 ${pctColor}`} />
+            <span className={`text-sm font-black tabular-nums ${pctColor}`}>
+              {stats.positivacao.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(stats.positivacao, 100)}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className={`h-full rounded-full ${barColor}`}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+            {stats.active} ativo{stats.active !== 1 ? "s" : ""}
+          </span>
+          <span className="text-red-500 dark:text-red-400 font-semibold">
+            {stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
