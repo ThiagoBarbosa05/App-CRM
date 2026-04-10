@@ -417,7 +417,7 @@ async function fetchTopItemValue(
   }));
 }
 
-// ─── Clientes Inativos (Bling only) ──────────────────────────────────────────
+// ─── Clientes Inativos (Bling + Connect) ─────────────────────────────────────
 
 async function fetchInactiveClients(
   userId: string,
@@ -436,28 +436,27 @@ async function fetchInactiveClients(
       c.id   AS client_id,
       c.name AS client_name,
       c.phone,
+      GREATEST(
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+      )::text AS last_purchase_date,
       (
-        SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))::text
-        FROM bling_orders bo2
-        WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
-      ) AS last_purchase_date,
-      (
-        CURRENT_DATE - (
-          SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))
-          FROM bling_orders bo2
-          WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+        CURRENT_DATE - GREATEST(
+          (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
         )
       ) AS days_since_purchase
     FROM clients c
     WHERE c.responsavel_id = ${userId}
-      AND NOT EXISTS (
-        SELECT 1 FROM bling_orders bo3
-        WHERE bo3.app_client_id = c.id
-          AND bo3.deleted_at IS NULL
-          AND TO_DATE(bo3.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+      AND (
+        EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
       )
+      AND GREATEST(
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+      ) < CURRENT_DATE - (${daysStr} || ' days')::interval
     ORDER BY days_since_purchase DESC NULLS LAST
-    LIMIT 50
   `);
 
   return result.rows.map((r) => ({
@@ -879,31 +878,26 @@ async function fetchAggregateInactiveClients(
       c.id   AS client_id,
       c.name AS client_name,
       c.phone,
+      GREATEST(
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+      )::text AS last_purchase_date,
       (
-        SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))::text
-        FROM bling_orders bo2
-        WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
-      ) AS last_purchase_date,
-      (
-        CURRENT_DATE - (
-          SELECT MAX(TO_DATE(bo2.sale_date, 'YYYY-MM-DD'))
-          FROM bling_orders bo2
-          WHERE bo2.app_client_id = c.id AND bo2.deleted_at IS NULL
+        CURRENT_DATE - GREATEST(
+          (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
         )
       ) AS days_since_purchase
     FROM clients c
-    WHERE NOT EXISTS (
-        SELECT 1 FROM bling_orders bo3
-        WHERE bo3.app_client_id = c.id
-          AND bo3.deleted_at IS NULL
-          AND TO_DATE(bo3.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+    WHERE (
+        EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
+        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
       )
-      AND EXISTS (
-        SELECT 1 FROM bling_orders bo4
-        WHERE bo4.app_client_id = c.id AND bo4.deleted_at IS NULL
-      )
+      AND GREATEST(
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
+        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id AND co.deleted_at IS NULL)
+      ) < CURRENT_DATE - (${daysStr} || ' days')::interval
     ORDER BY days_since_purchase DESC NULLS LAST
-    LIMIT 50
   `);
   return result.rows.map((r) => ({
     clientId: r.client_id,
