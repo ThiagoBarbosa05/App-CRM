@@ -380,6 +380,101 @@ function ProgressBar({
   );
 }
 
+function getGoalMetricTone(percentage: number) {
+  if (percentage >= 100) {
+    return {
+      badge: "Meta batida",
+      badgeClass:
+        "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
+      ringClass: "ring-emerald-100 dark:ring-emerald-900/40",
+    };
+  }
+
+  if (percentage >= 70) {
+    return {
+      badge: "Em ritmo forte",
+      badgeClass:
+        "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
+      ringClass: "ring-amber-100 dark:ring-amber-900/40",
+    };
+  }
+
+  return {
+    badge: "Atenção",
+    badgeClass:
+      "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800",
+    ringClass: "ring-rose-100 dark:ring-rose-900/40",
+  };
+}
+
+function GoalMetricCard({
+  label,
+  icon,
+  achieved,
+  goal,
+  percentage,
+  colorClass,
+  bgClass,
+  textClass,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  achieved: string;
+  goal: string;
+  percentage: number;
+  colorClass: string;
+  bgClass: string;
+  textClass: string;
+}) {
+  const tone = getGoalMetricTone(percentage);
+
+  return (
+    <div
+      className={`rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-sm ring-1 ${tone.ringClass}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`p-2 rounded-xl ${bgClass} ${textClass}`}>{icon}</div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              {label}
+            </p>
+            <p className={`mt-2 text-xl font-black leading-none ${textClass}`}>
+              {achieved}
+            </p>
+          </div>
+        </div>
+        <span
+          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${tone.badgeClass}`}
+        >
+          {tone.badge}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <span>Meta: {goal}</span>
+          <span className={textClass}>{percentage.toFixed(1)}%</span>
+        </div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(percentage, 100)}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className={`h-full rounded-full ${colorClass}`}
+          />
+        </div>
+        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <span>Alcançado</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            {achieved}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ClientRow({
   rank,
   clientId,
@@ -801,6 +896,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   const salesGoalNum = Number(goal.salesGoal);
   const realPct =
     salesGoalNum > 0 ? Math.min((realValue / salesGoalNum) * 100, 100) : 0;
+  const overallTone = getGoalMetricTone(realPct);
   const realPctColor =
     realPct >= 100
       ? "bg-emerald-500"
@@ -839,12 +935,26 @@ function GoalProgressBlock({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent className="p-6 space-y-6">
         {/* Vendas Reais no Mês */}
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
+        <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-emerald-50/70 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/30 p-5 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800/80 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Vendas Reais no Mês
-            </span>
-            <span className="text-[10px] text-slate-400">Bling</span>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                Painel de Performance
+              </span>
+              <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">
+                Vendas Reais no Mês
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                Bling
+              </span>
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${overallTone.badgeClass}`}
+              >
+                {overallTone.badge}
+              </span>
+            </div>
           </div>
           {isTopSellersLoading ? (
             <div className="space-y-2 animate-pulse">
@@ -853,28 +963,50 @@ function GoalProgressBlock({ userId }: { userId: string }) {
             </div>
           ) : (
             <>
-              <div className="flex items-end justify-between gap-2">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p
-                    className={`text-2xl font-black tabular-nums ${realTextColor}`}
+                    className={`text-3xl font-black tabular-nums tracking-tight ${realTextColor}`}
                   >
                     {formatCurrency(realValue)}
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
                     {realOrders} pedido{realOrders !== 1 ? "s" : ""} · ticket
                     médio {formatCurrency(realAvgTicket)}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p
-                    className={`text-lg font-black tabular-nums ${realTextColor}`}
-                  >
-                    {realPct.toFixed(1)}%
-                  </p>
-                  <p className="text-[10px] text-slate-400">da meta</p>
+                <div className="grid grid-cols-2 gap-2 md:min-w-[220px]">
+                  <div className="rounded-xl border border-white/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Meta
+                    </p>
+                    <p className="mt-1 text-sm font-black text-slate-700 dark:text-slate-200">
+                      {formatCurrency(salesGoalNum)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/70 bg-white/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/70 text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Progresso
+                    </p>
+                    <p
+                      className={`mt-1 text-lg font-black tabular-nums ${realTextColor}`}
+                    >
+                      {realPct.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span>Volume vendido</span>
+                  <p
+                    className={`font-black tabular-nums ${realTextColor}`}
+                  >
+                    {formatCurrency(realValue)} / {formatCurrency(salesGoalNum)}
+                  </p>
+                </div>
+              </div>
+              <div className="w-full bg-slate-200/80 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${realPct}%` }}
@@ -882,15 +1014,26 @@ function GoalProgressBlock({ userId }: { userId: string }) {
                   className={`h-full rounded-full ${realPctColor}`}
                 />
               </div>
-              <div className="flex justify-between text-[10px] font-medium text-slate-400">
-                <span>Vendido: {formatCurrency(realValue)}</span>
-                <span>Meta: {formatCurrency(salesGoalNum)}</span>
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="rounded-xl border border-white/70 bg-white/75 px-3 py-2 text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    {realItems}
+                  </span>{" "}
+                  garrafa{realItems !== 1 ? "s" : ""} vendida{realItems !== 1 ? "s" : ""}
+                </div>
+                <div className="rounded-xl border border-white/70 bg-white/75 px-3 py-2 text-right text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    {formatCurrency(realAvgBottle)}
+                  </span>{" "}
+                  por garrafa
+                </div>
               </div>
             </>
           )}
         </div>
 
-        <ProgressBar
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <GoalMetricCard
           label="Meta de Vendas (mensal)"
           icon={<TrendingUp className="h-3.5 w-3.5" />}
           achieved={formatCurrency(salesAchieved)}
@@ -899,8 +1042,8 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-emerald-500"
           bgClass="bg-emerald-50 dark:bg-emerald-900/20"
           textClass="text-emerald-600 dark:text-emerald-400"
-        />
-        <ProgressBar
+          />
+          <GoalMetricCard
           label="Total de GRFs no Mês"
           icon={<ShoppingCart className="h-3.5 w-3.5" />}
           achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
@@ -909,8 +1052,8 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-indigo-500"
           bgClass="bg-indigo-50 dark:bg-indigo-900/20"
           textClass="text-indigo-600 dark:text-indigo-400"
-        />
-        <ProgressBar
+          />
+          <GoalMetricCard
           label="Ticket Médio"
           icon={<BarChart3 className="h-3.5 w-3.5" />}
           achieved={formatCurrency(realAvgTicket)}
@@ -919,8 +1062,8 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-blue-500"
           bgClass="bg-blue-50 dark:bg-blue-900/20"
           textClass="text-blue-600 dark:text-blue-400"
-        />
-        <ProgressBar
+          />
+          <GoalMetricCard
           label="Valor Médio por Garrafa"
           icon={<Wine className="h-3.5 w-3.5" />}
           achieved={realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
@@ -929,15 +1072,34 @@ function GoalProgressBlock({ userId }: { userId: string }) {
           colorClass="bg-rose-500"
           bgClass="bg-rose-50 dark:bg-rose-900/20"
           textClass="text-rose-600 dark:text-rose-400"
-        />
-        <div className="pt-4 border-t border-gray-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            <span>Resultado do Mês</span>
+          />
+        </div>
+        <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 px-4 py-3">
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+            <span>Resumo do Mês</span>
             <span
               className={monthlyResult ? "text-emerald-500" : "text-slate-400"}
             >
               {monthlyResult ? "Registrado" : "Pendente"}
             </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                Melhor avanço
+              </p>
+              <p className="mt-1 font-bold text-slate-700 dark:text-slate-200">
+                {realPct >= 100 ? "Meta mensal concluida" : "Meta mensal em andamento"}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                Fonte
+              </p>
+              <p className="mt-1 font-bold text-slate-700 dark:text-slate-200">
+                Dados sincronizados do Bling
+              </p>
+            </div>
           </div>
         </div>
       </CardContent>
