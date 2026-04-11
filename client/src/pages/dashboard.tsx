@@ -22,7 +22,10 @@ import {
   Calendar,
   CalendarIcon,
   CreditCard,
+  Package,
+  Percent,
   TrendingUp,
+  Upload,
   Users,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -34,7 +37,12 @@ import { ClientDebt, DashboardStats } from "@/types/dashboard";
 import { DashboardStatsCards } from "@/components/dashboard/dashboard-stats-cards";
 import { DashboardDebtsTab } from "@/components/dashboard/dashboard-debts-tab";
 import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-tab";
-import { AggregateView, IndividualSellerView } from "@/pages/seller-dashboard";
+import { AggregateView } from "@/components/seller-dashboard/aggregate-view";
+import { IndividualSellerView } from "@/components/seller-dashboard/individual-seller-view";
+import { OrdersSection } from "@/components/seller-dashboard/orders-section";
+import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-import-modal";
+import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
+import { useCohortAnalysis } from "@/hooks/use-bling-orders";
 
 // ---------------------------------------------------------------------------
 
@@ -43,6 +51,26 @@ interface UserOption {
   name: string;
   role: string;
   isActive: string;
+}
+
+// ---------------------------------------------------------------------------
+
+function CohortAnalysisContent({
+  startDate,
+  endDate,
+}: {
+  startDate: string;
+  endDate: string;
+}) {
+  const { data, isLoading } = useCohortAnalysis(startDate, endDate);
+  return (
+    <CohortAnalysisTable
+      data={data}
+      isLoading={isLoading}
+      startDate={startDate}
+      endDate={endDate}
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +108,7 @@ export default function DashboardPage() {
 
   // ── Seletor de vendedor (admin) ────────────────────────────────────────────
   const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
+  const [connectImportOpen, setConnectImportOpen] = useState(false);
 
   const { data: usersList = [] } = useQuery<UserOption[]>({
     queryKey: ["/api/users"],
@@ -212,8 +241,22 @@ export default function DashboardPage() {
               </Select>
             </div>
           )}
+
+          {/* Importar CSV */}
+          <Button
+            onClick={() => setConnectImportOpen(true)}
+            className="gap-2 bg-violet-600 hover:bg-violet-700 rounded-xl h-9 px-4 text-sm font-bold shrink-0"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Importar CSV
+          </Button>
         </div>
       </div>
+
+      <ConnectCsvImportModal
+        open={connectImportOpen}
+        onOpenChange={setConnectImportOpen}
+      />
 
       {/* Tabs ────────────────────────────────────────────────────────────── */}
       <Tabs
@@ -257,18 +300,64 @@ export default function DashboardPage() {
 
         {/* Aba Desempenho ─────────────────────────────────────────────────── */}
         <TabsContent value="desempenho" className="m-0 outline-none">
-          {showAggregateView ? (
-            <AggregateView startDate={startDate} endDate={endDate} />
-          ) : (
-            user && (
-              <IndividualSellerView
-                sellerId={resolvedSellerId || user.id}
-                isOwnView={!isAdmin || selectedSellerId === user.id}
-                startDate={startDate}
-                endDate={endDate}
-              />
-            )
-          )}
+          <Tabs defaultValue="vendas" className="space-y-4">
+            <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
+              <TabsList className="grid w-full grid-cols-3 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
+                <TabsTrigger
+                  value="vendas"
+                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
+                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
+                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                >
+                  <BarChart3 className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Vendas</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="cohort"
+                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
+                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800
+                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                >
+                  <Percent className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Cohort</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="pedidos"
+                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
+                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-800
+                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                >
+                  <Package className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Pedidos</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="vendas" className="m-0 outline-none">
+              {showAggregateView ? (
+                <AggregateView startDate={startDate} endDate={endDate} />
+              ) : (
+                user && (
+                  <IndividualSellerView
+                    sellerId={resolvedSellerId || user.id}
+                    isOwnView={!isAdmin || selectedSellerId === user.id}
+                    startDate={startDate}
+                    endDate={endDate}
+                  />
+                )
+              )}
+            </TabsContent>
+
+            <TabsContent value="cohort" className="m-0 outline-none">
+              <CohortAnalysisContent startDate={startDate} endDate={endDate} />
+            </TabsContent>
+
+            <TabsContent value="pedidos" className="m-0 outline-none">
+              <OrdersSection startDate={startDate} endDate={endDate} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Aba Cobranças ──────────────────────────────────────────────────── */}

@@ -1,0 +1,739 @@
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { motion } from "framer-motion";
+import {
+  BarChart3,
+  ShoppingCart,
+  TrendingUp,
+  Trophy,
+  Users,
+  Wine,
+} from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
+import { useClientReports, useGeneralReports } from "@/hooks/useReports";
+import { ReportsStatistics } from "@/components/reports/reports-statistics";
+import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
+import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
+import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
+import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
+import {
+  type AggregateDashboardData,
+  type UserGoal,
+  type SellerPortfolioStats,
+  type SellerRankingRow,
+  KpiCard,
+  ClientRow,
+  SectionCard,
+  EmptyState,
+  pct,
+  namesMatch,
+} from "./shared";
+
+// ─── Progresso de metas de todos os vendedores (admin) ───────────────────────
+
+function AllSellersGoalProgress({
+  sellerPortfolioStats,
+}: {
+  sellerPortfolioStats: SellerPortfolioStats[];
+}) {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+
+  const { data: goals = [], isLoading: goalsLoading } = useQuery<UserGoal[]>({
+    queryKey: [`/api/user-goals-with-results/${month}/${year}`],
+  });
+
+  const { data: topSellers = [], isLoading: sellersLoading } =
+    useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
+
+  const monthLabel = format(now, "MMMM yyyy", { locale: ptBR }).replace(
+    /^\w/,
+    (c) => c.toUpperCase(),
+  );
+  const isLoading = goalsLoading || sellersLoading;
+
+  const enrichedGoals = useMemo(() => {
+    return goals
+      .map((goal) => {
+        const realData =
+          topSellers.find((s) => namesMatch(s.sellerName, goal.userName)) ??
+          null;
+        const realValue = realData?.totalValue ?? 0;
+        const realOrders = realData?.totalOrders ?? 0;
+        const realItems = realData?.totalItems ?? 0;
+        const bottleGoalProgress = getBottleGoalProgress(
+          { totalItems: realItems, totalOrders: realOrders },
+          goal.ordersGoal ?? 0,
+        );
+        const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
+        const realAvgBottle = realItems > 0 ? realValue / realItems : 0;
+        const salesGoalNum = Number(goal.salesGoal);
+        const salesPct =
+          salesGoalNum > 0
+            ? Math.min((realValue / salesGoalNum) * 100, 100)
+            : 0;
+        const ticketPct = pct(realAvgTicket, Number(goal.averageTicket));
+        const ordersPct = bottleGoalProgress.percentage;
+        const avgBottlePct = pct(
+          realAvgBottle,
+          Number(goal.avgBottleValueGoal ?? "0"),
+        );
+        const monthlyResult = goal.weeklyResults?.[0] ?? null;
+        const portfolio =
+          sellerPortfolioStats.find((s) => s.userId === goal.userId) ?? null;
+        return {
+          goal,
+          realValue,
+          realOrders,
+          realItems,
+          bottleGoalProgress,
+          realAvgTicket,
+          realAvgBottle,
+          salesPct,
+          ticketPct,
+          ordersPct,
+          avgBottlePct,
+          monthlyResult,
+          portfolio,
+        };
+      })
+      .sort((a, b) => b.salesPct - a.salesPct);
+  }, [goals, topSellers, sellerPortfolioStats]);
+
+  return (
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Metas dos Vendedores — {monthLabel}
+            </CardTitle>
+          </div>
+          {!isLoading && (
+            <Badge variant="secondary" className="text-xs font-bold">
+              {goals.length} vendedor{goals.length !== 1 ? "es" : ""}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 pb-4 px-4">
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border border-gray-200 dark:border-slate-800 p-4 space-y-3"
+              >
+                <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : !enrichedGoals.length ? (
+          <EmptyState message="Nenhuma meta cadastrada para este mês." />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {enrichedGoals.map(
+              ({
+                goal,
+                realValue,
+                realOrders,
+                realItems,
+                bottleGoalProgress,
+                realAvgTicket,
+                realAvgBottle,
+                salesPct,
+                ticketPct,
+                ordersPct,
+                avgBottlePct,
+                monthlyResult,
+                portfolio,
+              }) => {
+                const salesColor =
+                  salesPct >= 100
+                    ? "bg-emerald-500"
+                    : salesPct >= 50
+                      ? "bg-amber-400"
+                      : "bg-red-500";
+                const salesTextColor =
+                  salesPct >= 100
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : salesPct >= 50
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-600 dark:text-red-400";
+
+                return (
+                  <div
+                    key={goal.id}
+                    className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {goal.userName}
+                      </p>
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] font-bold shrink-0 ${monthlyResult ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400"}`}
+                      >
+                        {monthlyResult ? "✓ REG." : "PEND."}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p
+                          className={`text-lg font-black tabular-nums leading-tight ${salesTextColor}`}
+                        >
+                          {formatCurrency(realValue)}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {realOrders} ped. · {formatCurrency(realAvgTicket)}{" "}
+                          ticket
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-base font-black ${salesTextColor}`}>
+                          {salesPct.toFixed(1)}%
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          de {formatCurrency(Number(goal.salesGoal))}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${salesPct}%` }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                        className={`h-full rounded-full ${salesColor}`}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                        <span>
+                          GRFs — {bottleGoalProgress.achieved}/
+                          {bottleGoalProgress.goal}
+                        </span>
+                        <span className="font-bold">
+                          {ordersPct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${ordersPct}%` }}
+                          transition={{
+                            duration: 0.9,
+                            ease: "easeOut",
+                            delay: 0.1,
+                          }}
+                          className="h-full bg-indigo-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                        <span>
+                          Ticket Médio — {formatCurrency(realAvgTicket)}
+                        </span>
+                        <span className="font-bold">
+                          {ticketPct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${ticketPct}%` }}
+                          transition={{
+                            duration: 0.9,
+                            ease: "easeOut",
+                            delay: 0.2,
+                          }}
+                          className="h-full bg-blue-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 p-2.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Wine className="h-3 w-3 text-rose-500 shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 truncate">
+                            Valor Médio / Garrafa
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[11px] font-black shrink-0 ${avgBottlePct >= 100 ? "text-emerald-600 dark:text-emerald-400" : avgBottlePct >= 50 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}
+                        >
+                          {avgBottlePct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-1">
+                        <span className="text-sm font-black text-slate-800 dark:text-slate-200 tabular-nums">
+                          {realItems > 0 ? formatCurrency(realAvgBottle) : "—"}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          meta {formatCurrency(goal.avgBottleValueGoal ?? "0")}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-rose-100 dark:bg-rose-900/30 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(avgBottlePct, 100)}%` }}
+                          transition={{
+                            duration: 0.9,
+                            ease: "easeOut",
+                            delay: 0.3,
+                          }}
+                          className={`h-full rounded-full ${avgBottlePct >= 100 ? "bg-emerald-500" : avgBottlePct >= 50 ? "bg-amber-400" : "bg-rose-500"}`}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        {realItems > 0
+                          ? `${realItems} garrafa${realItems !== 1 ? "s" : ""} vendida${realItems !== 1 ? "s" : ""}`
+                          : "Sem garrafas no período"}
+                      </p>
+                    </div>
+
+                    {portfolio && (
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1">
+                        <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                          <span>Carteira: {portfolio.total} clientes</span>
+                          <span
+                            className={`font-bold ${portfolio.positivacao >= 70 ? "text-emerald-600 dark:text-emerald-400" : portfolio.positivacao >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}
+                          >
+                            Positivação- {portfolio.positivacao.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${Math.min(portfolio.positivacao, 100)}%`,
+                            }}
+                            transition={{
+                              duration: 0.9,
+                              ease: "easeOut",
+                              delay: 0.4,
+                            }}
+                            className={`h-full rounded-full ${portfolio.positivacao >= 70 ? "bg-emerald-500" : portfolio.positivacao >= 40 ? "bg-amber-400" : "bg-red-500"}`}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              },
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Ranking de Vendedores (admin) ────────────────────────────────────────────
+
+function SellerRankingCard({ sellers }: { sellers: SellerRankingRow[] }) {
+  const maxValue = useMemo(
+    () => Math.max(...sellers.map((s) => s.totalValue), 1),
+    [sellers],
+  );
+
+  const medalColors = ["text-amber-500", "text-slate-400", "text-amber-700"];
+
+  return (
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 md:col-span-2">
+      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+              <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+              Ranking de Vendedores — Mês Atual
+            </CardTitle>
+          </div>
+          <Badge variant="secondary" className="text-xs font-bold">
+            {sellers.length}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 pb-4 px-4">
+        {!sellers.length ? (
+          <EmptyState message="Nenhuma venda registrada neste mês." />
+        ) : (
+          <div className="space-y-2">
+            {sellers.map((s, i) => {
+              const barPct = (s.totalValue / maxValue) * 100;
+              return (
+                <div key={s.sellerId} className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-6 text-center text-sm font-black shrink-0 ${medalColors[i] ?? "text-slate-400"}`}
+                    >
+                      {i < 3 ? ["🥇", "🥈", "🥉"][i] : `#${i + 1}`}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {s.sellerName}
+                        </p>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-[11px] text-slate-400">
+                            {s.totalOrders} ped. · ticket{" "}
+                            {formatCurrency(s.avgTicket)}
+                          </span>
+                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(s.totalValue)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${barPct}%` }}
+                          transition={{
+                            duration: 0.8,
+                            ease: "easeOut",
+                            delay: i * 0.05,
+                          }}
+                          className="h-full bg-amber-400 rounded-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── View agregada (admin — todos os vendedores) ──────────────────────────────
+
+export function AggregateView({
+  startDate,
+  endDate,
+}: {
+  startDate: string;
+  endDate: string;
+}) {
+  const queryUrl = `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
+  const { data, isLoading, isError, error } = useQuery<AggregateDashboardData>({
+    queryKey: [queryUrl],
+  });
+  const { data: clientReports } = useClientReports();
+  const { data: generalReports } = useGeneralReports();
+
+  const monthlySummary = data?.monthlySummary ?? {
+    totalValue: 0,
+    totalOrders: 0,
+    avgTicket: 0,
+    uniqueClients: 0,
+  };
+  const prevMonthSummary = data?.prevMonthSummary ?? {
+    totalValue: 0,
+    totalOrders: 0,
+    avgTicket: 0,
+    uniqueClients: 0,
+  };
+  const salesEvolution = data?.salesEvolution ?? [];
+  const topProducts = data?.topProducts ?? [];
+  const topClients = data?.topClients ?? [];
+  const sellerRanking = data?.sellerRanking ?? [];
+  const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
+  const groupBy = useMemo(() => {
+    if (!startDate || !endDate) return "day" as const;
+    const days = Math.ceil(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (days > 90) return "month" as const;
+    if (days > 30) return "week" as const;
+    return "day" as const;
+  }, [startDate, endDate]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-4 w-full">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-8 w-28" />
+                  </div>
+                  <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <Skeleton className="h-48 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-52" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-7 rounded-lg" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
+              {[1, 2, 3, 4, 5].map((j) => (
+                <div key={j} className="flex items-center gap-3 py-3">
+                  <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <Card
+              key={i}
+              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-7 w-7 rounded-lg" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
+                {[1, 2, 3, 4, 5].map((j) => (
+                  <div key={j} className="flex items-center gap-3 py-3">
+                    <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-36" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+        Erro ao carregar dados: {String(error)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Total Vendido"
+          value={formatCurrency(monthlySummary.totalValue)}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.totalValue)}`}
+          icon={<TrendingUp className="h-4 w-4" />}
+          iconBg="bg-emerald-50 dark:bg-emerald-900/20"
+          iconColor="text-emerald-600 dark:text-emerald-400"
+          current={monthlySummary.totalValue}
+          previous={prevMonthSummary.totalValue}
+        />
+        <KpiCard
+          label="Pedidos"
+          value={String(monthlySummary.totalOrders)}
+          subValue={`vs período anterior: ${prevMonthSummary.totalOrders}`}
+          icon={<ShoppingCart className="h-4 w-4" />}
+          iconBg="bg-blue-50 dark:bg-blue-900/20"
+          iconColor="text-blue-600 dark:text-blue-400"
+          current={monthlySummary.totalOrders}
+          previous={prevMonthSummary.totalOrders}
+        />
+        <KpiCard
+          label="Ticket Médio"
+          value={formatCurrency(monthlySummary.avgTicket)}
+          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.avgTicket)}`}
+          icon={<BarChart3 className="h-4 w-4" />}
+          iconBg="bg-amber-50 dark:bg-amber-900/20"
+          iconColor="text-amber-600 dark:text-amber-400"
+          current={monthlySummary.avgTicket}
+          previous={prevMonthSummary.avgTicket}
+        />
+        <KpiCard
+          label="Clientes Únicos"
+          value={String(monthlySummary.uniqueClients)}
+          subValue={`vs período anterior: ${prevMonthSummary.uniqueClients}`}
+          icon={<Users className="h-4 w-4" />}
+          iconBg="bg-purple-50 dark:bg-purple-900/20"
+          iconColor="text-purple-600 dark:text-purple-400"
+          current={monthlySummary.uniqueClients}
+          previous={prevMonthSummary.uniqueClients}
+        />
+      </div>
+
+      {/* Estatísticas de Clientes CRM */}
+      <ReportsStatistics
+        totalClients={clientReports?.totalClients ?? 0}
+        upcomingBirthdaysCount={clientReports?.upcomingBirthdays.length ?? 0}
+        newClientsThisMonth={
+          generalReports?.recentStats.newClientsThisMonth ?? 0
+        }
+        totalInteractionsThisMonth={
+          generalReports?.recentStats.totalInteractionsThisMonth ?? 0
+        }
+        clientGrowthPercent={
+          generalReports?.growthStats.clientGrowthPercent ?? 0
+        }
+        interactionGrowthPercent={
+          generalReports?.growthStats.interactionGrowthPercent ?? 0
+        }
+      />
+
+      {/* Gráfico de Evolução */}
+      <SalesEvolutionChart
+        data={salesEvolution}
+        isLoading={isLoading}
+        groupBy={groupBy}
+      />
+
+      {/* Metas de todos os vendedores */}
+      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
+
+      {/* Ranking de Vendedores */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SellerRankingCard sellers={sellerRanking} />
+      </div>
+
+      {/* Qualidade dos Dados */}
+      <ReportsDataCoverage
+        totalClients={clientReports?.totalClients ?? 0}
+        clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+        clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+        clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+        clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+      />
+
+      {/* Top Produtos + Top Clientes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <TopProductsChart
+          data={topProducts.map((p) => ({
+            description: p.description,
+            totalQuantity: String(p.totalQuantity),
+            totalValue: String(p.totalValue),
+            orderCount: p.orderCount,
+            productCode: p.productCode,
+          }))}
+          isLoading={isLoading}
+        />
+
+        <SectionCard
+          title="Top Clientes do Mês"
+          icon={
+            <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          }
+          iconBg="bg-amber-50 dark:bg-amber-900/20"
+          count={topClients.length}
+        >
+          {!topClients.length ? (
+            <EmptyState message="Nenhuma venda registrada." />
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {topClients.map((c, i) => (
+                <ClientRow
+                  key={c.clientId ?? i}
+                  rank={i + 1}
+                  clientId={c.clientId}
+                  name={c.clientName}
+                  secondary={`${c.orderCount} pedido${c.orderCount !== 1 ? "s" : ""}`}
+                  badge={formatCurrency(c.totalValue)}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
