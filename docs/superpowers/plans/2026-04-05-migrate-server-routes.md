@@ -278,10 +278,10 @@
 - `/api/client-debts*`
 - `/api/dashboard/stats/:userId`
 
-- [ ] Centralizar todo o dominio de produtos em `products.routes.ts`.
-- [ ] Garantir que as rotas de produtos relacionadas a empresa saiam de `companies.routes.ts` e fiquem so em um lugar.
-- [ ] Extrair `client-debts` e `dashboard` para routers pequenos e independentes.
-- [ ] Preservar o fallback atual de dashboard e as regras implicitas de header.
+- [x] Centralizar todo o dominio de produtos em `products.routes.ts`.
+- [x] Garantir que as rotas de produtos relacionadas a empresa saiam de `companies.routes.ts` e fiquem so em um lugar.
+- [x] Extrair `client-debts` e `dashboard` para routers pequenos e independentes.
+- [x] Preservar o fallback atual de dashboard e as regras implicitas de header.
 
 ### Checkpoint 6
 
