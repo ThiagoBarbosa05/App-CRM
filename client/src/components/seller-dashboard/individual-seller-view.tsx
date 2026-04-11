@@ -22,6 +22,7 @@ import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
 import { useClientReports } from "@/hooks/useReports";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
+import { TopClientsCard } from "@/components/bling-sales/top-clients-card";
 import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
 import {
   type DashboardData,
@@ -615,31 +616,11 @@ export function IndividualSellerView({
 
       {/* Grid 2 colunas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SectionCard
+        <TopClientsCard
+          data={topClients}
+          isLoading={isLoading}
           title="Top Clientes"
-          icon={
-            <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          }
-          iconBg="bg-amber-50 dark:bg-amber-900/20"
-          count={topClients.length}
-        >
-          {!topClients.length ? (
-            <EmptyState message="Nenhuma venda registrada." />
-          ) : (
-            <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {topClients.map((c, i) => (
-                <ClientRow
-                  key={c.clientId ?? i}
-                  rank={i + 1}
-                  clientId={c.clientId}
-                  name={c.clientName}
-                  secondary={`${c.orderCount} pedido${c.orderCount !== 1 ? "s" : ""}`}
-                  badge={formatCurrency(c.totalValue)}
-                />
-              ))}
-            </div>
-          )}
-        </SectionCard>
+        />
 
         <SectionCard
           title="Maior Ticket Médio"

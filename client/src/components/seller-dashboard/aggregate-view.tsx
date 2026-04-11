@@ -18,9 +18,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
 import { useClientReports, useGeneralReports } from "@/hooks/useReports";
 import { ReportsStatistics } from "@/components/reports/reports-statistics";
-import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
+import { TopClientsCard } from "@/components/bling-sales/top-clients-card";
 import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
 import {
   type AggregateDashboardData,
@@ -686,15 +686,6 @@ export function AggregateView({
         <SellerRankingCard sellers={sellerRanking} />
       </div>
 
-      {/* Qualidade dos Dados */}
-      <ReportsDataCoverage
-        totalClients={clientReports?.totalClients ?? 0}
-        clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
-        clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
-        clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
-        clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
-      />
-
       {/* Top Produtos + Top Clientes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <TopProductsChart
@@ -708,31 +699,11 @@ export function AggregateView({
           isLoading={isLoading}
         />
 
-        <SectionCard
+        <TopClientsCard
+          data={topClients}
+          isLoading={isLoading}
           title="Top Clientes do Mês"
-          icon={
-            <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          }
-          iconBg="bg-amber-50 dark:bg-amber-900/20"
-          count={topClients.length}
-        >
-          {!topClients.length ? (
-            <EmptyState message="Nenhuma venda registrada." />
-          ) : (
-            <div className="divide-y divide-slate-50 dark:divide-slate-800">
-              {topClients.map((c, i) => (
-                <ClientRow
-                  key={c.clientId ?? i}
-                  rank={i + 1}
-                  clientId={c.clientId}
-                  name={c.clientName}
-                  secondary={`${c.orderCount} pedido${c.orderCount !== 1 ? "s" : ""}`}
-                  badge={formatCurrency(c.totalValue)}
-                />
-              ))}
-            </div>
-          )}
-        </SectionCard>
+        />
       </div>
     </div>
   );

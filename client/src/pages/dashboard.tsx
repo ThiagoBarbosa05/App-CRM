@@ -301,13 +301,11 @@ export default function DashboardPage() {
         {/* Aba Desempenho ─────────────────────────────────────────────────── */}
         <TabsContent value="desempenho" className="m-0 outline-none">
           <Tabs defaultValue="vendas" className="space-y-4">
-            <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
-              <TabsList className="grid w-full grid-cols-3 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
+            <div className="border-b border-gray-200 dark:border-slate-800 mb-4 overflow-x-auto no-scrollbar">
+              <TabsList className="flex w-max min-w-full h-12 items-center justify-start rounded-none bg-transparent p-0">
                 <TabsTrigger
                   value="vendas"
-                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
-                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-blue-600 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
                 >
                   <BarChart3 className="h-4 w-4 shrink-0" />
                   <span className="truncate">Vendas</span>
@@ -315,9 +313,7 @@ export default function DashboardPage() {
 
                 <TabsTrigger
                   value="cohort"
-                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800
-                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-green-600 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
                 >
                   <Percent className="h-4 w-4 shrink-0" />
                   <span className="truncate">Cohort</span>
@@ -325,9 +321,7 @@ export default function DashboardPage() {
 
                 <TabsTrigger
                   value="pedidos"
-                  className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                    data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-800
-                    hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-orange-600 data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
                 >
                   <Package className="h-4 w-4 shrink-0" />
                   <span className="truncate">Pedidos</span>
