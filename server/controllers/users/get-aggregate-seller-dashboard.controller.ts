@@ -10,8 +10,9 @@ export async function getAggregateSellerDashboardController(req: Request, res: R
   try {
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+    const userId = typeof req.query.userId === "string" ? req.query.userId : undefined;
 
-    const data = await getAggregateDashboard(startDate, endDate);
+    const data = await getAggregateDashboard(startDate, endDate, userId);
     return res.json({ success: true, ...data });
   } catch (error) {
     console.error("[getAggregateSellerDashboardController] Erro:", error);

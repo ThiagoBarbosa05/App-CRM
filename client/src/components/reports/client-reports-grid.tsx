@@ -33,6 +33,7 @@ interface ClientReportsGridProps {
   clientsWithPhone?: number;
   clientsWithCPF?: number;
   clientsWithAddress?: number;
+  userId?: string | null;
 }
 
 const PALETTE = [
@@ -51,6 +52,7 @@ export function ClientReportsGrid({
   clientsWithPhone = 0,
   clientsWithCPF = 0,
   clientsWithAddress = 0,
+  userId,
 }: ClientReportsGridProps) {
   return (
     <div className="space-y-6">
@@ -101,7 +103,7 @@ export function ClientReportsGrid({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TopClientesCard />
+        <TopClientesCard userId={userId} />
         <ReportsDataCoverage
           totalClients={totalClients}
           clientsWithEmail={clientsWithEmail}
@@ -250,14 +252,17 @@ interface TopClientRow {
   totalValue: number;
 }
 
-function TopClientesCard() {
+function TopClientesCard({ userId }: { userId?: string | null }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const startDate = format(startOfMonth(now), "yyyy-MM-dd");
   const endDate = format(endOfMonth(now), "yyyy-MM-dd");
 
+  const params = new URLSearchParams({ startDate, endDate });
+  if (userId) params.set("userId", userId);
+
   const { data, isLoading } = useQuery<{ topClients: TopClientRow[] }>({
-    queryKey: [`/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`],
+    queryKey: [`/api/users/seller-dashboard/aggregate?${params}`],
   });
 
   const topClients = data?.topClients ?? [];

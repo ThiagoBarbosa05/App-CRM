@@ -22,6 +22,9 @@ import { getSellerSalesController } from "server/controllers/users/get-seller-sa
 import { getChannels } from "../integrations/umbler";
 import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
 import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
+import { getTopClientsController } from "server/controllers/users/get-top-clients.controller";
+import { getPortfolioStatsController } from "server/controllers/users/get-portfolio-stats.controller";
+import { getInactiveClientsController } from "server/controllers/users/get-inactive-clients.controller";
 import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
 import { getSellerTierCountsController } from "server/controllers/users/get-seller-tier-counts.controller";
 
@@ -376,6 +379,27 @@ usersRouter.get(
   "/seller-dashboard/aggregate",
   getAggregateSellerDashboardController,
 );
+
+/**
+ * @route GET /api/users/seller-dashboard/top-clients
+ * @description Top clientes por valor total, ticket médio e valor médio por item
+ * @query startDate?, endDate?, userId?
+ */
+usersRouter.get("/seller-dashboard/top-clients", getTopClientsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/portfolio-stats
+ * @description Estatísticas de carteira por vendedor e novos clientes no período
+ * @query startDate?, endDate?, userId?
+ */
+usersRouter.get("/seller-dashboard/portfolio-stats", getPortfolioStatsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/inactive-clients
+ * @description Clientes sem compra há X dias (configurado em purchase_status_days)
+ * @query userId?
+ */
+usersRouter.get("/seller-dashboard/inactive-clients", getInactiveClientsController);
 
 /**
  * @route GET /api/users/seller-dashboard/wine-tier-items

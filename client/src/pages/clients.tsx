@@ -352,6 +352,7 @@ export default function Clients() {
                 clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
                 clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
                 clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+                userId={filterUserId}
               />
               <ClientCommercialGrid startDate={startDate} endDate={endDate} userId={filterUserId} />
             </div>
