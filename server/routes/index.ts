@@ -26,7 +26,7 @@ import userGoalsRouter, {
 } from "./user-goals.routes";
 import blingRouter from "./bling-orders.routes";
 import { messageJobsLogsRouter } from "./message-jobs-logs.routes";
-import { telemarketingGoalsRouter } from "./telemarketing-goals.routes";
+import { telemarketingGoalsRouter, telemarketingStatsRouter } from "./telemarketing-goals.routes";
 import blingAccountsRouter from "./bling-accounts.routes";
 import blingProductsRouter from "./bling-products.routes";
 import connectOrdersRouter from "./connect-orders.routes";
@@ -37,6 +37,16 @@ import { authRouter } from "./auth.routes";
 import { filesRouter } from "./files.routes";
 import { acompanhamentoRouter } from "./acompanhamento.routes";
 import { umblerRouter } from "./umbler.routes";
+import { reportsRouter } from "./reports.routes";
+import {
+  clientRegistrationGoalsRouter,
+  clientRegistrationStatsRouter,
+} from "./client-registration-goals.routes";
+import { markerGoalsRouter, markerStatsRouter } from "./marker-goals.routes";
+import {
+  interactionGoalsRouter,
+  interactionStatsRouter,
+} from "./interaction-goals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -53,6 +63,7 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/files", filesRouter);
 apiRouter.use("/acompanhamento", acompanhamentoRouter);
 apiRouter.use("/", umblerRouter);
+apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/companies", companiesRouter);
 apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
@@ -78,6 +89,13 @@ apiRouter.use("/user-registration-stats", userRegistrationStatsRouter);
 apiRouter.use("/weekly-results", weeklyResultsRouter);
 apiRouter.use("/message-jobs-logs", messageJobsLogsRouter);
 apiRouter.use("/telemarketing-goals", telemarketingGoalsRouter);
+apiRouter.use("/telemarketing-stats", telemarketingStatsRouter);
+apiRouter.use("/client-registration-goals", clientRegistrationGoalsRouter);
+apiRouter.use("/client-registration-stats", clientRegistrationStatsRouter);
+apiRouter.use("/marker-goals", markerGoalsRouter);
+apiRouter.use("/marker-stats", markerStatsRouter);
+apiRouter.use("/interaction-goals", interactionGoalsRouter);
+apiRouter.use("/interaction-stats", interactionStatsRouter);
 apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
@@ -98,7 +116,7 @@ apiRouter.use("/system-settings", systemSettingsRouter);
 // ✅ apiRouter.use("/files", filesRouter); - MIGRADO
 // ✅ apiRouter.use("/acompanhamento", acompanhamentoRouter); - MIGRADO
 // ✅ apiRouter.use("/", umblerRouter); - MIGRADO PARCIAL (umbler)
-// apiRouter.use("/reports", reportsRouter);
+// ✅ apiRouter.use("/reports", reportsRouter); - MIGRADO
 // apiRouter.use("/events", eventsRouter);
 // apiRouter.use("/products", productsRouter);
 // apiRouter.use("/integrations", integrationsRouter);

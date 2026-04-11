@@ -201,26 +201,23 @@
 
 **Scope:**
 - `POST /api/clients/import`
-- `GET|POST|DELETE /api/companies/:companyId/products*`
-- `GET /api/companies/export-all`
-- `POST /api/companies/import`
+- `GET|POST|DELETE|PUT /api/companies/:companyId/products*`
+- `GET /api/companies/:companyId/available-products`
 - `/api/reports/general`
 - `/api/reports/clients`
 - `/api/reports/companies`
 - `/api/reports/sales`
 - qualquer rota restante de sales/report hoje ativa em `server/routes.ts`
 
-- [ ] Completar `clients.routes.ts` com importacao.
-- [ ] Completar `companies.routes.ts` com produtos da empresa, export e import.
-- [ ] Manter `sales.routes.ts` so para `/sales*`.
-- [ ] Criar `reports.routes.ts` para `/reports/*`, inclusive a rota de vendas hoje inline.
-- [ ] Atualizar `server/routes/index.ts` com `apiRouter.use("/reports", reportsRouter)`.
+ - [x] Completar `clients.routes.ts` com importacao.
+ - [x] Completar `companies.routes.ts` com produtos da empresa ativos hoje (`products`, `available-products`, `price`).
+ - [x] Manter `sales.routes.ts` so para `/sales*`.
+ - [x] Criar `reports.routes.ts` para `/reports/*`, inclusive a rota de vendas hoje inline.
+ - [x] Atualizar `server/routes/index.ts` com `apiRouter.use("/reports", reportsRouter)`.
 
 **Cobertura minima**
 - `clients import`
-- `companies products` list/add/remove
-- `companies export-all`
-- `companies import`
+- `companies products` list/add/remove/update price/available-products
 - `reports` general/clients/companies/sales
 - asserts de compatibilidade de status e shape do JSON
 

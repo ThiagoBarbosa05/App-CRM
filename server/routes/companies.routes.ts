@@ -7,6 +7,7 @@ import { deleteCompaniesBulkController } from "../controllers/companies/delete-c
 import { getCompanyInteractionsController } from "../controllers/companies/get-company-interactions.controller";
 import { getCompanyFunnelsController } from "../controllers/companies/get-company-funnels.controller";
 import { getDealAnsweredQuestionsController } from "../controllers/get-deal-answered-questions.controller";
+import { storage } from "../storage";
 
 /**
  * Router específico para endpoints relacionados a empresas
@@ -76,6 +77,119 @@ companiesRouter.get(
   "/:companyId/deals/:dealId/answered-questions",
   getDealAnsweredQuestionsController
 );
+
+companiesRouter.get("/:companyId/products", async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const products = await storage.getCompanyProducts(companyId);
+    return res.json(products);
+  } catch (error) {
+    console.error("Error fetching company products:", error);
+    return res.status(500).json({ message: "Erro ao buscar carta de vinhos" });
+  }
+});
+
+companiesRouter.get("/:companyId/available-products", async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const products = await storage.getAvailableProductsForCompany(companyId);
+    return res.json(products);
+  } catch (error) {
+    console.error("Error fetching available products:", error);
+    return res.status(500).json({ message: "Erro ao buscar produtos disponíveis" });
+  }
+});
+
+companiesRouter.post("/:companyId/products", async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const { productId } = req.body;
+    const userId = req.headers["x-user-id"] as string;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
+    const companyProduct = await storage.addProductToCompany({
+      companyId,
+      productId,
+      addedBy: userId,
+      isActive: "true",
+    });
+
+    return res.status(201).json(companyProduct);
+  } catch (error) {
+    console.error("Error adding product to company:", error);
+    if (
+      error instanceof Error &&
+      error.message === "Produto já vinculado a esta empresa"
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Erro ao adicionar produto à carta" });
+  }
+});
+
+companiesRouter.delete("/:companyId/products/:productId", async (req, res) => {
+  const { companyId, productId } = req.params;
+
+  try {
+    await storage.removeProductFromCompany(companyId, productId);
+    return res.json({ message: "Product removed from company wine list" });
+  } catch (error) {
+    console.error("Error removing product from company:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to remove product from company" });
+  }
+});
+
+companiesRouter.put("/:companyId/products/:productId/price", async (req, res) => {
+  try {
+    const { companyId, productId } = req.params;
+    const { customPrice } = req.body;
+
+    console.log("Atualizando preço:", {
+      companyId,
+      productId,
+      customPrice,
+    });
+
+    if (!companyId || !productId) {
+      return res
+        .status(400)
+        .json({ message: "CompanyId e ProductId são obrigatórios" });
+    }
+
+    if (!customPrice || customPrice === "" || isNaN(parseFloat(customPrice))) {
+      return res.status(400).json({ message: "Preço inválido" });
+    }
+
+    const numericPrice = parseFloat(customPrice);
+    if (numericPrice < 0) {
+      return res.status(400).json({ message: "Preço não pode ser negativo" });
+    }
+
+    const result = await storage.updateCompanyProductPrice(
+      companyId,
+      productId,
+      numericPrice.toString(),
+    );
+
+    if (!result) {
+      return res
+        .status(404)
+        .json({ message: "Produto não encontrado na carta da empresa" });
+    }
+
+    console.log("Preço atualizado com sucesso:", result);
+    return res.json({ message: "Preço atualizado com sucesso", data: result });
+  } catch (error) {
+    console.error("Erro ao atualizar preço customizado:", error);
+    return res.status(500).json({ message: "Erro interno do servidor" });
+  }
+});
 
 /**
  * @route POST /api/companies

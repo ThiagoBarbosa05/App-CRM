@@ -59,8 +59,6 @@ import {
   users,
   serviceChannels,
   userServiceChannel,
-  blingOrders,
-  blingOrderItems,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -121,11 +119,6 @@ import {
   getSalesStatisticsController,
   getSalesHistoryController,
 } from "./controllers/sales";
-import {
-  getCompanyReportsController,
-  getGeneralReportsController,
-  getClientReportsController,
-} from "./controllers/reports";
 import { createMessageAutomationSettingsController } from "./controllers/create-message-automation-settings.controller";
 import { getMessageAutomationSettingsController } from "./controllers/get-message-automation-settings.controller";
 import { updateMessageAutomationSettingsController } from "./controllers/update-message-automation-settings.controller";
@@ -1918,9 +1911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   */
 
   // Reports routes
-  app.get("/api/reports/general", getGeneralReportsController);
-  app.get("/api/reports/clients", getClientReportsController);
-  app.get("/api/reports/companies", getCompanyReportsController);
 
   // Sales routes
   app.get("/api/sales-statistics", getSalesStatisticsController);
@@ -3144,25 +3134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Client import route
-  app.post("/api/clients/import", upload.single("file"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "Arquivo não fornecido" });
-      }
-
-      const results = {
-        success: 0,
-        errors: [] as any[],
-      };
-
-      res.json(results);
-    } catch (error) {
-      console.error("Erro na importação:", error);
-      res.status(500).json({ message: "Erro ao importar clientes" });
-    }
-  });
-
   // Object Storage routes for public file serving
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     const filePath = req.params.filePath;
@@ -3737,133 +3708,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Company Products routes (carta de vinhos)
-  app.get("/api/companies/:companyId/products", async (req, res) => {
-    try {
-      const { companyId } = req.params;
-      const products = await storage.getCompanyProducts(companyId);
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching company products:", error);
-      res.status(500).json({ message: "Erro ao buscar carta de vinhos" });
-    }
-  });
-
-  app.get("/api/companies/:companyId/available-products", async (req, res) => {
-    try {
-      const { companyId } = req.params;
-      const products = await storage.getAvailableProductsForCompany(companyId);
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching available products:", error);
-      res.status(500).json({ message: "Erro ao buscar produtos disponíveis" });
-    }
-  });
-
-  app.post("/api/companies/:companyId/products", async (req, res) => {
-    try {
-      const { companyId } = req.params;
-      const { productId } = req.body;
-      const userId = req.headers["x-user-id"] as string;
-
-      if (!userId) {
-        return res.status(401).json({ message: "Usuário não autenticado" });
-      }
-
-      const companyProduct = await storage.addProductToCompany({
-        companyId,
-        productId,
-        addedBy: userId,
-        isActive: "true",
-      });
-
-      res.status(201).json(companyProduct);
-    } catch (error) {
-      console.error("Error adding product to company:", error);
-      if (
-        error instanceof Error &&
-        error.message === "Produto já vinculado a esta empresa"
-      ) {
-        return res.status(400).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Erro ao adicionar produto à carta" });
-    }
-  });
-
-  // Remove product from company wine list
-  app.delete(
-    "/api/companies/:companyId/products/:productId",
-    async (req, res) => {
-      const { companyId, productId } = req.params;
-
-      try {
-        await storage.removeProductFromCompany(companyId, productId);
-        res.json({ message: "Product removed from company wine list" });
-      } catch (error) {
-        console.error("Error removing product from company:", error);
-        res
-          .status(500)
-          .json({ error: "Failed to remove product from company" });
-      }
-    },
-  );
-
-  // Update custom negotiated price for company product
-  app.put(
-    "/api/companies/:companyId/products/:productId/price",
-    async (req, res) => {
-      try {
-        const { companyId, productId } = req.params;
-        const { customPrice } = req.body;
-
-        console.log("Atualizando preço:", {
-          companyId,
-          productId,
-          customPrice,
-        });
-
-        if (!companyId || !productId) {
-          return res
-            .status(400)
-            .json({ message: "CompanyId e ProductId são obrigatórios" });
-        }
-
-        if (
-          !customPrice ||
-          customPrice === "" ||
-          isNaN(parseFloat(customPrice))
-        ) {
-          return res.status(400).json({ message: "Preço inválido" });
-        }
-
-        const numericPrice = parseFloat(customPrice);
-        if (numericPrice < 0) {
-          return res
-            .status(400)
-            .json({ message: "Preço não pode ser negativo" });
-        }
-
-        const result = await storage.updateCompanyProductPrice(
-          companyId,
-          productId,
-          numericPrice.toString(),
-        );
-
-        if (!result) {
-          return res
-            .status(404)
-            .json({ message: "Produto não encontrado na carta da empresa" });
-        }
-
-        console.log("Preço atualizado com sucesso:", result);
-        res.json({ message: "Preço atualizado com sucesso", data: result });
-      } catch (error) {
-        console.error("Erro ao atualizar preço customizado:", error);
-        res.status(500).json({ message: "Erro interno do servidor" });
-      }
-    },
-  );
-
   // Get companies that have a specific product
   app.get("/api/products/:productId/companies", async (req, res) => {
     try {
@@ -4385,47 +4229,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/sales", async (req, res) => {
-    try {
-      const { startDate, endDate } = req.query;
-
-      // if (!startDate || !endDate) {
-      //   return res
-      //     .status(400)
-      //     .json({ message: "startDate e endDate são obrigatórios" });
-      // }
-
-      const salesReport = await db
-        .select({
-          id: blingOrders.id,
-          saleDate: blingOrders.saleDate,
-          totalValue: blingOrders.totalValue,
-          sellerName: blingOrders.sellerName,
-          contactName: blingOrders.contactName,
-          accountName: blingOrders.accountName,
-          items: sql<
-            Array<{
-              productName: string;
-              quantity: number;
-              unitPrice: number;
-            }>
-          >`ARRAY_AGG(
-            JSON_BUILD_OBJECT(
-              'productName', ${blingOrderItems.description},
-              'quantity', ${blingOrderItems.quantity},
-              'unitPrice', ${blingOrderItems.value}
-            )
-          )`.as("items"),
-        })
-        .from(blingOrders)
-        .leftJoin(blingOrderItems, eq(blingOrders.id, blingOrderItems.orderId))
-        .groupBy(blingOrders.id);
-      res.json(salesReport);
-    } catch (error) {
-      console.error("Erro ao gerar relatório de vendas:", error);
-      res.status(500).json({ message: "Erro ao gerar relatório de vendas" });
-    }
-  });
   // Rotas de sincronização Umbler → CRM
   const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
   app.use("/api/umbler-sync", umblerSyncRoutes.default);
