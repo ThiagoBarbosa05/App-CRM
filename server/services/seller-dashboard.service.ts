@@ -189,6 +189,19 @@ interface ClientAnalyticsScope {
 
 const clientsRepository = new ClientsRepository();
 
+function buildClientIdsCondition(
+  columnExpression: string,
+  clientIds?: string[] | null,
+  prefix: "AND" | "WHERE" = "AND",
+) {
+  if (!clientIds || clientIds.length === 0) {
+    return sql``;
+  }
+
+  const safeList = clientIds.map((id) => `'${id.replace(/'/g, "")}'`).join(",");
+  return sql.raw(` ${prefix} ${columnExpression} IN (${safeList})`);
+}
+
 function hasActiveClientFilters(filters: ClientFilters = {}): boolean {
   return Object.values(filters).some((value) => {
     if (typeof value === "number") {
@@ -460,7 +473,7 @@ async function buildBlingAggQuery(
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
-      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
     GROUP BY bo.app_client_id
     ${orderClause}
     LIMIT 10
@@ -505,7 +518,7 @@ async function fetchTopItemValue(
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
-      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
     GROUP BY bo.app_client_id
     ORDER BY AVG(boi.value::numeric) DESC
     LIMIT 10
@@ -546,7 +559,7 @@ async function fetchTopClientsByTotalForSeller(
     FROM bling_orders bo
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
@@ -588,7 +601,7 @@ async function fetchTopClientsByAvgTicketForSeller(
     FROM bling_orders bo
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
@@ -629,7 +642,7 @@ async function fetchTopItemValueForSeller(
     JOIN bling_order_items boi ON boi.order_id = bo.id
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
@@ -680,7 +693,7 @@ async function fetchInactiveClients(
       ) AS days_since_purchase
     FROM clients c
     WHERE c.responsavel_id = ${userId}
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
       AND (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
         OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
@@ -727,7 +740,7 @@ async function fetchNewClientsThisMonth(
     WHERE responsavel_id = ${userId}
       AND created_at::date >= ${startDate}::date
       AND created_at::date <= ${endDate}::date
-      ${clientIds ? sql`AND id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("id", clientIds)}
     ORDER BY created_at DESC
     LIMIT 18
   `);
@@ -1118,7 +1131,7 @@ async function fetchAggregateTopClients(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
-      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
     GROUP BY bo.app_client_id
     ORDER BY SUM(bo.total_value::numeric) DESC
     LIMIT 10
@@ -1158,7 +1171,7 @@ async function fetchAggregateTopClientsByAvgTicket(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
-      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
     GROUP BY bo.app_client_id
     ORDER BY AVG(bo.total_value::numeric) DESC
     LIMIT 10
@@ -1197,7 +1210,7 @@ async function fetchAggregateTopItemValue(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
-      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
     GROUP BY bo.app_client_id
     ORDER BY AVG(boi.value::numeric) DESC
     LIMIT 10
@@ -1239,7 +1252,7 @@ async function fetchAggregateInactiveClients(
         )
       ) AS days_since_purchase
     FROM clients c
-    WHERE (${clientIds ? sql`c.id = ANY(${clientIds}) AND` : sql``}
+    WHERE (${clientIds ? sql.raw(`c.id IN (${clientIds.map((id) => `'${id.replace(/'/g, "")}'`).join(",")}) AND`) : sql``}
         (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
         OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
@@ -1280,7 +1293,7 @@ async function fetchAggregateNewClients(
     FROM clients
     WHERE created_at::date >= ${startDate}::date
       AND created_at::date <= ${endDate}::date
-      ${clientIds ? sql`AND id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("id", clientIds)}
     ORDER BY created_at DESC
     LIMIT 18
   `);
@@ -1643,7 +1656,7 @@ async function fetchClientPortfolioStats(
       )::int AS active_count
     FROM clients c
     WHERE c.responsavel_id = ${userId}
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
   `);
 
   const row = result.rows[0];
@@ -1686,7 +1699,7 @@ async function fetchAllSellersPortfolioStats(
     FROM clients c
     JOIN users u ON u.id = c.responsavel_id
     WHERE c.responsavel_id IS NOT NULL
-      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
+      ${buildClientIdsCondition("c.id", clientIds)}
     GROUP BY c.responsavel_id, u.name
   `);
 
