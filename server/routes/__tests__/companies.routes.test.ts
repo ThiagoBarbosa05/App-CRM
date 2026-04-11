@@ -2,7 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
-import { companiesRouter } from "../companies.routes";
+import { companyProductsRouter } from "../products.routes";
 
 const {
   getCompanyProductsMock,
@@ -48,7 +48,7 @@ describe("companiesRouter product routes", () => {
 
   it("keeps GET /:companyId/products", async () => {
     getCompanyProductsMock.mockResolvedValue([{ id: "product-1" }]);
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app).get("/companies/company-1/products");
 
@@ -59,7 +59,7 @@ describe("companiesRouter product routes", () => {
 
   it("keeps GET /:companyId/available-products", async () => {
     getAvailableProductsForCompanyMock.mockResolvedValue([{ id: "product-2" }]);
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app).get("/companies/company-1/available-products");
 
@@ -69,7 +69,7 @@ describe("companiesRouter product routes", () => {
   });
 
   it("returns 401 for POST /:companyId/products without x-user-id", async () => {
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app)
       .post("/companies/company-1/products")
@@ -81,7 +81,7 @@ describe("companiesRouter product routes", () => {
 
   it("creates company product with the same body/header contract", async () => {
     addProductToCompanyMock.mockResolvedValue({ id: "company-product-1" });
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app)
       .post("/companies/company-1/products")
@@ -99,7 +99,7 @@ describe("companiesRouter product routes", () => {
   });
 
   it("keeps DELETE /:companyId/products/:productId", async () => {
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app).delete("/companies/company-1/products/product-1");
 
@@ -110,7 +110,7 @@ describe("companiesRouter product routes", () => {
 
   it("keeps PUT /:companyId/products/:productId/price validations and success shape", async () => {
     updateCompanyProductPriceMock.mockResolvedValue({ id: "company-product-1", customPrice: "99.90" });
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app)
       .put("/companies/company-1/products/product-1/price")
@@ -126,7 +126,7 @@ describe("companiesRouter product routes", () => {
 
   it("returns 404 when company product price target is missing", async () => {
     updateCompanyProductPriceMock.mockResolvedValue(null);
-    const app = createRouteTestApp({ router: companiesRouter, basePath: "/companies" });
+    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app)
       .put("/companies/company-1/products/product-1/price")
