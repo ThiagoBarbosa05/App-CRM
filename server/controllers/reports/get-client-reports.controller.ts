@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { clients, users, tags } from "@shared/schema";
-import { sql, count, eq, and, isNull, gte, lte } from "drizzle-orm";
+import { clients, users } from "@shared/schema";
+import { sql, count, eq, and, inArray } from "drizzle-orm";
 import { startOfDay, addDays, parseISO, isWithinInterval } from "date-fns";
+import { clientsService } from "../../services/clients.service";
+import { ClientsRepository } from "../../repositories/clients.repository";
 
 export interface ClientReportsData {
   totalClients: number;
@@ -62,20 +64,37 @@ export const getClientReportsController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
     const filterUserId = req.query.filterUserId as string | undefined;
+    const { userId, userRole, filters } = clientsService.processRequestParams(req);
+    const clientsRepository = new ClientsRepository();
+    const filteredClientIds = await clientsRepository.getFilteredClientIds(
+      userId,
+      userRole,
+      filters,
+      filterUserId,
+    );
 
-    // Base condition for clients based on user role
-    let baseCondition = sql`1=1`;
-
-    // If not admin, filter by own clients only
-    if (userRole !== "admin" && userId) {
-      baseCondition = eq(clients.responsavelId, userId);
-    } else if (filterUserId) {
-      // Admin filtering by a specific seller
-      baseCondition = eq(clients.responsavelId, filterUserId);
+    if (filteredClientIds.length === 0) {
+      res.json({
+        totalClients: 0,
+        clientsByCategory: [],
+        clientsByOrigin: [],
+        clientsByUser: [],
+        clientsByMarkers: [],
+        upcomingBirthdays: [],
+        clientsWithEmail: 0,
+        clientsWithoutEmail: 0,
+        clientsWithPhone: 0,
+        clientsWithoutPhone: 0,
+        clientsWithCPF: 0,
+        clientsWithoutCPF: 0,
+        clientsWithAddress: 0,
+        clientsWithoutAddress: 0,
+      } satisfies ClientReportsData);
+      return;
     }
+
+    const baseCondition = inArray(clients.id, filteredClientIds);
 
     // Execute all queries in parallel for better performance
     const [
@@ -299,7 +318,7 @@ export const getClientReportsController = async (
       .map((client) => ({
         id: client.id,
         name: client.name,
-        phone: client.phone,
+        phone: client.phone ?? "",
         email: client.email || undefined,
         birthday: client.birthday!,
         daysUntil: client.daysUntil,

@@ -22,6 +22,10 @@ import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
+import {
+  buildClientAnalyticsDashboardUrl,
+  type ClientAnalyticsFilters,
+} from "@/lib/client-analytics-filters";
 
 interface ClientReportsGridProps {
   clientsByCategory: Array<{ category: string | null; count: number }>;
@@ -33,6 +37,10 @@ interface ClientReportsGridProps {
   clientsWithPhone?: number;
   clientsWithCPF?: number;
   clientsWithAddress?: number;
+  filterUserId?: string | null;
+  search?: string;
+  filters?: ClientAnalyticsFilters;
+  purchaseStatusDays?: number;
   userId?: string | null;
 }
 
@@ -52,6 +60,10 @@ export function ClientReportsGrid({
   clientsWithPhone = 0,
   clientsWithCPF = 0,
   clientsWithAddress = 0,
+  filterUserId,
+  search,
+  filters,
+  purchaseStatusDays,
   userId,
 }: ClientReportsGridProps) {
   return (
@@ -103,7 +115,12 @@ export function ClientReportsGrid({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TopClientesCard userId={userId} />
+        <TopClientesCard
+          filterUserId={filterUserId}
+          search={search}
+          filters={filters}
+          purchaseStatusDays={purchaseStatusDays}
+        />
         <ReportsDataCoverage
           totalClients={totalClients}
           clientsWithEmail={clientsWithEmail}
@@ -252,17 +269,36 @@ interface TopClientRow {
   totalValue: number;
 }
 
+function TopClientesCard({
+  filterUserId,
+  search,
+  filters,
+  purchaseStatusDays,
+}: {
+  filterUserId?: string | null;
+  search?: string;
+  filters?: ClientAnalyticsFilters;
+  purchaseStatusDays?: number;
+}) {
 function TopClientesCard({ userId }: { userId?: string | null }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const startDate = format(startOfMonth(now), "yyyy-MM-dd");
   const endDate = format(endOfMonth(now), "yyyy-MM-dd");
+  const queryUrl = buildClientAnalyticsDashboardUrl({
+    startDate,
+    endDate,
+    filterUserId,
+    search,
+    filters,
+    purchaseStatusDays,
+  });
 
   const params = new URLSearchParams({ startDate, endDate });
   if (userId) params.set("userId", userId);
 
   const { data, isLoading } = useQuery<{ topClients: TopClientRow[] }>({
-    queryKey: [`/api/users/seller-dashboard/aggregate?${params}`],
+    queryKey: [queryUrl],
   });
 
   const topClients = data?.topClients ?? [];

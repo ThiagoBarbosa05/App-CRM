@@ -12,6 +12,10 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  buildClientAnalyticsDashboardUrl,
+  type ClientAnalyticsFilters,
+} from "@/lib/client-analytics-filters";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -56,6 +60,14 @@ interface SellerPortfolioStats {
   positivacao: number;
 }
 
+interface AggregateData {
+  success?: boolean;
+  topClients: TopClientRow[];
+  highestAvgTicket: TopClientRow[];
+  highestAvgItemValue: TopItemValueRow[];
+  sellerPortfolioStats?: SellerPortfolioStats[];
+  portfolioStats?: SellerPortfolioStats;
+  newClientsThisMonth: NewClientRow[];
 interface TopClientsData {
   topClients: TopClientRow[];
   highestAvgTicket: TopClientRow[];
@@ -74,7 +86,10 @@ interface InactiveClientsData {
 interface ClientCommercialGridProps {
   startDate: string;
   endDate: string;
-  userId?: string | null;
+  filterUserId?: string | null;
+  search?: string;
+  filters?: ClientAnalyticsFilters;
+  purchaseStatusDays?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -140,6 +155,21 @@ function SectionCard({ icon, title, badge, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+export function ClientCommercialGrid({
+  startDate,
+  endDate,
+  filterUserId,
+  search,
+  filters,
+  purchaseStatusDays,
+}: ClientCommercialGridProps) {
+  const queryKey = buildClientAnalyticsDashboardUrl({
+    startDate,
+    endDate,
+    filterUserId,
+    search,
+    filters,
+    purchaseStatusDays,
 export function ClientCommercialGrid({ startDate, endDate, userId }: ClientCommercialGridProps) {
   const qs = new URLSearchParams({ startDate, endDate });
   if (userId) qs.set("userId", userId);
@@ -165,6 +195,28 @@ export function ClientCommercialGrid({ startDate, endDate, userId }: ClientComme
   const newClients        = portfolioData?.newClientsThisMonth ?? [];
 
   // Soma os stats de carteira de todos os vendedores
+  const portfolioStats = (() => {
+    if (data?.portfolioStats) {
+      return data.portfolioStats;
+    }
+
+    const aggregatedStats = (data?.sellerPortfolioStats ?? []).reduce(
+      (acc, sellerStats) => ({
+        total: acc.total + sellerStats.total,
+        active: acc.active + sellerStats.active,
+        inactive: acc.inactive + sellerStats.inactive,
+        positivacao: 0,
+      }),
+      { total: 0, active: 0, inactive: 0, positivacao: 0 },
+    );
+
+    if (aggregatedStats.total > 0) {
+      aggregatedStats.positivacao =
+        (aggregatedStats.active / aggregatedStats.total) * 100;
+    }
+
+    return aggregatedStats;
+  })();
   const portfolioStats = (portfolioData?.sellerPortfolioStats ?? []).reduce(
     (acc, s) => ({
       total: acc.total + s.total,

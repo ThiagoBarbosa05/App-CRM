@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { users } from "../../../shared/schema";
 import { eq } from "drizzle-orm";
 import { getSellerDashboard } from "../../services/seller-dashboard.service";
+import { clientsService } from "../../services/clients.service";
 
 /**
  * GET /api/users/:id/seller-dashboard
@@ -28,8 +29,21 @@ export async function getSellerDashboardController(req: Request, res: Response) 
 
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+    const { userId: requestUserId, userRole: requestUserRole, filters } =
+      clientsService.processRequestParams(req);
 
-    const data = await getSellerDashboard(user.id, user.blingVendedorId ?? null, startDate, endDate);
+    const data = await getSellerDashboard(
+      user.id,
+      user.blingVendedorId ?? null,
+      startDate,
+      endDate,
+      {
+        requestUserId,
+        requestUserRole,
+        filterUserId: user.id,
+        filters,
+      },
+    );
 
     return res.json({ success: true, seller: { id: user.id, name: user.name }, ...data });
   } catch (error) {
