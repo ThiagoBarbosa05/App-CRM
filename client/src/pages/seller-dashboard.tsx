@@ -238,34 +238,38 @@ function KpiCard({
   const hasHistory = previous > 0 || current > 0;
 
   return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 flex flex-col h-full">
+      <CardContent className="p-5 flex flex-col h-full justify-between">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 break-words">
               {label}
             </span>
-            <p className="text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
+            <p className="text-2xl lg:text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
               {value}
             </p>
           </div>
-          <div className={`p-2.5 rounded-xl ${iconBg}`}>
+          <div className={`p-2.5 rounded-xl flex-shrink-0 ${iconBg}`}>
             <span className={iconColor}>{icon}</span>
           </div>
         </div>
-        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-          <span>{subValue}</span>
+        <div className="mt-4 flex flex-col gap-2 pt-2 border-t border-slate-50 dark:border-slate-800/80">
+          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+            {subValue}
+          </span>
           {hasHistory && (
             <div
-              className={`flex items-center gap-1 font-bold ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}
+              className={`flex items-center gap-1 font-bold text-[11px] sm:text-xs ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}
             >
               {isUp ? (
-                <TrendingUp className="h-3.5 w-3.5" />
+                <TrendingUp className="h-3.5 w-3.5 shrink-0" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5" />
+                <TrendingDown className="h-3.5 w-3.5 shrink-0" />
               )}
-              {isUp ? "+" : ""}
-              {Math.abs(d).toFixed(1)}%
+              <span>
+                {isUp ? "+" : ""}
+                {Math.abs(d).toFixed(1)}%
+              </span>
             </div>
           )}
         </div>
@@ -295,24 +299,26 @@ function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
         : "bg-red-50 dark:bg-red-900/20";
 
   return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 flex flex-col h-full">
+      <CardContent className="p-5 flex flex-col h-full justify-between">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 break-words">
               Positivação
             </span>
-            <span className={`text-3xl font-black tabular-nums ${pctColor}`}>
+            <span
+              className={`text-2xl lg:text-3xl font-black tabular-nums truncate ${pctColor}`}
+            >
               {stats.positivacao.toFixed(1)}%
             </span>
           </div>
-          <div className={`p-2.5 rounded-xl ${iconBg}`}>
+          <div className={`p-2.5 rounded-xl flex-shrink-0 ${iconBg}`}>
             <span className={pctColor}>
               <TrendingUp className="h-5 w-5" />
             </span>
           </div>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 flex flex-col gap-2 pt-2 border-t border-slate-50 dark:border-slate-800/80">
           <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
@@ -321,11 +327,11 @@ function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
               className={`h-full rounded-full ${barColor}`}
             />
           </div>
-          <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+          <div className="flex justify-between items-center text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 pt-1 w-full gap-2">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold truncate shrink-0">
               {stats.active} ativo{stats.active !== 1 ? "s" : ""}
             </span>
-            <span className="text-red-500 dark:text-red-400 font-semibold">
+            <span className="text-red-500 dark:text-red-400 font-semibold truncate shrink-0 text-right">
               {stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}
             </span>
           </div>
@@ -1255,7 +1261,7 @@ export function IndividualSellerView({
     return (
       <div className="space-y-6">
         {/* KPI Cards skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card
               key={i}
@@ -1351,7 +1357,7 @@ export function IndividualSellerView({
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           label="Total Vendido"
           value={formatCurrency(monthlySummary.totalValue)}
