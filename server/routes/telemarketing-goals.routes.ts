@@ -6,6 +6,8 @@ import {
   putTelemarketingGoalController,
   deleteTelemarketingGoalController,
 } from "../controllers/telemarketing-goals/index";
+import { storage } from "../storage";
+import { goalPeriodParamsSchema, validateGoalParams } from "./goal-route-validation";
 
 export const telemarketingGoalsRouter = Router();
 
@@ -39,3 +41,26 @@ telemarketingGoalsRouter.patch("/:id", putTelemarketingGoalController);
  * @description Delete a telemarketing goal
  */
 telemarketingGoalsRouter.delete("/:id", deleteTelemarketingGoalController);
+
+export const telemarketingStatsRouter = Router();
+
+telemarketingStatsRouter.get(
+  "/:month/:year",
+  validateGoalParams(goalPeriodParamsSchema),
+  async (req, res) => {
+    try {
+      const { month, year } = req.params;
+      const stats = await storage.getTelemarketingStatsByPeriod(
+        Number(month),
+        Number(year),
+      );
+
+      return res.json(stats);
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas de telemarketing:", error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao buscar estatísticas de telemarketing" });
+    }
+  },
+);

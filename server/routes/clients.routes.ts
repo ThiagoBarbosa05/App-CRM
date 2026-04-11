@@ -14,12 +14,19 @@ import { getClientByIdController } from "../controllers/clients/get-client-by-id
 import { getClientPurchaseInsightsController } from "../controllers/clients/get-client-purchase-insights.controller";
 import { checkDuplicateController } from "../controllers/clients/check-duplicate.controller";
 import { getDuplicatesController } from "../controllers/clients/get-duplicates.controller";
+import multer from "multer";
 
 /**
  * Router específico para endpoints relacionados a clientes
  * Segue padrão RESTful e organiza todas as rotas de clientes
  */
 export const clientsRouter = Router();
+
+const clientsImportUpload = multer({
+  limits: {
+    fileSize: 15 * 1024 * 1024,
+  },
+});
 
 /**
  * @route GET /api/clients
@@ -42,6 +49,21 @@ export const clientsRouter = Router();
 clientsRouter.get("/", getClientsController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);
+clientsRouter.post("/import", clientsImportUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Arquivo não fornecido" });
+    }
+
+    return res.json({
+      success: 0,
+      errors: [],
+    });
+  } catch (error) {
+    console.error("Erro na importação:", error);
+    return res.status(500).json({ message: "Erro ao importar clientes" });
+  }
+});
 
 /**
  * @route GET /api/clients/by-phone/:phone
