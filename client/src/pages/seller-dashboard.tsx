@@ -6,15 +6,6 @@ import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { DateRange } from "react-day-picker";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
   BarChart3,
   CalendarIcon,
   Package,
@@ -52,6 +43,8 @@ import { ReportsBirthdayList } from "@/components/reports/reports-birthday-list"
 import { ReportsStatistics } from "@/components/reports/reports-statistics";
 import { ReportsDataCoverage } from "@/components/reports/reports-data-coverage";
 import { getBottleGoalProgress } from "@/pages/seller-dashboard-goals";
+import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
+import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -583,192 +576,6 @@ function namesMatch(a: string, b: string) {
   return na === nb || na.startsWith(nb) || nb.startsWith(na);
 }
 
-// ─── Tooltip do gráfico ───────────────────────────────────────────────────────
-
-function EvolutionTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { value: number; name: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  const valueEntry = payload.find((p) => p.name === "totalValue");
-  const ordersEntry = payload.find((p) => p.name === "totalOrders");
-  return (
-    <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-md px-3 py-2.5 text-xs">
-      <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">
-        {label}
-      </p>
-      {valueEntry && (
-        <p className="text-emerald-600 dark:text-emerald-400 font-semibold">
-          {formatCurrency(valueEntry.value)}
-        </p>
-      )}
-      {ordersEntry && (
-        <p className="text-slate-500 dark:text-slate-400">
-          {ordersEntry.value} pedido{ordersEntry.value !== 1 ? "s" : ""}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─── Gráfico de Evolução de Vendas ────────────────────────────────────────────
-
-function SalesEvolutionSection({ data }: { data: SalesEvolutionPoint[] }) {
-  const chartData = useMemo(
-    () =>
-      data.map((p) => ({
-        ...p,
-        label: format(parseISO(p.date), "dd/MM"),
-      })),
-    [data],
-  );
-
-  const maxValue = useMemo(
-    () => Math.max(...data.map((p) => p.totalValue), 1),
-    [data],
-  );
-
-  return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
-            <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-            Evolução de Vendas — Mês Atual
-          </CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4 pb-2 px-2">
-        {data.length === 0 ? (
-          <EmptyState message="Nenhuma venda registrada neste mês." />
-        ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart
-              data={chartData}
-              margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="gradValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="currentColor"
-                className="text-slate-100 dark:text-slate-800"
-              />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "currentColor" }}
-                className="text-slate-400"
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tickFormatter={(v: number) =>
-                  v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)
-                }
-                tick={{ fontSize: 10, fill: "currentColor" }}
-                className="text-slate-400"
-                axisLine={false}
-                tickLine={false}
-                width={40}
-                domain={[0, maxValue * 1.1]}
-              />
-              <RechartsTooltip content={<EvolutionTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="totalValue"
-                stroke="#10b981"
-                strokeWidth={2}
-                fill="url(#gradValue)"
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Top Produtos ─────────────────────────────────────────────────────────────
-
-function TopProductsCard({ products }: { products: TopProductRow[] }) {
-  const maxValue = useMemo(
-    () => Math.max(...products.map((p) => p.totalValue), 1),
-    [products],
-  );
-
-  return (
-    <SectionCard
-      title="Top Produtos do Mês"
-      icon={
-        <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-      }
-      iconBg="bg-purple-50 dark:bg-purple-900/20"
-      count={products.length}
-    >
-      {!products.length ? (
-        <EmptyState message="Nenhuma venda de produto registrada." />
-      ) : (
-        <div className="space-y-3 pt-1">
-          {products.map((p, i) => {
-            const barPct = (p.totalValue / maxValue) * 100;
-            return (
-              <div key={`${p.productCode}-${i}`} className="space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-5 text-center text-xs font-black text-slate-400 shrink-0">
-                      #{i + 1}
-                    </span>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
-                      {p.description}
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400 shrink-0">
-                    {formatCurrency(p.totalValue)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 pl-7">
-                  <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${barPct}%` }}
-                      transition={{
-                        duration: 0.8,
-                        ease: "easeOut",
-                        delay: i * 0.1,
-                      }}
-                      className="h-full bg-purple-500 rounded-full"
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">
-                    {p.totalQuantity % 1 === 0
-                      ? p.totalQuantity
-                      : p.totalQuantity.toFixed(1)}{" "}
-                    un · {p.orderCount} ped.
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
 // ─── Ranking de Vendedores (admin) ────────────────────────────────────────────
 
 function SellerRankingCard({ sellers }: { sellers: SellerRankingRow[] }) {
@@ -1251,6 +1058,16 @@ export function IndividualSellerView({
   };
   const salesEvolution = data?.salesEvolution ?? [];
   const topProducts = data?.topProducts ?? [];
+  const groupBy = useMemo(() => {
+    if (!startDate || !endDate) return "day" as const;
+    const days = Math.ceil(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (days > 90) return "month" as const;
+    if (days > 30) return "week" as const;
+    return "day" as const;
+  }, [startDate, endDate]);
   const portfolioStats = data?.portfolioStats ?? {
     total: 0,
     active: 0,
@@ -1415,7 +1232,11 @@ export function IndividualSellerView({
       <GoalProgressBlock userId={sellerId} />
 
       {/* Gráfico de Evolução */}
-      <SalesEvolutionSection data={salesEvolution} />
+      <SalesEvolutionChart
+        data={salesEvolution}
+        isLoading={isLoading}
+        groupBy={groupBy}
+      />
 
       {/* Grid 2 colunas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1471,7 +1292,16 @@ export function IndividualSellerView({
           )}
         </SectionCard>
 
-        <TopProductsCard products={topProducts} />
+        <TopProductsChart
+          data={topProducts.map((p) => ({
+            description: p.description,
+            totalQuantity: String(p.totalQuantity),
+            totalValue: String(p.totalValue),
+            orderCount: p.orderCount,
+            productCode: p.productCode,
+          }))}
+          isLoading={isLoading}
+        />
 
         <SectionCard
           title="Maior Valor de Item Médio"
@@ -1927,6 +1757,16 @@ export function AggregateView({
   const topClients = data?.topClients ?? [];
   const sellerRanking = data?.sellerRanking ?? [];
   const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
+  const groupBy = useMemo(() => {
+    if (!startDate || !endDate) return "day" as const;
+    const days = Math.ceil(
+      (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (days > 90) return "month" as const;
+    if (days > 30) return "week" as const;
+    return "day" as const;
+  }, [startDate, endDate]);
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -2131,7 +1971,11 @@ export function AggregateView({
       />
 
       {/* Gráfico de Evolução */}
-      <SalesEvolutionSection data={salesEvolution} />
+      <SalesEvolutionChart
+        data={salesEvolution}
+        isLoading={isLoading}
+        groupBy={groupBy}
+      />
 
       {/* Metas de todos os vendedores */}
       <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
@@ -2152,7 +1996,16 @@ export function AggregateView({
 
       {/* Top Produtos + Top Clientes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <TopProductsCard products={topProducts} />
+        <TopProductsChart
+          data={topProducts.map((p) => ({
+            description: p.description,
+            totalQuantity: String(p.totalQuantity),
+            totalValue: String(p.totalValue),
+            orderCount: p.orderCount,
+            productCode: p.productCode,
+          }))}
+          isLoading={isLoading}
+        />
 
         <SectionCard
           title="Top Clientes do Mês"

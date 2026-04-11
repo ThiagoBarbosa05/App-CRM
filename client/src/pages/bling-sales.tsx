@@ -1,18 +1,11 @@
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
+import { useUnifiedOrders } from "@/hooks/use-unified-orders";
 import {
-  useUnifiedOrders,
-  useUnifiedSalesComparison,
-  useUnifiedSalesEvolution,
-  useUnifiedTopSellers,
-} from "@/hooks/use-unified-orders";
-import {
-  useTopProducts,
   useCashbackStatistics,
   useCohortAnalysis,
-  useTopClients,
   useBlingOrdersForExport,
 } from "@/hooks/use-bling-orders";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -21,16 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 // Bling components
-import { SalesStatisticsCards } from "@/components/bling-sales/sales-statistics-cards";
 import { CashbackStatisticsCards } from "@/components/bling-sales/cashback-statistics-cards";
-import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
-import { TopSellersChart } from "@/components/bling-sales/top-sellers-chart";
-import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
 import { OrdersFilters } from "@/components/bling-sales/orders-filters";
 import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
-import { TopClientsPanel } from "@/components/bling-sales/top-clients-panel";
 import { UnifiedOrdersTable } from "@/components/bling-sales/unified-orders-table";
-import { SellerTotalsTable } from "@/components/bling-sales/seller-totals-table";
 
 // Connect import
 import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-import-modal";
@@ -81,29 +68,7 @@ export default function BlingSalesPage() {
     [dateRange?.to, startDate],
   );
 
-  const groupBy = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) return "day" as const;
-    const days = Math.ceil(
-      (dateRange.to.getTime() - dateRange.from.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
-    if (days > 90) return "month" as const;
-    if (days > 30) return "week" as const;
-    return "day" as const;
-  }, [dateRange]);
-
   // ── Unified queries ───────────────────────────────────────────────────────
-  const { data: salesComparison, isLoading: isStatsLoading } =
-    useUnifiedSalesComparison(startDate, endDate, "all");
-  const { data: salesEvolution, isLoading: isEvolutionLoading } =
-    useUnifiedSalesEvolution(startDate, endDate, groupBy, "all");
-  const { data: topSellers, isLoading: isTopSellersLoading } =
-    useUnifiedTopSellers(startDate, endDate, 5, "all");
-  const currentMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const currentMonthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-  const currentMonthLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
-  const { data: allSellers, isLoading: isAllSellersLoading } =
-    useUnifiedTopSellers(currentMonthStart, currentMonthEnd, 100, "all");
   const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
     {
       startDate,
@@ -122,23 +87,11 @@ export default function BlingSalesPage() {
   const totalOrders = pagination?.total ?? 0;
 
   // ── Bling-only queries ────────────────────────────────────────────────────
-  const { data: topProducts, isLoading: isTopProductsLoading } = useTopProducts(
-    startDate,
-    endDate,
-    5,
-    "F",
-  );
   const { data: cashbackStats, isLoading: isCashbackStatsLoading } =
     useCashbackStatistics(startDate, endDate);
   const { data: cohortData, isLoading: isCohortLoading } = useCohortAnalysis(
     startDate,
     endDate,
-  );
-  const { data: topClients, isLoading: isTopClientsLoading } = useTopClients(
-    startDate,
-    endDate,
-    20,
-    "F",
   );
 
   // ── Export (Bling only) ───────────────────────────────────────────────────
@@ -179,21 +132,6 @@ export default function BlingSalesPage() {
       setIsExporting(false);
     }
   };
-
-  // ── Data shape adapters ───────────────────────────────────────────────────
-  // SalesEvolutionChart expects { date, totalOrders, totalValue }
-  const evolutionForChart = (salesEvolution ?? []).map((e) => ({
-    date: e.period,
-    totalOrders: e.totalOrders,
-    totalValue: e.totalValue,
-  }));
-  // TopSellersChart expects TopSeller with totalValue: string
-  const topSellersForChart = (topSellers ?? []).map((s) => ({
-    sellerId: s.sellerId,
-    sellerName: s.sellerName,
-    totalOrders: s.totalOrders,
-    totalValue: String(s.totalValue),
-  }));
 
   return (
     <div className="max-w-full overflow-x-hidden space-y-5 pb-12">
@@ -318,17 +256,6 @@ export default function BlingSalesPage() {
         </p>
       </div>
 
-      {/* Unified statistics cards */}
-      <SalesStatisticsCards
-        totalOrders={salesComparison?.current.totalOrders}
-        totalValue={salesComparison?.current.totalValue}
-        averageValue={salesComparison?.current.averageValue}
-        ordersChange={salesComparison?.changes.ordersChange}
-        valueChange={salesComparison?.changes.valueChange}
-        averageChange={salesComparison?.changes.averageChange}
-        isLoading={isStatsLoading}
-      />
-
       {/* Cashback & Clientes — Bling only */}
       <section className="space-y-3">
         <SectionLabel label="Cashback & Clientes Vinculados" blingOnly />
@@ -336,46 +263,6 @@ export default function BlingSalesPage() {
           data={cashbackStats}
           isLoading={isCashbackStatsLoading}
         />
-      </section>
-
-      {/* Charts row */}
-      <div className="space-y-4">
-        <div className="xl:col-span-2">
-          <SalesEvolutionChart
-            data={evolutionForChart}
-            isLoading={isEvolutionLoading}
-            groupBy={groupBy}
-          />
-        </div>
-
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-stretch">
-          <TopSellersChart
-            data={topSellersForChart}
-            isLoading={isTopSellersLoading}
-          />
-          <div className="flex-1 min-w-0">
-            <TopProductsChart
-              data={topProducts}
-              isLoading={isTopProductsLoading}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Total por Vendedor */}
-      <section className="space-y-3">
-        <SectionLabel label="Total Vendido por Vendedor" />
-        <SellerTotalsTable
-          data={allSellers}
-          isLoading={isAllSellersLoading}
-          monthLabel={currentMonthLabel}
-        />
-      </section>
-
-      {/* Top 20 Clientes — Bling only */}
-      <section className="space-y-3">
-        <SectionLabel label="Top 20 Clientes" blingOnly />
-        <TopClientsPanel data={topClients} isLoading={isTopClientsLoading} />
       </section>
 
       {/* Cohort — Bling only */}
