@@ -62,11 +62,12 @@ function CohortAnalysisContent({
   startDate: string;
   endDate: string;
 }) {
-  const { data, isLoading } = useCohortAnalysis(startDate, endDate);
+  const { data, isLoading, isFetching } = useCohortAnalysis(startDate, endDate);
   return (
     <CohortAnalysisTable
       data={data}
       isLoading={isLoading}
+      isFetching={isFetching}
       startDate={startDate}
       endDate={endDate}
     />
