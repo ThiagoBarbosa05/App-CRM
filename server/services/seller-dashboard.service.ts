@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { systemSettings } from "../../shared/schema";
 import { eq, inArray } from "drizzle-orm";
+import { ClientsRepository } from "../repositories/clients.repository";
+import type { ClientFilters } from "../storage";
 import {
   format,
   startOfMonth,
@@ -163,11 +165,53 @@ const EMPTY_SUMMARY: MonthlySummary = {
   uniqueClients: 0,
 };
 
+interface ClientAnalyticsScope {
+  requestUserId?: string;
+  requestUserRole?: string;
+  filterUserId?: string;
+  filters?: ClientFilters;
+}
+
+const clientsRepository = new ClientsRepository();
+
+function hasActiveClientFilters(filters: ClientFilters = {}): boolean {
+  return Object.values(filters).some((value) => {
+    if (typeof value === "number") {
+      return true;
+    }
+
+    return Boolean(value && value !== "all");
+  });
+}
+
+async function resolveScopedClientIds(
+  scope?: ClientAnalyticsScope,
+): Promise<string[] | null> {
+  if (!scope) {
+    return null;
+  }
+
+  const filters = scope.filters ?? {};
+  const shouldScope = Boolean(scope.filterUserId) || hasActiveClientFilters(filters);
+
+  if (!shouldScope) {
+    return null;
+  }
+
+  return clientsRepository.getFilteredClientIds(
+    scope.requestUserId,
+    scope.requestUserRole,
+    filters,
+    scope.filterUserId,
+  );
+}
+
 export async function getSellerDashboard(
   userId: string,
   blingVendedorId: string | null,
   startDate?: string,
   endDate?: string,
+  scope?: ClientAnalyticsScope,
 ): Promise<SellerDashboardResult> {
   const [inactiveDays, winePriceTierThresholds] = await Promise.all([
     getPurchaseStatusDays(),
@@ -186,6 +230,7 @@ export async function getSellerDashboard(
   const prevStartDate = subDays(prevEndDate, duration);
   const prevStart = format(prevStartDate, "yyyy-MM-dd");
   const prevEnd = format(prevEndDate, "yyyy-MM-dd");
+  const scopedClientIds = await resolveScopedClientIds(scope);
 
   const EMPTY_PORTFOLIO: ClientPortfolioStats = {
     total: 0,
@@ -207,23 +252,23 @@ export async function getSellerDashboard(
     portfolioStats,
     winePriceTier,
   ] = await Promise.all([
-    fetchTopClientsByTotalForSeller(userId, currentStart, currentEnd).catch((e) => {
+    fetchTopClientsByTotalForSeller(userId, currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByTotalForSeller:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopClientsByAvgTicketForSeller(userId, currentStart, currentEnd).catch((e) => {
+    fetchTopClientsByAvgTicketForSeller(userId, currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByAvgTicketForSeller:", e);
       return [] as TopClientRow[];
     }),
-    fetchTopItemValueForSeller(userId, currentStart, currentEnd).catch((e) => {
+    fetchTopItemValueForSeller(userId, currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchTopItemValueForSeller:", e);
       return [] as TopItemValueRow[];
     }),
-    fetchInactiveClients(userId, inactiveDays).catch((e) => {
+    fetchInactiveClients(userId, inactiveDays, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchInactiveClients:", e);
       return [] as InactiveClientRow[];
     }),
-    fetchNewClientsThisMonth(userId).catch((e) => {
+    fetchNewClientsThisMonth(userId, currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchNewClientsThisMonth:", e);
       return [] as NewClientRow[];
     }),
@@ -247,7 +292,7 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchTopProducts:", e);
       return [] as TopProductRow[];
     }),
-    fetchClientPortfolioStats(userId, inactiveDays).catch((e) => {
+    fetchClientPortfolioStats(userId, inactiveDays, scopedClientIds).catch((e) => {
       console.error("[seller-dashboard] fetchClientPortfolioStats:", e);
       return EMPTY_PORTFOLIO;
     }),
@@ -414,7 +459,10 @@ async function fetchTopClientsByTotalForSeller(
   userId: string,
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -431,6 +479,7 @@ async function fetchTopClientsByTotalForSeller(
     FROM bling_orders bo
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
@@ -452,7 +501,10 @@ async function fetchTopClientsByAvgTicketForSeller(
   userId: string,
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -469,6 +521,7 @@ async function fetchTopClientsByAvgTicketForSeller(
     FROM bling_orders bo
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
@@ -490,7 +543,10 @@ async function fetchTopItemValueForSeller(
   userId: string,
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopItemValueRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -506,8 +562,11 @@ async function fetchTopItemValueForSeller(
     JOIN bling_order_items boi ON boi.order_id = bo.id
     JOIN clients c ON c.id = bo.app_client_id
     WHERE c.responsavel_id = ${userId}
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
       AND bo.deleted_at IS NULL
       AND bo.app_client_id IS NOT NULL
+      AND bo.sale_date >= ${startDate}
+      AND bo.sale_date <= ${endDate}
     GROUP BY bo.app_client_id
     ORDER BY AVG(boi.value::numeric) DESC
     LIMIT 10
@@ -525,7 +584,10 @@ async function fetchTopItemValueForSeller(
 async function fetchInactiveClients(
   userId: string,
   inactiveDays: number,
+  clientIds?: string[] | null,
 ): Promise<InactiveClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const daysStr = String(inactiveDays);
 
   const result = await db.execute<{
@@ -551,6 +613,7 @@ async function fetchInactiveClients(
       ) AS days_since_purchase
     FROM clients c
     WHERE c.responsavel_id = ${userId}
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
       AND (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
         OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
@@ -576,7 +639,12 @@ async function fetchInactiveClients(
 
 async function fetchNewClientsThisMonth(
   userId: string,
+  startDate: string,
+  endDate: string,
+  clientIds?: string[] | null,
 ): Promise<NewClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string;
     client_name: string;
@@ -590,6 +658,9 @@ async function fetchNewClientsThisMonth(
       created_at::text
     FROM clients
     WHERE responsavel_id = ${userId}
+      AND created_at::date >= ${startDate}::date
+      AND created_at::date <= ${endDate}::date
+      ${clientIds ? sql`AND id = ANY(${clientIds})` : sql``}
     ORDER BY created_at DESC
     LIMIT 18
   `);
@@ -730,10 +801,12 @@ async function fetchSalesEvolution(
 export async function getAggregateDashboard(
   startDate?: string,
   endDate?: string,
+  scope?: ClientAnalyticsScope,
 ): Promise<AggregateDashboardResult> {
   const now = new Date();
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
   const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+  const scopedClientIds = await resolveScopedClientIds(scope);
 
   const duration = differenceInCalendarDays(
     parseISO(currentEnd),
@@ -771,27 +844,27 @@ export async function getAggregateDashboard(
     fetchAggregateTopProducts(currentStart, currentEnd).catch(
       () => [] as TopProductRow[],
     ),
-    fetchAggregateTopClients(currentStart, currentEnd).catch(
+    fetchAggregateTopClients(currentStart, currentEnd, scopedClientIds).catch(
       () => [] as TopClientRow[],
     ),
-    fetchAggregateTopClientsByAvgTicket(currentStart, currentEnd).catch(
+    fetchAggregateTopClientsByAvgTicket(currentStart, currentEnd, scopedClientIds).catch(
       () => [] as TopClientRow[],
     ),
-    fetchAggregateTopItemValue(currentStart, currentEnd).catch(
+    fetchAggregateTopItemValue(currentStart, currentEnd, scopedClientIds).catch(
       () => [] as TopItemValueRow[],
     ),
-    fetchAggregateInactiveClients(inactiveDays).catch((e) => {
+    fetchAggregateInactiveClients(inactiveDays, scopedClientIds).catch((e) => {
       console.error("[aggregate] fetchAggregateInactiveClients:", e);
       return [] as InactiveClientRow[];
     }),
-    fetchAggregateNewClients().catch((e) => {
+    fetchAggregateNewClients(currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[aggregate] fetchAggregateNewClients:", e);
       return [] as NewClientRow[];
     }),
     fetchSellerRanking(currentStart, currentEnd).catch(
       () => [] as SellerRankingRow[],
     ),
-    fetchAllSellersPortfolioStats(inactiveDays).catch(
+    fetchAllSellersPortfolioStats(inactiveDays, scopedClientIds).catch(
       () => [] as SellerPortfolioStats[],
     ),
     fetchSellerWinePriceTierStats(
@@ -955,7 +1028,10 @@ async function fetchAggregateTopProducts(
 async function fetchAggregateTopClients(
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -975,6 +1051,7 @@ async function fetchAggregateTopClients(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
+      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
     GROUP BY bo.app_client_id
     ORDER BY SUM(bo.total_value::numeric) DESC
     LIMIT 10
@@ -991,7 +1068,10 @@ async function fetchAggregateTopClients(
 async function fetchAggregateTopClientsByAvgTicket(
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -1011,6 +1091,7 @@ async function fetchAggregateTopClientsByAvgTicket(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
+      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
     GROUP BY bo.app_client_id
     ORDER BY AVG(bo.total_value::numeric) DESC
     LIMIT 10
@@ -1027,7 +1108,10 @@ async function fetchAggregateTopClientsByAvgTicket(
 async function fetchAggregateTopItemValue(
   startDate: string,
   endDate: string,
+  clientIds?: string[] | null,
 ): Promise<TopItemValueRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -1046,6 +1130,7 @@ async function fetchAggregateTopItemValue(
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.app_client_id IS NOT NULL
+      ${clientIds ? sql`AND bo.app_client_id = ANY(${clientIds})` : sql``}
     GROUP BY bo.app_client_id
     ORDER BY AVG(boi.value::numeric) DESC
     LIMIT 10
@@ -1060,7 +1145,10 @@ async function fetchAggregateTopItemValue(
 
 async function fetchAggregateInactiveClients(
   inactiveDays: number,
+  clientIds?: string[] | null,
 ): Promise<InactiveClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const daysStr = String(inactiveDays);
   const result = await db.execute<{
     client_id: string;
@@ -1084,10 +1172,11 @@ async function fetchAggregateInactiveClients(
         )
       ) AS days_since_purchase
     FROM clients c
-    WHERE (
+    WHERE (${clientIds ? sql`c.id = ANY(${clientIds}) AND` : sql``}
+        (
         EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
         OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
-      )
+      ))
       AND GREATEST(
         (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
         (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
@@ -1103,7 +1192,13 @@ async function fetchAggregateInactiveClients(
   }));
 }
 
-async function fetchAggregateNewClients(): Promise<NewClientRow[]> {
+async function fetchAggregateNewClients(
+  startDate: string,
+  endDate: string,
+  clientIds?: string[] | null,
+): Promise<NewClientRow[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const result = await db.execute<{
     client_id: string;
     client_name: string;
@@ -1116,6 +1211,9 @@ async function fetchAggregateNewClients(): Promise<NewClientRow[]> {
       phone,
       created_at::text
     FROM clients
+    WHERE created_at::date >= ${startDate}::date
+      AND created_at::date <= ${endDate}::date
+      ${clientIds ? sql`AND id = ANY(${clientIds})` : sql``}
     ORDER BY created_at DESC
     LIMIT 18
   `);
@@ -1454,7 +1552,12 @@ async function fetchTopProducts(
 async function fetchClientPortfolioStats(
   userId: string,
   inactiveDays: number,
+  clientIds?: string[] | null,
 ): Promise<ClientPortfolioStats> {
+  if (clientIds && clientIds.length === 0) {
+    return { total: 0, active: 0, inactive: 0, positivacao: 0 };
+  }
+
   const daysStr = String(inactiveDays);
 
   const result = await db.execute<{
@@ -1473,6 +1576,7 @@ async function fetchClientPortfolioStats(
       )::int AS active_count
     FROM clients c
     WHERE c.responsavel_id = ${userId}
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
   `);
 
   const row = result.rows[0];
@@ -1488,7 +1592,10 @@ async function fetchClientPortfolioStats(
 
 async function fetchAllSellersPortfolioStats(
   inactiveDays: number,
+  clientIds?: string[] | null,
 ): Promise<SellerPortfolioStats[]> {
+  if (clientIds && clientIds.length === 0) return [];
+
   const daysStr = String(inactiveDays);
 
   const result = await db.execute<{
@@ -1512,6 +1619,7 @@ async function fetchAllSellersPortfolioStats(
     FROM clients c
     JOIN users u ON u.id = c.responsavel_id
     WHERE c.responsavel_id IS NOT NULL
+      ${clientIds ? sql`AND c.id = ANY(${clientIds})` : sql``}
     GROUP BY c.responsavel_id, u.name
   `);
 

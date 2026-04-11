@@ -48,6 +48,7 @@ import { useLocation } from "wouter";
 import { useClientReports } from "@/hooks/useReports";
 import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
 import { ClientCommercialGrid } from "@/components/reports/client-commercial-grid";
+import { buildClientAnalyticsSearchParams } from "@/lib/client-analytics-filters";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -116,15 +117,12 @@ export default function Clients() {
         if (user?.id) params.append("userId", user.id);
         if (user?.role) params.append("userRole", user.role);
       }
-      if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-
-      Object.entries(clientFilters).forEach(([key, value]) => {
-        if (value && value !== "all") params.append(key, value);
+      const filterParams = buildClientAnalyticsSearchParams({
+        search: debouncedSearchQuery,
+        filters: clientFilters,
+        purchaseStatusDays,
       });
-
-      if (clientFilters.purchaseStatus && clientFilters.purchaseStatus !== "all") {
-        params.append("purchaseStatusDays", purchaseStatusDays.toString());
-      }
+      filterParams.forEach((value, key) => params.append(key, value));
 
       params.append("page", currentPage.toString());
       params.append("pageSize", itemsPerPage.toString());
@@ -187,7 +185,12 @@ export default function Clients() {
     return selectedSellerId === "all" ? null : selectedSellerId; // admin: selecionado ou todos
   }, [isAdmin, user?.id, selectedSellerId]);
 
-  const { data: clientReports } = useClientReports(filterUserId);
+  const { data: clientReports } = useClientReports({
+    filterUserId,
+    search: debouncedSearchQuery,
+    filters: clientFilters,
+    purchaseStatusDays,
+  });
 
   // ── Retrátil + Date range para setor de análises ──────────────────────────
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -220,10 +223,12 @@ export default function Clients() {
           if (user?.id) params.append("userId", user.id);
           if (user?.role) params.append("userRole", user.role);
         }
-        if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-        Object.entries(clientFilters).forEach(([key, value]) => {
-          if (value && value !== "all") params.append(key, value);
+        const filterParams = buildClientAnalyticsSearchParams({
+          search: debouncedSearchQuery,
+          filters: clientFilters,
+          purchaseStatusDays,
         });
+        filterParams.forEach((value, key) => params.append(key, value));
 
         const response = await fetch(`/api/clients?${params.toString()}`);
         if (!response.ok)
@@ -352,8 +357,19 @@ export default function Clients() {
                 clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
                 clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
                 clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+                filterUserId={filterUserId}
+                search={debouncedSearchQuery}
+                filters={clientFilters}
+                purchaseStatusDays={purchaseStatusDays}
               />
-              <ClientCommercialGrid startDate={startDate} endDate={endDate} userId={filterUserId} />
+              <ClientCommercialGrid
+                startDate={startDate}
+                endDate={endDate}
+                filterUserId={filterUserId}
+                search={debouncedSearchQuery}
+                filters={clientFilters}
+                purchaseStatusDays={purchaseStatusDays}
+              />
             </div>
           )}
         </div>

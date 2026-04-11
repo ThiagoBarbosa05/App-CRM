@@ -12,6 +12,10 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  buildClientAnalyticsDashboardUrl,
+  type ClientAnalyticsFilters,
+} from "@/lib/client-analytics-filters";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -57,18 +61,23 @@ interface SellerPortfolioStats {
 }
 
 interface AggregateData {
+  success?: boolean;
   topClients: TopClientRow[];
   highestAvgTicket: TopClientRow[];
   highestAvgItemValue: TopItemValueRow[];
-  inactiveClients: InactiveClientRow[];
+  sellerPortfolioStats?: SellerPortfolioStats[];
+  portfolioStats?: SellerPortfolioStats;
   newClientsThisMonth: NewClientRow[];
-  sellerPortfolioStats: SellerPortfolioStats[];
+  inactiveClients: InactiveClientRow[];
 }
 
 interface ClientCommercialGridProps {
   startDate: string;
   endDate: string;
-  userId?: string | null;
+  filterUserId?: string | null;
+  search?: string;
+  filters?: ClientAnalyticsFilters;
+  purchaseStatusDays?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -134,10 +143,22 @@ function SectionCard({ icon, title, badge, children }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function ClientCommercialGrid({ startDate, endDate, userId }: ClientCommercialGridProps) {
-  const params = new URLSearchParams({ startDate, endDate });
-  if (userId) params.set("userId", userId);
-  const queryKey = `/api/users/seller-dashboard/aggregate?${params}`;
+export function ClientCommercialGrid({
+  startDate,
+  endDate,
+  filterUserId,
+  search,
+  filters,
+  purchaseStatusDays,
+}: ClientCommercialGridProps) {
+  const queryKey = buildClientAnalyticsDashboardUrl({
+    startDate,
+    endDate,
+    filterUserId,
+    search,
+    filters,
+    purchaseStatusDays,
+  });
 
   const { data, isLoading } = useQuery<AggregateData>({
     queryKey: [queryKey],
@@ -150,18 +171,28 @@ export function ClientCommercialGrid({ startDate, endDate, userId }: ClientComme
   const newClients = data?.newClientsThisMonth ?? [];
 
   // Soma os stats de carteira de todos os vendedores
-  const portfolioStats = (data?.sellerPortfolioStats ?? []).reduce(
-    (acc, s) => ({
-      total: acc.total + s.total,
-      active: acc.active + s.active,
-      inactive: acc.inactive + s.inactive,
-      positivacao: 0,
-    }),
-    { total: 0, active: 0, inactive: 0, positivacao: 0 },
-  );
-  if (portfolioStats.total > 0) {
-    portfolioStats.positivacao = (portfolioStats.active / portfolioStats.total) * 100;
-  }
+  const portfolioStats = (() => {
+    if (data?.portfolioStats) {
+      return data.portfolioStats;
+    }
+
+    const aggregatedStats = (data?.sellerPortfolioStats ?? []).reduce(
+      (acc, sellerStats) => ({
+        total: acc.total + sellerStats.total,
+        active: acc.active + sellerStats.active,
+        inactive: acc.inactive + sellerStats.inactive,
+        positivacao: 0,
+      }),
+      { total: 0, active: 0, inactive: 0, positivacao: 0 },
+    );
+
+    if (aggregatedStats.total > 0) {
+      aggregatedStats.positivacao =
+        (aggregatedStats.active / aggregatedStats.total) * 100;
+    }
+
+    return aggregatedStats;
+  })();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
