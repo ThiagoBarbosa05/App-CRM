@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Users, PieChart as PieIcon, Tag, MapPin, ChevronDown, Trophy } from "lucide-react";
+import {
+  Users,
+  PieChart as PieIcon,
+  Tag,
+  MapPin,
+  ChevronDown,
+  Trophy,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -30,7 +37,11 @@ import {
 interface ClientReportsGridProps {
   clientsByCategory: Array<{ category: string | null; count: number }>;
   clientsByOrigin: Array<{ origin: string | null; count: number }>;
-  clientsByUser: Array<{ userId: string | null; userName: string; count: number }>;
+  clientsByUser: Array<{
+    userId: string | null;
+    userName: string;
+    count: number;
+  }>;
   clientsByMarkers: Array<{ marker: string; count: number }>;
   totalClients?: number;
   clientsWithEmail?: number;
@@ -41,13 +52,21 @@ interface ClientReportsGridProps {
   search?: string;
   filters?: ClientAnalyticsFilters;
   purchaseStatusDays?: number;
-  userId?: string | null;
 }
 
 const PALETTE = [
-  "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
-  "#f97316", "#eab308", "#22c55e", "#14b8a6",
-  "#06b6d4", "#3b82f6", "#a855f7", "#84cc16",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#14b8a6",
+  "#06b6d4",
+  "#3b82f6",
+  "#a855f7",
+  "#84cc16",
 ];
 
 export function ClientReportsGrid({
@@ -64,7 +83,6 @@ export function ClientReportsGrid({
   search,
   filters,
   purchaseStatusDays,
-  userId,
 }: ClientReportsGridProps) {
   return (
     <div className="space-y-6">
@@ -167,7 +185,13 @@ interface PieCardProps {
   colorStart: number;
 }
 
-function PieCard({ title, description, items, icon, colorStart }: PieCardProps) {
+function PieCard({
+  title,
+  description,
+  items,
+  icon,
+  colorStart,
+}: PieCardProps) {
   const [open, setOpen] = useState(false);
   const sorted = [...items].sort((a, b) => b.count - a.count);
   const total = sorted.reduce((sum, item) => sum + item.count, 0);
@@ -209,19 +233,33 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
           <CardContent className="p-4 pt-2 border-t border-slate-100 dark:border-slate-800">
             {data.length === 0 ? (
               <div className="py-8 text-center">
-                <p className="text-sm text-slate-400 italic">Nenhum dado disponível</p>
+                <p className="text-sm text-slate-400 italic">
+                  Nenhum dado disponível
+                </p>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <div className="flex-1 space-y-1.5 min-w-0">
                   {data.map((entry) => {
-                    const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0";
+                    const pct =
+                      total > 0
+                        ? ((entry.value / total) * 100).toFixed(1)
+                        : "0";
                     return (
-                      <div key={entry.name} className="flex items-center gap-2 min-w-0">
-                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1">{entry.name}</span>
+                      <div
+                        key={entry.name}
+                        className="flex items-center gap-2 min-w-0"
+                      >
+                        <span
+                          className="shrink-0 w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="text-xs text-slate-700 dark:text-slate-300 truncate flex-1">
+                          {entry.name}
+                        </span>
                         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-                          {entry.value} <span className="text-slate-400">({pct}%)</span>
+                          {entry.value}{" "}
+                          <span className="text-slate-400">({pct}%)</span>
                         </span>
                       </div>
                     );
@@ -230,7 +268,15 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
                 <div className="shrink-0 w-[150px] h-[150px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={data} cx="50%" cy="50%" innerRadius={38} outerRadius={68} paddingAngle={3} dataKey="value">
+                      <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={38}
+                        outerRadius={68}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
                         {data.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
@@ -239,11 +285,35 @@ function PieCard({ title, description, items, icon, colorStart }: PieCardProps) 
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const entry = payload[0];
-                          const pct = total > 0 ? (((entry.value as number) / total) * 100).toFixed(1) : "0";
+                          const pct =
+                            total > 0
+                              ? (
+                                  ((entry.value as number) / total) *
+                                  100
+                                ).toFixed(1)
+                              : "0";
                           return (
-                            <div style={{ borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", padding: "6px 10px", fontSize: 11 }}>
-                              <p style={{ fontWeight: 700, marginBottom: 2, color: entry.payload.color }}>{entry.name}</p>
-                              <p style={{ color: "#475569" }}>{entry.value} clientes ({pct}%)</p>
+                            <div
+                              style={{
+                                borderRadius: 10,
+                                border: "1px solid #e2e8f0",
+                                background: "#fff",
+                                padding: "6px 10px",
+                                fontSize: 11,
+                              }}
+                            >
+                              <p
+                                style={{
+                                  fontWeight: 700,
+                                  marginBottom: 2,
+                                  color: entry.payload.color,
+                                }}
+                              >
+                                {entry.name}
+                              </p>
+                              <p style={{ color: "#475569" }}>
+                                {entry.value} clientes ({pct}%)
+                              </p>
                             </div>
                           );
                         }}
@@ -280,7 +350,6 @@ function TopClientesCard({
   filters?: ClientAnalyticsFilters;
   purchaseStatusDays?: number;
 }) {
-function TopClientesCard({ userId }: { userId?: string | null }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const startDate = format(startOfMonth(now), "yyyy-MM-dd");
@@ -293,9 +362,6 @@ function TopClientesCard({ userId }: { userId?: string | null }) {
     filters,
     purchaseStatusDays,
   });
-
-  const params = new URLSearchParams({ startDate, endDate });
-  if (userId) params.set("userId", userId);
 
   const { data, isLoading } = useQuery<{ topClients: TopClientRow[] }>({
     queryKey: [queryUrl],
@@ -322,9 +388,13 @@ function TopClientesCard({ userId }: { userId?: string | null }) {
             </CardDescription>
           </div>
           {topClients.length > 0 && (
-            <Badge variant="secondary" className="text-xs font-bold shrink-0">{topClients.length}</Badge>
+            <Badge variant="secondary" className="text-xs font-bold shrink-0">
+              {topClients.length}
+            </Badge>
           )}
-          <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
         </div>
       </CardHeader>
       {open && (
@@ -332,22 +402,35 @@ function TopClientesCard({ userId }: { userId?: string | null }) {
           {isLoading ? (
             <p className="text-sm text-slate-400 text-center py-6">Carregando...</p>
           ) : !topClients.length ? (
-            <p className="text-sm text-slate-400 text-center py-6">Nenhuma venda registrada.</p>
+            <p className="text-sm text-slate-400 text-center py-6">
+              Nenhuma venda registrada.
+            </p>
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800">
               {topClients.map((c, i) => {
                 const content = (
                   <div className="flex items-center gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <span className="w-6 text-center text-xs font-black text-slate-400">#{i + 1}</span>
+                    <span className="w-6 text-center text-xs font-black text-slate-400">
+                      #{i + 1}
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{c.clientName ?? "—"}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{c.orderCount} pedido{c.orderCount !== 1 ? "s" : ""}</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                        {c.clientName ?? "—"}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {c.orderCount} pedido{c.orderCount !== 1 ? "s" : ""}
+                      </p>
                     </div>
-                    <Badge variant="secondary" className="text-xs shrink-0">{formatCurrency(c.totalValue)}</Badge>
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {formatCurrency(c.totalValue)}
+                    </Badge>
                   </div>
                 );
+
                 return c.clientId ? (
-                  <Link key={c.clientId ?? i} href={`/clientes/${c.clientId}`}>{content}</Link>
+                  <Link key={c.clientId ?? i} href={`/clientes/${c.clientId}`}>
+                    {content}
+                  </Link>
                 ) : (
                   <div key={i}>{content}</div>
                 );
