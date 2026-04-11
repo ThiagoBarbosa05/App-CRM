@@ -1692,7 +1692,9 @@ function AllSellersGoalProgress({
                     {/* Ticket médio */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                        <span>Ticket — {formatCurrency(realAvgTicket)}</span>
+                        <span>
+                          Ticket Médio — {formatCurrency(realAvgTicket)}
+                        </span>
                         <span className="font-bold">
                           {ticketPct.toFixed(0)}%
                         </span>

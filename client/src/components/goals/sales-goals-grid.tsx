@@ -167,16 +167,15 @@ function SalesGoalCard({
 }) {
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
-  const avgTicketAchieved = monthlyResult
-    ? Number(monthlyResult.ticketAchieved)
-    : 0;
+
+  const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
+  const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
+  const avgTicketAchieved =
+    realSalesOrders > 0 ? realSalesValue / realSalesOrders : 0;
   const ticketPercentage = calculatePercentage(
     avgTicketAchieved,
     Number(goal.averageTicket),
   );
-
-  const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
-  const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
   const realSalesPercentage = calculatePercentage(
     realSalesValue,
     Number(goal.salesGoal),
