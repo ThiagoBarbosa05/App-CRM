@@ -32,6 +32,9 @@ const goalSchema = z.object({
   ordersGoal: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
     .min(0, "Mínimo 0"),
+  positivityGoal: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(0, "Mínimo 0"),
   avgBottleValueGoal: z
     .string()
     .min(1, "Valor médio por garrafa é obrigatório")
@@ -83,6 +86,7 @@ export function SalesGoalModal({
       setValue("salesGoal", formatCurrencyInput(editingGoal.salesGoal));
       setValue("averageTicket", formatCurrencyInput(editingGoal.averageTicket));
       setValue("ordersGoal", editingGoal.ordersGoal ?? 0);
+      setValue("positivityGoal", editingGoal.positivityGoal ?? 0);
       setValue(
         "avgBottleValueGoal",
         formatCurrencyInput(editingGoal.avgBottleValueGoal ?? "0"),
@@ -95,6 +99,7 @@ export function SalesGoalModal({
         salesGoal: "0,00",
         averageTicket: "0,00",
         ordersGoal: 0,
+        positivityGoal: 0,
         avgBottleValueGoal: "0,00",
         month: selectedMonth,
         year: selectedYear,
@@ -259,6 +264,26 @@ export function SalesGoalModal({
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Positivação (clientes únicos)
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                {...register("positivityGoal")}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              />
+              {errors.positivityGoal && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.positivityGoal.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                 Valor Médio por Garrafa (R$)

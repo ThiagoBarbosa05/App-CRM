@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Wine,
+  Users,
   Edit,
   Trash2,
 } from "lucide-react";
@@ -38,6 +39,7 @@ interface UserGoal {
   averageTicket: string;
   ordersGoal: number;
   avgBottleValueGoal: string;
+  positivityGoal: number;
   userName: string;
   userEmail: string;
   weeklyResults: WeeklyResult[];
@@ -193,6 +195,12 @@ function SalesGoalCard({
   const avgBottlePercentage = calculatePercentage(
     avgBottleValue,
     avgBottleGoalValue,
+  );
+
+  const positivacaoAchieved = sellerData?.uniqueClients ?? 0;
+  const positivacaoPercentage = calculatePercentage(
+    positivacaoAchieved,
+    goal.positivityGoal,
   );
 
   return (
@@ -366,6 +374,18 @@ function SalesGoalCard({
             colorClass="bg-rose-500"
             bgClass="bg-rose-50 dark:bg-rose-900/20"
             textClass="text-rose-600 dark:text-rose-400"
+          />
+
+          {/* Positivação */}
+          <MetricProgress
+            label="Positivação"
+            icon={<Users className="h-3.5 w-3.5" />}
+            achieved={`${positivacaoAchieved} cliente${positivacaoAchieved !== 1 ? "s" : ""}`}
+            goal={`${goal.positivityGoal} cliente${goal.positivityGoal !== 1 ? "s" : ""}`}
+            percentage={goal.positivityGoal > 0 ? positivacaoPercentage : 0}
+            colorClass="bg-violet-500"
+            bgClass="bg-violet-50 dark:bg-violet-900/20"
+            textClass="text-violet-600 dark:text-violet-400"
           />
 
           {/* Resultado do Mês — admin */}

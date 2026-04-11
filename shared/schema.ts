@@ -684,6 +684,7 @@ export const userGoals = pgTable(
     })
       .notNull()
       .default("0.00"), // Meta: valor médio por garrafa vendida
+    positivityGoal: integer("positivity_goal").notNull().default(0), // Meta: clientes únicos com compra no mês (positivação)
     economicoGoalQty: integer("economico_goal_qty").notNull().default(0),
     intermediarioGoalQty: integer("intermediario_goal_qty")
       .notNull()

@@ -59,6 +59,7 @@ export interface UnifiedTopSeller {
   totalOrders: number;
   totalValue: number;
   totalItems: number;
+  uniqueClients: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -344,7 +345,8 @@ export const unifiedOrdersService = {
           SELECT SUM(boi.quantity)
           FROM bling_order_items boi
           WHERE boi.order_id = bo.id
-        ), 0)                              AS items_qty
+        ), 0)                              AS items_qty,
+        CONCAT('b:', bo.contact_id)        AS client_key
       FROM bling_orders bo
       LEFT JOIN LATERAL (
         SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
@@ -360,7 +362,8 @@ export const unifiedOrdersService = {
         co.seller_id,
         COALESCE(u.name, co.seller_name_raw, 'Desconhecido') AS seller_name,
         co.total_value::numeric AS v,
-        0                       AS items_qty
+        0                       AS items_qty,
+        co.app_client_id        AS client_key
       FROM connect_orders co
       LEFT JOIN users u ON co.seller_id = u.id
       WHERE co.sale_date >= ${connectStart}::timestamp
@@ -378,10 +381,11 @@ export const unifiedOrdersService = {
     const result = await db.execute(sql`
       SELECT
         seller_id,
-        MAX(seller_name)              AS seller_name,
-        COUNT(*)                      AS total_orders,
-        COALESCE(SUM(v), 0)           AS total_value,
-        COALESCE(SUM(items_qty), 0)   AS total_items
+        MAX(seller_name)                    AS seller_name,
+        COUNT(*)                            AS total_orders,
+        COALESCE(SUM(v), 0)                 AS total_value,
+        COALESCE(SUM(items_qty), 0)         AS total_items,
+        COUNT(DISTINCT client_key)          AS unique_clients
       FROM (${unionFrag}) _combined
       WHERE seller_id IS NOT NULL
       GROUP BY seller_id
@@ -395,6 +399,7 @@ export const unifiedOrdersService = {
       totalOrders: Number(row.total_orders),
       totalValue: parseFloat(String(row.total_value ?? "0")),
       totalItems: Number(row.total_items ?? 0),
+      uniqueClients: Number(row.unique_clients ?? 0),
     }));
   },
 };
