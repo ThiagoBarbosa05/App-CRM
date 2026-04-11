@@ -21,6 +21,9 @@ export async function getAggregateSellerDashboardController(req: Request, res: R
       filterUserId,
       filters,
     });
+    const userId = typeof req.query.userId === "string" ? req.query.userId : undefined;
+
+    const data = await getAggregateDashboard(startDate, endDate, userId);
     return res.json({ success: true, ...data });
   } catch (error) {
     console.error("[getAggregateSellerDashboardController] Erro:", error);

@@ -68,6 +68,18 @@ interface AggregateData {
   sellerPortfolioStats?: SellerPortfolioStats[];
   portfolioStats?: SellerPortfolioStats;
   newClientsThisMonth: NewClientRow[];
+interface TopClientsData {
+  topClients: TopClientRow[];
+  highestAvgTicket: TopClientRow[];
+  highestAvgItemValue: TopItemValueRow[];
+}
+
+interface PortfolioStatsData {
+  sellerPortfolioStats: SellerPortfolioStats[];
+  newClientsThisMonth: NewClientRow[];
+}
+
+interface InactiveClientsData {
   inactiveClients: InactiveClientRow[];
 }
 
@@ -158,17 +170,29 @@ export function ClientCommercialGrid({
     search,
     filters,
     purchaseStatusDays,
+export function ClientCommercialGrid({ startDate, endDate, userId }: ClientCommercialGridProps) {
+  const qs = new URLSearchParams({ startDate, endDate });
+  if (userId) qs.set("userId", userId);
+  const qsString = qs.toString();
+  const userQs = userId ? `?userId=${userId}` : "";
+
+  const { data: topClientsData, isLoading: loadingTopClients } = useQuery<TopClientsData>({
+    queryKey: [`/api/users/seller-dashboard/top-clients?${qsString}`],
   });
 
-  const { data, isLoading } = useQuery<AggregateData>({
-    queryKey: [queryKey],
+  const { data: portfolioData, isLoading: loadingPortfolio } = useQuery<PortfolioStatsData>({
+    queryKey: [`/api/users/seller-dashboard/portfolio-stats?${qsString}`],
   });
 
-  const topClients = data?.topClients ?? [];
-  const highestAvgTicket = data?.highestAvgTicket ?? [];
-  const highestAvgItemValue = data?.highestAvgItemValue ?? [];
-  const inactiveClients = data?.inactiveClients ?? [];
-  const newClients = data?.newClientsThisMonth ?? [];
+  const { data: inactiveData, isLoading: loadingInactive } = useQuery<InactiveClientsData>({
+    queryKey: [`/api/users/seller-dashboard/inactive-clients${userQs}`],
+  });
+
+  const topClients        = topClientsData?.topClients        ?? [];
+  const highestAvgTicket  = topClientsData?.highestAvgTicket  ?? [];
+  const highestAvgItemValue = topClientsData?.highestAvgItemValue ?? [];
+  const inactiveClients   = inactiveData?.inactiveClients     ?? [];
+  const newClients        = portfolioData?.newClientsThisMonth ?? [];
 
   // Soma os stats de carteira de todos os vendedores
   const portfolioStats = (() => {
@@ -193,6 +217,18 @@ export function ClientCommercialGrid({
 
     return aggregatedStats;
   })();
+  const portfolioStats = (portfolioData?.sellerPortfolioStats ?? []).reduce(
+    (acc, s) => ({
+      total: acc.total + s.total,
+      active: acc.active + s.active,
+      inactive: acc.inactive + s.inactive,
+      positivacao: 0,
+    }),
+    { total: 0, active: 0, inactive: 0, positivacao: 0 },
+  );
+  if (portfolioStats.total > 0) {
+    portfolioStats.positivacao = (portfolioStats.active / portfolioStats.total) * 100;
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -201,7 +237,7 @@ export function ClientCommercialGrid({
         icon={<div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20"><Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" /></div>}
         title="Top Clientes por Valor"
       >
-        {isLoading ? <EmptyState message="Carregando..." /> : !topClients.length ? (
+        {loadingTopClients ? <EmptyState message="Carregando..." /> : !topClients.length ? (
           <EmptyState message="Nenhuma venda no período." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -219,7 +255,7 @@ export function ClientCommercialGrid({
         icon={<div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20"><BarChart2 className="h-4 w-4 text-blue-600 dark:text-blue-400" /></div>}
         title="Maior Ticket Médio"
       >
-        {isLoading ? <EmptyState message="Carregando..." /> : !highestAvgTicket.length ? (
+        {loadingTopClients ? <EmptyState message="Carregando..." /> : !highestAvgTicket.length ? (
           <EmptyState message="Nenhum dado disponível." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -237,7 +273,7 @@ export function ClientCommercialGrid({
         icon={<div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20"><BarChart2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /></div>}
         title="Maior Valor Médio por Item"
       >
-        {isLoading ? <EmptyState message="Carregando..." /> : !highestAvgItemValue.length ? (
+        {loadingTopClients ? <EmptyState message="Carregando..." /> : !highestAvgItemValue.length ? (
           <EmptyState message="Nenhum dado disponível." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -259,7 +295,7 @@ export function ClientCommercialGrid({
         title="Clientes Inativos"
         badge={inactiveClients.length}
       >
-        {isLoading ? <EmptyState message="Carregando..." /> : !inactiveClients.length ? (
+        {loadingInactive ? <EmptyState message="Carregando..." /> : !inactiveClients.length ? (
           <EmptyState message="Nenhum cliente inativo." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -290,7 +326,7 @@ export function ClientCommercialGrid({
         title="Novos Clientes no Período"
         badge={newClients.length}
       >
-        {isLoading ? <EmptyState message="Carregando..." /> : !newClients.length ? (
+        {loadingPortfolio ? <EmptyState message="Carregando..." /> : !newClients.length ? (
           <EmptyState message="Nenhum cliente novo no período." />
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-slate-800">

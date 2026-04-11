@@ -41,6 +41,7 @@ interface ClientReportsGridProps {
   search?: string;
   filters?: ClientAnalyticsFilters;
   purchaseStatusDays?: number;
+  userId?: string | null;
 }
 
 const PALETTE = [
@@ -63,6 +64,7 @@ export function ClientReportsGrid({
   search,
   filters,
   purchaseStatusDays,
+  userId,
 }: ClientReportsGridProps) {
   return (
     <div className="space-y-6">
@@ -278,6 +280,7 @@ function TopClientesCard({
   filters?: ClientAnalyticsFilters;
   purchaseStatusDays?: number;
 }) {
+function TopClientesCard({ userId }: { userId?: string | null }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const startDate = format(startOfMonth(now), "yyyy-MM-dd");
@@ -290,6 +293,9 @@ function TopClientesCard({
     filters,
     purchaseStatusDays,
   });
+
+  const params = new URLSearchParams({ startDate, endDate });
+  if (userId) params.set("userId", userId);
 
   const { data, isLoading } = useQuery<{ topClients: TopClientRow[] }>({
     queryKey: [queryUrl],

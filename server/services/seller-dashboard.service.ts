@@ -130,6 +130,21 @@ export interface SellerDashboardResult {
   winePriceTierThresholds: WinePriceTierThresholds;
 }
 
+export interface TopClientsResult {
+  topClients: TopClientRow[];
+  highestAvgTicket: TopClientRow[];
+  highestAvgItemValue: TopItemValueRow[];
+}
+
+export interface PortfolioStatsResult {
+  sellerPortfolioStats: SellerPortfolioStats[];
+  newClientsThisMonth: NewClientRow[];
+}
+
+export interface InactiveClientsResult {
+  inactiveClients: InactiveClientRow[];
+}
+
 async function getPurchaseStatusDays(): Promise<number> {
   const [row] = await db
     .select({ value: systemSettings.value })
@@ -802,6 +817,7 @@ export async function getAggregateDashboard(
   startDate?: string,
   endDate?: string,
   scope?: ClientAnalyticsScope,
+  userId?: string,
 ): Promise<AggregateDashboardResult> {
   const now = new Date();
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
@@ -859,6 +875,30 @@ export async function getAggregateDashboard(
     }),
     fetchAggregateNewClients(currentStart, currentEnd, scopedClientIds).catch((e) => {
       console.error("[aggregate] fetchAggregateNewClients:", e);
+    (userId
+      ? fetchTopClientsByTotalForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopClients(currentStart, currentEnd)
+    ).catch(() => [] as TopClientRow[]),
+    (userId
+      ? fetchTopClientsByAvgTicketForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopClientsByAvgTicket(currentStart, currentEnd)
+    ).catch(() => [] as TopClientRow[]),
+    (userId
+      ? fetchTopItemValueForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopItemValue(currentStart, currentEnd)
+    ).catch(() => [] as TopItemValueRow[]),
+    (userId
+      ? fetchInactiveClients(userId, inactiveDays)
+      : fetchAggregateInactiveClients(inactiveDays)
+    ).catch((e) => {
+      console.error("[aggregate] inactiveClients:", e);
+      return [] as InactiveClientRow[];
+    }),
+    (userId
+      ? fetchNewClientsThisMonth(userId)
+      : fetchAggregateNewClients()
+    ).catch((e) => {
+      console.error("[aggregate] newClientsThisMonth:", e);
       return [] as NewClientRow[];
     }),
     fetchSellerRanking(currentStart, currentEnd).catch(
@@ -867,6 +907,12 @@ export async function getAggregateDashboard(
     fetchAllSellersPortfolioStats(inactiveDays, scopedClientIds).catch(
       () => [] as SellerPortfolioStats[],
     ),
+    (userId
+      ? fetchClientPortfolioStats(userId, inactiveDays).then((s) => [
+          { userId, sellerName: "", ...s },
+        ])
+      : fetchAllSellersPortfolioStats(inactiveDays)
+    ).catch(() => [] as SellerPortfolioStats[]),
     fetchSellerWinePriceTierStats(
       currentStart,
       currentEnd,
@@ -1637,4 +1683,72 @@ async function fetchAllSellersPortfolioStats(
       positivacao,
     };
   });
+}
+
+// ─── Funções exportadas para rotas focadas ────────────────────────────────────
+
+export async function getTopClientsData(
+  startDate?: string,
+  endDate?: string,
+  userId?: string,
+): Promise<TopClientsResult> {
+  const now = new Date();
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd   = endDate   ?? format(endOfMonth(now),   "yyyy-MM-dd");
+
+  const [topClients, highestAvgTicket, highestAvgItemValue] = await Promise.all([
+    (userId
+      ? fetchTopClientsByTotalForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopClients(currentStart, currentEnd)
+    ).catch(() => [] as TopClientRow[]),
+    (userId
+      ? fetchTopClientsByAvgTicketForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopClientsByAvgTicket(currentStart, currentEnd)
+    ).catch(() => [] as TopClientRow[]),
+    (userId
+      ? fetchTopItemValueForSeller(userId, currentStart, currentEnd)
+      : fetchAggregateTopItemValue(currentStart, currentEnd)
+    ).catch(() => [] as TopItemValueRow[]),
+  ]);
+
+  return { topClients, highestAvgTicket, highestAvgItemValue };
+}
+
+export async function getPortfolioStatsData(
+  _startDate?: string,
+  _endDate?: string,
+  userId?: string,
+): Promise<PortfolioStatsResult> {
+  const inactiveDays = await getPurchaseStatusDays();
+
+  const [sellerPortfolioStats, newClientsThisMonth] = await Promise.all([
+    (userId
+      ? fetchClientPortfolioStats(userId, inactiveDays).then((s) => [
+          { userId, sellerName: "", ...s } as SellerPortfolioStats,
+        ])
+      : fetchAllSellersPortfolioStats(inactiveDays)
+    ).catch(() => [] as SellerPortfolioStats[]),
+    (userId
+      ? fetchNewClientsThisMonth(userId)
+      : fetchAggregateNewClients()
+    ).catch(() => [] as NewClientRow[]),
+  ]);
+
+  return { sellerPortfolioStats, newClientsThisMonth };
+}
+
+export async function getInactiveClientsData(
+  userId?: string,
+): Promise<InactiveClientsResult> {
+  const inactiveDays = await getPurchaseStatusDays();
+
+  const inactiveClients = await (userId
+    ? fetchInactiveClients(userId, inactiveDays)
+    : fetchAggregateInactiveClients(inactiveDays)
+  ).catch((e) => {
+    console.error("[getInactiveClientsData]", e);
+    return [] as InactiveClientRow[];
+  });
+
+  return { inactiveClients };
 }

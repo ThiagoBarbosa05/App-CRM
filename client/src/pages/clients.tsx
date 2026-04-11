@@ -369,6 +369,7 @@ export default function Clients() {
                 search={debouncedSearchQuery}
                 filters={clientFilters}
                 purchaseStatusDays={purchaseStatusDays}
+                userId={filterUserId}
               />
             </div>
           )}
