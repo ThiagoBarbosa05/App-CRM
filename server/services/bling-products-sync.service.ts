@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { products } from "../../shared/schema";
 import { decryptToken } from "../lib/token-crypto";
-import { getBlingProdutos } from "../integrations/bling";
+import { getBlingProdutos, getBlingProduto } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
 
 export type SyncProgressEvent =
@@ -18,48 +18,49 @@ export interface ProductDefaults {
   createdBy: string;
 }
 
-function normalizeTokens(name: string): string[] {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 0);
-}
+/**
+ * Token bucket rate limiter.
+ * Allows up to `capacity` burst requests, then throttles to `ratePerSecond` req/s.
+ */
+class TokenBucket {
+  private tokens: number;
+  private lastRefillAt: number;
+  private readonly refillRatePerMs: number;
 
-function jaccardScore(a: string[], b: string[]): number {
-  if (a.length === 0 || b.length === 0) return 0;
-  const setA = new Set(a);
-  const setB = new Set(b);
-  let intersection = 0;
-  for (const token of setA) {
-    if (setB.has(token)) intersection++;
+  constructor(
+    private readonly capacity: number,
+    ratePerSecond: number,
+  ) {
+    this.tokens = capacity;
+    this.lastRefillAt = Date.now();
+    this.refillRatePerMs = ratePerSecond / 1000;
   }
-  return intersection / Math.max(setA.size, setB.size);
-}
 
-interface AppProduct {
-  id: string;
-  name: string;
-  tokens: string[];
-}
+  async consume(): Promise<void> {
+    this.refill();
 
-function findBestMatch(blingName: string, appProducts: AppProduct[]): AppProduct | null {
-  const blingTokens = normalizeTokens(blingName);
-  let bestScore = 0;
-  let bestMatch: AppProduct | null = null;
-
-  for (const product of appProducts) {
-    const score = jaccardScore(blingTokens, product.tokens);
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = product;
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return;
     }
+
+    // Wait for one token to become available
+    const waitMs = Math.ceil((1 - this.tokens) / this.refillRatePerMs);
+    await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+    return this.consume();
   }
 
-  return bestScore >= 0.5 ? bestMatch : null;
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefillAt;
+    this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.refillRatePerMs);
+    this.lastRefillAt = now;
+  }
 }
+
+type ProductCountry = "CHILE" | "ARGENTINA" | "URUGUAI" | "BRASIL" | "EUA" | "FRANÇA" | "ITÁLIA" | "PORTUGAL" | "ESPANHA" | "ALEMANHA" | "OUTROS";
+type ProductVolume = "187ml" | "375ml" | "750ml" | "1500ml";
+type ProductType = "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO";
 
 export async function syncBlingProducts(
   connectionId: string,
@@ -94,77 +95,84 @@ export async function syncBlingProducts(
     return accessToken;
   };
 
-  // Load all app products into memory for matching
+  // Load all app products indexed by blingProductId for O(1) lookup
   const rawProducts = await db
     .select({ id: products.id, name: products.name, blingProductId: products.blingProductId })
     .from(products);
-  const appProducts: AppProduct[] = rawProducts.map((p) => ({
-    id: p.id,
-    name: p.name,
-    tokens: normalizeTokens(p.name),
-  }));
+
+  const productsByBlingId = new Map<string, { id: string; name: string }>();
+  for (const p of rawProducts) {
+    if (p.blingProductId) {
+      productsByBlingId.set(p.blingProductId, { id: p.id, name: p.name });
+    }
+  }
 
   onProgress({ type: "start" });
 
+  // Bling allows up to 3 req/s. The bucket starts full (burst of 3) and refills at 3/s.
+  const rateLimiter = new TokenBucket(3, 3);
+
   let page = 1;
   const LIMIT = 100;
-  let linked = 0;
+  const linked = 0;
   let updated = 0;
   let created = 0;
   let skipped = 0;
   let processed = 0;
 
+  const defaultCountry = (defaults.country || "OUTROS") as ProductCountry;
+  const defaultVolume = defaults.volume as ProductVolume;
+  const defaultType = (defaults.type || "OUTROS") as ProductType;
+
   while (true) {
     if (signal?.aborted) break;
 
-    const blingProducts = await getBlingProdutos(accessToken, page, LIMIT, onTokenRefresh);
+    await rateLimiter.consume();
+    const blingProductList = await getBlingProdutos(accessToken, page, LIMIT, onTokenRefresh);
 
-    if (blingProducts.length === 0) break;
+    if (blingProductList.length === 0) break;
 
-    for (const blingProduct of blingProducts) {
+    for (const summary of blingProductList) {
       if (signal?.aborted) break;
 
-      const match = findBestMatch(blingProduct.nome, appProducts);
+      // Fetch full product details to get midia.imagens.internas
+      await rateLimiter.consume();
+      const blingProduct = await getBlingProduto(accessToken, summary.id, onTokenRefresh);
 
-      if (match) {
-        const existing = rawProducts.find((p) => p.id === match.id);
-        const wasAlreadyLinked = existing?.blingProductId != null;
+      const blingIdStr = String(blingProduct.id);
+      const imageUrl = blingProduct.midia?.imagens?.internas?.[0]?.link ?? null;
+      const preco = blingProduct.preco ?? 0;
 
+      const existing = productsByBlingId.get(blingIdStr);
+
+      if (existing) {
         await db
           .update(products)
           .set({
-            blingProductId: String(blingProduct.id),
-            ...(blingProduct.preco > 0 ? { negotiatedPrice: blingProduct.preco.toFixed(2) } : {}),
-            ...(blingProduct.imagemURL ? { imageUrl: blingProduct.imagemURL } : {}),
+            ...(preco > 0 ? { negotiatedPrice: preco.toFixed(2) } : {}),
+            ...(imageUrl ? { imageUrl } : {}),
             updatedAt: new Date(),
           })
-          .where(eq(products.id, match.id));
+          .where(eq(products.id, existing.id));
 
-        if (wasAlreadyLinked) {
-          updated++;
-        } else {
-          linked++;
-        }
+        updated++;
       } else {
-        // No match — create a new product with the user-defined defaults
         const [inserted] = await db
           .insert(products)
           .values({
-            name: blingProduct.nome,
-            country: defaults.country as "CHILE" | "ARGENTINA" | "URUGUAI" | "BRASIL" | "EUA" | "FRANÇA" | "ITÁLIA" | "PORTUGAL" | "ESPANHA" | "ALEMANHA" | "OUTROS",
-            volume: defaults.volume as "187ml" | "375ml" | "750ml" | "1500ml",
-            type: defaults.type as "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO",
-            negotiatedPrice: blingProduct.preco.toFixed(2),
+            name: blingProduct.nome ?? summary.nome,
+            country: defaultCountry,
+            volume: defaultVolume,
+            type: defaultType,
+            negotiatedPrice: preco.toFixed(2),
             createdBy: defaults.createdBy,
-            blingProductId: String(blingProduct.id),
-            ...(blingProduct.imagemURL ? { imageUrl: blingProduct.imagemURL } : {}),
+            blingProductId: blingIdStr,
+            ...(imageUrl ? { imageUrl } : {}),
           })
           .returning({ id: products.id, name: products.name });
 
-        // Add the new product to the in-memory list so duplicate Bling names don't create duplicates
         if (inserted) {
-          appProducts.push({ id: inserted.id, name: inserted.name, tokens: normalizeTokens(inserted.name) });
-          rawProducts.push({ id: inserted.id, name: inserted.name, blingProductId: String(blingProduct.id) });
+          productsByBlingId.set(blingIdStr, { id: inserted.id, name: inserted.name });
         }
 
         created++;
@@ -175,7 +183,7 @@ export async function syncBlingProducts(
 
     onProgress({ type: "progress", page, processed, linked, updated, created, skipped });
 
-    if (blingProducts.length < LIMIT) break;
+    if (blingProductList.length < LIMIT) break;
     page++;
   }
 

@@ -18,5 +18,5 @@ x-user-role: admin
 }
 
 ###
-GET https://api.bling.com.br/Api/v3/contatos?telefone=(22) 98852-3633
-Authorization: Bearer 2f3fc4251cae3e3ee853dff465d1a67f689612b0
+GET https://api.bling.com.br/Api/v3/produtos/16623149563
+Authorization: Bearer a096d7a6649a74af8d37d37dd26240acd3241355
