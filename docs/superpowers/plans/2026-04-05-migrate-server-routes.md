@@ -311,10 +311,10 @@
 - `/objects/:objectPath(*)`
 - `/public-objects/:filePath(*)`
 
-- [ ] Separar `events` e `trainings` em routers distintos.
-- [ ] Encapsular upload/S3/object storage em router proprio sem alterar middleware e side effects.
-- [ ] Manter rotas publicas fora de `/api` em mounts diretos a partir de `registerRoutes`.
-- [ ] Preservar handling de `multer`, S3 e erros `ObjectNotFoundError`.
+- [x] Separar `events` e `trainings` em routers distintos.
+- [x] Encapsular upload/S3/object storage em router proprio sem alterar middleware e side effects.
+- [x] Manter rotas publicas fora de `/api` em mounts diretos a partir de `registerRoutes`.
+- [x] Preservar handling de `multer`, S3 e erros `ObjectNotFoundError`.
 
 **Cobertura minima**
 - CRUD/listagens principais de eventos

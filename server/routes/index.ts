@@ -41,6 +41,8 @@ import { reportsRouter } from "./reports.routes";
 import { companyProductsRouter, productsRouter } from "./products.routes";
 import { clientDebtsRouter } from "./client-debts.routes";
 import { dashboardRouter } from "./dashboard.routes";
+import { trainingsRouter } from "./trainings.routes";
+import { eventsRouter } from "./events.routes";
 import {
   clientRegistrationGoalsRouter,
   clientRegistrationStatsRouter,
@@ -71,6 +73,8 @@ apiRouter.use("/products", productsRouter);
 apiRouter.use("/", companyProductsRouter);
 apiRouter.use("/client-debts", clientDebtsRouter);
 apiRouter.use("/dashboard", dashboardRouter);
+apiRouter.use("/", trainingsRouter);
+apiRouter.use("/events", eventsRouter);
 apiRouter.use("/companies", companiesRouter);
 apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
@@ -124,9 +128,10 @@ apiRouter.use("/system-settings", systemSettingsRouter);
 // ✅ apiRouter.use("/acompanhamento", acompanhamentoRouter); - MIGRADO
 // ✅ apiRouter.use("/", umblerRouter); - MIGRADO PARCIAL (umbler)
 // ✅ apiRouter.use("/reports", reportsRouter); - MIGRADO
-// apiRouter.use("/events", eventsRouter);
+// ✅ apiRouter.use("/events", eventsRouter); - MIGRADO
 // ✅ apiRouter.use("/products", productsRouter); - MIGRADO
 // ✅ apiRouter.use("/client-debts", clientDebtsRouter); - MIGRADO
 // ✅ apiRouter.use("/dashboard", dashboardRouter); - MIGRADO
+// ✅ apiRouter.use("/", trainingsRouter); - MIGRADO
 // apiRouter.use("/integrations", integrationsRouter);
 // apiRouter.use("/admin", adminRouter);
