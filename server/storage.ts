@@ -2397,13 +2397,54 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userGoals.month, month), eq(userGoals.year, year)))
       .orderBy(users.name);
 
-    // Para cada meta, buscar os resultados semanais
+    // Positivação da carteira: clientes com compra no mês / total da carteira por vendedor
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const startDate = `${year}-${pad(month)}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+
+    const portfolioResult = await this.db.execute(sql`
+      SELECT
+        c.responsavel_id                                            AS user_id,
+        COUNT(*)::int                                               AS total,
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1 FROM bling_orders bo
+            WHERE bo.app_client_id = c.id
+              AND bo.deleted_at IS NULL
+              AND bo.sale_date >= ${startDate}
+              AND bo.sale_date <= ${endDate}
+          )
+        )::int                                                      AS active_count
+      FROM clients c
+      WHERE c.responsavel_id IS NOT NULL
+      GROUP BY c.responsavel_id
+    `);
+
+    const portfolioMap = new Map<string, { total: number; active: number }>(
+      (portfolioResult.rows as Record<string, unknown>[]).map((r) => [
+        String(r.user_id),
+        { total: Number(r.total ?? 0), active: Number(r.active_count ?? 0) },
+      ]),
+    );
+
+    // Para cada meta, buscar os resultados semanais e anexar positivação
     const goalsWithResults = await Promise.all(
       goals.map(async (goal) => {
         const weeklyResultsData = await this.getWeeklyResultsByGoalId(goal.id);
+        const portfolio = portfolioMap.get(goal.userId) ?? {
+          total: 0,
+          active: 0,
+        };
+        const positivityAchieved =
+          portfolio.total > 0
+            ? Math.round((portfolio.active / portfolio.total) * 1000) / 10 // 1 decimal
+            : 0;
         return {
           ...goal,
           weeklyResults: weeklyResultsData,
+          positivityAchieved,
+          positivityTotal: portfolio.total,
         };
       }),
     );

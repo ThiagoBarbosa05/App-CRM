@@ -193,6 +193,9 @@ interface UserGoal {
   averageTicket: string;
   ordersGoal: number;
   avgBottleValueGoal: string;
+  positivityGoal: number;
+  positivityAchieved: number;
+  positivityTotal: number;
   userName: string;
   weeklyResults: WeeklyResult[];
 }
@@ -1075,6 +1078,98 @@ function GoalProgressBlock({ userId }: { userId: string }) {
             bgClass="bg-rose-50 dark:bg-rose-900/20"
             textClass="text-rose-600 dark:text-rose-400"
           />
+          {/* Positivação da Carteira — bloco dedicado ocupa linha inteira */}
+          {(() => {
+            const posAchieved = goal.positivityAchieved ?? 0;
+            const posGoal = goal.positivityGoal ?? 0;
+            const posTotal = goal.positivityTotal ?? 0;
+            const posActive = Math.round((posAchieved / 100) * posTotal);
+            const posPct = pct(posAchieved, posGoal);
+            const posTone = getGoalMetricTone(posPct);
+            const barColor =
+              posPct >= 100
+                ? "bg-emerald-500"
+                : posPct >= 70
+                  ? "bg-amber-400"
+                  : "bg-violet-500";
+            const textColor =
+              posPct >= 100
+                ? "text-emerald-600 dark:text-emerald-400"
+                : posPct >= 70
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-violet-600 dark:text-violet-400";
+
+            return (
+              <div
+                className={`md:col-span-2 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-sm ring-1 ${posTone.ringClass}`}
+              >
+                {/* Cabeçalho */}
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        Positivação da Carteira
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        Clientes da carteira com compra no mês
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${posTone.badgeClass}`}
+                  >
+                    {posTone.badge}
+                  </span>
+                </div>
+
+                {/* Valores principais */}
+                <div className="flex items-end justify-between gap-4 mb-3">
+                  <div>
+                    <p
+                      className={`text-3xl font-black tabular-nums leading-none ${textColor}`}
+                    >
+                      {posAchieved.toFixed(1)}%
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      {posTotal > 0
+                        ? `${posActive} de ${posTotal} clientes ativos`
+                        : "Sem clientes na carteira"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Meta
+                    </p>
+                    <p className="text-lg font-black text-slate-700 dark:text-slate-200">
+                      {posGoal}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* Barra de progresso */}
+                <div className="space-y-1.5">
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(posPct, 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className={`h-full rounded-full ${barColor}`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-medium text-slate-400">
+                    <span>0%</span>
+                    <span className={`font-black ${textColor}`}>
+                      {posPct.toFixed(1)}% da meta
+                    </span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 px-4 py-3">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
@@ -1763,7 +1858,7 @@ function AllSellersGoalProgress({
                           <span
                             className={`font-bold ${portfolio.positivacao >= 70 ? "text-emerald-600 dark:text-emerald-400" : portfolio.positivacao >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}
                           >
-                            Pos. {portfolio.positivacao.toFixed(1)}%
+                            Positivação- {portfolio.positivacao.toFixed(1)}%
                           </span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -1788,85 +1883,6 @@ function AllSellersGoalProgress({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Card de Positivação por Vendedor (admin) ─────────────────────────────────
-
-function SellerPositivacaoCard({ stats }: { stats: SellerPortfolioStats[] }) {
-  if (!stats.length) return null;
-
-  const sorted = [...stats].sort((a, b) => b.positivacao - a.positivacao);
-
-  return (
-    <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-      <CardHeader className="pb-3 border-b border-gray-200 dark:border-slate-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-900/20">
-              <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
-              Positivação por Vendedor
-            </CardTitle>
-          </div>
-          <Badge variant="secondary" className="text-xs font-bold">
-            {sorted.length} vendedor{sorted.length !== 1 ? "es" : ""}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4 pb-4 px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {sorted.map((s) => {
-            const posColor =
-              s.positivacao >= 70
-                ? "bg-emerald-500"
-                : s.positivacao >= 40
-                  ? "bg-amber-400"
-                  : "bg-red-500";
-            const posTextColor =
-              s.positivacao >= 70
-                ? "text-emerald-600 dark:text-emerald-400"
-                : s.positivacao >= 40
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-red-600 dark:text-red-400";
-
-            return (
-              <div
-                key={s.userId}
-                className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                    {s.sellerName}
-                  </p>
-                  <span
-                    className={`text-sm font-black tabular-nums shrink-0 ${posTextColor}`}
-                  >
-                    {s.positivacao.toFixed(1)}%
-                  </span>
-                </div>
-
-                <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(s.positivacao, 100)}%` }}
-                    transition={{ duration: 0.9, ease: "easeOut" }}
-                    className={`h-full rounded-full ${posColor}`}
-                  />
-                </div>
-
-                <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                  <span>{s.active} ativos</span>
-                  <span>{s.total} clientes na carteira</span>
-                  <span>{s.inactive} inativos</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </CardContent>
     </Card>
   );
@@ -1977,28 +1993,6 @@ export function AggregateView({
                 <Skeleton className="h-2 w-full rounded-full" />
               </div>
             ))}
-          </CardContent>
-        </Card>
-
-        {/* SellerPositivacaoCard skeleton */}
-        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-7 w-7 rounded-lg" />
-              <Skeleton className="h-5 w-40" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-2 w-full rounded-full" />
-                  </div>
-                  <Skeleton className="h-4 w-10" />
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
 
@@ -2135,9 +2129,6 @@ export function AggregateView({
 
       {/* Metas de todos os vendedores */}
       <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
-
-      {/* Positivação por vendedor */}
-      <SellerPositivacaoCard stats={sellerPortfolioStats} />
 
       {/* Ranking de Vendedores (ocupa 2 colunas) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

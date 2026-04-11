@@ -40,6 +40,8 @@ interface UserGoal {
   ordersGoal: number;
   avgBottleValueGoal: string;
   positivityGoal: number;
+  positivityAchieved: number;
+  positivityTotal: number;
   userName: string;
   userEmail: string;
   weeklyResults: WeeklyResult[];
@@ -197,7 +199,7 @@ function SalesGoalCard({
     avgBottleGoalValue,
   );
 
-  const positivacaoAchieved = sellerData?.uniqueClients ?? 0;
+  const positivacaoAchieved = goal.positivityAchieved ?? 0;
   const positivacaoPercentage = calculatePercentage(
     positivacaoAchieved,
     goal.positivityGoal,
@@ -378,10 +380,10 @@ function SalesGoalCard({
 
           {/* Positivação */}
           <MetricProgress
-            label="Positivação"
+            label="Positivação da Carteira"
             icon={<Users className="h-3.5 w-3.5" />}
-            achieved={`${positivacaoAchieved} cliente${positivacaoAchieved !== 1 ? "s" : ""}`}
-            goal={`${goal.positivityGoal} cliente${goal.positivityGoal !== 1 ? "s" : ""}`}
+            achieved={`${positivacaoAchieved.toFixed(1)}%`}
+            goal={`${goal.positivityGoal}%`}
             percentage={goal.positivityGoal > 0 ? positivacaoPercentage : 0}
             colorClass="bg-violet-500"
             bgClass="bg-violet-50 dark:bg-violet-900/20"

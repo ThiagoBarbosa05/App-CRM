@@ -34,7 +34,8 @@ const goalSchema = z.object({
     .min(0, "Mínimo 0"),
   positivityGoal: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
-    .min(0, "Mínimo 0"),
+    .min(0, "Mínimo 0")
+    .max(100, "Máximo 100"),
   avgBottleValueGoal: z
     .string()
     .min(1, "Valor médio por garrafa é obrigatório")
@@ -266,11 +267,12 @@ export function SalesGoalModal({
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Positivação (clientes únicos)
+                Meta Positivação (%)
               </Label>
               <Input
                 type="number"
                 min="0"
+                max="100"
                 placeholder="0"
                 {...register("positivityGoal")}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
