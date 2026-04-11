@@ -249,10 +249,10 @@
 - `/api/interaction-goals*`
 - `/api/interaction-stats/:month/:year`
 
-- [ ] Manter `telemarketing-goals.routes.ts` para o dominio ja existente.
-- [ ] Criar routers separados para os outros dominios, seguindo o padrao ja usado em `user-goals.routes.ts`.
-- [ ] Extrair validacoes de `month`, `year`, `id` e body para middleware Zod.
-- [ ] Preservar filtros por header/query e payloads atuais.
+- [x] Manter `telemarketing-goals.routes.ts` para o dominio ja existente.
+- [x] Criar routers separados para os outros dominios, seguindo o padrao ja usado em `user-goals.routes.ts`.
+- [x] Extrair validacoes de `month`, `year`, `id` e body para middleware Zod.
+- [x] Preservar filtros por header/query e payloads atuais.
 
 ### Checkpoint 5
 
