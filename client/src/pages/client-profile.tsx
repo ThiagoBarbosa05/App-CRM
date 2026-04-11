@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   User,
@@ -11,6 +12,7 @@ import {
   Wallet,
   ArrowLeft,
   AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -68,6 +70,20 @@ export default function ClientProfilePage() {
     enabled: !!id,
   });
 
+  const { data: systemSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+
+  const purchaseStatus = (() => {
+    const lastPurchaseDate = (client as any)?.lastPurchaseDate as string | null | undefined;
+    const days = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
+    if (!lastPurchaseDate) return "inativo";
+    const last = new Date(lastPurchaseDate + "T00:00:00");
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - days);
+    return last >= threshold ? "ativo" : "inativo";
+  })();
+
   if (isLoading) {
     return (
       <div className="max-w-5xl mx-auto space-y-6 p-6">
@@ -123,9 +139,20 @@ export default function ClientProfilePage() {
               <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-slate-100">
-                {client.name}
-              </h1>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-slate-100">
+                  {client.name}
+                </h1>
+                {purchaseStatus === "inativo" && (
+                  <div className="relative inline-flex items-center">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
+                    <Badge className="relative inline-flex items-center gap-1 bg-red-600 hover:bg-red-600 text-white border-0 text-xs font-bold uppercase tracking-wider px-2.5 py-1 shadow-lg shadow-red-500/30">
+                      <AlertTriangle className="h-3 w-3" />
+                      Cliente Inativo
+                    </Badge>
+                  </div>
+                )}
+              </div>
               <p className="text-sm text-gray-500 dark:text-slate-400">
                 Informações completas, funis e interações
               </p>

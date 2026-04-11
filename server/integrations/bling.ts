@@ -341,6 +341,141 @@ export async function getBlingProdutos(
   return body.data;
 }
 
+export interface BlingProdutoDetalheEstoque {
+  minimo: number | null;
+  maximo: number | null;
+  crossdocking: number | null;
+  localizacao: string | null;
+  saldoVirtualTotal: number;
+}
+
+export interface BlingProdutoDetalheFornecedor {
+  id: number;
+  contato: { id: number; nome: string } | null;
+  codigo: string | null;
+  precoCusto: number | null;
+  precoCompra: number | null;
+}
+
+export interface BlingProdutoDetalheDimensoes {
+  largura: number | null;
+  altura: number | null;
+  profundidade: number | null;
+  unidadeMedida: number | null;
+}
+
+export interface BlingProdutoDetalheTributacao {
+  origem: number | null;
+  ncm: string | null;
+  cest: string | null;
+  percentualTributos: number | null;
+}
+
+export interface BlingProdutoDetalheImagemInterna {
+  link: string;
+  linkMiniatura: string | null;
+  validade: string | null;
+  ordem: number | null;
+}
+
+export interface BlingProdutoDetalheImagemExterna {
+  link: string;
+}
+
+export interface BlingProdutoDetalheVariacao {
+  id: number;
+  nome: string | null;
+  codigo: string | null;
+  preco: number | null;
+  tipo: string | null;
+  situacao: string | null;
+  formato: string | null;
+  descricaoCurta: string | null;
+  imagemURL: string | null;
+  unidade: string | null;
+  pesoLiquido: number | null;
+  pesoBruto: number | null;
+  marca: string | null;
+  estoque: BlingProdutoDetalheEstoque | null;
+  fornecedor: BlingProdutoDetalheFornecedor | null;
+  dimensoes: BlingProdutoDetalheDimensoes | null;
+  categoria: { id: number } | null;
+  tributacao: BlingProdutoDetalheTributacao | null;
+  variacao: {
+    nome: string | null;
+    ordem: number | null;
+    produtoPai: { id: number } | null;
+  } | null;
+}
+
+export interface BlingProdutoDetalhe {
+  id: number;
+  nome: string | null;
+  codigo: string | null;
+  preco: number | null;
+  tipo: string | null;
+  situacao: string | null;
+  formato: string | null;
+  descricaoCurta: string | null;
+  imagemURL: string | null;
+  unidade: string | null;
+  pesoLiquido: number | null;
+  pesoBruto: number | null;
+  marca: string | null;
+  categoria: { id: number } | null;
+  estoque: BlingProdutoDetalheEstoque | null;
+  fornecedor: BlingProdutoDetalheFornecedor | null;
+  dimensoes: BlingProdutoDetalheDimensoes | null;
+  tributacao: BlingProdutoDetalheTributacao | null;
+  midia: {
+    video: { url: string | null } | null;
+    imagens: {
+      externas: BlingProdutoDetalheImagemExterna[];
+      internas: BlingProdutoDetalheImagemInterna[];
+    } | null;
+  } | null;
+  variacoes: BlingProdutoDetalheVariacao[];
+}
+
+/**
+ * Busca os detalhes completos de um produto pelo ID no Bling.
+ *
+ * Em caso de 401/403 (token expirado), chama `onTokenRefresh` para obter um
+ * novo access token e repete a requisição uma única vez.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param produtoId      - ID do produto no Bling.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingProduto(
+  accessToken: string,
+  produtoId: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingProdutoDetalhe> {
+  let token = accessToken;
+
+  let response = await fetchBlingApi(token, `/produtos/${produtoId}`);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, `/produtos/${produtoId}`);
+  }
+
+  if (response.status === 404) {
+    throw new Error(`Produto ${produtoId} não encontrado no Bling`);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao buscar produto do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: BlingProdutoDetalhe };
+  return body.data;
+}
+
 export interface BlingVendedor {
   id: number;
   descontoLimite: number;

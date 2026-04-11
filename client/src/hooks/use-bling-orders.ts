@@ -68,6 +68,8 @@ export interface TopSeller {
   sellerName: string;
   totalOrders: number;
   totalValue: string;
+  totalItems?: number;
+  uniqueClients?: number;
 }
 
 export interface TopProduct {
@@ -563,6 +565,7 @@ export interface CohortData {
 export interface CohortClient {
   contactId: string;
   contactName: string;
+  appClientId: string | null;
   retained: boolean;
 }
 
@@ -579,7 +582,7 @@ export function useCohortAnalysis(startDate: string, endDate: string) {
       return result.data as CohortData;
     },
     enabled: !!startDate && !!endDate,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

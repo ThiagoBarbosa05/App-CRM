@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { clients, users, tags } from "@shared/schema";
-import { sql, count, eq, and, isNull, gte, lte } from "drizzle-orm";
+import { clients, users } from "@shared/schema";
+import { sql, count, eq, and, inArray } from "drizzle-orm";
 import { startOfDay, addDays, parseISO, isWithinInterval } from "date-fns";
+import { clientsService } from "../../services/clients.service";
+import { ClientsRepository } from "../../repositories/clients.repository";
 
 export interface ClientReportsData {
   totalClients: number;
@@ -45,6 +47,8 @@ export interface ClientReportsData {
   // Contact information statistics
   clientsWithEmail: number;
   clientsWithoutEmail: number;
+  clientsWithPhone: number;
+  clientsWithoutPhone: number;
   clientsWithCPF: number;
   clientsWithoutCPF: number;
   clientsWithAddress: number;
@@ -60,16 +64,37 @@ export const getClientReportsController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const filterUserId = req.query.filterUserId as string | undefined;
+    const { userId, userRole, filters } = clientsService.processRequestParams(req);
+    const clientsRepository = new ClientsRepository();
+    const filteredClientIds = await clientsRepository.getFilteredClientIds(
+      userId,
+      userRole,
+      filters,
+      filterUserId,
+    );
 
-    // Base condition for clients based on user role
-    let baseCondition = sql`1=1`;
-
-    // If not admin, filter by responsible user
-    if (userRole !== "admin" && userId) {
-      baseCondition = eq(clients.responsavelId, userId);
+    if (filteredClientIds.length === 0) {
+      res.json({
+        totalClients: 0,
+        clientsByCategory: [],
+        clientsByOrigin: [],
+        clientsByUser: [],
+        clientsByMarkers: [],
+        upcomingBirthdays: [],
+        clientsWithEmail: 0,
+        clientsWithoutEmail: 0,
+        clientsWithPhone: 0,
+        clientsWithoutPhone: 0,
+        clientsWithCPF: 0,
+        clientsWithoutCPF: 0,
+        clientsWithAddress: 0,
+        clientsWithoutAddress: 0,
+      } satisfies ClientReportsData);
+      return;
     }
+
+    const baseCondition = inArray(clients.id, filteredClientIds);
 
     // Execute all queries in parallel for better performance
     const [
@@ -78,6 +103,7 @@ export const getClientReportsController = async (
       originStats,
       userStats,
       emailStats,
+      phoneStats,
       cpfStats,
       addressStats,
       birthdayClients,
@@ -130,6 +156,18 @@ export const getClientReportsController = async (
         .where(baseCondition)
         .groupBy(
           sql`CASE WHEN ${clients.email} IS NOT NULL AND ${clients.email} != '' THEN true ELSE false END`
+        ),
+
+      // Phone statistics (celular ou fixo)
+      db
+        .select({
+          hasPhone: sql<boolean>`CASE WHEN (${clients.phone} IS NOT NULL AND ${clients.phone} != '') OR (${clients.fixedPhone} IS NOT NULL AND ${clients.fixedPhone} != '') THEN true ELSE false END`,
+          count: count(),
+        })
+        .from(clients)
+        .where(baseCondition)
+        .groupBy(
+          sql`CASE WHEN (${clients.phone} IS NOT NULL AND ${clients.phone} != '') OR (${clients.fixedPhone} IS NOT NULL AND ${clients.fixedPhone} != '') THEN true ELSE false END`
         ),
 
       // CPF statistics
@@ -205,6 +243,17 @@ export const getClientReportsController = async (
       }
     });
 
+    let clientsWithPhone = 0;
+    let clientsWithoutPhone = 0;
+
+    phoneStats.forEach((stat) => {
+      if (stat.hasPhone === true) {
+        clientsWithPhone = stat.count;
+      } else {
+        clientsWithoutPhone = stat.count;
+      }
+    });
+
     let clientsWithCPF = 0;
     let clientsWithoutCPF = 0;
 
@@ -269,7 +318,7 @@ export const getClientReportsController = async (
       .map((client) => ({
         id: client.id,
         name: client.name,
-        phone: client.phone,
+        phone: client.phone ?? "",
         email: client.email || undefined,
         birthday: client.birthday!,
         daysUntil: client.daysUntil,
@@ -311,6 +360,8 @@ export const getClientReportsController = async (
       upcomingBirthdays,
       clientsWithEmail,
       clientsWithoutEmail,
+      clientsWithPhone,
+      clientsWithoutPhone,
       clientsWithCPF,
       clientsWithoutCPF,
       clientsWithAddress,

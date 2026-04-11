@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   BarChart3,
   Building2,
+  Calculator,
   CalendarDays,
   ClipboardList,
   Gift,
@@ -42,9 +43,11 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/metas", icon: Target, label: "Metas" },
   { href: "/clientes", icon: Users, label: "Clientes" },
+  { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
   { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
-  { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
+  // { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
   // { href: "/empresas", icon: Building2, label: "Empresas" },
   { href: "/products", icon: Wine, label: "Produtos" },
   {
@@ -52,14 +55,6 @@ const navItems: NavItem[] = [
     icon: GitBranch,
     label: "Funil de Vendas",
     roles: ["admin", "vendedor"],
-  },
-  { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
-  { href: "/metas", icon: Target, label: "Metas" },
-  {
-    href: "/relatorios",
-    icon: BarChart3,
-    label: "Relatórios",
-    hideForRoles: ["vendedor"],
   },
   {
     href: "/vendas",
@@ -70,10 +65,9 @@ const navItems: NavItem[] = [
   { href: "/assistente-ia", icon: Sparkles, label: "IA Assistente" },
   { href: "/treinamentos", icon: Video, label: "Treinamentos" },
   {
-    href: "/admin-metas",
-    icon: Shield,
-    label: "Admin Metas",
-    roles: ["admin", "gerente"],
+    href: "/calculadora-vinho",
+    icon: Calculator,
+    label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
   {

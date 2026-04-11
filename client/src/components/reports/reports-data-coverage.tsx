@@ -1,4 +1,5 @@
-import { ShieldCheck, Mail, CreditCard, MapPin } from "lucide-react";
+import { useState } from "react";
+import { ShieldCheck, Mail, CreditCard, MapPin, Phone, ChevronDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import { motion } from "framer-motion";
 interface ReportsDataCoverageProps {
   totalClients: number;
   clientsWithEmail: number;
+  clientsWithPhone: number;
   clientsWithCPF: number;
   clientsWithAddress: number;
 }
@@ -41,18 +43,21 @@ function CoverageItem({
     blue: "bg-blue-500",
     emerald: "bg-emerald-500",
     violet: "bg-violet-500",
+    amber: "bg-amber-500",
   };
 
   const textColorMap: Record<string, string> = {
     blue: "text-blue-700 dark:text-blue-400",
     emerald: "text-emerald-700 dark:text-emerald-400",
     violet: "text-violet-700 dark:text-violet-400",
+    amber: "text-amber-700 dark:text-amber-400",
   };
 
   const bgColorMap: Record<string, string> = {
     blue: "bg-blue-100 dark:bg-blue-900/30",
     emerald: "bg-emerald-100 dark:bg-emerald-900/30",
     violet: "bg-violet-100 dark:bg-violet-900/30",
+    amber: "bg-amber-100 dark:bg-amber-900/30",
   };
 
   return (
@@ -113,57 +118,76 @@ function CoverageItem({
 export function ReportsDataCoverage({
   totalClients,
   clientsWithEmail,
+  clientsWithPhone,
   clientsWithCPF,
   clientsWithAddress,
 }: ReportsDataCoverageProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border-t-4 border-t-blue-500">
-      <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800 bg-blue-50/30 dark:bg-blue-900/10">
+    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+      <CardHeader
+        className="pb-3 pt-3 px-4 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
         <div className="flex items-center gap-3">
-          <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-2.5">
-            <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="bg-blue-100 dark:bg-blue-900/30 rounded-xl p-2 shrink-0">
+            <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
-            <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
               Qualidade dos Dados
             </CardTitle>
-            <CardDescription className="text-slate-500 dark:text-slate-400">
+            <CardDescription className="text-xs text-slate-500 dark:text-slate-400 truncate">
               Cobertura de informações essenciais na base de clientes
             </CardDescription>
           </div>
+          <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </div>
       </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <CoverageItem
-          label="E-mail"
-          description="Para campanhas e comunicação digital"
-          withCount={clientsWithEmail}
-          total={totalClients}
-          icon={<Mail className="h-4 w-4" />}
-          color="blue"
-          delay={0}
-        />
-        <div className="border-t border-slate-50 dark:border-slate-800" />
-        <CoverageItem
-          label="CPF / Documento"
-          description="Para identificação e compliance"
-          withCount={clientsWithCPF}
-          total={totalClients}
-          icon={<CreditCard className="h-4 w-4" />}
-          color="emerald"
-          delay={0.1}
-        />
-        <div className="border-t border-slate-50 dark:border-slate-800" />
-        <CoverageItem
-          label="Endereço"
-          description="Para entregas e segmentação geográfica"
-          withCount={clientsWithAddress}
-          total={totalClients}
-          icon={<MapPin className="h-4 w-4" />}
-          color="violet"
-          delay={0.2}
-        />
-      </CardContent>
+      {open && (
+        <CardContent className="p-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-5">
+          <CoverageItem
+            label="E-mail"
+            description="Para campanhas e comunicação digital"
+            withCount={clientsWithEmail}
+            total={totalClients}
+            icon={<Mail className="h-4 w-4" />}
+            color="blue"
+            delay={0}
+          />
+          <div className="border-t border-slate-50 dark:border-slate-800" />
+          <CoverageItem
+            label="Telefone / Celular"
+            description="Para contato direto e WhatsApp"
+            withCount={clientsWithPhone}
+            total={totalClients}
+            icon={<Phone className="h-4 w-4" />}
+            color="amber"
+            delay={0.1}
+          />
+          <div className="border-t border-slate-50 dark:border-slate-800" />
+          <CoverageItem
+            label="CPF / Documento"
+            description="Para identificação e compliance"
+            withCount={clientsWithCPF}
+            total={totalClients}
+            icon={<CreditCard className="h-4 w-4" />}
+            color="emerald"
+            delay={0.2}
+          />
+          <div className="border-t border-slate-50 dark:border-slate-800" />
+          <CoverageItem
+            label="Endereço"
+            description="Para entregas e segmentação geográfica"
+            withCount={clientsWithAddress}
+            total={totalClients}
+            icon={<MapPin className="h-4 w-4" />}
+            color="violet"
+            delay={0.3}
+          />
+        </CardContent>
+      )}
     </Card>
   );
 }

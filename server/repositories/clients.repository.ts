@@ -27,6 +27,105 @@ export interface ClientTag {
 export class ClientsRepository {
   private db = db;
 
+  private buildClientFilterConditions(
+    userId?: string,
+    userRole?: string,
+    filters: ClientFilters = {},
+    overrideResponsavelId?: string,
+  ) {
+    const conditions = [];
+
+    if (userRole === "vendedor" && userId) {
+      conditions.push(eq(clients.responsavelId, userId));
+    } else if (overrideResponsavelId) {
+      conditions.push(eq(clients.responsavelId, overrideResponsavelId));
+    }
+
+    if (filters.name) {
+      conditions.push(ilike(clients.name, `%${filters.name}%`));
+    }
+
+    if (filters.phone) {
+      const normalizedPhone = filters.phone.replace(/\D/g, "");
+      conditions.push(
+        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
+          "%" + normalizedPhone + "%"
+        }`,
+      );
+    }
+
+    if (filters.cpf) {
+      conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
+    }
+
+    if (filters.responsavelId) {
+      conditions.push(eq(clients.responsavelId, filters.responsavelId));
+    }
+
+    if (filters.categoria) {
+      conditions.push(eq(clients.categoria, filters.categoria));
+    }
+
+    if (filters.origem) {
+      conditions.push(eq(clients.origem, filters.origem));
+    }
+
+    if (filters.markers) {
+      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+    }
+
+    if (filters.search) {
+      const searchTerm = `%${filters.search}%`;
+      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
+      conditions.push(
+        or(
+          ilike(clients.name, searchTerm),
+          ilike(clients.email, searchTerm),
+          ilike(clients.phone, searchTerm),
+          ilike(clients.cpf, searchTerm),
+          ...(normalizedSearchPhone.length >= 5
+            ? [
+                sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${
+                  "%" + normalizedSearchPhone + "%"
+                }`,
+              ]
+            : []),
+        ),
+      );
+    }
+
+    if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
+      const days = filters.purchaseStatusDays ?? 60;
+      if (filters.purchaseStatus === "ativo") {
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      } else if (filters.purchaseStatus === "inativo") {
+        conditions.push(sql`NOT EXISTS (
+          SELECT 1 FROM (
+            SELECT app_client_id FROM bling_orders
+            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
+              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            UNION ALL
+            SELECT app_client_id FROM connect_orders
+            WHERE app_client_id = ${clients.id}
+              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+          ) AS p
+        )`);
+      }
+    }
+
+    return conditions;
+  }
+
   /**
    * Método otimizado que busca tags para múltiplos clientes em uma única query
    * Usa INNER JOIN para pegar todas as tags de uma vez, evitando problema N+1
@@ -110,88 +209,7 @@ export class ClientsRepository {
     pageSize: number = 100
   ): Promise<any[]> {
     let query = this.db.select().from(clients);
-    const conditions: any[] = [];
-
-    // Se for vendedor, só mostra clientes onde ele é responsável
-    if (userRole === "vendedor" && userId) {
-      conditions.push(eq(clients.responsavelId, userId));
-    }
-
-    // Filtros específicos
-    if (filters.name) {
-      conditions.push(ilike(clients.name, `%${filters.name}%`));
-    }
-    if (filters.phone) {
-      const normalizedPhone = filters.phone.replace(/\D/g, ""); // só dígitos
-      conditions.push(
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
-          "%" + normalizedPhone + "%"
-        }`
-      );
-    }
-    if (filters.cpf) {
-      conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
-    }
-    if (filters.responsavelId) {
-      conditions.push(eq(clients.responsavelId, filters.responsavelId));
-    }
-    if (filters.categoria) {
-      conditions.push(eq(clients.categoria, filters.categoria));
-    }
-    if (filters.origem) {
-      conditions.push(eq(clients.origem, filters.origem));
-    }
-    if (filters.markers) {
-      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
-    }
-
-    // Filtro de busca geral (case-insensitive)
-    if (filters.search) {
-      const searchTerm = `%${filters.search}%`;
-      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
-      conditions.push(
-        or(
-          ilike(clients.name, searchTerm),
-          ilike(clients.email, searchTerm),
-          ilike(clients.phone, searchTerm),
-          ilike(clients.cpf, searchTerm),
-          ...(normalizedSearchPhone.length >= 5
-            ? [sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${"%" + normalizedSearchPhone + "%"}`]
-            : [])
-        )
-      );
-    }
-
-    // Filtro de status de compra (ATIVO/INATIVO)
-    // bling_orders.sale_date é text (YYYY-MM-DD), connect_orders.sale_date é timestamp
-    if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
-      const days = filters.purchaseStatusDays ?? 60;
-      if (filters.purchaseStatus === "ativo") {
-        conditions.push(sql`EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
-        )`);
-      } else if (filters.purchaseStatus === "inativo") {
-        conditions.push(sql`NOT EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
-        )`);
-      }
-    }
+    const conditions = this.buildClientFilterConditions(userId, userRole, filters);
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as typeof query;
@@ -220,88 +238,7 @@ export class ClientsRepository {
     userRole?: string,
     filters: ClientFilters = {}
   ): Promise<number> {
-    const conditions: any[] = [];
-
-    // Se for vendedor, só mostra clientes onde ele é responsável
-    if (userRole === "vendedor" && userId) {
-      conditions.push(eq(clients.responsavelId, userId));
-    }
-
-    // Filtros específicos
-    if (filters.name) {
-      conditions.push(ilike(clients.name, `%${filters.name}%`));
-    }
-    if (filters.phone) {
-      const normalizedPhone = filters.phone.replace(/\D/g, ""); // só dígitos
-      conditions.push(
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
-          "%" + normalizedPhone + "%"
-        }`
-      );
-    }
-    if (filters.cpf) {
-      conditions.push(ilike(clients.cpf, `%${filters.cpf}%`));
-    }
-    if (filters.responsavelId) {
-      conditions.push(eq(clients.responsavelId, filters.responsavelId));
-    }
-    if (filters.categoria) {
-      conditions.push(eq(clients.categoria, filters.categoria));
-    }
-    if (filters.origem) {
-      conditions.push(eq(clients.origem, filters.origem));
-    }
-    if (filters.markers) {
-      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
-    }
-
-    // Filtro de busca geral (case-insensitive)
-    if (filters.search) {
-      const searchTerm = `%${filters.search}%`;
-      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
-      conditions.push(
-        or(
-          ilike(clients.name, searchTerm),
-          ilike(clients.email, searchTerm),
-          ilike(clients.phone, searchTerm),
-          ilike(clients.cpf, searchTerm),
-          ...(normalizedSearchPhone.length >= 5
-            ? [sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${"%" + normalizedSearchPhone + "%"}`]
-            : [])
-        )
-      );
-    }
-
-    // Filtro de status de compra (ATIVO/INATIVO)
-    // bling_orders.sale_date é text (YYYY-MM-DD), connect_orders.sale_date é timestamp
-    if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
-      const days = filters.purchaseStatusDays ?? 60;
-      if (filters.purchaseStatus === "ativo") {
-        conditions.push(sql`EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
-        )`);
-      } else if (filters.purchaseStatus === "inativo") {
-        conditions.push(sql`NOT EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
-        )`);
-      }
-    }
+    const conditions = this.buildClientFilterConditions(userId, userRole, filters);
 
     let countQuery = this.db
       .select({ count: sql<number>`count(*)::int` })
@@ -313,6 +250,28 @@ export class ClientsRepository {
 
     const result = await countQuery;
     return result[0]?.count || 0;
+  }
+
+  async getFilteredClientIds(
+    userId?: string,
+    userRole?: string,
+    filters: ClientFilters = {},
+    overrideResponsavelId?: string,
+  ): Promise<string[]> {
+    let query = this.db.select({ id: clients.id }).from(clients);
+    const conditions = this.buildClientFilterConditions(
+      userId,
+      userRole,
+      filters,
+      overrideResponsavelId,
+    );
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as typeof query;
+    }
+
+    const result = await query;
+    return result.map((client) => client.id);
   }
 
   async getClientByPhone(phone: string): Promise<Client | undefined> {
@@ -342,7 +301,7 @@ export class ClientsRepository {
     thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
 
     // Buscar clientes
-    let clientsQuery = this.db
+    const baseClientsQuery = this.db
       .select({
         id: clients.id,
         name: clients.name,
@@ -360,10 +319,10 @@ export class ClientsRepository {
       .from(clients)
       .leftJoin(users, eq(clients.responsavelId, users.id));
 
-    // Aplicar filtros de permissão
-    if (userRole !== "admin" && userRole !== "administrador" && userId) {
-      clientsQuery = clientsQuery.where(eq(clients.responsavelId, userId));
-    }
+    const clientsQuery =
+      userRole !== "admin" && userRole !== "administrador" && userId
+        ? baseClientsQuery.where(eq(clients.responsavelId, userId))
+        : baseClientsQuery;
 
     const allClients = await clientsQuery;
 

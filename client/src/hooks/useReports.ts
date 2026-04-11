@@ -1,4 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import {
+  buildClientAnalyticsSearchParams,
+  type ClientAnalyticsFilters,
+} from "@/lib/client-analytics-filters";
 import { useAuth } from "./useAuth";
 
 // Types for the API responses
@@ -57,6 +61,8 @@ export interface ClientReportsData {
   }>;
   clientsWithEmail: number;
   clientsWithoutEmail: number;
+  clientsWithPhone: number;
+  clientsWithoutPhone: number;
   clientsWithCPF: number;
   clientsWithoutCPF: number;
   clientsWithAddress: number;
@@ -98,6 +104,13 @@ export interface GeneralReportsData {
   };
 }
 
+interface UseClientReportsOptions {
+  filterUserId?: string | null;
+  search?: string;
+  filters?: ClientAnalyticsFilters;
+  purchaseStatusDays?: number;
+}
+
 /**
  * Hook to fetch general reports data
  * Includes overview statistics for clients, companies and recent activity
@@ -131,13 +144,34 @@ export const useGeneralReports = () => {
  * Hook to fetch client reports data
  * Optimized query for client-specific statistics
  */
-export const useClientReports = () => {
+export const useClientReports = ({
+  filterUserId,
+  search,
+  filters,
+  purchaseStatusDays,
+}: UseClientReportsOptions = {}) => {
   const { user } = useAuth();
 
   return useQuery<ClientReportsData>({
-    queryKey: ["reports", "clients", user?.id, user?.role],
+    queryKey: [
+      "reports",
+      "clients",
+      user?.id,
+      user?.role,
+      filterUserId,
+      search,
+      filters,
+      purchaseStatusDays,
+    ],
     queryFn: async () => {
-      const response = await fetch("/api/reports/clients", {
+      const params = buildClientAnalyticsSearchParams({
+        filterUserId,
+        search,
+        filters,
+        purchaseStatusDays,
+      });
+      const url = `/api/reports/clients${params.size ? `?${params}` : ""}`;
+      const response = await fetch(url, {
         headers: {
           "x-user-id": user?.id || "",
           "x-user-role": user?.role || "",

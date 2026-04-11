@@ -3698,7 +3698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
   app.use("/api/umbler-sync", umblerSyncRoutes.default);
 
-  // Middleware de tratamento de erros deve ser o último
+  // Middleware de tratamento de erros deve ser o último.
   app.use(errorHandler);
 
   const httpServer = createServer(app);

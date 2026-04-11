@@ -7,21 +7,33 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { CohortData } from "@/hooks/use-bling-orders";
 import { useCohortClients } from "@/hooks/use-bling-orders";
-import { Users, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Users,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Download,
+  ExternalLink,
+} from "lucide-react";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useLocation } from "wouter";
+import { exportToExcel } from "@/lib/excel-export";
 
 interface CohortAnalysisTableProps {
   data?: CohortData;
   isLoading: boolean;
+  isFetching?: boolean;
   startDate: string;
   endDate: string;
 }
 
 interface SelectedCell {
   cohortMonth: string;
+  cohortSize: number;
   monthOffset: number;
   percentage: number;
   count: number;
@@ -47,6 +59,13 @@ function formatCohortMonth(yearMonth: string): string {
   return format(date, "MMM/yyyy", { locale: ptBR });
 }
 
+/** Calcula o maior offset disponível para um cohort dado o endDate do período */
+function maxAvailableOffset(cohortMonth: string, endDate: string): number {
+  const [cy, cm] = cohortMonth.split("-").map(Number);
+  const [ey, em] = endDate.substring(0, 7).split("-").map(Number);
+  return (ey - cy) * 12 + (em - cm);
+}
+
 function CohortClientsDialog({
   open,
   onClose,
@@ -60,7 +79,8 @@ function CohortClientsDialog({
   startDate: string;
   endDate: string;
 }) {
-  const { data: clients, isLoading } = useCohortClients(
+  const [, navigate] = useLocation();
+  const { data: clients, isLoading, isError } = useCohortClients(
     startDate,
     endDate,
     selected?.cohortMonth ?? null,
@@ -82,9 +102,8 @@ function CohortClientsDialog({
           </DialogTitle>
           {selected && (
             <p className="text-sm text-muted-foreground">
-              {selected.count} de{" "}
-              {Math.round(selected.count / (selected.percentage / 100))}{" "}
-              clientes retidos ({selected.percentage}%)
+              {selected.count} de {selected.cohortSize} clientes retidos (
+              {selected.percentage}%)
             </p>
           )}
         </DialogHeader>
@@ -92,6 +111,10 @@ function CohortClientsDialog({
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+          </div>
+        ) : isError ? (
+          <div className="flex items-center justify-center py-10 text-sm text-rose-500 font-medium">
+            Falha ao carregar clientes. Tente novamente.
           </div>
         ) : (
           <div className="overflow-y-auto flex-1 space-y-4 pr-1">
@@ -109,9 +132,22 @@ function CohortClientsDialog({
                       key={client.contactId}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20"
                     >
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex-1">
-                        {client.contactName}
-                      </span>
+                      {client.appClientId ? (
+                        <button
+                          onClick={() => {
+                            onClose();
+                            navigate(`/clientes/${client.appClientId}`);
+                          }}
+                          className="text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline flex-1 text-left flex items-center gap-1"
+                        >
+                          {client.contactName}
+                          <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
+                        </button>
+                      ) : (
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 flex-1">
+                          {client.contactName}
+                        </span>
+                      )}
                       <Badge
                         variant="outline"
                         className="text-[10px] border-emerald-300 text-emerald-700 dark:text-emerald-400"
@@ -138,9 +174,22 @@ function CohortClientsDialog({
                       key={client.contactId}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/40"
                     >
-                      <span className="text-sm text-slate-500 dark:text-slate-400 flex-1">
-                        {client.contactName}
-                      </span>
+                      {client.appClientId ? (
+                        <button
+                          onClick={() => {
+                            onClose();
+                            navigate(`/clientes/${client.appClientId}`);
+                          }}
+                          className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 hover:underline flex-1 text-left flex items-center gap-1"
+                        >
+                          {client.contactName}
+                          <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                        </button>
+                      ) : (
+                        <span className="text-sm text-slate-500 dark:text-slate-400 flex-1">
+                          {client.contactName}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -156,6 +205,7 @@ function CohortClientsDialog({
 export function CohortAnalysisTable({
   data,
   isLoading,
+  isFetching = false,
   startDate,
   endDate,
 }: CohortAnalysisTableProps) {
@@ -164,13 +214,34 @@ export function CohortAnalysisTable({
 
   const handleCellClick = (
     cohortMonth: string,
+    cohortSize: number,
     monthOffset: number,
     percentage: number | null,
     count: number | null,
   ) => {
     if (percentage === null || count === null) return;
-    setSelectedCell({ cohortMonth, monthOffset, percentage, count });
+    setSelectedCell({ cohortMonth, cohortSize, monthOffset, percentage, count });
     setDialogOpen(true);
+  };
+
+  const handleExport = () => {
+    if (!data) return;
+    const rows = data.cohorts.map((cohort) => {
+      const row: Record<string, string | number> = {
+        Cohort: formatCohortMonth(cohort.cohortMonth),
+        Clientes: cohort.cohortSize,
+      };
+      cohort.retention.forEach((slot, idx) => {
+        row[`Mês ${idx}`] =
+          slot.percentage !== null ? `${slot.percentage}%` : "—";
+      });
+      return row;
+    });
+    exportToExcel(
+      rows,
+      `cohort_${startDate}_${endDate}.xlsx`,
+      "Cohort",
+    );
   };
 
   if (isLoading) {
@@ -213,23 +284,50 @@ export function CohortAnalysisTable({
     (_, i) => i,
   );
 
+  // Médias por coluna (apenas slots com dados)
+  const columnAverages = monthHeaders.map((offset) => {
+    const slots = data.cohorts
+      .map((c) => c.retention[offset]?.percentage)
+      .filter((p): p is number => p !== null && p !== undefined);
+    if (slots.length === 0) return null;
+    return Math.round((slots.reduce((a, b) => a + b, 0) / slots.length) * 10) / 10;
+  });
+
   return (
     <>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-2xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
-            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-2xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
+              <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  Análise de Cohort
+                </h3>
+                {isFetching && (
+                  <Loader2 className="h-3 w-3 animate-spin text-violet-400 shrink-0" />
+                )}
+              </div>
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                Retenção agrupada pelo mês da primeira compra · clique para
+                detalhes
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              Análise de Cohort
-            </h3>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-              Retenção agrupada pelo mês da primeira compra · clique para
-              detalhes
-            </p>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="gap-1.5 rounded-xl h-8 px-3 font-bold text-xs border-slate-200 dark:border-slate-700 shrink-0"
+          >
+            <Download className="h-3 w-3" />
+            Exportar
+          </Button>
         </div>
+
         <div className="overflow-x-auto px-4 pb-5">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -251,59 +349,103 @@ export function CohortAnalysisTable({
               </tr>
             </thead>
             <tbody>
-              {data.cohorts.map((cohort) => (
-                <tr
-                  key={cohort.cohortMonth}
-                  className="border-b border-slate-50 dark:border-slate-800/50"
-                >
-                  <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-2 font-bold text-xs text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
-                    {formatCohortMonth(cohort.cohortMonth)}
-                  </td>
-                  <td className="px-3 py-2 text-center font-bold text-xs text-slate-600 dark:text-slate-400">
-                    {cohort.cohortSize}
-                  </td>
-                  {cohort.retention.map((slot, idx) => {
-                    const isClickable =
-                      slot.percentage !== null && slot.count !== null;
-                    return (
-                      <td key={idx} className="px-1 py-1.5 text-center">
-                        <div
-                          onClick={() =>
-                            handleCellClick(
-                              cohort.cohortMonth,
-                              idx,
-                              slot.percentage,
-                              slot.count,
-                            )
-                          }
-                          className={`rounded-lg px-2 py-1.5 transition-all ${getHeatmapColor(slot.percentage)} ${
-                            isClickable
-                              ? "cursor-pointer hover:opacity-80 hover:scale-105 hover:shadow-sm"
-                              : "cursor-default"
-                          }`}
-                        >
-                          {slot.percentage !== null ? (
-                            <div className="flex flex-col items-center leading-tight">
-                              <span className="text-[11px] font-black">
-                                {slot.percentage}%
-                              </span>
-                              <span className="text-[9px] font-semibold opacity-80">
-                                ({slot.count})
+              {data.cohorts.map((cohort) => {
+                const availableOffset = maxAvailableOffset(
+                  cohort.cohortMonth,
+                  endDate,
+                );
+                return (
+                  <tr
+                    key={cohort.cohortMonth}
+                    className="border-b border-slate-50 dark:border-slate-800/50"
+                  >
+                    <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-2 font-bold text-xs text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
+                      {formatCohortMonth(cohort.cohortMonth)}
+                    </td>
+                    <td className="px-3 py-2 text-center font-bold text-xs text-slate-600 dark:text-slate-400">
+                      {cohort.cohortSize}
+                    </td>
+                    {cohort.retention.map((slot, idx) => {
+                      const isFuture = idx > availableOffset;
+                      const isClickable =
+                        !isFuture &&
+                        slot.percentage !== null &&
+                        slot.count !== null;
+                      return (
+                        <td key={idx} className="px-1 py-1.5 text-center">
+                          {isFuture ? (
+                            <div className="rounded-lg px-2 py-1.5 bg-slate-50/50 dark:bg-slate-800/10 border border-dashed border-slate-200 dark:border-slate-700/50">
+                              <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium">
+                                n/d
                               </span>
                             </div>
                           ) : (
-                            <span className="text-[11px] font-black">—</span>
+                            <div
+                              onClick={() =>
+                                handleCellClick(
+                                  cohort.cohortMonth,
+                                  cohort.cohortSize,
+                                  idx,
+                                  slot.percentage,
+                                  slot.count,
+                                )
+                              }
+                              className={`rounded-lg px-2 py-1.5 transition-all ${getHeatmapColor(slot.percentage)} ${
+                                isClickable
+                                  ? "cursor-pointer hover:opacity-80 hover:scale-105 hover:shadow-sm"
+                                  : "cursor-default"
+                              }`}
+                            >
+                              {slot.percentage !== null ? (
+                                <div className="flex flex-col items-center leading-tight">
+                                  <span className="text-[11px] font-black">
+                                    {slot.percentage}%
+                                  </span>
+                                  <span className="text-[9px] font-semibold opacity-80">
+                                    ({slot.count})
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] font-black">—</span>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 dark:border-slate-700">
+                <td className="sticky left-0 z-10 bg-slate-50 dark:bg-slate-900/80 px-3 py-2 font-black text-[10px] uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                  Média
+                </td>
+                <td className="px-3 py-2 text-center font-bold text-xs text-slate-400">
+                  —
+                </td>
+                {columnAverages.map((avg, idx) => (
+                  <td key={idx} className="px-1 py-1.5 text-center">
+                    {avg !== null ? (
+                      <div
+                        className={`rounded-lg px-2 py-1.5 ${getHeatmapColor(avg)}`}
+                      >
+                        <span className="text-[11px] font-black">{avg}%</span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-slate-300 dark:text-slate-600 font-black">
+                        —
+                      </span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
           </table>
         </div>
 
+        {/* Legenda */}
         <div className="flex flex-wrap items-center gap-3 px-6 pb-5">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
             Escala:
@@ -326,13 +468,20 @@ export function CohortAnalysisTable({
                 </span>
               </div>
             ))}
+            <div className="flex items-center gap-1 ml-1">
+              <div className="w-3 h-3 rounded border border-dashed border-slate-300" />
+              <span className="text-[9px] text-slate-400 font-medium">n/d</span>
+            </div>
           </div>
         </div>
       </div>
 
       <CohortClientsDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => {
+          setDialogOpen(false);
+          setSelectedCell(null);
+        }}
         selected={selectedCell}
         startDate={startDate}
         endDate={endDate}

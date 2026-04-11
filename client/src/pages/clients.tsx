@@ -9,6 +9,19 @@ import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Plus,
   Search,
@@ -19,13 +32,23 @@ import {
   Phone,
   MapPin,
   ExternalLink,
+  BarChart3,
+  CalendarIcon,
+  ChevronDown,
 } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { ClientsHeader } from "@/components/clients/clients-header";
 import { ClientsActions } from "@/components/clients/clients-actions";
 import { type Client } from "@shared/schema";
 import { useLocation } from "wouter";
+import { useClientReports } from "@/hooks/useReports";
+import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
+import { ClientCommercialGrid } from "@/components/reports/client-commercial-grid";
+import { buildClientAnalyticsSearchParams } from "@/lib/client-analytics-filters";
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -39,6 +62,10 @@ const useDebounce = (value: any, delay: number): any => {
 
 export default function Clients() {
   const { user } = useAuth();
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "gerente" ||
+    user?.role === "administrador";
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -90,15 +117,12 @@ export default function Clients() {
         if (user?.id) params.append("userId", user.id);
         if (user?.role) params.append("userRole", user.role);
       }
-      if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-
-      Object.entries(clientFilters).forEach(([key, value]) => {
-        if (value && value !== "all") params.append(key, value);
+      const filterParams = buildClientAnalyticsSearchParams({
+        search: debouncedSearchQuery,
+        filters: clientFilters,
+        purchaseStatusDays,
       });
-
-      if (clientFilters.purchaseStatus && clientFilters.purchaseStatus !== "all") {
-        params.append("purchaseStatusDays", purchaseStatusDays.toString());
-      }
+      filterParams.forEach((value, key) => params.append(key, value));
 
       params.append("page", currentPage.toString());
       params.append("pageSize", itemsPerPage.toString());
@@ -153,6 +177,37 @@ export default function Clients() {
 
   const [, navigate] = useLocation();
 
+  // ── Filtro de vendedor para o setor de análises ───────────────────────────
+  // Vendedor vê apenas seus próprios dados; admin pode selecionar qualquer vendedor
+  const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
+  const filterUserId = useMemo(() => {
+    if (!isAdmin) return user?.id ?? null;          // vendedor: sempre os próprios
+    return selectedSellerId === "all" ? null : selectedSellerId; // admin: selecionado ou todos
+  }, [isAdmin, user?.id, selectedSellerId]);
+
+  const { data: clientReports } = useClientReports({
+    filterUserId,
+    search: debouncedSearchQuery,
+    filters: clientFilters,
+    purchaseStatusDays,
+  });
+
+  // ── Retrátil + Date range para setor de análises ──────────────────────────
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const now = new Date();
+    return { from: startOfMonth(now), to: endOfMonth(now) };
+  });
+  const startDate = useMemo(
+    () => dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(startOfMonth(new Date()), "yyyy-MM-dd"),
+    [dateRange?.from],
+  );
+  const endDate = useMemo(
+    () => dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : startDate,
+    [dateRange?.to, startDate],
+  );
+
   const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
     useQuery({
       queryKey: [
@@ -168,10 +223,12 @@ export default function Clients() {
           if (user?.id) params.append("userId", user.id);
           if (user?.role) params.append("userRole", user.role);
         }
-        if (debouncedSearchQuery) params.append("search", debouncedSearchQuery);
-        Object.entries(clientFilters).forEach(([key, value]) => {
-          if (value && value !== "all") params.append(key, value);
+        const filterParams = buildClientAnalyticsSearchParams({
+          search: debouncedSearchQuery,
+          filters: clientFilters,
+          purchaseStatusDays,
         });
+        filterParams.forEach((value, key) => params.append(key, value));
 
         const response = await fetch(`/api/clients?${params.toString()}`);
         if (!response.ok)
@@ -210,6 +267,113 @@ export default function Clients() {
           onNewClientClick={() => setIsClientModalOpen(true)}
         />
 
+        {/* Análise de Clientes + Análise Comercial — retrátil + abas */}
+        <div className="space-y-4">
+          {/* Cabeçalho retrátil */}
+          <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 py-3 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              onClick={() => setAnalyticsOpen((v) => !v)}
+              className="flex-1 flex items-center gap-3 text-left"
+            >
+              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  Análises
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Segmentação e performance comercial dos clientes
+                </p>
+              </div>
+              <ChevronDown className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${analyticsOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Controles visíveis apenas quando aberto */}
+            {analyticsOpen && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Seletor de vendedor — visível só para admin */}
+                {isAdmin && (
+                  <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                    <SelectTrigger className="shrink-0 w-44 h-9 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm">
+                      <Users className="mr-2 h-4 w-4 text-slate-400 shrink-0" />
+                      <SelectValue placeholder="Todos os vendedores" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os vendedores</SelectItem>
+                      {usersArray
+                        .filter((u: any) => u.role === "vendedor" || u.role === "gerente")
+                        .map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Date picker */}
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="shrink-0 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <span>{format(dateRange.from, "dd/MM/yy")} — {format(dateRange.to, "dd/MM/yy")}</span>
+                        ) : format(dateRange.from, "dd/MM/yy")
+                      ) : <span>Período</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <CalendarComponent
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={(range) => {
+                        setDateRange(range);
+                        if (range?.from && range?.to) setIsCalendarOpen(false);
+                      }}
+                      numberOfMonths={2}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
+
+          {/* Conteúdo expansível */}
+          {analyticsOpen && (
+            <div className="space-y-6">
+              <ClientReportsGrid
+                clientsByCategory={clientReports?.clientsByCategory ?? []}
+                clientsByOrigin={clientReports?.clientsByOrigin ?? []}
+                clientsByUser={clientReports?.clientsByUser ?? []}
+                clientsByMarkers={clientReports?.clientsByMarkers ?? []}
+                totalClients={clientReports?.totalClients ?? 0}
+                clientsWithEmail={clientReports?.clientsWithEmail ?? 0}
+                clientsWithPhone={clientReports?.clientsWithPhone ?? 0}
+                clientsWithCPF={clientReports?.clientsWithCPF ?? 0}
+                clientsWithAddress={clientReports?.clientsWithAddress ?? 0}
+                filterUserId={filterUserId}
+                search={debouncedSearchQuery}
+                filters={clientFilters}
+                purchaseStatusDays={purchaseStatusDays}
+              />
+              <ClientCommercialGrid
+                startDate={startDate}
+                endDate={endDate}
+                filterUserId={filterUserId}
+                search={debouncedSearchQuery}
+                filters={clientFilters}
+                purchaseStatusDays={purchaseStatusDays}
+              />
+            </div>
+          )}
+        </div>
+
         <ClientsActions
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -224,6 +388,8 @@ export default function Clients() {
             selectedClients.length === 0 &&
             isFetchingAllForExport
           }
+          isAdmin={isAdmin}
+          users={usersArray.filter((u: any) => u.isActive === "true").sort((a: any, b: any) => a.name.localeCompare(b.name))}
         />
 
         {/* Clients Table */}

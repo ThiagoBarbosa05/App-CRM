@@ -8,13 +8,25 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
-import { serviceChannels, userServiceChannel, users } from "../../shared/schema";
+import {
+  serviceChannels,
+  userServiceChannel,
+  users,
+} from "../../shared/schema";
 import { updateUserController } from "server/controllers/users/put-user.controller";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
 import { getSellerSalesController } from "server/controllers/users/get-seller-sales.controller";
+
 import { getChannels } from "../integrations/umbler";
+import { getSellerDashboardController } from "server/controllers/users/get-seller-dashboard.controller";
+import { getAggregateSellerDashboardController } from "server/controllers/users/get-aggregate-seller-dashboard.controller";
+import { getTopClientsController } from "server/controllers/users/get-top-clients.controller";
+import { getPortfolioStatsController } from "server/controllers/users/get-portfolio-stats.controller";
+import { getInactiveClientsController } from "server/controllers/users/get-inactive-clients.controller";
+import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
+import { getSellerTierCountsController } from "server/controllers/users/get-seller-tier-counts.controller";
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -196,7 +208,9 @@ usersRouter.get("/by-email/:email", async (req, res) => {
     return res.json(user);
   } catch (error) {
     console.error("Erro ao buscar usuário por email:", error);
-    return res.status(500).json({ message: "Erro ao buscar usuário por email" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário por email" });
   }
 });
 
@@ -255,7 +269,7 @@ usersRouter.put(
   "/:id",
   validateParams(userParamsSchema),
   validateBody(insertUserSchema.partial()),
-  updateUserController
+  updateUserController,
 );
 
 /**
@@ -283,7 +297,7 @@ usersRouter.put(
 usersRouter.delete(
   "/:id",
   validateParams(userParamsSchema),
-  deleteUserController
+  deleteUserController,
 );
 
 /**
@@ -320,7 +334,7 @@ usersRouter.patch(
   "/:id/toggle-status",
   validateParams(userParamsSchema),
   validateBody(toggleStatusBodySchema),
-  toggleUserStatusController
+  toggleUserStatusController,
 );
 
 const syncBlingVendorsSchema = z.object({
@@ -355,6 +369,65 @@ usersRouter.get(
   "/:id/seller-sales",
   validateParams(userParamsSchema),
   getSellerSalesController,
+);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate.
+ * @description Retorna métricas agregadas de todos os vendedores (admin/gerente)
+ */
+usersRouter.get(
+  "/seller-dashboard/aggregate",
+  getAggregateSellerDashboardController,
+);
+
+/**
+ * @route GET /api/users/seller-dashboard/top-clients
+ * @description Top clientes por valor total, ticket médio e valor médio por item
+ * @query startDate?, endDate?, userId?
+ */
+usersRouter.get("/seller-dashboard/top-clients", getTopClientsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/portfolio-stats
+ * @description Estatísticas de carteira por vendedor e novos clientes no período
+ * @query startDate?, endDate?, userId?
+ */
+usersRouter.get("/seller-dashboard/portfolio-stats", getPortfolioStatsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/inactive-clients
+ * @description Clientes sem compra há X dias (configurado em purchase_status_days)
+ * @query userId?
+ */
+usersRouter.get("/seller-dashboard/inactive-clients", getInactiveClientsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/wine-tier-items
+ * @description Retorna itens individuais de uma faixa de preço para um vendedor
+ */
+usersRouter.get(
+  "/seller-dashboard/wine-tier-items",
+  getWineTierItemsController,
+);
+
+/**
+ * @route GET /api/users/:id/tier-counts
+ * @description Retorna contagem de itens por faixa de preço para um vendedor
+ */
+usersRouter.get(
+  "/:id/tier-counts",
+  validateParams(userParamsSchema),
+  getSellerTierCountsController,
+);
+
+/**
+ * @route GET /api/users/:id/seller-dashboard
+ * @description Retorna métricas do Dashboard Vendedor
+ */
+usersRouter.get(
+  "/:id/seller-dashboard",
+  validateParams(userParamsSchema),
+  getSellerDashboardController,
 );
 
 // TODO: Migrar outras rotas de users para este arquivo:

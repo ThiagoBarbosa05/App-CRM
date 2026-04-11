@@ -22,7 +22,7 @@ export interface UnifiedOrder {
   sellerName: string | null;
   sellerId: string | null;
   appClientId: string | null;
-  // bling-only
+  // bling-only bbbb
   orderNumber: string | null;
   blingOrderId: string | null;
   situationValue: string | null;
@@ -58,6 +58,8 @@ export interface UnifiedTopSeller {
   sellerName: string;
   totalOrders: number;
   totalValue: number;
+  totalItems: number;
+  uniqueClients: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -336,11 +338,19 @@ export const unifiedOrdersService = {
 
     const blingFrag = sql`
       SELECT
-        COALESCE(u.id, bo.seller_id) AS seller_id,
-        COALESCE(u.name, bo.seller_name) AS seller_name,
-        bo.total_value::numeric AS v
+        COALESCE(u.id, bo.seller_id)       AS seller_id,
+        COALESCE(u.name, bo.seller_name)   AS seller_name,
+        bo.total_value::numeric            AS v,
+        COALESCE((
+          SELECT SUM(boi.quantity)
+          FROM bling_order_items boi
+          WHERE boi.order_id = bo.id
+        ), 0)                              AS items_qty,
+        CONCAT('b:', bo.contact_id)        AS client_key
       FROM bling_orders bo
-      LEFT JOIN users u ON u.bling_vendedor_id = bo.seller_id
+      LEFT JOIN LATERAL (
+        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+      ) u ON true
       WHERE bo.deleted_at IS NULL
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
@@ -351,7 +361,9 @@ export const unifiedOrdersService = {
       SELECT
         co.seller_id,
         COALESCE(u.name, co.seller_name_raw, 'Desconhecido') AS seller_name,
-        co.total_value::numeric AS v
+        co.total_value::numeric AS v,
+        0                       AS items_qty,
+        co.app_client_id        AS client_key
       FROM connect_orders co
       LEFT JOIN users u ON co.seller_id = u.id
       WHERE co.sale_date >= ${connectStart}::timestamp
@@ -369,12 +381,14 @@ export const unifiedOrdersService = {
     const result = await db.execute(sql`
       SELECT
         seller_id,
-        seller_name,
-        COUNT(*) AS total_orders,
-        COALESCE(SUM(v), 0) AS total_value
+        MAX(seller_name)                    AS seller_name,
+        COUNT(*)                            AS total_orders,
+        COALESCE(SUM(v), 0)                 AS total_value,
+        COALESCE(SUM(items_qty), 0)         AS total_items,
+        COUNT(DISTINCT client_key)          AS unique_clients
       FROM (${unionFrag}) _combined
       WHERE seller_id IS NOT NULL
-      GROUP BY seller_id, seller_name
+      GROUP BY seller_id
       ORDER BY SUM(v) DESC
       LIMIT ${limit}
     `);
@@ -384,6 +398,8 @@ export const unifiedOrdersService = {
       sellerName: String(row.seller_name ?? "Desconhecido"),
       totalOrders: Number(row.total_orders),
       totalValue: parseFloat(String(row.total_value ?? "0")),
+      totalItems: Number(row.total_items ?? 0),
+      uniqueClients: Number(row.unique_clients ?? 0),
     }));
   },
 };

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
-import { useLocation } from "wouter";
 
 interface GoalsHeaderProps {
   selectedMonth: number;
@@ -12,6 +11,10 @@ interface GoalsHeaderProps {
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
   isAdmin?: boolean;
+  onNewGoal?: () => void;
+  sellers?: { id: string; name: string }[];
+  selectedSellerId?: string;
+  onSellerChange?: (id: string) => void;
 }
 
 export function GoalsHeader({
@@ -20,8 +23,11 @@ export function GoalsHeader({
   onMonthChange,
   onYearChange,
   isAdmin,
+  onNewGoal,
+  sellers,
+  selectedSellerId,
+  onSellerChange,
 }: GoalsHeaderProps) {
-  const [, navigate] = useLocation();
   const currentDate = new Date();
   const selectedDate = new Date(selectedYear, selectedMonth - 1);
 
@@ -49,19 +55,36 @@ export function GoalsHeader({
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex flex-wrap items-center gap-4 w-full md:w-auto"
+          className="flex flex-wrap items-center gap-3 w-full lg:w-auto"
         >
-          {isAdmin && (
-            <Button
-              onClick={() => navigate("/admin-metas")}
-              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20 transition-all"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nova Meta
-            </Button>
+          {/* Seletor de vendedor — admin/gerente apenas */}
+          {isAdmin && sellers && sellers.length > 0 && onSellerChange && (
+            <div className="flex items-center gap-2">
+              <Label className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
+                Vendedor
+              </Label>
+              <select
+                value={selectedSellerId}
+                onChange={(e) => onSellerChange(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm max-w-[180px]"
+              >
+                <option value="all">Todos</option>
+                {sellers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
+
           <div className="flex items-center gap-3">
-            <Label htmlFor="month-select" className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Mês</Label>
+            <Label
+              htmlFor="month-select"
+              className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider"
+            >
+              Mês
+            </Label>
             <select
               id="month-select"
               value={selectedMonth}
@@ -79,7 +102,12 @@ export function GoalsHeader({
           </div>
 
           <div className="flex items-center gap-3">
-            <Label htmlFor="year-select" className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Ano</Label>
+            <Label
+              htmlFor="year-select"
+              className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider"
+            >
+              Ano
+            </Label>
             <select
               id="year-select"
               value={selectedYear}
@@ -88,7 +116,7 @@ export function GoalsHeader({
             >
               {Array.from(
                 { length: 5 },
-                (_, i) => currentDate.getFullYear() - 2 + i
+                (_, i) => currentDate.getFullYear() - 2 + i,
               ).map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -96,6 +124,16 @@ export function GoalsHeader({
               ))}
             </select>
           </div>
+
+          {isAdmin && onNewGoal && (
+            <Button
+              onClick={onNewGoal}
+              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Meta
+            </Button>
+          )}
         </motion.div>
       </div>
     </div>

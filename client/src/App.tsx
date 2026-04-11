@@ -11,26 +11,24 @@ import Login from "@/pages/login";
 import Clients from "@/pages/clients";
 import Companies from "@/pages/companies";
 import Funnel from "@/pages/funnel";
-import Reports from "@/pages/reports";
 import Calendar from "@/pages/calendar";
 import Metas from "@/pages/metas";
-import AdminGoals from "@/pages/admin-goals";
 import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
 import Configurations from "@/pages/configurations";
-import Acompanhamento from "./pages/acompanhamento";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import UmblerContactsPage from "./pages/umbler-contacts";
 import CreateCampaignPage from "./pages/create-campaign-improved";
 import CampaignsDashboardPage from "./pages/campaigns-dashboard";
 import CampaignDetailsPage from "./pages/campaign-details";
-import BlingSalesPage from "./pages/bling-sales";
+import SellerDashboardPage from "./pages/seller-dashboard";
 import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
+import CalculadoraVinho from "./pages/calculadora-vinho";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -105,14 +103,6 @@ function Router() {
           </MainLayout>
         )}
       />
-      <Route
-        path="/acompanhamento"
-        component={() => (
-          <MainLayout>
-            <Acompanhamento />
-          </MainLayout>
-        )}
-      />
 
       <Route
         path="/funil"
@@ -123,14 +113,6 @@ function Router() {
         )}
       />
 
-      <Route
-        path="/relatorios"
-        component={() => (
-          <MainLayout>
-            <Reports />
-          </MainLayout>
-        )}
-      />
       <Route
         path="/calendario"
         component={() => (
@@ -144,14 +126,6 @@ function Router() {
         component={() => (
           <MainLayout>
             <Metas />
-          </MainLayout>
-        )}
-      />
-      <Route
-        path="/admin-metas"
-        component={() => (
-          <MainLayout>
-            <AdminGoals />
           </MainLayout>
         )}
       />
@@ -200,7 +174,7 @@ function Router() {
         path="/vendas"
         component={() => (
           <MainLayout>
-            <BlingSalesPage />
+            <SellerDashboardPage />
           </MainLayout>
         )}
       />
@@ -217,6 +191,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <DuplicatesPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/calculadora-vinho"
+        component={() => (
+          <MainLayout>
+            <CalculadoraVinho />
           </MainLayout>
         )}
       />

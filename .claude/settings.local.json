@@ -8,7 +8,21 @@
       "Bash(yes \"\")",
       "Bash(node:*)",
       "Bash(printenv)",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(ls -la /home/runner/workspace/server/routes*)",
+      "Bash(grep -r \"sales.*sum\\\\|revenue\\\\|total.*value\\\\|aggregat\\\\|metric\\\\|count\\\\|average\" /home/runner/workspace/server/services/*.ts)",
+      "Bash(grep -E \"\\\\.tsx?$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(ls -1 /home/runner/workspace/server/jobs/*.ts)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep:*)",
+      "Bash(curl -s \"http://localhost:5000/api/users/seller-dashboard/aggregate?startDate=2026-04-01&endDate=2026-04-30\")",
+      "Bash(awk '/sellerWinePriceTiers.*=|sellerWinePriceTiers\\\\s*\\\\?/,/^[[:space:]]*\\\\}[[:space:]]*;/' /home/thiago/dev/App-CRM/client/src/pages/seller-dashboard.tsx)",
+      "Bash(awk '/const.*sellerWinePriceTiers/,/^[[:space:]]*}/' /home/thiago/dev/App-CRM/client/src/pages/seller-dashboard.tsx)"
     ]
   }
 }

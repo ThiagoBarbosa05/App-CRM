@@ -677,6 +677,19 @@ export const userGoals = pgTable(
       .notNull()
       .default("0.00"), // Ticket médio em reais
     itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
+    ordersGoal: integer("orders_goal").notNull().default(0), // Meta: total de GRFs no mês
+    avgBottleValueGoal: decimal("avg_bottle_value_goal", {
+      precision: 12,
+      scale: 2,
+    })
+      .notNull()
+      .default("0.00"), // Meta: valor médio por garrafa vendida
+    positivityGoal: integer("positivity_goal").notNull().default(0), // Meta: clientes únicos com compra no mês (positivação)
+    economicoGoalQty: integer("economico_goal_qty").notNull().default(0),
+    intermediarioGoalQty: integer("intermediario_goal_qty")
+      .notNull()
+      .default(0),
+    premiumGoalQty: integer("premium_goal_qty").notNull().default(0),
     month: integer("month").notNull(), // Mês da meta (1-12)
     year: integer("year").notNull(), // Ano da meta
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -688,7 +701,7 @@ export const userGoals = pgTable(
   }),
 );
 
-// Tabela de resultados semanais das metas
+// Tabela de resultados semanais das metas.
 export const weeklyResults = pgTable("weekly_results", {
   id: varchar("id")
     .primaryKey()
@@ -1239,6 +1252,9 @@ export const insertUserGoalSchema = createInsertSchema(userGoals)
     id: true,
     createdAt: true,
     updatedAt: true,
+    economicoGoalQty: true,
+    intermediarioGoalQty: true,
+    premiumGoalQty: true,
   })
   .extend({
     salesGoal: z
@@ -1897,6 +1913,7 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   blingProductId: text("bling_product_id"),
+  imageUrl: text("image_url"),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({

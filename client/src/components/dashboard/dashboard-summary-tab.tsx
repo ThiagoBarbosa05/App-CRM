@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, DollarSign, CreditCard, AlertTriangle, Clock, Target, Calendar, CheckCircle } from "lucide-react";
+import { TrendingUp, DollarSign, CreditCard, AlertTriangle, Clock, Target, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { ClientDebt } from "@/types/dashboard";
 
@@ -8,14 +8,12 @@ interface DashboardSummaryTabProps {
   clientDebts: ClientDebt[];
   pendingDebts: ClientDebt[];
   overdueDebts: ClientDebt[];
-  upcomingBirthdays: any[];
 }
 
 export function DashboardSummaryTab({
   clientDebts,
   pendingDebts,
   overdueDebts,
-  upcomingBirthdays,
 }: DashboardSummaryTabProps) {
   return (
     <Card className="shadow-none border-0 bg-transparent">
@@ -135,26 +133,6 @@ export function DashboardSummaryTab({
                 </div>
               )}
 
-              {upcomingBirthdays.length > 0 && (
-                <div className="flex items-start gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 hover:shadow-sm transition-shadow">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shrink-0">
-                    <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-blue-800 dark:text-blue-300 mb-1">
-                      Oportunidade de Relacionamento
-                    </div>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      {upcomingBirthdays.length} aniversário(s) se aproximando
-                      para fortalecer vínculos
-                    </p>
-                  </div>
-                  <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-0 shrink-0">
-                    {upcomingBirthdays.length}
-                  </Badge>
-                </div>
-              )}
-
               {pendingDebts.length > 0 && (
                 <div className="flex items-start gap-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 hover:shadow-sm transition-shadow">
                   <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg shrink-0">
@@ -175,24 +153,22 @@ export function DashboardSummaryTab({
                 </div>
               )}
 
-              {overdueDebts.length === 0 &&
-                upcomingBirthdays.length === 0 &&
-                pendingDebts.length === 0 && (
-                  <div className="flex items-start gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg shrink-0">
-                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-green-800 dark:text-green-300 mb-1">
-                        Excelente Trabalho!
-                      </div>
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        Todas as atividades estão em dia. Continue o ótimo
-                        trabalho!
-                      </p>
-                    </div>
+              {overdueDebts.length === 0 && pendingDebts.length === 0 && (
+                <div className="flex items-start gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg shrink-0">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
-                )}
+                  <div className="flex-1">
+                    <div className="font-medium text-green-800 dark:text-green-300 mb-1">
+                      Excelente Trabalho!
+                    </div>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Todas as atividades estão em dia. Continue o ótimo
+                      trabalho!
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -5,9 +5,12 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, PieChart as PieChartIcon } from "lucide-react";
+import { DollarSign, PieChart as PieChartIcon, ChevronDown, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   PieChart,
@@ -95,6 +98,8 @@ function CustomPieTooltip({ active, payload }: any) {
   );
 }
 
+type WinePeriod = "mes_atual" | "ultimos_12";
+
 export function ProductsStatistics({
   statistics,
   isLoading,
@@ -102,6 +107,29 @@ export function ProductsStatistics({
   getCountryFlag,
   getTypeColor,
 }: ProductsStatisticsProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [winePeriod, setWinePeriod] = useState<WinePeriod>("mes_atual");
+
+  const { startDate: wineStartDate, endDate: wineEndDate } = useMemo(() => {
+    const now = new Date();
+    return winePeriod === "mes_atual"
+      ? { startDate: format(startOfMonth(now), "yyyy-MM-dd"), endDate: format(endOfMonth(now), "yyyy-MM-dd") }
+      : { startDate: format(subMonths(now, 12), "yyyy-MM-dd"), endDate: format(now, "yyyy-MM-dd") };
+  }, [winePeriod]);
+
+  const { data: wineStats, isLoading: isLoadingWine } = useQuery<{ revenueByType: any[] }>({
+    queryKey: ["/api/products/statistics", "revenueByType", wineStartDate, wineEndDate],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/products/statistics?startDate=${wineStartDate}&endDate=${wineEndDate}`
+      );
+      if (!res.ok) throw new Error("Falha ao buscar receita por tipo de vinho");
+      return res.json();
+    },
+    placeholderData: (prev: any) => prev,
+    staleTime: 0,
+  });
+
   if (error) {
     return (
       <Card className="border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/20">
@@ -123,19 +151,20 @@ export function ProductsStatistics({
     );
   }
 
-  const { topProductsByRevenue, revenueByType } = statistics;
+  const { topProductsByRevenue } = statistics;
 
   const maxRevenue = Math.max(
     ...topProductsByRevenue.map((p: any) => parseFloat(p.totalRevenue || "0")),
     0
   );
 
-  const totalRevenue = revenueByType.reduce(
+  const wineRevenueByType: any[] = wineStats?.revenueByType ?? [];
+  const totalRevenue = wineRevenueByType.reduce(
     (acc: number, t: any) => acc + parseFloat(t.totalRevenue || "0"),
     0
   );
 
-  const pieData = revenueByType.map((t: any) => {
+  const pieData = wineRevenueByType.map((t: any) => {
     const rev = parseFloat(t.totalRevenue || "0");
     return {
       name: t.productType,
@@ -154,8 +183,34 @@ export function ProductsStatistics({
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
+      className="space-y-4"
     >
+      {/* Cabeçalho retrátil — mesmo padrão de Análise de Clientes */}
+      <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 py-3 rounded-xl shadow-md">
+        <button
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Análise de Produtos
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Faturamento e distribuição de receita por tipo de vinho
+            </p>
+          </div>
+          <ChevronDown
+            className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+      </div>
+
+      {/* Conteúdo expansível */}
+      {isOpen && (
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
       {/* Card 1 — Faturamento por Vinho */}
       <motion.div variants={itemVariants}>
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
@@ -268,18 +323,41 @@ export function ProductsStatistics({
       <motion.div variants={itemVariants}>
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
           <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 p-6 transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-800/80">
-            <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800 dark:text-slate-100">
-              <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <PieChartIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800 dark:text-slate-100">
+                  <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                    <PieChartIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  Receita por Tipo de Vinho
+                </CardTitle>
+                <CardDescription className="text-slate-500 dark:text-slate-400 mt-1 font-medium ml-[52px]">
+                  Distribuição da receita total por categoria
+                </CardDescription>
               </div>
-              Receita por Tipo de Vinho
-            </CardTitle>
-            <CardDescription className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
-              Distribuição da receita total por categoria
-            </CardDescription>
+              <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 mt-0.5">
+                {(["mes_atual", "ultimos_12"] as WinePeriod[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setWinePeriod(p)}
+                    className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      winePeriod === p
+                        ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                        : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {p === "mes_atual" ? "Mês Atual" : "12 Meses"}
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-4 bg-white dark:bg-slate-900">
-            {pieData.length === 0 ? (
+            {isLoadingWine ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              </div>
+            ) : pieData.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
                   <PieChartIcon className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -360,6 +438,8 @@ export function ProductsStatistics({
           </CardContent>
         </Card>
       </motion.div>
+      </div>
+      )}
     </motion.div>
   );
 }
