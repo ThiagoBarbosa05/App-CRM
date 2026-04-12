@@ -125,28 +125,5 @@ apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/bling", blingWebhookRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
 
-// TODO: Adicionar outros routers conforme migração:
-// ✅ apiRouter.use("/auth", authRouter); - MIGRADO
-// ✅ apiRouter.use("/companies", companiesRouter); - MIGRADO
-// ✅ apiRouter.use("/funnels", funnelsRouter); - MIGRADO
-// ✅ apiRouter.use("/deals", dealsRouter); - MIGRADO
-// ✅ apiRouter.use("/deal-questions", dealQuestionsRouter); - MIGRADO
-// ✅ apiRouter.use("/", dealAnswersRouter); - MIGRADO (deal-answers)
-// ✅ apiRouter.use("/users", usersRouter); - MIGRADO
-// apiRouter.use("/cashback", cashbackRouter);
-// ✅ apiRouter.use("/files", filesRouter); - MIGRADO
-// ✅ apiRouter.use("/acompanhamento", acompanhamentoRouter); - MIGRADO
-// ✅ apiRouter.use("/", umblerRouter); - MIGRADO PARCIAL (umbler)
-// ✅ apiRouter.use("/reports", reportsRouter); - MIGRADO
-// ✅ apiRouter.use("/events", eventsRouter); - MIGRADO
-// ✅ apiRouter.use("/products", productsRouter); - MIGRADO
-// ✅ apiRouter.use("/client-debts", clientDebtsRouter); - MIGRADO
-// ✅ apiRouter.use("/dashboard", dashboardRouter); - MIGRADO
-// ✅ apiRouter.use("/", trainingsRouter); - MIGRADO
-// ✅ apiRouter.use("/", templatesRouter); - MIGRADO
-// ✅ apiRouter.use("/birthday-automation", birthdayAutomationRouter); - MIGRADO
-// ✅ apiRouter.use("/health", healthRouter); - MIGRADO
-// ✅ apiRouter.use("/admin", adminRouter); - MIGRADO
-// ✅ apiRouter.use("/message-automation-settings", messageAutomationSettingsRouter); - MIGRADO
-// apiRouter.use("/integrations", integrationsRouter);
-// apiRouter.use("/admin", adminRouter);
+// Mounts sem prefixo proprio preservam contratos legados como
+// `/api/templates`, `/api/trainings*`, `/api/umbler*` e `/api/companies/*/products*`.

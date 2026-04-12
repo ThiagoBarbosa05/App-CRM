@@ -370,11 +370,11 @@
 - Modify: `server/routes/index.ts`
 - Optionally modify: comentarios `TODO` em routers ja concluidos
 
-- [ ] Remover de `server/routes.ts` todos os handlers movidos.
-- [ ] Deixar `server/routes.ts` apenas com bootstrap e mounts necessarios.
-- [ ] Revisar `server/routes/index.ts` para garantir que todos os novos routers foram registrados.
-- [ ] Atualizar comentarios `TODO` dos routers existentes.
-- [ ] Conferir que nao existem rotas duplicadas registradas em dois lugares.
+- [x] Remover de `server/routes.ts` todos os handlers movidos.
+- [x] Deixar `server/routes.ts` apenas com bootstrap e mounts necessarios.
+- [x] Revisar `server/routes/index.ts` para garantir que todos os novos routers foram registrados.
+- [x] Atualizar comentarios `TODO` dos routers existentes.
+- [x] Conferir que nao existem rotas duplicadas registradas em dois lugares.
 
 ### Checkpoint Final
 
