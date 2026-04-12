@@ -353,10 +353,10 @@
 - `/api/health`
 - `/api/admin/seed-deal-questions`
 
-- [ ] Criar routers pequenos por prefixo atual.
-- [ ] Manter imports dinamicos apenas se forem necessarios para evitar side effects.
-- [ ] Garantir que `health` fique simples e isolado.
-- [ ] Mover seed/admin para `admin.routes.ts`.
+- [x] Criar routers pequenos por prefixo atual.
+- [x] Manter imports dinamicos apenas se forem necessarios para evitar side effects.
+- [x] Garantir que `health` fique simples e isolado.
+- [x] Mover seed/admin para `admin.routes.ts`.
 
 ### Checkpoint 8
 

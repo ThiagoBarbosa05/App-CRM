@@ -43,6 +43,11 @@ import { clientDebtsRouter } from "./client-debts.routes";
 import { dashboardRouter } from "./dashboard.routes";
 import { trainingsRouter } from "./trainings.routes";
 import { eventsRouter } from "./events.routes";
+import { templatesRouter } from "./templates.routes";
+import { birthdayAutomationRouter } from "./birthday-automation.routes";
+import { healthRouter } from "./health.routes";
+import { adminRouter } from "./admin.routes";
+import { messageAutomationSettingsRouter } from "./message-automation-settings.routes";
 import {
   clientRegistrationGoalsRouter,
   clientRegistrationStatsRouter,
@@ -75,6 +80,11 @@ apiRouter.use("/client-debts", clientDebtsRouter);
 apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/", trainingsRouter);
 apiRouter.use("/events", eventsRouter);
+apiRouter.use("/", templatesRouter);
+apiRouter.use("/birthday-automation", birthdayAutomationRouter);
+apiRouter.use("/health", healthRouter);
+apiRouter.use("/admin", adminRouter);
+apiRouter.use("/message-automation-settings", messageAutomationSettingsRouter);
 apiRouter.use("/companies", companiesRouter);
 apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
@@ -133,5 +143,10 @@ apiRouter.use("/system-settings", systemSettingsRouter);
 // ✅ apiRouter.use("/client-debts", clientDebtsRouter); - MIGRADO
 // ✅ apiRouter.use("/dashboard", dashboardRouter); - MIGRADO
 // ✅ apiRouter.use("/", trainingsRouter); - MIGRADO
+// ✅ apiRouter.use("/", templatesRouter); - MIGRADO
+// ✅ apiRouter.use("/birthday-automation", birthdayAutomationRouter); - MIGRADO
+// ✅ apiRouter.use("/health", healthRouter); - MIGRADO
+// ✅ apiRouter.use("/admin", adminRouter); - MIGRADO
+// ✅ apiRouter.use("/message-automation-settings", messageAutomationSettingsRouter); - MIGRADO
 // apiRouter.use("/integrations", integrationsRouter);
 // apiRouter.use("/admin", adminRouter);
