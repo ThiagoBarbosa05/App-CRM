@@ -57,18 +57,32 @@ export function TelemarketingGoalsGrid({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {goals.map((goal, index) => {
-          const userStats = stats.find((s) => s.userId === goal.userId);
-          return (
-            <TelemarketingGoalCard
-              key={goal.id}
-              goal={goal}
-              stats={userStats}
-              index={index}
-              calculatePercentage={calculatePercentage}
-            />
-          );
-        })}
+        {[...goals]
+          .sort((a, b) => {
+            const statsA = stats.find((s) => s.userId === a.userId);
+            const statsB = stats.find((s) => s.userId === b.userId);
+            const achievedA = statsA
+              ? ((statsA[a.targetResult as keyof TelemarketingStats] as number) || 0)
+              : 0;
+            const achievedB = statsB
+              ? ((statsB[b.targetResult as keyof TelemarketingStats] as number) || 0)
+              : 0;
+            const pctA = a.targetQuantity > 0 ? achievedA / a.targetQuantity : 0;
+            const pctB = b.targetQuantity > 0 ? achievedB / b.targetQuantity : 0;
+            return pctB - pctA;
+          })
+          .map((goal, index) => {
+            const userStats = stats.find((s) => s.userId === goal.userId);
+            return (
+              <TelemarketingGoalCard
+                key={goal.id}
+                goal={goal}
+                stats={userStats}
+                index={index}
+                calculatePercentage={calculatePercentage}
+              />
+            );
+          })}
       </div>
     </div>
   );

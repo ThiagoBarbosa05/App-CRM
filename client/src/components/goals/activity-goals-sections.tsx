@@ -36,27 +36,35 @@ export function ActivityGoalsSections({
             color="emerald"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {registrationGoals.map((goal, index) => {
-              const stats = registrationStats.find(
-                (s) => s.userId === goal.userId,
-              );
-              const achieved = stats?.totalRegistrations || 0;
-              return (
-                <ActivityGoalCard
-                  key={goal.id}
-                  title={goal.userName}
-                  subtitle="Novos Cadastros"
-                  achieved={achieved}
-                  goal={goal.targetQuantity}
-                  percentage={calculatePercentage(
-                    achieved,
-                    goal.targetQuantity,
-                  )}
-                  index={index}
-                  color="emerald"
-                />
-              );
-            })}
+            {[...registrationGoals]
+              .sort((a, b) => {
+                const sA = registrationStats.find((s) => s.userId === a.userId);
+                const sB = registrationStats.find((s) => s.userId === b.userId);
+                const pctA = a.targetQuantity > 0 ? (sA?.totalRegistrations || 0) / a.targetQuantity : 0;
+                const pctB = b.targetQuantity > 0 ? (sB?.totalRegistrations || 0) / b.targetQuantity : 0;
+                return pctB - pctA;
+              })
+              .map((goal, index) => {
+                const stats = registrationStats.find(
+                  (s) => s.userId === goal.userId,
+                );
+                const achieved = stats?.totalRegistrations || 0;
+                return (
+                  <ActivityGoalCard
+                    key={goal.id}
+                    title={goal.userName}
+                    subtitle="Novos Cadastros"
+                    achieved={achieved}
+                    goal={goal.targetQuantity}
+                    percentage={calculatePercentage(
+                      achieved,
+                      goal.targetQuantity,
+                    )}
+                    index={index}
+                    color="emerald"
+                  />
+                );
+              })}
           </div>
         </section>
       )}
@@ -71,28 +79,36 @@ export function ActivityGoalsSections({
             color="amber"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {markerGoals.map((goal, index) => {
-              const stats = markerStats.find(
-                (s) =>
-                  s.markerName === goal.markerName && s.userId === goal.userId,
-              );
-              const achieved = stats?.totalClients || 0;
-              return (
-                <ActivityGoalCard
-                  key={goal.id}
-                  title={goal.userName}
-                  subtitle={`Marcador: ${goal.markerName}`}
-                  achieved={achieved}
-                  goal={goal.targetQuantity}
-                  percentage={calculatePercentage(
-                    achieved,
-                    goal.targetQuantity,
-                  )}
-                  index={index}
-                  color="amber"
-                />
-              );
-            })}
+            {[...markerGoals]
+              .sort((a, b) => {
+                const sA = markerStats.find((s) => s.markerName === a.markerName && s.userId === a.userId);
+                const sB = markerStats.find((s) => s.markerName === b.markerName && s.userId === b.userId);
+                const pctA = a.targetQuantity > 0 ? (sA?.totalClients || 0) / a.targetQuantity : 0;
+                const pctB = b.targetQuantity > 0 ? (sB?.totalClients || 0) / b.targetQuantity : 0;
+                return pctB - pctA;
+              })
+              .map((goal, index) => {
+                const stats = markerStats.find(
+                  (s) =>
+                    s.markerName === goal.markerName && s.userId === goal.userId,
+                );
+                const achieved = stats?.totalClients || 0;
+                return (
+                  <ActivityGoalCard
+                    key={goal.id}
+                    title={goal.userName}
+                    subtitle={`Marcador: ${goal.markerName}`}
+                    achieved={achieved}
+                    goal={goal.targetQuantity}
+                    percentage={calculatePercentage(
+                      achieved,
+                      goal.targetQuantity,
+                    )}
+                    index={index}
+                    color="amber"
+                  />
+                );
+              })}
           </div>
         </section>
       )}
@@ -107,29 +123,37 @@ export function ActivityGoalsSections({
             color="blue"
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {interactionGoals.map((goal, index) => {
-              const stats = interactionStats.find(
-                (s) =>
-                  s.interactionType === goal.interactionType &&
-                  s.userId === goal.userId,
-              );
-              const achieved = stats?.totalInteractions || 0;
-              return (
-                <ActivityGoalCard
-                  key={goal.id}
-                  title={goal.userName}
-                  subtitle={getInteractionTypeLabel(goal.interactionType)}
-                  achieved={achieved}
-                  goal={goal.targetQuantity}
-                  percentage={calculatePercentage(
-                    achieved,
-                    goal.targetQuantity,
-                  )}
-                  index={index}
-                  color="blue"
-                />
-              );
-            })}
+            {[...interactionGoals]
+              .sort((a, b) => {
+                const sA = interactionStats.find((s) => s.interactionType === a.interactionType && s.userId === a.userId);
+                const sB = interactionStats.find((s) => s.interactionType === b.interactionType && s.userId === b.userId);
+                const pctA = a.targetQuantity > 0 ? (sA?.totalInteractions || 0) / a.targetQuantity : 0;
+                const pctB = b.targetQuantity > 0 ? (sB?.totalInteractions || 0) / b.targetQuantity : 0;
+                return pctB - pctA;
+              })
+              .map((goal, index) => {
+                const stats = interactionStats.find(
+                  (s) =>
+                    s.interactionType === goal.interactionType &&
+                    s.userId === goal.userId,
+                );
+                const achieved = stats?.totalInteractions || 0;
+                return (
+                  <ActivityGoalCard
+                    key={goal.id}
+                    title={goal.userName}
+                    subtitle={getInteractionTypeLabel(goal.interactionType)}
+                    achieved={achieved}
+                    goal={goal.targetQuantity}
+                    percentage={calculatePercentage(
+                      achieved,
+                      goal.targetQuantity,
+                    )}
+                    index={index}
+                    color="blue"
+                  />
+                );
+              })}
           </div>
         </section>
       )}

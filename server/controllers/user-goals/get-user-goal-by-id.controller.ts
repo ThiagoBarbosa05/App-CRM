@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import * as storage from "../../storage";
+import { storage } from "../../storage";
 
 /**
  * @route GET /api/user-goals/:userId
