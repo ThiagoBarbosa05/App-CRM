@@ -3342,13 +3342,13 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string,
   ): Promise<ClientRegistrationGoal[]> {
-    let query = this.db.select().from(clientRegistrationGoals);
+    const base = this.db.select().from(clientRegistrationGoals);
 
     if (userRole !== "admin" && userRole !== "administrador" && userId) {
-      query = query.where(eq(clientRegistrationGoals.userId, userId));
+      return base.where(eq(clientRegistrationGoals.userId, userId));
     }
 
-    return query;
+    return base;
   }
 
   async getClientRegistrationGoalsByMonthYear(
@@ -3363,22 +3363,20 @@ export class DatabaseStorage implements IStorage {
     userId?: string,
     userRole?: string,
   ): Promise<ClientRegistrationGoal[]> {
-    let query = this.db
-      .select()
-      .from(clientRegistrationGoals)
-      .where(
-        and(
-          eq(clientRegistrationGoals.month, month),
-          eq(clientRegistrationGoals.year, year),
-        ),
-      );
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(clientRegistrationGoals.month, month),
+      eq(clientRegistrationGoals.year, year),
+    ];
 
     // Vendedores só veem suas próprias metas
     if (userRole !== "admin" && userRole !== "administrador" && userId) {
-      query = query.where(eq(clientRegistrationGoals.userId, userId));
+      conditions.push(eq(clientRegistrationGoals.userId, userId));
     }
 
-    return query;
+    return this.db
+      .select()
+      .from(clientRegistrationGoals)
+      .where(and(...conditions));
   }
 
   async createClientRegistrationGoal(

@@ -119,9 +119,21 @@ export function SalesGoalsGrid({
     );
   }
 
+  const sortedGoals = [...goals].sort((a, b) => {
+    const sellerA = findSellerData(a.userName, topSellersData);
+    const sellerB = findSellerData(b.userName, topSellersData);
+    const pctA = sellerA
+      ? (Number(sellerA.totalValue) / Number(a.salesGoal)) * 100
+      : 0;
+    const pctB = sellerB
+      ? (Number(sellerB.totalValue) / Number(b.salesGoal)) * 100
+      : 0;
+    return pctB - pctA;
+  });
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {goals.map((goal, index) => (
+      {sortedGoals.map((goal, index) => (
         <SalesGoalCard
           key={goal.id}
           goal={goal}
