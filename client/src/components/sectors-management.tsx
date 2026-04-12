@@ -80,8 +80,6 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": "test",
-          "x-user-role": "admin",
         },
         body: JSON.stringify(data),
       });
@@ -112,8 +110,6 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": "test",
-          "x-user-role": "admin",
         },
         body: JSON.stringify(data),
       });
@@ -260,8 +256,6 @@ export default function SectorsManagement() {
     queryFn: async () => {
       const response = await fetch("/api/sectors", {
         headers: {
-          "x-user-id": "test",
-          "x-user-role": "admin",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch sectors");
@@ -279,8 +273,6 @@ export default function SectorsManagement() {
       const response = await fetch(`/api/sectors/${id}`, {
         method: "DELETE",
         headers: {
-          "x-user-id": "test",
-          "x-user-role": "admin",
         },
       });
       if (!response.ok) throw new Error("Failed to delete sector");

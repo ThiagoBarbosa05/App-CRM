@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ interface CashbackUsageModalProps {
 }
 
 export default function CashbackUsageModal({ client, open, onOpenChange }: CashbackUsageModalProps) {
+  const { user } = useAuth();
   const [usedAmount, setUsedAmount] = useState("");
   const [description, setDescription] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -41,7 +43,7 @@ export default function CashbackUsageModal({ client, open, onOpenChange }: Cashb
           clientId: usageData.clientId,
           usedAmount: usageData.usedAmount.toString(),
           description: usageData.description,
-          authorizedBy: "b314722c-8fd6-4592-a9de-9ee551ec35be", // ID do usuário admin
+          authorizedBy: user?.id,
         }),
       });
 

@@ -120,8 +120,8 @@ export class DealQuestionsService {
    * @returns CreateDealQuestionParams - Parâmetros processados
    */
   processCreateDealQuestionParams(req: any): CreateDealQuestionParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       questionData: req.body,
@@ -181,8 +181,8 @@ export class DealQuestionsService {
    * @returns UpdateDealQuestionParams - Parâmetros processados
    */
   processUpdateDealQuestionParams(req: any): UpdateDealQuestionParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       questionId: req.params.id,
@@ -227,8 +227,8 @@ export class DealQuestionsService {
    * @returns DeleteDealQuestionParams - Parâmetros processados
    */
   processDeleteDealQuestionParams(req: any): DeleteDealQuestionParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       questionId: req.params.id,

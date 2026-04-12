@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
@@ -10,6 +12,12 @@ import bcrypt from "bcrypt";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || true,
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(
   express.json({
     limit: "50mb",

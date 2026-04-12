@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
+import { createRouteTestApp } from "../../test/create-route-test-app";
 import {
   clientRegistrationGoalsRouter,
   clientRegistrationStatsRouter,
@@ -44,14 +44,12 @@ describe("client registration goal routers", () => {
     getClientRegistrationStatsByPeriodMock.mockReset();
   });
 
-  it("keeps GET /client-registration-goals using query or header context", async () => {
+  it("keeps GET /client-registration-goals using user from jwt", async () => {
     getClientRegistrationGoalsMock.mockResolvedValue([{ id: "goal-1" }]);
     const app = createRouteTestApp({ router: clientRegistrationGoalsRouter, basePath: "/client-registration-goals" });
 
     const response = await request(app)
-      .get("/client-registration-goals")
-      .set(createRouteTestHeaders())
-      .query({ userRole: "admin" });
+      .get("/client-registration-goals");
 
     expect(getClientRegistrationGoalsMock).toHaveBeenCalledWith("test-user-id", "admin");
     expect(response.status).toBe(200);

@@ -2,7 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { eventsRouter } from "../events.routes";
-import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
+import { createRouteTestApp } from "../../test/create-route-test-app";
 
 const {
   getEventsMock,
@@ -76,11 +76,11 @@ describe("eventsRouter", () => {
     s3SendMock.mockReset();
   });
 
-  it("keeps GET /events with header filtering", async () => {
+  it("keeps GET /events with user filtering from jwt", async () => {
     getEventsMock.mockResolvedValue([{ id: "event-1" }]);
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
-    const response = await request(app).get("/events").set(createRouteTestHeaders());
+    const response = await request(app).get("/events");
 
     expect(getEventsMock).toHaveBeenCalledWith("test-user-id", "admin");
     expect(response.status).toBe(200);
@@ -92,13 +92,12 @@ describe("eventsRouter", () => {
     expect(response.status).toBe(400);
   });
 
-  it("creates event with attachments and createdBy header", async () => {
+  it("creates event with attachments and createdBy from jwt", async () => {
     createEventMock.mockResolvedValue({ id: "event-1" });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
     const response = await request(app)
       .post("/events")
-      .set(createRouteTestHeaders())
       .send({
         name: "Evento",
         eventDate: "2026-04-11T18:00",
@@ -112,12 +111,6 @@ describe("eventsRouter", () => {
     expect(response.status).toBe(201);
   });
 
-  it("returns 401 for POST /events without x-user-id", async () => {
-    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
-    const response = await request(app).post("/events").send({});
-    expect(response.status).toBe(401);
-  });
-
   it("returns 404 for DELETE /events/:id when missing", async () => {
     deleteEventMock.mockResolvedValue(false);
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
@@ -125,18 +118,11 @@ describe("eventsRouter", () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns 401 for POST /events/:id/participants without x-user-id", async () => {
-    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
-    const response = await request(app).post("/events/event-1/participants").send({});
-    expect(response.status).toBe(401);
-  });
-
-  it("creates participant with registeredBy header", async () => {
+  it("creates participant with registeredBy from jwt", async () => {
     addEventParticipantMock.mockResolvedValue({ id: "participant-1" });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
     const response = await request(app)
       .post("/events/event-1/participants")
-      .set(createRouteTestHeaders())
       .send({ clientId: "client-1", status: "inscrito" });
     expect(addEventParticipantMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(201);

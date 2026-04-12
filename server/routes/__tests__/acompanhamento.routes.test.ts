@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
+import { createRouteTestApp, createMockAuthMiddleware } from "../../test/create-route-test-app";
 import { acompanhamentoRouter } from "../acompanhamento.routes";
 
 const { getAcompanhamentoDataMock } = vi.hoisted(() => ({
@@ -24,11 +24,13 @@ describe("acompanhamentoRouter", () => {
       pagination: { currentPage: 1, pageSize: 10, totalPages: 1, totalItems: 1 },
     });
 
-    const app = createRouteTestApp({ router: acompanhamentoRouter, basePath: "/acompanhamento" });
+    const app = createRouteTestApp({
+      router: acompanhamentoRouter,
+      basePath: "/acompanhamento",
+      middlewares: [createMockAuthMiddleware({ userId: "admin-id", role: "admin" })],
+    });
 
-    const response = await request(app)
-      .get("/acompanhamento?page=1&pageSize=10")
-      .set(createRouteTestHeaders({ "x-user-id": "admin-id", "x-user-role": "admin" }));
+    const response = await request(app).get("/acompanhamento?page=1&pageSize=10");
 
     expect(getAcompanhamentoDataMock).toHaveBeenCalledWith({
       userId: "admin-id",
@@ -63,11 +65,13 @@ describe("acompanhamentoRouter", () => {
       pagination: { currentPage: 1, pageSize: 10, totalPages: 0, totalItems: 0 },
     });
 
-    const app = createRouteTestApp({ router: acompanhamentoRouter, basePath: "/acompanhamento" });
+    const app = createRouteTestApp({
+      router: acompanhamentoRouter,
+      basePath: "/acompanhamento",
+      middlewares: [createMockAuthMiddleware({ userId: "seller-id", role: "vendedor" })],
+    });
 
-    const response = await request(app)
-      .get("/acompanhamento?page=0&pageSize=0&search=ana")
-      .set(createRouteTestHeaders({ "x-user-id": "seller-id", "x-user-role": "vendedor" }));
+    const response = await request(app).get("/acompanhamento?page=0&pageSize=0&search=ana");
 
     expect(getAcompanhamentoDataMock).toHaveBeenCalledWith({
       userId: "seller-id",
@@ -84,9 +88,7 @@ describe("acompanhamentoRouter", () => {
 
     const app = createRouteTestApp({ router: acompanhamentoRouter, basePath: "/acompanhamento" });
 
-    const response = await request(app)
-      .get("/acompanhamento")
-      .set(createRouteTestHeaders());
+    const response = await request(app).get("/acompanhamento");
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ message: "Erro ao buscar dados de acompanhamento" });

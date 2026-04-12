@@ -135,8 +135,8 @@ export class FunnelsService {
    * @returns GetFunnelsParams - Parâmetros processados
    */
   processGetFunnelsParams(req: any): GetFunnelsParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       userId,
@@ -190,8 +190,8 @@ export class FunnelsService {
    * @returns CreateFunnelParams - Parâmetros processados
    */
   processCreateFunnelParams(req: any): CreateFunnelParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       funnelData: req.body,
@@ -233,8 +233,8 @@ export class FunnelsService {
    * @returns UpdateFunnelParams - Parâmetros processados
    */
   processUpdateFunnelParams(req: any): UpdateFunnelParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       funnelId: req.params.id,
@@ -274,8 +274,8 @@ export class FunnelsService {
    * @returns DeleteFunnelParams - Parâmetros processados
    */
   processDeleteFunnelParams(req: any): DeleteFunnelParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       funnelId: req.params.id,
@@ -290,8 +290,8 @@ export class FunnelsService {
    * @returns GetFunnelStagesParams - Parâmetros processados
    */
   processGetFunnelStagesParams(req: any): GetFunnelStagesParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       funnelId: req.params.funnelId,
@@ -343,8 +343,8 @@ export class FunnelsService {
    * @returns CreateFunnelStageParams - Parâmetros processados
    */
   processCreateFunnelStageParams(req: any): CreateFunnelStageParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       funnelId: req.params.funnelId,
@@ -408,8 +408,8 @@ export class FunnelsService {
    * @returns ReorderFunnelStagesParams - Parâmetros processados
    */
   processReorderFunnelStagesParams(req: any): ReorderFunnelStagesParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       stageUpdates: req.body.stageUpdates,

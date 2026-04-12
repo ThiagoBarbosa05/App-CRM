@@ -15,7 +15,7 @@ export async function cancelExecutionController(
 ): Promise<void> {
   try {
     const { executionId } = req.params;
-    const userId = (req.headers["x-user-id"] as string) || undefined;
+    const userId = req.user?.userId;
 
     const cancelled = await AutomationExecutionService.cancelExecution(
       executionId,
@@ -51,7 +51,7 @@ export async function cancelAllExecutionsController(
   res: Response
 ): Promise<void> {
   try {
-    const userId = (req.headers["x-user-id"] as string) || undefined;
+    const userId = req.user?.userId;
 
     const count = await AutomationExecutionService.cancelAllRunningExecutions(
       userId

@@ -142,8 +142,8 @@ export class DealAnswersService {
    * @returns GetDealAnswersParams - Parâmetros processados
    */
   processGetDealAnswersParams(req: any): GetDealAnswersParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       dealId: req.params.dealId,
@@ -158,8 +158,8 @@ export class DealAnswersService {
    * @returns SaveDealAnswersParams - Parâmetros processados
    */
   processSaveDealAnswersParams(req: any): SaveDealAnswersParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       dealId: req.params.dealId,

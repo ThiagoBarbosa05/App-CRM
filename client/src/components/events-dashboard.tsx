@@ -96,7 +96,6 @@ export default function EventsDashboard() {
 
       const response = await fetch(downloadUrl, {
         headers: {
-          "x-user-id": user?.id || "",
         },
       });
 
@@ -156,7 +155,6 @@ export default function EventsDashboard() {
       // Buscar participantes do evento
       const response = await fetch(`/api/events/${event.id}/participants`, {
         headers: {
-          "x-user-id": user?.id || "",
         },
       });
 

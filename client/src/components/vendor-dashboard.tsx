@@ -47,8 +47,6 @@ export default function VendorDashboard() {
     queryFn: async () => {
       const response = await fetch("/api/birthdays/upcoming", {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch birthdays");

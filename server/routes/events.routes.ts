@@ -23,8 +23,8 @@ export const eventsRouter = Router();
 
 eventsRouter.get("/", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     const events = await storage.getEvents(userId, userRole);
     return res.json(events);
@@ -74,11 +74,7 @@ eventsRouter.post("/upload-image", upload.single("image"), async (req, res) => {
 
 eventsRouter.post("/", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Usuário não autenticado" });
-    }
+    const userId = req.user!.userId;
 
     const eventData = {
       ...req.body,
@@ -203,11 +199,7 @@ eventsRouter.get("/:id/participants", async (req, res) => {
 eventsRouter.post("/:id/participants", async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.headers["x-user-id"] as string;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Usuário não autenticado" });
-    }
+    const userId = req.user!.userId;
 
     const participantData = {
       ...req.body,

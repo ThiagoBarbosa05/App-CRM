@@ -27,13 +27,14 @@ describe("authRouter", () => {
     compareMock.mockReset();
   });
 
-  it("returns 200 on successful login", async () => {
+  it("returns 200 on successful login and sets cookie", async () => {
     getUserByEmailMock.mockResolvedValue({
       id: "user-1",
       name: "Thiago",
       email: "thiago@example.com",
       password: "hashed-password",
       role: "admin",
+      isActive: "true",
       serviceChannel: { id: "channel-1" },
     });
     compareMock.mockResolvedValue(true);
@@ -42,13 +43,14 @@ describe("authRouter", () => {
 
     const response = await request(app).post("/auth/login").send({
       email: "THIAGO@example.com",
-      password: "secret",
+      password: "secret123",
     });
 
     expect(getUserByEmailMock).toHaveBeenCalledWith("thiago@example.com");
-    expect(compareMock).toHaveBeenCalledWith("secret", "hashed-password");
+    expect(compareMock).toHaveBeenCalledWith("secret123", "hashed-password");
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
+    expect(response.headers["set-cookie"]).toBeDefined();
+    expect(response.body).toMatchObject({
       user: {
         id: "user-1",
         name: "Thiago",
@@ -60,7 +62,7 @@ describe("authRouter", () => {
     });
   });
 
-  it("returns 400 when email or password is missing", async () => {
+  it("returns 400 when email or password fails Zod validation", async () => {
     const app = createRouteTestApp({ router: authRouter, basePath: "/auth" });
 
     const response = await request(app).post("/auth/login").send({
@@ -68,9 +70,6 @@ describe("authRouter", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      message: "Email e senha são obrigatórios",
-    });
   });
 
   it("returns 401 for invalid credentials", async () => {
@@ -80,7 +79,7 @@ describe("authRouter", () => {
 
     const response = await request(app).post("/auth/login").send({
       email: "thiago@example.com",
-      password: "wrong",
+      password: "wrong-password",
     });
 
     expect(response.status).toBe(401);

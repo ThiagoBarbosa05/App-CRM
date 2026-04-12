@@ -74,8 +74,6 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
     queryFn: async () => {
       const res = await fetch("/api/bling-accounts", {
         headers: {
-          "x-user-id": user?.id ?? "",
-          "x-user-role": user?.role ?? "",
         },
       });
       if (!res.ok) throw new Error("Falha ao carregar contas Bling");
@@ -110,8 +108,6 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
     try {
       const response = await fetch(`/api/bling-products/sync?${params.toString()}`, {
         headers: {
-          "x-user-id": user.id,
-          "x-user-role": user.role,
         },
         signal: abortRef.current.signal,
       });

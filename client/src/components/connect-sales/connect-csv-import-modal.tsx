@@ -247,7 +247,6 @@ export function ConnectCsvImportModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ rows, sellerMappings, sourceFile: fileName }),
       });

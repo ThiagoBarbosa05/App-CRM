@@ -4,8 +4,8 @@ import { getAcompanhamentoData } from "../../services/acompanhamento.service";
 
 export async function getAcompanhamentoController(req: Request, res: Response) {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const searchQuery = req.query.search as string | undefined;
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;

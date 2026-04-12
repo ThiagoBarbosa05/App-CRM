@@ -122,7 +122,6 @@ dealQuestionsRouter.get(
  */
 dealQuestionsRouter.post(
   "/",
-  requireAuth,
   validateBody(insertDealQuestionSchema),
   createDealQuestionController
 );

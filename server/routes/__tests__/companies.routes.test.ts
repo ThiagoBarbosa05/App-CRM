@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
+import { createRouteTestApp } from "../../test/create-route-test-app";
 import { companyProductsRouter } from "../products.routes";
 
 const {
@@ -68,24 +68,12 @@ describe("companiesRouter product routes", () => {
     expect(response.body).toEqual([{ id: "product-2" }]);
   });
 
-  it("returns 401 for POST /:companyId/products without x-user-id", async () => {
-    const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
-
-    const response = await request(app)
-      .post("/companies/company-1/products")
-      .send({ productId: "product-1" });
-
-    expect(response.status).toBe(401);
-    expect(response.body).toEqual({ message: "Usuário não autenticado" });
-  });
-
-  it("creates company product with the same body/header contract", async () => {
+  it("creates company product with addedBy injected from jwt", async () => {
     addProductToCompanyMock.mockResolvedValue({ id: "company-product-1" });
     const app = createRouteTestApp({ router: companyProductsRouter, basePath: "/" });
 
     const response = await request(app)
       .post("/companies/company-1/products")
-      .set(createRouteTestHeaders())
       .send({ productId: "product-1" });
 
     expect(addProductToCompanyMock).toHaveBeenCalledWith({

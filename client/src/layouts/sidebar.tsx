@@ -174,10 +174,10 @@ export function AppSidebar({ onCloseSidebar }: AppSidebarProps) {
       <Button
         variant="ghost"
         className="w-full mt-4 justify-start text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium"
-        onClick={() => {
-          logout();
-          window.location.reload();
+        onClick={async () => {
           closeMobileMenu();
+          await logout();
+          window.location.href = "/";
         }}
       >
         <LogOut className="mr-3 h-4 w-4" />

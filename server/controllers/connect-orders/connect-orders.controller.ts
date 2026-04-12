@@ -76,7 +76,7 @@ export class ConnectOrdersController {
   async importOrders(req: Request, res: Response) {
     try {
       const body = importBodySchema.parse(req.body);
-      const importedBy = req.headers["x-user-id"] as string;
+      const importedBy = req.user!.userId;
 
       if (!importedBy) {
         return res.status(401).json({ success: false, error: "Não autenticado" });

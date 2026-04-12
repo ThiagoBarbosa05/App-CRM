@@ -108,7 +108,6 @@ export default function ClientsTableWithSelection({
         headers: {
           "Content-Type": "application/json",
           "x-user-email": user?.email || "",
-          "x-user-role": user?.role || "",
         },
         body: JSON.stringify({ clientIds }),
       });

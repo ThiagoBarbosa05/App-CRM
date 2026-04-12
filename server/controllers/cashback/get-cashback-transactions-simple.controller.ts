@@ -48,10 +48,8 @@ export async function getCashbackTransactionsSimple(
   res: Response
 ) {
   try {
-    const userId =
-      (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole =
-      (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
 
     const transactions =
       await cashbackStatisticsService.getCashbackTransactions(userId, userRole);
