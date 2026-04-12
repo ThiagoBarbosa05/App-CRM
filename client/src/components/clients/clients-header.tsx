@@ -1,5 +1,6 @@
 import { Users, Upload, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClientsHeaderProps {
   totalItems: number;
@@ -12,6 +13,7 @@ export function ClientsHeader({
   onImportClick,
   onNewClientClick,
 }: ClientsHeaderProps) {
+  const { user } = useAuth();
   return (
     <div className="bg-white dark:bg-slate-950 border-b dark:border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
       <div className="flex items-center gap-2 flex-wrap justify-between">
@@ -35,14 +37,16 @@ export function ClientsHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={onImportClick}
-            className="text-wine-600 dark:text-purple-400 border-wine-600 dark:border-purple-600 hover:bg-wine-50 dark:hover:bg-purple-900/30"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Importar
-          </Button>
+          {user?.role === "admin" && (
+            <Button
+              variant="outline"
+              onClick={onImportClick}
+              className="text-wine-600 dark:text-purple-400 border-wine-600 dark:border-purple-600 hover:bg-wine-50 dark:hover:bg-purple-900/30"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importar
+            </Button>
+          )}
           <Button
             onClick={onNewClientClick}
             className="bg-primary hover:bg-primary-dark dark:bg-purple-600 dark:hover:bg-purple-700 text-white"

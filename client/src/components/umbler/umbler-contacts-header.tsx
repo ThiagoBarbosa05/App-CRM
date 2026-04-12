@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { UmblerContactDialog } from "@/components/umbler-contact-dialog";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, Send } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -13,6 +14,7 @@ export function UmblerContactsHeader({
   isLoading,
 }: UmblerContactsHeaderProps) {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   return (
     <div className="flex flex-col gap-4 mb-6">
@@ -34,14 +36,16 @@ export function UmblerContactsHeader({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              onClick={() => setLocation("/umbler/campaigns/create")}
-              variant="outline"
-              className="gap-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
-            >
-              <Send className="h-4 w-4 text-slate-500" />
-              Criar Campanha
-            </Button>
+            {user?.role === "admin" && (
+              <Button
+                onClick={() => setLocation("/umbler/campaigns/create")}
+                variant="outline"
+                className="gap-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+              >
+                <Send className="h-4 w-4 text-slate-500" />
+                Criar Campanha
+              </Button>
+            )}
             <UmblerContactDialog />
           </div>
         </div>
@@ -72,7 +76,9 @@ export function UmblerContactsHeader({
         </div>
         {/* Placeholder for future stats to balance the UI */}
         <div className="hidden sm:block lg:col-span-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900/50 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm border-dashed opacity-70 flex items-center justify-center">
-            <p className="text-sm text-slate-400 dark:text-slate-500 text-center">Mais métricas de engajamento em breve</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 text-center">
+            Mais métricas de engajamento em breve
+          </p>
         </div>
       </div>
     </div>

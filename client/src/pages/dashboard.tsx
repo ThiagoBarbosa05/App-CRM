@@ -244,13 +244,15 @@ export default function DashboardPage() {
           )}
 
           {/* Importar CSV */}
-          <Button
-            onClick={() => setConnectImportOpen(true)}
-            className="gap-2 bg-violet-600 hover:bg-violet-700 rounded-xl h-9 px-4 text-sm font-bold shrink-0"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Importar CSV
-          </Button>
+          {user?.role === "admin" && (
+            <Button
+              onClick={() => setConnectImportOpen(true)}
+              className="gap-2 bg-violet-600 hover:bg-violet-700 rounded-xl h-9 px-4 text-sm font-bold shrink-0"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Importar CSV
+            </Button>
+          )}
         </div>
       </div>
 
