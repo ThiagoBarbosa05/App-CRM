@@ -12,6 +12,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/test/**/*.test.ts", "server/routes/__tests__/**/*.test.ts"],
+    include: [
+      "server/test/create-route-test-app.test.ts",
+      "server/routes/__tests__/**/*.test.ts",
+    ],
   },
 });

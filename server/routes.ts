@@ -56,16 +56,8 @@ import {
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { Client } from "@replit/object-storage";
-import multer, { MulterError } from "multer";
 import { nanoid } from "nanoid";
 import { generateAIResponse, generateAIMessage } from "./ai-helpers";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { randomUUID } from "crypto";
-import {
-  DeleteObjectCommand,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import { db } from "./db";
 import { and, asc, eq, like, lte, or, sql, count, gt } from "drizzle-orm";
 import {
@@ -112,31 +104,12 @@ import {
   getSalesStatisticsController,
   getSalesHistoryController,
 } from "./controllers/sales";
-import { createMessageAutomationSettingsController } from "./controllers/create-message-automation-settings.controller";
-import { getMessageAutomationSettingsController } from "./controllers/get-message-automation-settings.controller";
-import { updateMessageAutomationSettingsController } from "./controllers/update-message-automation-settings.controller";
-import { deleteMessageAutomationSettingsController } from "./controllers/delete-message-automation-settings.controller";
-import { getTemplatesController } from "./controllers/get-templates-controller";
 import { apiRouter } from "./routes/index";
 import {
   createObjectStorageApiRouter,
   objectEntitiesRouter,
   publicObjectsRouter,
 } from "./routes/object-storage.routes";
-
-// Configure multer for file uploads
-const upload = multer({
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
-});
-
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: process.env.CLOUDFLARE_URL,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // === NOVA ARQUITETURA REFATORADA ===
@@ -2697,112 +2670,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   */
-
-  // Telemarketing Goals routes
-  /* MIGRADO: Rotas para Telemarketing Goals - ver telemarketing-goals.routes.ts
-3627:   app.get("/api/telemarketing-goals", async (req, res) => {
-3628:     try {
-3629:       const userId =
-3630:         (req.query.userId as string) || (req.headers["x-user-id"] as string);
-3631:       const userRole =
-3632:         (req.query.userRole as string) ||
-3633:         (req.headers["x-user-role"] as string);
-3634: 
-3635:       const goals = await storage.getTelemarketingGoals(userId, userRole);
-3636:       res.json(goals);
-3637:     } catch (error) {
-3638:       console.error("Erro ao buscar metas de telemarketing:", error);
-3639:       res
-3640:         .status(500)
-3641:         .json({ message: "Erro ao buscar metas de telemarketing" });
-3642:     }
-3643:   });
-3644:   */
-
-  /* MIGRADO: Rotas para Telemarketing Goals - ver telemarketing-goals.routes.ts
-3645:   app.get("/api/telemarketing-goals/:month/:year", async (req, res) => {
-3646:     try {
-3647:       const { month, year } = req.params;
-3648:       const userId =
-3649:         (req.query.userId as string) || (req.headers["x-user-id"] as string);
-3650:       const userRole =
-3651:         (req.query.userRole as string) ||
-3652:         (req.headers["x-user-role"] as string);
-3653: 
-3654:       const goals = await storage.getTelemarketingGoalsByMonthYear(
-3655:         Number(month),
-3656:         Number(year),
-3657:         userId,
-3658:         userRole,
-3659:       );
-3660:       res.json(goals);
-3661:     } catch (error) {
-3662:       console.error("Erro ao buscar metas de telemarketing:", error);
-3663:       res
-3664:         .status(500)
-3665:         .json({ message: "Erro ao buscar metas de telemarketing" });
-3666:     }
-3667:   });
-3668:   */
-
-  /* MIGRADO: Rota POST Telemarketing Goals - ver telemarketing-goals.routes.ts
-3673:   app.post("/api/telemarketing-goals", async (req, res) => {
-3674:     try {
-3675:       const validatedData = insertTelemarketingGoalSchema.parse(req.body);
-3676:       const goal = await storage.createTelemarketingGoal(validatedData);
-3677:       res.status(201).json(goal);
-3678:     } catch (error) {
-3679:       if (error instanceof z.ZodError) {
-3680:         const validationError = fromZodError(error);
-3681:         return res.status(400).json({ message: validationError.toString() });
-3682:       }
-3683:       console.error("Erro ao criar meta de telemarketing:", error);
-3684:       res.status(500).json({ message: "Erro ao criar meta de telemarketing" });
-3685:     }
-3686:   });
-3687:   */
-
-  /* MIGRADO: Rota PUT Telemarketing Goals - ver telemarketing-goals.routes.ts
-3688:   app.put("/api/telemarketing-goals/:id", async (req, res) => {
-3689:     try {
-3690:       const { id } = req.params;
-3691:       const validatedData = insertTelemarketingGoalSchema
-3692:         .partial()
-3693:         .parse(req.body);
-3694:       const goal = await storage.updateTelemarketingGoal(id, validatedData);
-3695:       res.json(goal);
-3696:     } catch (error) {
-3697:       if (error instanceof z.ZodError) {
-3698:         const validationError = fromZodError(error);
-3699:         return res.status(400).json({ message: validationError.toString() });
-3700:       }
-3701:       console.error("Erro ao atualizar meta de telemarketing:", error);
-3702:       res
-3703:         .status(500)
-3704:         .json({ message: "Erro ao atualizar meta de telemarketing" });
-3705:     }
-3706:   });
-3707:   */
-
-  /* MIGRADO: Rota DELETE Telemarketing Goals - ver telemarketing-goals.routes.ts
-3708:   app.delete("/api/telemarketing-goals/:id", async (req, res) => {
-3709:     try {
-3710:       const { id } = req.params;
-3711:       const success = await storage.deleteTelemarketingGoal(id);
-3712:       if (success === false) {
-3713:         return res
-3714:           .status(404)
-3715:           .json({ message: "Meta de telemarketing não encontrada" });
-3716:       }
-3717:       res.json({ message: "Meta de telemarketing excluída com sucesso" });
-3718:     } catch (error) {
-3719:       console.error("Erro ao excluir meta de telemarketing:", error);
-3720:       res
-3721:         .status(500)
-3722:         .json({ message: "Erro ao excluir meta de telemarketing" });
-3723:     }
-3724:   });
-3725:   */
 
   // ========================================================================
   // CASHBACK SETTINGS V2 ROUTES - REMOVIDO (Agora em sistema modular)
