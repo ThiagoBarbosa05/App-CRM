@@ -197,7 +197,6 @@ export function SalesHistory() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": user?.role || "",
           "x-user-email": user?.email || "",
         },
       });

@@ -101,16 +101,8 @@ export class CompaniesService {
    */
   processGetCompaniesParams(req: any): GetCompaniesParams {
     // Extrair dados do usuário dos headers ou do objeto user
-    const userId =
-      req.user?.id ||
-      req.user?.userId ||
-      req.userId ||
-      (req.query?.userId as string);
-    const userRole =
-      req.user?.role ||
-      req.user?.userRole ||
-      req.userRole ||
-      (req.query?.userRole as string);
+    const userId = (req.query?.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
 
     // Processar paginação
     const page = Math.max(1, parseInt(req.query?.page as string) || 1);
@@ -177,8 +169,8 @@ export class CompaniesService {
    * @returns CreateCompanyParams - Parâmetros processados
    */
   processCreateCompanyParams(req: any): CreateCompanyParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const companyData = req.body;
 
     return {
@@ -230,8 +222,8 @@ export class CompaniesService {
    * @returns UpdateCompanyParams - Parâmetros processados
    */
   processUpdateCompanyParams(req: any): UpdateCompanyParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const id = req.params?.id;
     const updateData = req.body;
 
@@ -278,8 +270,8 @@ export class CompaniesService {
    * @returns DeleteCompanyParams - Parâmetros processados
    */
   processDeleteCompanyParams(req: any): DeleteCompanyParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const id = req.params?.id;
 
     return {
@@ -334,8 +326,8 @@ export class CompaniesService {
    * @returns DeleteCompaniesBulkParams - Parâmetros processados
    */
   processDeleteCompaniesBulkParams(req: any): DeleteCompaniesBulkParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const { ids } = req.body;
 
     return {

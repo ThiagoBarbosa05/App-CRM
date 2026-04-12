@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouteTestApp, createRouteTestHeaders } from "../../test/create-route-test-app";
+import { createRouteTestApp } from "../../test/create-route-test-app";
 import { productsRouter } from "../products.routes";
 
 const {
@@ -63,22 +63,12 @@ describe("productsRouter", () => {
     });
   });
 
-  it("returns 401 for POST /products without x-user-id", async () => {
-    const app = createRouteTestApp({ router: productsRouter, basePath: "/products" });
-
-    const response = await request(app).post("/products").send({});
-
-    expect(response.status).toBe(401);
-    expect(response.body).toEqual({ message: "Usuário não autenticado" });
-  });
-
-  it("creates product with createdBy injected from header", async () => {
+  it("creates product with createdBy injected from jwt", async () => {
     createProductMock.mockResolvedValue({ id: "product-1" });
     const app = createRouteTestApp({ router: productsRouter, basePath: "/products" });
 
     const response = await request(app)
       .post("/products")
-      .set(createRouteTestHeaders())
       .send({
         name: "Vinho",
         type: "TINTO",

@@ -30,7 +30,7 @@ import { storage } from "../../storage";
 export const deleteSaleController = async (req: Request, res: Response) => {
   try {
     // Verificar se o usuário é administrador
-    const userRole = req.headers["x-user-role"] as string;
+    const userRole = req.user?.role;
 
     if (userRole !== "admin" && userRole !== "administrador") {
       return res.status(403).json({

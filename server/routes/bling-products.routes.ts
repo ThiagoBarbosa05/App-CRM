@@ -8,8 +8,8 @@ const VALID_VOLUMES = ["187ml", "375ml", "750ml", "1500ml"] as const;
 const VALID_TYPES = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as const;
 
 function getAdminUser(req: Request): { userId: string } {
-  const userId = req.headers["x-user-id"] as string | undefined;
-  const userRole = req.headers["x-user-role"] as string | undefined;
+  const userId = req.user?.userId;
+  const userRole = req.user?.role;
 
   if (!userId) throw new Error("Usuario nao autenticado");
   if (userRole !== "admin") throw new Error("Apenas administradores podem sincronizar produtos do Bling");

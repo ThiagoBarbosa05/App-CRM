@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { verifyToken } from "../lib/jwt";
 
 // Middleware de validação genérico
 export function validateBody(schema: z.ZodSchema) {
@@ -137,18 +138,24 @@ export const saveDealAnswersBodySchema = z.object({
     .min(1, "Pelo menos uma resposta deve ser fornecida"),
 });
 
-// Middleware de autenticação (placeholder)
+// Middleware de autenticação via JWT cookie
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const userId = req.headers["x-user-id"] as string;
-  if (!userId) {
+  const token = req.cookies?.["auth_token"] as string | undefined;
+  if (!token) {
     return res.status(401).json({
       message: "Usuário não autenticado",
       code: "UNAUTHORIZED",
     });
   }
-  // Adicionar userId ao req para uso nas rotas
-  (req as any).userId = userId;
-  next();
+  try {
+    req.user = verifyToken(token);
+    next();
+  } catch {
+    return res.status(401).json({
+      message: "Sessão inválida ou expirada",
+      code: "UNAUTHORIZED",
+    });
+  }
 }
 
 // Middleware de tratamento de erros global

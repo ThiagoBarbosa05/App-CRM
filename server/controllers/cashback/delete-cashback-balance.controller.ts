@@ -36,8 +36,8 @@ export const deleteCashbackBalanceController = async (
 ) => {
   try {
     // Verificar se o usuário é administrador
-    const userEmail = req.headers["x-user-email"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userEmail = req.user?.email;
+    const userRole = req.user?.role;
 
     if (
       !userEmail ||

@@ -60,11 +60,7 @@ import { fromZodError } from "zod-validation-error";
  */
 export async function createInteractionController(req: Request, res: Response) {
   try {
-    const userId = req.headers["x-user-id"] as string;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Usuário não autenticado." });
-    }
+    const userId = req.user!.userId;
 
     const newInteraction = await interactionsService.createInteraction(
       req.body,

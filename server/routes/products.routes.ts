@@ -37,11 +37,7 @@ productsRouter.get("/", async (req, res) => {
 
 productsRouter.post("/", async (req, res) => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Usuário não autenticado" });
-    }
+    const userId = req.user!.userId;
 
     const productData = {
       ...req.body,
@@ -149,11 +145,7 @@ companyProductsRouter.post("/companies/:companyId/products", async (req, res) =>
   try {
     const { companyId } = req.params;
     const { productId } = req.body;
-    const userId = req.headers["x-user-id"] as string;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Usuário não autenticado" });
-    }
+    const userId = req.user!.userId;
 
     const companyProduct = await storage.addProductToCompany({
       companyId,

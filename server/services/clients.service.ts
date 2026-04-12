@@ -762,10 +762,8 @@ export class ClientsService {
     userRole?: string;
     days: number;
   } {
-    const userId =
-      (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole =
-      (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
     const days = parseInt(req.query.days as string) || 1;
 
     return { userId, userRole, days };
@@ -775,7 +773,7 @@ export class ClientsService {
    * Processa parâmetros específicos para a rota export-all
    */
   processExportAllParams(req: any): { userRole?: string } {
-    const userRole = req.headers["x-user-role"] as string;
+    const userRole = req.user?.role;
     return { userRole };
   }
 
@@ -783,10 +781,8 @@ export class ClientsService {
    * Processa parâmetros específicos para a rota POST (criar cliente)
    */
   processCreateClientParams(req: any): CreateClientParams {
-    const userId =
-      (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole =
-      (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const clientData = req.body;
 
     return { userId, userRole, clientData };
@@ -797,10 +793,8 @@ export class ClientsService {
    */
   processUpdateClientParams(req: any): UpdateClientParams {
     const clientId = req.params.id;
-    const userId =
-      (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole =
-      (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const updateData = req.body;
 
     return { clientId, userId, userRole, updateData };
@@ -818,11 +812,9 @@ export class ClientsService {
    * Método auxiliar para processar parâmetros de query/headers
    */
   processRequestParams(req: any): GetClientsParams {
-    // Pegar informações do usuário logado da query string ou headers
-    const userId =
-      (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole =
-      (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    // userId pode ser sobrescrito via query param por admins para filtrar por vendedor
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
 
     // Extrair paginação da query string
     const page = parseInt(req.query.page as string) || 1;

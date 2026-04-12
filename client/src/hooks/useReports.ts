@@ -123,8 +123,6 @@ export const useGeneralReports = () => {
     queryFn: async () => {
       const response = await fetch("/api/reports/general", {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
 
@@ -173,8 +171,6 @@ export const useClientReports = ({
       const url = `/api/reports/clients${params.size ? `?${params}` : ""}`;
       const response = await fetch(url, {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
 
@@ -201,8 +197,6 @@ export const useCompanyReports = () => {
     queryFn: async () => {
       const response = await fetch("/api/reports/companies", {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
 

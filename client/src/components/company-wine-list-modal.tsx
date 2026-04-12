@@ -101,8 +101,6 @@ export default function CompanyWineListModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
         body: JSON.stringify({ productId }),
       });
@@ -144,8 +142,6 @@ export default function CompanyWineListModal({
         {
           method: "DELETE",
           headers: {
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
           },
         },
       );
@@ -202,8 +198,6 @@ export default function CompanyWineListModal({
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
           },
           body: JSON.stringify({ customPrice: price }),
         },

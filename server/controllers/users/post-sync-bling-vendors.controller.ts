@@ -10,7 +10,7 @@ interface VendorMapping {
 }
 
 export async function syncBlingVendorsController(req: Request, res: Response) {
-  const userRole = req.headers["x-user-role"] as string | undefined;
+  const userRole = req.user?.role;
 
   if (userRole !== "admin") {
     return res.status(403).json({ success: false, error: "Apenas administradores podem sincronizar vendedores" });

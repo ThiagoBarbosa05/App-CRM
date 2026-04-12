@@ -38,8 +38,8 @@ export const getCompanyReportsController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     // Base condition for companies based on user role
     let baseCondition = sql`1=1`;

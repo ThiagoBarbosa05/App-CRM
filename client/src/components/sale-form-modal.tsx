@@ -158,8 +158,6 @@ export default function SaleFormModal({
         `/api/umbler/chats?customerPhone=${selectedClient.phone}&userId=${user?.id}`,
         {
           headers: {
-            "x-user-id": user?.id ?? "",
-            "x-user-role": user?.role ?? "",
           },
         },
       );

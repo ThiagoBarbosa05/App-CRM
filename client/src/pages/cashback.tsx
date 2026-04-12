@@ -420,7 +420,6 @@ export default function Cashback() {
         headers: {
           "Content-Type": "application/json",
           "x-user-email": user?.email || "",
-          "x-user-role": user?.role || "",
         },
       });
 
@@ -465,7 +464,6 @@ export default function Cashback() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "x-user-role": user?.role || "",
           "x-user-email": user?.email || "",
         },
       });

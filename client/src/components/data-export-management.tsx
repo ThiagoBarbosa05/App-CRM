@@ -62,8 +62,6 @@ export default function DataExportManagement() {
     queryFn: () =>
       fetch("/api/clients/export-all", {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       }).then((res) => res.json()),
     enabled: !!user,

@@ -1,9 +1,5 @@
 import express, { type Express, type Request, type RequestHandler, type Router } from "express";
-
-type RouteTestHeaders = {
-  "x-user-id": string;
-  "x-user-role": string;
-};
+import { JwtPayload } from "../lib/jwt";
 
 type CreateRouteTestAppOptions = {
   router: Router;
@@ -14,21 +10,18 @@ type CreateRouteTestAppOptions = {
 
 const JSON_LIMIT = "50mb";
 
-export const createRouteTestHeaders = (
-  overrides: Partial<RouteTestHeaders> = {},
-): RouteTestHeaders => ({
-  "x-user-id": overrides["x-user-id"] ?? "test-user-id",
-  "x-user-role": overrides["x-user-role"] ?? "admin",
-});
-
-export const createRouteTestMiddleware = (
-  middleware?: RequestHandler,
+/**
+ * Cria um middleware que injeta req.user diretamente (bypassa JWT para testes)
+ */
+export const createMockAuthMiddleware = (
+  overrides: Partial<JwtPayload> = {},
 ): RequestHandler => {
-  if (middleware) {
-    return middleware;
-  }
-
-  return (_req, _res, next) => {
+  return (req, _res, next) => {
+    req.user = {
+      userId: overrides.userId ?? "test-user-id",
+      role: overrides.role ?? "admin",
+      email: overrides.email ?? "test@example.com",
+    };
     next();
   };
 };
@@ -52,6 +45,9 @@ export const createRouteTestApp = ({
     }),
   );
   app.use(express.urlencoded({ extended: false, limit: JSON_LIMIT }));
+
+  // Injetar mock auth por padrão (pode ser sobrescrito via middlewares)
+  app.use(createMockAuthMiddleware());
 
   for (const middleware of middlewares) {
     app.use(middleware);

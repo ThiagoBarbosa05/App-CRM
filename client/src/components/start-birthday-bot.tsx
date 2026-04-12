@@ -56,8 +56,6 @@ export function StartBirthdayBot({
         `/api/umbler/chats?customerPhone=${client?.phone}&userId=${user?.id}`,
         {
           headers: {
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
           },
         }
       );
@@ -77,8 +75,6 @@ export function StartBirthdayBot({
       queryFn: async () => {
         const response = await fetch("/api/umbler/birthday-bots", {
           headers: {
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
           },
         });
         if (!response.ok) {
@@ -103,8 +99,6 @@ export function StartBirthdayBot({
           body: JSON.stringify(customerData),
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
-            "x-user-role": user?.role || "",
           },
         }
       );
@@ -153,8 +147,6 @@ export function StartBirthdayBot({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
         body: JSON.stringify({
           contactId: umblerContact?.id,
@@ -198,8 +190,6 @@ export function StartBirthdayBot({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
         body: JSON.stringify(data),
       }),

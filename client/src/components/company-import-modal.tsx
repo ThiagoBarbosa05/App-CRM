@@ -251,8 +251,6 @@ export default function CompanyImportModal({
             try {
               const usersResponse = await fetch("/api/users", {
                 headers: {
-                  "x-user-id": "b314722c-8fd6-4592-a9de-9ee551ec35be",
-                  "x-user-role": "admin",
                 },
               });
               if (usersResponse.ok) {

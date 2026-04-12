@@ -30,25 +30,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user data on app start
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Verificar sessão ativa no backend via cookie JWT
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(() => {
+        // Sessão inválida ou expirada — mantém user null
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   const login = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const updateUserAuthenticated = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-  }
+  };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // Continua mesmo se o request falhar
+    }
     setUser(null);
     localStorage.removeItem("user");
   };

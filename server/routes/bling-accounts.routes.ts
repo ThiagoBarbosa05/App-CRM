@@ -39,8 +39,8 @@ function getAdminUser(req: Request): {
   userId: string;
   userRole: string;
 } {
-  const userId = req.headers["x-user-id"] as string | undefined;
-  const userRole = req.headers["x-user-role"] as string | undefined;
+  const userId = req.user?.userId;
+  const userRole = req.user?.role;
 
   if (!userId) {
     throw new Error("Usuario nao autenticado");

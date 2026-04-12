@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -40,6 +41,7 @@ export default function ProductImportModal({
   open,
   onOpenChange,
 }: ProductImportModalProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,15 +129,13 @@ export default function ProductImportModal({
       // Buscar lista de usuários para mapear criador
       const usersResponse = await fetch("/api/users", {
         headers: {
-          "x-user-id": "b314722c-8fd6-4592-a9de-9ee551ec35be",
-          "x-user-role": "admin",
         },
       });
 
       const users = usersResponse.ok ? await usersResponse.json() : [];
       const defaultUserId =
         users.find((u: any) => u.role === "admin")?.id ||
-        "b314722c-8fd6-4592-a9de-9ee551ec35be";
+        user?.id;
 
       for (let i = 0; i < products.length; i++) {
         const product = products[i];
@@ -232,8 +232,6 @@ export default function ProductImportModal({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-user-id": defaultUserId,
-              "x-user-role": "admin",
             },
             body: JSON.stringify(productData),
           });

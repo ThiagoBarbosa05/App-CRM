@@ -122,8 +122,8 @@ export class DealsService {
    * @returns GetDealsParams - Parâmetros processados
    */
   processGetDealsParams(req: any): GetDealsParams {
-    const userId = req.query.userId || req.user?.id || req.user?.userId;
-    const userRole = req.query.userRole || req.user?.role || req.user?.userRole;
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
     const funnelId = req.query.funnelId;
 
     return {
@@ -193,8 +193,8 @@ export class DealsService {
    * @returns CreateDealParams - Parâmetros processados
    */
   processCreateDealParams(req: any): CreateDealParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       dealData: req.body,
@@ -302,8 +302,8 @@ export class DealsService {
    * @returns CreateBulkDealsParams - Parâmetros processados
    */
   processCreateBulkDealsParams(req: any): CreateBulkDealsParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       companies: req.body.companies,
@@ -416,8 +416,8 @@ export class DealsService {
    * @returns CreateBulkDealsClientsParams - Parâmetros processados
    */
   processCreateBulkDealsClientsParams(req: any): CreateBulkDealsClientsParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       clients: req.body.clients,
@@ -481,8 +481,8 @@ export class DealsService {
    * @returns UpdateDealParams - Parâmetros processados
    */
   processUpdateDealParams(req: any): UpdateDealParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       dealId: req.params.dealId,
@@ -525,8 +525,8 @@ export class DealsService {
    * @returns DeleteDealParams - Parâmetros processados
    */
   processDeleteDealParams(req: any): DeleteDealParams {
-    const userId = req.user?.id || req.user?.userId || req.userId;
-    const userRole = req.user?.role || req.user?.userRole || req.userRole;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     return {
       dealId: req.params.id,

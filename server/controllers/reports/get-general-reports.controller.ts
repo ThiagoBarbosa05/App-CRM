@@ -68,8 +68,8 @@ export const getGeneralReportsController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
     // Base conditions based on user role
     let clientCondition = sql`1=1`;

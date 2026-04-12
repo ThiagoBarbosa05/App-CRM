@@ -216,7 +216,6 @@ export default function EventParticipantsModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
         },
         body: JSON.stringify(participantData),
       });
@@ -264,7 +263,6 @@ export default function EventParticipantsModal({
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
           },
           body: JSON.stringify(data),
         }
@@ -304,7 +302,6 @@ export default function EventParticipantsModal({
         {
           method: "DELETE",
           headers: {
-            "x-user-id": user?.id || "",
           },
         }
       );

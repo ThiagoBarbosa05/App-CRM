@@ -56,8 +56,8 @@ export async function getUpcomingBirthdaysController(
 ) {
   try {
     const days = parseInt(req.query.days as string) || 7;
-    const userId = req.headers["x-user-id"] as string;
-    const userRole = req.headers["x-user-role"] as string;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const responsibleId = req.query.responsibleId as string;
 
     // Se um responsibleId específico for passado, usar esse

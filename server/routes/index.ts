@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "../middleware/validation";
 import { clientsRouter } from "./clients.routes";
 import { companiesRouter } from "./companies.routes";
 import { funnelsRouter } from "./funnels.routes";
@@ -64,12 +65,19 @@ import {
  */
 export const apiRouter = Router();
 
-/**
- * Registra routers por domínio
- * Cada domínio tem seu próprio arquivo de rotas
- */
-apiRouter.use("/clients", clientsRouter);
+// === ROTAS PÚBLICAS (sem autenticação) ===
+// Devem ser registradas ANTES do middleware requireAuth
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/health", healthRouter);
+// Webhook do Bling — sem autenticação de usuário (usa HMAC próprio)
+apiRouter.use("/bling", blingWebhookRouter);
+
+// === AUTENTICAÇÃO GLOBAL ===
+// Todas as rotas registradas abaixo exigem JWT válido no cookie auth_token
+apiRouter.use(requireAuth);
+
+// === ROTAS PROTEGIDAS ===
+apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/files", filesRouter);
 apiRouter.use("/acompanhamento", acompanhamentoRouter);
 apiRouter.use("/", umblerRouter);
@@ -82,7 +90,6 @@ apiRouter.use("/", trainingsRouter);
 apiRouter.use("/events", eventsRouter);
 apiRouter.use("/", templatesRouter);
 apiRouter.use("/birthday-automation", birthdayAutomationRouter);
-apiRouter.use("/health", healthRouter);
 apiRouter.use("/admin", adminRouter);
 apiRouter.use("/message-automation-settings", messageAutomationSettingsRouter);
 apiRouter.use("/companies", companiesRouter);
@@ -121,9 +128,4 @@ apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
-// Webhook do Bling — sem autenticação de usuário (chamado diretamente pelo Bling)
-apiRouter.use("/bling", blingWebhookRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
-
-// Mounts sem prefixo proprio preservam contratos legados como
-// `/api/templates`, `/api/trainings*`, `/api/umbler*` e `/api/companies/*/products*`.

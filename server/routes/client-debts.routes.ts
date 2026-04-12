@@ -18,17 +18,7 @@ clientDebtsRouter.get("/", async (req, res) => {
 
 clientDebtsRouter.post("/", async (req, res) => {
   try {
-    const userIdFromHeader = req.headers["x-user-id"] as string;
-    let createdById = userIdFromHeader;
-
-    if (!createdById) {
-      const users = await storage.getUsers();
-      createdById = users.length > 0 ? users[0].id : null;
-    }
-
-    if (!createdById) {
-      return res.status(400).json({ error: "No users found in system" });
-    }
+    const createdById = req.user?.userId ?? null;
 
     const debt = await storage.createClientDebt({
       id: nanoid(),

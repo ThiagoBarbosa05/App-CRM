@@ -1,6 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
+  if (res.status === 401) {
+    localStorage.removeItem("user");
+    window.location.href = "/";
+    throw new Error("401: Sessão expirada");
+  }
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
@@ -12,18 +17,10 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const user = getUserFromStorage();
-  
   const headers: Record<string, string> = {};
-  
+
   if (data) {
     headers["Content-Type"] = "application/json";
-  }
-  
-  // Adicionar headers de autenticação para todas as requisições
-  if (user) {
-    headers["x-user-id"] = user.id;
-    headers["x-user-role"] = user.role;
   }
 
   const res = await fetch(url, {
@@ -38,25 +35,14 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-function getUserFromStorage() {
-  const storedUser = localStorage.getItem("user");
-  return storedUser ? JSON.parse(storedUser) : null;
-}
 
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const user = getUserFromStorage();
     const url = new URL(queryKey.join("/") as string, window.location.origin);
-    
-    // Adicionar parâmetros do usuário para controle de acesso
-    if (user) {
-      url.searchParams.set('userId', user.id);
-      url.searchParams.set('userRole', user.role);
-    }
-    
+
     const res = await fetch(url.toString(), {
       credentials: "include",
     });

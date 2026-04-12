@@ -370,7 +370,6 @@ export default function EventsManagement() {
           {
             method: "DELETE",
             headers: {
-              "x-user-id": user?.id || "",
             },
           }
         );
@@ -447,7 +446,6 @@ export default function EventsManagement() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": user?.id || "",
           },
           body: JSON.stringify(eventData),
         });
@@ -497,7 +495,6 @@ export default function EventsManagement() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
         },
         body: JSON.stringify({
           ...data,
@@ -539,7 +536,6 @@ export default function EventsManagement() {
       const response = await fetch(`/api/events/${eventId}`, {
         method: "DELETE",
         headers: {
-          "x-user-id": user?.id || "",
         },
       });
 
@@ -694,7 +690,6 @@ export default function EventsManagement() {
       // Buscar participantes do evento
       const response = await fetch(`/api/events/${event.id}/participants`, {
         headers: {
-          "x-user-id": user?.id || "",
         },
       });
 

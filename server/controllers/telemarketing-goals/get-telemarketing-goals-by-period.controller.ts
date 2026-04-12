@@ -7,8 +7,8 @@ export const getTelemarketingGoalsByPeriodController = async (
 ) => {
   try {
     const { month, year } = req.params;
-    const userId = (req.query.userId as string) || (req.headers["x-user-id"] as string);
-    const userRole = (req.query.userRole as string) || (req.headers["x-user-role"] as string);
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
 
     const goals = await telemarketingGoalsService.getGoalsByPeriod(
       Number(month),

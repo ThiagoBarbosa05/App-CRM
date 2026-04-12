@@ -52,8 +52,6 @@ export default function CalendarPage() {
     queryFn: async () => {
       const response = await fetch(`/api/birthdays/upcoming?days=365`, {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch all birthdays");
@@ -67,8 +65,6 @@ export default function CalendarPage() {
     queryFn: async () => {
       const response = await fetch("/api/birthdays/upcoming?days=30", {
         headers: {
-          "x-user-id": user?.id || "",
-          "x-user-role": user?.role || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");

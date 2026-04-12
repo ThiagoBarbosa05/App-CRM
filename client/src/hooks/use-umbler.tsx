@@ -144,7 +144,6 @@ export function useUmblerContactChats(
         `/api/umbler/chats?customerPhone=${phone}&userId=${userId}`,
         {
           headers: {
-            "x-user-id": userId || "",
           },
         }
       );
@@ -189,8 +188,6 @@ export function useUmblerBot(
     queryFn: async () => {
       const response = await fetch(`/api/umbler/bot?title=${title}`, {
         headers: {
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch bot");
@@ -212,8 +209,6 @@ export function useUmblerCashbackField(
     queryFn: async () => {
       const response = await fetch(`/api/umbler/${contactId}/cashback-field`, {
         headers: {
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch cashback field");
@@ -235,8 +230,6 @@ export function useUmblerBotCashback(
     queryFn: async () => {
       const response = await fetch("/api/umbler/bot-cashback", {
         headers: {
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
       });
       if (!response.ok) throw new Error("Failed to fetch cashback bot");
@@ -268,8 +261,6 @@ export function useCreateUmblerChat(userId?: string, userRole?: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
         body: JSON.stringify({ contactId, userId }),
       });
@@ -363,8 +354,6 @@ export function useSyncUmblerCustomer(userId?: string, userRole?: string) {
           body: JSON.stringify(customerData),
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": userId || "",
-            "x-user-role": userRole || "",
           },
         }
       );
@@ -420,8 +409,6 @@ export function useSendUmblerMessage(userId?: string, userRole?: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
         body: JSON.stringify({ chatId, message }),
       });
@@ -474,8 +461,6 @@ export function useStartUmblerBot(userId?: string, userRole?: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
         body: JSON.stringify({ chatId, botId, triggerName }),
       });
@@ -526,8 +511,6 @@ export function useCreateUmblerCashback(userId?: string, userRole?: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
         body: JSON.stringify({ value, contactId }),
       });
@@ -582,8 +565,6 @@ export function useUpdateUmblerCashback(userId?: string, userRole?: string) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId || "",
-          "x-user-role": userRole || "",
         },
         body: JSON.stringify({ value, contactId }),
       });
@@ -690,8 +671,6 @@ export function useUmblerCashbackAutomation(
           `/api/umbler/chats?customerPhone=${client.phone}&userId=${userId}`,
           {
             headers: {
-              "x-user-id": userId || "",
-              "x-user-role": userRole || "",
             },
           }
         );
@@ -725,8 +704,6 @@ export function useUmblerCashbackAutomation(
           `/api/umbler/${contactId}/cashback-field`,
           {
             headers: {
-              "x-user-id": userId || "",
-              "x-user-role": userRole || "",
             },
           }
         );
@@ -759,8 +736,6 @@ export function useUmblerCashbackAutomation(
       try {
         const botResponse = await fetch("/api/umbler/bot-cashback", {
           headers: {
-            "x-user-id": userId || "",
-            "x-user-role": userRole || "",
           },
         });
 

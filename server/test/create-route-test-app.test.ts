@@ -1,46 +1,59 @@
-import express, { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 
 import {
   createRouteTestApp,
-  createRouteTestHeaders,
-  createRouteTestMiddleware,
+  createMockAuthMiddleware,
 } from "./create-route-test-app";
 import { rawBodyJson } from "./raw-body-json";
 
 describe("createRouteTestApp", () => {
-  it("mounts an isolated router with json parsing and default user headers", async () => {
+  it("mounts an isolated router with json parsing and injects req.user via mock auth", async () => {
     const router = Router();
 
     router.post("/json", (req: Request, res: Response) => {
       res.json({
         body: req.body,
-        headers: {
-          userId: req.headers["x-user-id"],
-          userRole: req.headers["x-user-role"],
+        user: {
+          userId: req.user?.userId,
+          role: req.user?.role,
         },
       });
     });
 
-    const app = createRouteTestApp({
-      router,
-      middlewares: [createRouteTestMiddleware()],
-    });
+    const app = createRouteTestApp({ router });
 
     const response = await request(app)
       .post("/json")
-      .set(createRouteTestHeaders())
       .send({ ok: true });
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       body: { ok: true },
-      headers: {
+      user: {
         userId: "test-user-id",
-        userRole: "admin",
+        role: "admin",
       },
     });
+  });
+
+  it("allows custom user via createMockAuthMiddleware override", async () => {
+    const router = Router();
+
+    router.get("/me", (req: Request, res: Response) => {
+      res.json({ userId: req.user?.userId, role: req.user?.role });
+    });
+
+    const app = createRouteTestApp({
+      router,
+      middlewares: [createMockAuthMiddleware({ userId: "custom-id", role: "vendedor" })],
+    });
+
+    const response = await request(app).get("/me");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ userId: "custom-id", role: "vendedor" });
   });
 
   it("captures rawBody only when enabled", async () => {

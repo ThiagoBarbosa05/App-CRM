@@ -171,7 +171,6 @@ const createQuestion = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-user-id": "current-user-id", // TODO: Pegar do contexto de auth
     },
     body: JSON.stringify(payload),
   });
