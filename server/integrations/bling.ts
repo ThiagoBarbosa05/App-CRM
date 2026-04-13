@@ -539,6 +539,83 @@ export async function getBlingCategoriaProduto(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Mapeamento de categorias de produto para enums locais
+// ---------------------------------------------------------------------------
+
+export type BlingWineType = "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO";
+export type BlingWineCountry =
+  | "CHILE"
+  | "ARGENTINA"
+  | "URUGUAI"
+  | "BRASIL"
+  | "EUA"
+  | "FRANÇA"
+  | "ITÁLIA"
+  | "PORTUGAL"
+  | "ESPANHA"
+  | "ALEMANHA"
+  | "OUTROS";
+
+/**
+ * Normaliza uma string removendo acentos e convertendo para maiúsculas,
+ * facilitando comparações case-insensitive sem dependência de locale.
+ * (uso interno dos mappers abaixo)
+ */
+function normalizeBlingCategoryStr(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+}
+
+/**
+ * Mapeia a `descricao` da categoria Bling para o enum `type` da tabela
+ * `products` (tipo do vinho). Retorna `"TINTO"` como fallback.
+ */
+export function mapBlingCategoryToWineType(descricao: string): BlingWineType {
+  const n = normalizeBlingCategoryStr(descricao);
+
+  if (n.includes("ESPUMANTE")) return "ESPUMANTE";
+  if (n.includes("BRANCO")) return "BRANCO";
+  if (n.includes("ROSE") || n.includes("ROSÊ")) return "ROSE";
+  if (n.includes("POS") && n.includes("REFEIC")) return "PÓS-REFEIÇÃO";
+  if (n.includes("TINTO")) return "TINTO";
+
+  return "TINTO";
+}
+
+/**
+ * Mapeia a `descricao` da categoria pai Bling para o enum `country` da tabela
+ * `products` (país do vinho). Retorna `"OUTROS"` como fallback.
+ */
+export function mapBlingCategoryToCountry(descricao: string): BlingWineCountry {
+  const n = normalizeBlingCategoryStr(descricao);
+
+  if (n.includes("CHILE")) return "CHILE";
+  if (n.includes("ARGENTIN")) return "ARGENTINA";
+  if (n.includes("URUGUAI") || n.includes("URUGUAY")) return "URUGUAI";
+  if (n.includes("BRASIL") || n.includes("BRAZIL")) return "BRASIL";
+  if (
+    n.includes("EUA") ||
+    n.includes("USA") ||
+    n.includes("ESTADOS UNIDOS") ||
+    n.includes("ESTADOS-UNIDOS")
+  )
+    return "EUA";
+  if (n.includes("FRANCA") || n.includes("FRANCE") || n.includes("FRANC"))
+    return "FRANÇA";
+  if (n.includes("ITALIA") || n.includes("ITALY")) return "ITÁLIA";
+  if (n.includes("PORTUGAL")) return "PORTUGAL";
+  if (n.includes("ESPANHA") || n.includes("SPAIN") || n.includes("ESPANA"))
+    return "ESPANHA";
+  if (n.includes("ALEMANHA") || n.includes("GERMANY") || n.includes("DEUTSCH"))
+    return "ALEMANHA";
+
+  return "OUTROS";
+}
+
 export interface BlingVendedor {
   id: number;
   descontoLimite: number;

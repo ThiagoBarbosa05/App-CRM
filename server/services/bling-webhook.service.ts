@@ -12,6 +12,11 @@ import {
   getBlingPedidoVenda,
   getBlingContato,
   getBlingProduto,
+  getBlingCategoriaProduto,
+  mapBlingCategoryToWineType,
+  mapBlingCategoryToCountry,
+  type BlingWineType,
+  type BlingWineCountry,
   type BlingPedidoVenda,
   type BlingContato,
 } from "../integrations/bling";
@@ -582,6 +587,72 @@ async function processDeleteEvent(
 // ---------------------------------------------------------------------------
 
 /**
+ * Resolve os campos `type` (tipo do vinho) e `country` (país do vinho) a
+ * partir da categoria do produto no Bling.
+ *
+ * - A categoria direta do produto → `type`
+ * - A categoria pai (se `id > 0`) → `country`
+ *
+ * Ambas as chamadas são cercadas de try/catch para que uma falha na API de
+ * categorias não interrompa o upsert do produto; nesse caso os campos ficam
+ * com os valores default.
+ */
+async function resolveCategoryFields(
+  accessToken: string,
+  onTokenRefresh: () => Promise<string>,
+  blingCategoriaId: number | null | undefined,
+): Promise<{ type: BlingWineType; country: BlingWineCountry }> {
+  if (!blingCategoriaId) {
+    return { type: "TINTO", country: "OUTROS" };
+  }
+
+  let wineType: BlingWineType = "TINTO";
+  let wineCountry: BlingWineCountry = "OUTROS";
+
+  // Busca categoria (tipo do vinho)
+  let categoriaPaiId: number | null = null;
+  try {
+    await sleep(RATE_LIMIT_DELAY_MS);
+    const categoria = await getBlingCategoriaProduto(
+      accessToken,
+      blingCategoriaId,
+      onTokenRefresh,
+    );
+    wineType = mapBlingCategoryToWineType(categoria.descricao);
+    categoriaPaiId =
+      categoria.categoriaPai?.id && categoria.categoriaPai.id > 0
+        ? categoria.categoriaPai.id
+        : null;
+  } catch (error) {
+    console.warn(
+      `[BlingWebhookService] Não foi possível buscar categoria ${blingCategoriaId} — usando tipo default:`,
+      error,
+    );
+    return { type: wineType, country: wineCountry };
+  }
+
+  // Busca categoria pai (país do vinho)
+  if (categoriaPaiId) {
+    try {
+      await sleep(RATE_LIMIT_DELAY_MS);
+      const categoriaPai = await getBlingCategoriaProduto(
+        accessToken,
+        categoriaPaiId,
+        onTokenRefresh,
+      );
+      wineCountry = mapBlingCategoryToCountry(categoriaPai.descricao);
+    } catch (error) {
+      console.warn(
+        `[BlingWebhookService] Não foi possível buscar categoria pai ${categoriaPaiId} — usando país default:`,
+        error,
+      );
+    }
+  }
+
+  return { type: wineType, country: wineCountry };
+}
+
+/**
  * Trata eventos `product.created` e `product.updated`.
  *
  * Busca os detalhes completos do produto no Bling via `getBlingProduto` e
@@ -606,7 +677,15 @@ async function processProductCreateOrUpdateEvent(
   const imageUrl = blingProduct.midia?.imagens?.internas?.[0]?.link ?? null;
   const preco = blingProduct.preco ?? 0;
 
-  // 2) Verifica se o produto já existe no banco local
+  // 2) Resolve tipo e país a partir da categoria do produto no Bling.
+  //    Cada chamada à API de categoria já aplica o RATE_LIMIT_DELAY_MS internamente.
+  const { type: wineType, country: wineCountry } = await resolveCategoryFields(
+    accessToken,
+    onTokenRefresh,
+    blingProduct.categoria?.id,
+  );
+
+  // 3) Verifica se o produto já existe no banco local
   const [existing] = await db
     .select({ id: products.id })
     .from(products)
@@ -614,28 +693,30 @@ async function processProductCreateOrUpdateEvent(
     .limit(1);
 
   if (existing) {
-    // UPDATE: atualiza os campos disponíveis no Bling e reativa se estava soft-deleted
+    // UPDATE: atualiza nome, preço, imagem, tipo, país e reativa se estava soft-deleted
     await db
       .update(products)
       .set({
         ...(blingProduct.nome ? { name: blingProduct.nome } : {}),
         ...(preco > 0 ? { negotiatedPrice: preco.toFixed(2) } : {}),
         ...(imageUrl ? { imageUrl } : {}),
+        type: wineType,
+        country: wineCountry,
         deletedAt: null,
         updatedAt: new Date(),
       })
       .where(eq(products.id, existing.id));
 
     console.info(
-      `[BlingWebhookService] Produto ${productId} atualizado no banco (evento: ${event.event}).`,
+      `[BlingWebhookService] Produto ${productId} atualizado no banco — tipo: ${wineType}, país: ${wineCountry} (evento: ${event.event}).`,
     );
   } else {
-    // INSERT: cria com defaults para campos obrigatórios não disponíveis no Bling
+    // INSERT: cria com tipo e país resolvidos via categoria do Bling
     await db.insert(products).values({
       name: blingProduct.nome ?? `Produto ${productId}`,
-      country: "OUTROS",
+      country: wineCountry,
       volume: "750ml",
-      type: "TINTO",
+      type: wineType,
       negotiatedPrice: preco.toFixed(2),
       createdBy: connection.userId,
       blingProductId: blingProductIdStr,
@@ -643,7 +724,7 @@ async function processProductCreateOrUpdateEvent(
     });
 
     console.info(
-      `[BlingWebhookService] Produto ${productId} criado no banco com defaults (evento: ${event.event}).`,
+      `[BlingWebhookService] Produto ${productId} criado no banco — tipo: ${wineType}, país: ${wineCountry} (evento: ${event.event}).`,
     );
   }
 }

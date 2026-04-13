@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { products } from "../../shared/schema";
 import { decryptToken } from "../lib/token-crypto";
-import { getBlingProdutos, getBlingProduto } from "../integrations/bling";
+import {
+  getBlingProdutos,
+  getBlingProduto,
+  getBlingCategoriaProduto,
+  mapBlingCategoryToWineType,
+  mapBlingCategoryToCountry,
+} from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
 
 export type SyncProgressEvent =
@@ -143,6 +149,50 @@ export async function syncBlingProducts(
       const imageUrl = blingProduct.midia?.imagens?.internas?.[0]?.link ?? null;
       const preco = blingProduct.preco ?? 0;
 
+      // Resolve tipo e país a partir da categoria do produto no Bling.
+      // Cada chamada extra passa pelo rate limiter para respeitar o limite de 3 req/s.
+      let wineType = defaultType;
+      let wineCountry = defaultCountry;
+
+      if (blingProduct.categoria?.id) {
+        try {
+          await rateLimiter.consume();
+          const categoria = await getBlingCategoriaProduto(
+            accessToken,
+            blingProduct.categoria.id,
+            onTokenRefresh,
+          );
+          wineType = mapBlingCategoryToWineType(categoria.descricao);
+
+          const paiId =
+            categoria.categoriaPai?.id && categoria.categoriaPai.id > 0
+              ? categoria.categoriaPai.id
+              : null;
+
+          if (paiId) {
+            try {
+              await rateLimiter.consume();
+              const categoriaPai = await getBlingCategoriaProduto(
+                accessToken,
+                paiId,
+                onTokenRefresh,
+              );
+              wineCountry = mapBlingCategoryToCountry(categoriaPai.descricao);
+            } catch (err) {
+              console.warn(
+                `[BlingProductsSync] Não foi possível buscar categoria pai ${paiId} — usando país default:`,
+                err,
+              );
+            }
+          }
+        } catch (err) {
+          console.warn(
+            `[BlingProductsSync] Não foi possível buscar categoria ${blingProduct.categoria.id} — usando defaults:`,
+            err,
+          );
+        }
+      }
+
       const existing = productsByBlingId.get(blingIdStr);
 
       if (existing) {
@@ -151,6 +201,8 @@ export async function syncBlingProducts(
           .set({
             ...(preco > 0 ? { negotiatedPrice: preco.toFixed(2) } : {}),
             ...(imageUrl ? { imageUrl } : {}),
+            type: wineType,
+            country: wineCountry,
             updatedAt: new Date(),
           })
           .where(eq(products.id, existing.id));
@@ -161,9 +213,9 @@ export async function syncBlingProducts(
           .insert(products)
           .values({
             name: blingProduct.nome ?? summary.nome,
-            country: defaultCountry,
+            country: wineCountry,
             volume: defaultVolume,
-            type: defaultType,
+            type: wineType,
             negotiatedPrice: preco.toFixed(2),
             createdBy: defaults.createdBy,
             blingProductId: blingIdStr,
