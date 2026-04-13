@@ -27,7 +27,10 @@ import userGoalsRouter, {
 } from "./user-goals.routes";
 import blingRouter from "./bling-orders.routes";
 import { messageJobsLogsRouter } from "./message-jobs-logs.routes";
-import { telemarketingGoalsRouter, telemarketingStatsRouter } from "./telemarketing-goals.routes";
+import {
+  telemarketingGoalsRouter,
+  telemarketingStatsRouter,
+} from "./telemarketing-goals.routes";
 import blingAccountsRouter from "./bling-accounts.routes";
 import blingProductsRouter from "./bling-products.routes";
 import connectOrdersRouter from "./connect-orders.routes";
@@ -71,6 +74,7 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/health", healthRouter);
 // Webhook do Bling — sem autenticação de usuário (usa HMAC próprio)
 apiRouter.use("/bling", blingWebhookRouter);
+apiRouter.use("/bling-accounts", blingAccountsRouter);
 
 // === AUTENTICAÇÃO GLOBAL ===
 // Todas as rotas registradas abaixo exigem JWT válido no cookie auth_token
@@ -124,7 +128,6 @@ apiRouter.use("/marker-goals", markerGoalsRouter);
 apiRouter.use("/marker-stats", markerStatsRouter);
 apiRouter.use("/interaction-goals", interactionGoalsRouter);
 apiRouter.use("/interaction-stats", interactionStatsRouter);
-apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);

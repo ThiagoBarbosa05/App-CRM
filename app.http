@@ -18,5 +18,5 @@ x-user-role: admin
 }
 
 ###
-GET https://api.bling.com.br/Api/v3/produtos/16623149563
-Authorization: Bearer a096d7a6649a74af8d37d37dd26240acd3241355
+GET https://api.bling.com.br/Api/v3/categorias/produtos/770831147
+Authorization: Bearer 38ca64d37594171a6d3d09dcca92a5733a376428

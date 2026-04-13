@@ -476,6 +476,69 @@ export async function getBlingProduto(
   return body.data;
 }
 
+// ---------------------------------------------------------------------------
+// Categorias de produto
+// ---------------------------------------------------------------------------
+
+export interface BlingCategoriaProduto {
+  id: number;
+  descricao: string;
+  categoriaPai: { id: number } | null;
+}
+
+/**
+ * Busca os dados de uma categoria de produto pelo ID no Bling.
+ *
+ * Em caso de 401/403 (token expirado), chama `onTokenRefresh` para obter um
+ * novo access token e repete a requisição uma única vez.
+ *
+ * @param accessToken       - Token de acesso OAuth2 válido do Bling.
+ * @param categoriaProdutoId - ID da categoria de produto no Bling.
+ * @param onTokenRefresh    - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingCategoriaProduto(
+  accessToken: string,
+  categoriaProdutoId: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingCategoriaProduto> {
+  let token = accessToken;
+  const path = `/categorias/produtos/${categoriaProdutoId}`;
+
+  let response = await fetchBlingApi(token, path);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, path);
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      `Categoria de produto ${categoriaProdutoId} não encontrada no Bling`,
+    );
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao buscar categoria de produto do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as {
+    data: {
+      id: number;
+      descricao: string;
+      categoriaPai?: { id: number } | null;
+    };
+  };
+
+  return {
+    id: body.data.id,
+    descricao: body.data.descricao,
+    categoriaPai: body.data.categoriaPai ?? null,
+  };
+}
+
 export interface BlingVendedor {
   id: number;
   descontoLimite: number;
