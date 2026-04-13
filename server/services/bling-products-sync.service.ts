@@ -115,8 +115,9 @@ export async function syncBlingProducts(
 
   onProgress({ type: "start" });
 
-  // Bling allows up to 3 req/s. The bucket starts full (burst of 3) and refills at 3/s.
-  const rateLimiter = new TokenBucket(3, 3);
+  // Bling allows up to 3 req/s (sliding window). Capacity=1 eliminates burst,
+  // ensuring every request waits ~333 ms — strictly ≤ 3 req/s at all times.
+  const rateLimiter = new TokenBucket(1, 3);
 
   let page = 1;
   const LIMIT = 100;
