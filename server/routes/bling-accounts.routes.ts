@@ -4,6 +4,7 @@ import { db } from "../db";
 import { blingConnections } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
+import { requireAuth } from "../middleware/validation";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
 import {
   startImport,
@@ -80,6 +81,48 @@ function renderCallbackHtml(redirectUrl: string): string {
 </html>`;
 }
 
+// 1. ROTA PÚBLICA: Callback de OAuth do Bling (não exige auth do usuário do CRM)
+router.get("/callback", async (req, res) => {
+  const querySchema = z.object({
+    code: z.string().min(1),
+    state: z.string().min(1),
+  });
+
+  try {
+    const query = querySchema.parse(req.query);
+    await blingConnectionsService.handleOAuthCallback({
+      code: query.code,
+      state: query.state,
+    });
+
+    return res
+      .status(200)
+      .type("html")
+      .send(
+        renderCallbackHtml(
+          getCallbackRedirectUrl(
+            "success",
+            "Conta Bling conectada com sucesso",
+          ),
+        ),
+      );
+  } catch (error) {
+    console.error("[BlingAccountsRouter] Erro no callback OAuth:", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao concluir autenticacao com Bling";
+    return res
+      .status(200)
+      .type("html")
+      .send(renderCallbackHtml(getCallbackRedirectUrl("error", message)));
+  }
+});
+
+// 2. APLICAÇÃO DA AUTENTICAÇÃO: Todas as rotas abaixo requerem login no CRM
+router.use(requireAuth);
+
+// 3. ROTAS PROTEGIDAS
 router.get("/", async (req, res) => {
   try {
     const { userId } = getAdminUser(req);
@@ -177,43 +220,6 @@ router.put("/:id", async (req, res) => {
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar conta Bling";
     return res.status(400).json({ success: false, error: message });
-  }
-});
-
-router.get("/callback", async (req, res) => {
-  const querySchema = z.object({
-    code: z.string().min(1),
-    state: z.string().min(1),
-  });
-
-  try {
-    const query = querySchema.parse(req.query);
-    await blingConnectionsService.handleOAuthCallback({
-      code: query.code,
-      state: query.state,
-    });
-
-    return res
-      .status(200)
-      .type("html")
-      .send(
-        renderCallbackHtml(
-          getCallbackRedirectUrl(
-            "success",
-            "Conta Bling conectada com sucesso",
-          ),
-        ),
-      );
-  } catch (error) {
-    console.error("[BlingAccountsRouter] Erro no callback OAuth:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Erro ao concluir autenticacao com Bling";
-    return res
-      .status(200)
-      .type("html")
-      .send(renderCallbackHtml(getCallbackRedirectUrl("error", message)));
   }
 });
 
