@@ -56,12 +56,12 @@ const navItems: NavItem[] = [
     label: "Funil de Vendas",
     roles: ["admin", "vendedor"],
   },
-  {
-    href: "/vendas",
-    icon: ShoppingCart,
-    label: "Vendas (BETA)",
-    roles: ["admin", "gerente"],
-  },
+  // {
+  //   href: "/vendas",
+  //   icon: ShoppingCart,
+  //   label: "Vendas (BETA)",
+  //   roles: ["admin", "gerente"],
+  // },
   { href: "/assistente-ia", icon: Sparkles, label: "IA Assistente" },
   { href: "/treinamentos", icon: Video, label: "Treinamentos" },
   {

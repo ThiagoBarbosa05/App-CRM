@@ -170,14 +170,14 @@ function Router() {
         )}
       />
 
-      <Route
+      {/* <Route
         path="/vendas"
         component={() => (
           <MainLayout>
             <SellerDashboardPage />
           </MainLayout>
         )}
-      />
+      /> */}
       <Route
         path="/vendedores/:id"
         component={() => (
