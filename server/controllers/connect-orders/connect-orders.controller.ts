@@ -10,11 +10,11 @@ const importBodySchema = z.object({
   rows: z
     .array(
       z.object({
+        saleCode: z.string(),
         saleDate: z.string(),
         totalValue: z.string(),
         contactName: z.string().optional().default(""),
         contactCpf: z.string().optional().default(""),
-        contactBirthDate: z.string().optional().default(""),
         contactCep: z.string().optional().default(""),
         contactStreet: z.string().optional().default(""),
         contactNumber: z.string().optional().default(""),
@@ -24,6 +24,17 @@ const importBodySchema = z.object({
         sellerNameRaw: z.string().optional().default(""),
         contactPhone: z.string().optional().default(""),
         contactCellphone: z.string().optional().default(""),
+        items: z
+          .array(
+            z.object({
+              productCode: z.string().optional().default(""),
+              productName: z.string().optional().default(""),
+              quantity: z.string(),
+              unitValue: z.string(),
+            }),
+          )
+          .optional()
+          .default([]),
       }),
     )
     .min(1, "Nenhuma linha encontrada no CSV"),
@@ -31,6 +42,7 @@ const importBodySchema = z.object({
     z.object({
       rawName: z.string(),
       userId: z.string().nullable(),
+      score: z.number().min(0).max(1).optional().default(0),
     }),
   ),
   sourceFile: z.string(),

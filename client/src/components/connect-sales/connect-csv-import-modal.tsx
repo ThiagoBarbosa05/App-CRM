@@ -26,12 +26,12 @@ import { ptBR } from "date-fns/locale";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
-interface CsvRow {
+/** Linha bruta lida do CSV (uma linha = um item de venda) */
+interface RawCsvLine {
   saleDate: string;
-  totalValue: string;
+  saleCode: string;
   contactName: string;
   contactCpf: string;
-  contactBirthDate: string;
   contactCep: string;
   contactStreet: string;
   contactNumber: string;
@@ -41,6 +41,34 @@ interface CsvRow {
   sellerNameRaw: string;
   contactPhone: string;
   contactCellphone: string;
+  productCode: string;
+  productName: string;
+  unitValue: string;
+  quantity: string;
+}
+
+/** Row agregada por saleCode (uma row = uma venda, possivelmente com vários itens) */
+interface CsvRow {
+  saleCode: string;
+  saleDate: string;
+  totalValue: string; // soma de (unitValue × quantity) formatada com vírgula
+  contactName: string;
+  contactCpf: string;
+  contactCep: string;
+  contactStreet: string;
+  contactNumber: string;
+  contactNeighborhood: string;
+  contactComplement: string;
+  contactCity: string;
+  sellerNameRaw: string;
+  contactPhone: string;
+  contactCellphone: string;
+  items: Array<{
+    productCode: string;
+    productName: string;
+    quantity: string;
+    unitValue: string;
+  }>;
 }
 
 interface SellerMatch {
@@ -76,34 +104,94 @@ interface ConnectCsvImportModalProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Parseia as linhas do CSV usando XLSX (já disponível no projeto) */
-function parseCsvToRows(fileData: ArrayBuffer): CsvRow[] {
+/** Converte "1.809,31" ou "1,00" → number */
+function parseBrazilianCurrencyLocal(str: string): number {
+  return parseFloat(str.replace(/\./g, "").replace(",", "."));
+}
+
+/** Parseia as linhas brutas do CSV usando XLSX */
+function parseCsvToRawLines(fileData: ArrayBuffer): RawCsvLine[] {
   const workbook = XLSX.read(fileData, { type: "array", raw: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  // Força leitura sem cabeçalho para mapear por índice
   const raw = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 }) as string[][];
 
-  // Pula linha de cabeçalho
-  const dataRows = raw.slice(1);
-
-  return dataRows
+  // Pula linha de cabeçalho; valida que existem data (col 0) e código (col 1)
+  return raw
+    .slice(1)
     .filter((row) => row.length >= 2 && row[0] && row[1])
     .map((row) => ({
-      saleDate: String(row[0] ?? "").trim(),
-      totalValue: String(row[1] ?? "").trim(),
-      contactName: String(row[2] ?? "").trim(),
-      contactCpf: String(row[3] ?? "").trim(),
-      contactBirthDate: String(row[4] ?? "").trim(),
-      contactCep: String(row[5] ?? "").trim(),
-      contactStreet: String(row[6] ?? "").trim(),
-      contactNumber: String(row[7] ?? "").trim(),
-      contactNeighborhood: String(row[8] ?? "").trim(),
-      contactComplement: String(row[9] ?? "").trim(),
-      contactCity: String(row[10] ?? "").trim(),
-      sellerNameRaw: String(row[11] ?? "").trim(),
-      contactPhone: String(row[12] ?? "").trim(),
-      contactCellphone: String(row[13] ?? "").trim(),
+      saleDate:            String(row[0]  ?? "").trim(),
+      saleCode:            String(row[1]  ?? "").trim(),
+      contactName:         String(row[2]  ?? "").trim(),
+      contactCpf:          String(row[3]  ?? "").trim(),
+      contactCep:          String(row[4]  ?? "").trim(),
+      contactStreet:       String(row[5]  ?? "").trim(),
+      contactNumber:       String(row[6]  ?? "").trim(),
+      contactNeighborhood: String(row[7]  ?? "").trim(),
+      contactComplement:   String(row[8]  ?? "").trim(),
+      contactCity:         String(row[9]  ?? "").trim(),
+      sellerNameRaw:       String(row[10] ?? "").trim(),
+      contactPhone:        String(row[11] ?? "").trim(),
+      contactCellphone:    String(row[12] ?? "").trim(),
+      productCode:         String(row[13] ?? "").trim(),
+      productName:         String(row[14] ?? "").trim(),
+      unitValue:           String(row[15] ?? "").trim(),
+      quantity:            String(row[16] ?? "").trim(),
     }));
+}
+
+/** Agrega linhas brutas por saleCode, somando os valores dos itens */
+function aggregateBySaleCode(rawLines: RawCsvLine[]): CsvRow[] {
+  const map = new Map<string, { row: CsvRow; totalNum: number }>();
+
+  for (const line of rawLines) {
+    const uv  = parseBrazilianCurrencyLocal(line.unitValue);
+    const qty = parseBrazilianCurrencyLocal(line.quantity);
+    const lineTotal = isNaN(uv) || isNaN(qty) ? 0 : uv * qty;
+    const item = {
+      productCode: line.productCode,
+      productName: line.productName,
+      quantity:    line.quantity,
+      unitValue:   line.unitValue,
+    };
+
+    if (!map.has(line.saleCode)) {
+      map.set(line.saleCode, {
+        totalNum: lineTotal,
+        row: {
+          saleCode:            line.saleCode,
+          saleDate:            line.saleDate,
+          totalValue:          "0",
+          contactName:         line.contactName,
+          contactCpf:          line.contactCpf,
+          contactCep:          line.contactCep,
+          contactStreet:       line.contactStreet,
+          contactNumber:       line.contactNumber,
+          contactNeighborhood: line.contactNeighborhood,
+          contactComplement:   line.contactComplement,
+          contactCity:         line.contactCity,
+          sellerNameRaw:       line.sellerNameRaw,
+          contactPhone:        line.contactPhone,
+          contactCellphone:    line.contactCellphone,
+          items:               [item],
+        },
+      });
+    } else {
+      const entry = map.get(line.saleCode)!;
+      entry.totalNum += lineTotal;
+      entry.row.items.push(item);
+    }
+  }
+
+  return Array.from(map.values()).map(({ row, totalNum }) => ({
+    ...row,
+    totalValue: totalNum.toFixed(2).replace(".", ","),
+  }));
+}
+
+/** Parseia o CSV e retorna rows agregadas por venda */
+function parseCsvToRows(fileData: ArrayBuffer): CsvRow[] {
+  return aggregateBySaleCode(parseCsvToRawLines(fileData));
 }
 
 /** Extrai nomes únicos de vendedores do CSV */
@@ -130,7 +218,7 @@ export function ConnectCsvImportModal({
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [sellerMappings, setSellerMappings] = useState<
-    { rawName: string; userId: string | null }[]
+    { rawName: string; userId: string | null; score: number }[]
   >([]);
   const [sellerSuggestions, setSellerSuggestions] = useState<SellerMatch[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -202,11 +290,12 @@ export function ConnectCsvImportModal({
                 (json.data as SellerMatch[]).map((m: SellerMatch) => ({
                   rawName: m.rawName,
                   userId: m.score >= 0.7 ? m.matchedUserId : null,
+                  score: m.score,
                 })),
               );
             }
           } catch {
-            setSellerMappings(uniqueNames.map((n) => ({ rawName: n, userId: null })));
+            setSellerMappings(uniqueNames.map((n) => ({ rawName: n, userId: null, score: 0 })));
           }
         }
 
@@ -347,28 +436,30 @@ export function ConnectCsvImportModal({
               <table className="w-full text-xs">
                 <thead className="bg-slate-50">
                   <tr>
+                    <th className="text-left px-3 py-2 font-medium text-slate-600">Código</th>
                     <th className="text-left px-3 py-2 font-medium text-slate-600">Data</th>
-                    <th className="text-left px-3 py-2 font-medium text-slate-600">Valor</th>
+                    <th className="text-left px-3 py-2 font-medium text-slate-600">Valor Total</th>
+                    <th className="text-left px-3 py-2 font-medium text-slate-600">Itens</th>
                     <th className="text-left px-3 py-2 font-medium text-slate-600">Cliente</th>
                     <th className="text-left px-3 py-2 font-medium text-slate-600">Vendedor</th>
-                    <th className="text-left px-3 py-2 font-medium text-slate-600">Cidade</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.slice(0, 10).map((row, i) => (
                     <tr key={i} className="border-t border-slate-100">
+                      <td className="px-3 py-2 text-slate-500 font-mono text-xs">{row.saleCode}</td>
                       <td className="px-3 py-2 text-slate-700">{row.saleDate}</td>
                       <td className="px-3 py-2 text-slate-700 font-medium">
                         R$ {row.totalValue}
                       </td>
-                      <td className="px-3 py-2 text-slate-600 max-w-[160px] truncate">
+                      <td className="px-3 py-2 text-slate-500 text-center">
+                        {row.items.length}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 max-w-[140px] truncate">
                         {row.contactName || <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-slate-600">
                         {row.sellerNameRaw || <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-3 py-2 text-slate-500">
-                        {row.contactCity || <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
                   ))}
@@ -434,7 +525,7 @@ export function ConnectCsvImportModal({
                         setSellerMappings((prev) =>
                           prev.map((m, i) =>
                             i === idx
-                              ? { ...m, userId: v === "none" ? null : v }
+                              ? { ...m, userId: v === "none" ? null : v, score: v === "none" ? 0 : m.score }
                               : m,
                           ),
                         );

@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { connectOrders, users, clients } from "../../shared/schema";
+import { connectOrders, connectOrderItems, users, clients } from "../../shared/schema";
 import {
   eq,
   and,
@@ -16,12 +16,19 @@ import {
 } from "drizzle-orm";
 import crypto from "crypto";
 
+export interface ConnectOrderItem {
+  productCode: string;
+  productName: string;
+  quantity: string; // "1,00"
+  unitValue: string; // "139,90"
+}
+
 export interface ConnectCsvRow {
+  saleCode: string;
   saleDate: string; // "31/03/2026"
-  totalValue: string; // "85,00"
+  totalValue: string; // "605,90" — valor agregado de todos os itens
   contactName: string;
   contactCpf: string;
-  contactBirthDate: string;
   contactCep: string;
   contactStreet: string;
   contactNumber: string;
@@ -31,11 +38,13 @@ export interface ConnectCsvRow {
   sellerNameRaw: string;
   contactPhone: string;
   contactCellphone: string;
+  items: ConnectOrderItem[];
 }
 
 export interface SellerMapping {
   rawName: string;
   userId: string | null;
+  score?: number;
 }
 
 export interface ImportConnectOrdersParams {
@@ -67,15 +76,9 @@ function parseBrazilianCurrency(str: string): number {
   return parseFloat(str.replace(/\./g, "").replace(",", "."));
 }
 
-/** Gera hash único para deduplicação */
-function buildImportHash(
-  saleDate: string,
-  contactName: string,
-  totalValue: string,
-  sourceFile: string,
-): string {
-  const raw = `${saleDate}|${contactName}|${totalValue}|${sourceFile}`;
-  return crypto.createHash("sha256").update(raw).digest("hex");
+/** Gera hash único para deduplicação baseado no código da venda */
+function buildImportHash(saleCode: string, sourceFile: string): string {
+  return crypto.createHash("sha256").update(`${saleCode}|${sourceFile}`).digest("hex");
 }
 
 /** Normaliza telefone — apenas dígitos */
@@ -165,7 +168,6 @@ async function createClientFromConnect(
           ? { fixedPhone: phoneNorm }
           : {}),
         ...(validCpf ? { cpf: validCpf } : {}),
-        ...(row.contactBirthDate ? { birthday: row.contactBirthDate } : {}),
         ...(row.contactCep ? { cep: row.contactCep } : {}),
         ...(row.contactStreet ? { address: row.contactStreet } : {}),
         ...(row.contactNumber ? { number: row.contactNumber } : {}),
@@ -218,9 +220,9 @@ export const connectOrdersService = {
   }> {
     const { rows, sellerMappings, importedBy, sourceFile } = params;
 
-    const sellerMap = new Map<string, string | null>();
+    const sellerMap = new Map<string, { userId: string | null; score: number }>();
     for (const m of sellerMappings) {
-      sellerMap.set(m.rawName, m.userId);
+      sellerMap.set(m.rawName, { userId: m.userId, score: m.score ?? 0 });
     }
 
     let inserted = 0;
@@ -233,12 +235,7 @@ export const connectOrdersService = {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
-        const importHash = buildImportHash(
-          row.saleDate,
-          row.contactName ?? "",
-          row.totalValue,
-          sourceFile,
-        );
+        const importHash = buildImportHash(row.saleCode, sourceFile);
 
         const totalValue = parseBrazilianCurrency(row.totalValue);
         if (isNaN(totalValue)) {
@@ -252,7 +249,9 @@ export const connectOrdersService = {
           continue;
         }
 
-        const sellerId = sellerMap.get(row.sellerNameRaw) ?? null;
+        const sellerInfo = sellerMap.get(row.sellerNameRaw);
+        const sellerId = sellerInfo?.userId ?? null;
+        const sellerMatchScore = sellerInfo?.score ?? null;
 
         // ── Verificar duplicata antes de processar cliente ──────────────────
         const existing = await db
@@ -299,13 +298,13 @@ export const connectOrdersService = {
         }
 
         // ── Inserir pedido ───────────────────────────────────────────────────
-        await db.insert(connectOrders).values({
+        const [insertedOrder] = await db.insert(connectOrders).values({
           importHash,
+          saleCode: row.saleCode || null,
           saleDate,
           totalValue: totalValue.toFixed(2),
           contactName: row.contactName || null,
           contactCpf: row.contactCpf || null,
-          contactBirthDate: row.contactBirthDate || null,
           contactCep: row.contactCep || null,
           contactStreet: row.contactStreet || null,
           contactNumber: row.contactNumber || null,
@@ -316,11 +315,25 @@ export const connectOrdersService = {
           contactCellphone: row.contactCellphone || null,
           sellerNameRaw: row.sellerNameRaw || null,
           sellerId,
+          sellerMatchScore,
           appClientId,
           appClientStatus,
           sourceFile,
           importedBy,
-        });
+        }).returning({ id: connectOrders.id });
+
+        // ── Inserir itens do pedido ──────────────────────────────────────────
+        if (row.items?.length) {
+          await db.insert(connectOrderItems).values(
+            row.items.map((item) => ({
+              orderId: insertedOrder.id,
+              productCode: item.productCode || null,
+              productName: item.productName || null,
+              quantity: parseBrazilianCurrency(item.quantity).toFixed(3),
+              unitValue: parseBrazilianCurrency(item.unitValue).toFixed(2),
+            })),
+          );
+        }
 
         inserted++;
       } catch (err) {

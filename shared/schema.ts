@@ -2466,6 +2466,7 @@ export const connectOrders = pgTable(
     importHash: text("import_hash").notNull().unique(),
 
     // Dados da venda
+    saleCode: text("sale_code"),
     saleDate: timestamp("sale_date").notNull(),
     totalValue: numeric("total_value", { precision: 15, scale: 2 }).notNull(),
 
@@ -2509,6 +2510,7 @@ export const connectOrders = pgTable(
     index("connect_orders_seller_id_idx").on(table.sellerId),
     index("connect_orders_imported_by_idx").on(table.importedBy),
     index("connect_orders_contact_name_idx").on(table.contactName),
+    index("connect_orders_sale_code_idx").on(table.saleCode),
     index("connect_orders_import_hash_idx").on(table.importHash),
     index("connect_orders_app_client_id_idx").on(table.appClientId),
   ],
@@ -2517,6 +2519,31 @@ export const connectOrders = pgTable(
 export const insertConnectOrderSchema = createInsertSchema(connectOrders).omit({
   importedAt: true,
 });
+
+// Tabela de itens de pedidos Connect (um pedido pode ter vários itens/produtos)
+export const connectOrderItems = pgTable(
+  "connect_order_items",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => connectOrders.id, { onDelete: "cascade" }),
+    productCode: text("product_code"),
+    productName: text("product_name"),
+    quantity: numeric("quantity", { precision: 15, scale: 3 }).notNull(),
+    unitValue: numeric("unit_value", { precision: 15, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("connect_order_items_order_idx").on(table.orderId),
+  ],
+);
+
+export const insertConnectOrderItemSchema = createInsertSchema(connectOrderItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertConnectOrderItem = z.infer<typeof insertConnectOrderItemSchema>;
 
 // Schemas de inserção
 export const insertBlingConnectionSchema = createInsertSchema(
