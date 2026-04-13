@@ -227,7 +227,7 @@ export function UnifiedOrdersTable({
                   orders.map((order, index) => {
                     const hasConnectItems =
                       order.source === "connect" &&
-                      order.connectItems.length > 0;
+                      (order.connectItems?.length ?? 0) > 0;
 
                     return (
                     <motion.tr
