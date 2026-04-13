@@ -11,9 +11,11 @@ import { decryptToken } from "../lib/token-crypto";
 import {
   getBlingPedidoVenda,
   getBlingContato,
+  getBlingProduto,
   type BlingPedidoVenda,
   type BlingContato,
 } from "../integrations/bling";
+import { products } from "../../shared/schema";
 import { blingOrdersService } from "./bling-orders.service";
 import type {
   BlingControlPubSubMessage,
@@ -46,13 +48,17 @@ interface BlingWebhookDeletePayload {
   id: number;
 }
 
+interface BlingWebhookProductPayload {
+  id: number;
+}
+
 export interface BlingWebhookEvent {
   eventId: string;
   date: string;
   version: string;
   event: string;
   companyId: string;
-  data: BlingWebhookOrderPayload | BlingWebhookDeletePayload;
+  data: BlingWebhookOrderPayload | BlingWebhookDeletePayload | BlingWebhookProductPayload;
 }
 
 // ---------------------------------------------------------------------------
@@ -368,30 +374,16 @@ async function processQueue(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Processamento central de evento
+// Helper: executa fn com controle de idempotência e log de processamento
 // ---------------------------------------------------------------------------
 
-async function processWebhookEvent(
+async function runWithIdempotency(
   event: BlingWebhookEvent,
   connection: BlingConnection,
+  resourceIdStr: string,
+  eventType: "created" | "updated" | "deleted",
+  fn: () => Promise<void>,
 ): Promise<void> {
-  const [resource, action] = event.event.split(".");
-
-  if (resource !== "order") {
-    console.info(`[BlingWebhookService] Recurso ignorado: ${event.event}`);
-    return;
-  }
-
-  if (!["created", "updated", "deleted"].includes(action)) {
-    console.info(
-      `[BlingWebhookService] Ação desconhecida ignorada: ${event.event}`,
-    );
-    return;
-  }
-
-  const eventType = action as "created" | "updated" | "deleted";
-  const payload = event.data as BlingWebhookOrderPayload;
-
   // Idempotência: aborta se já processado
   if (await isEventProcessed(event.eventId)) {
     console.info(
@@ -400,16 +392,14 @@ async function processWebhookEvent(
     return;
   }
 
-  const blingOrderIdStr = String(payload.id);
   const rawEvent = JSON.stringify(event);
-
   let logId: string | null = null;
 
   try {
     logId = await createProcessingLog(
       event.eventId,
       eventType,
-      blingOrderIdStr,
+      resourceIdStr,
       connection.id,
       connection.userId,
       rawEvent,
@@ -427,22 +417,11 @@ async function processWebhookEvent(
       );
       return;
     }
-    // Qualquer outro erro (ex: falha de conexão) não deve silenciosamente descartar o evento
     throw logError;
   }
 
   try {
-    if (eventType === "deleted") {
-      await processDeleteEvent(payload.id, event, connection);
-    } else {
-      await processCreateOrUpdateEvent(
-        eventType,
-        payload.id,
-        event,
-        connection,
-      );
-    }
-
+    await fn();
     if (logId) await markLogSuccess(logId);
   } catch (error) {
     console.error(
@@ -451,6 +430,60 @@ async function processWebhookEvent(
     );
     if (logId) await markLogFailed(logId, error);
     throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Processamento central de evento
+// ---------------------------------------------------------------------------
+
+async function processWebhookEvent(
+  event: BlingWebhookEvent,
+  connection: BlingConnection,
+): Promise<void> {
+  const [resource, action] = event.event.split(".");
+
+  if (!["created", "updated", "deleted"].includes(action)) {
+    console.info(
+      `[BlingWebhookService] Ação desconhecida ignorada: ${event.event}`,
+    );
+    return;
+  }
+
+  const eventType = action as "created" | "updated" | "deleted";
+
+  if (resource === "order") {
+    const payload = event.data as BlingWebhookOrderPayload;
+    await runWithIdempotency(
+      event,
+      connection,
+      String(payload.id),
+      eventType,
+      async () => {
+        if (eventType === "deleted") {
+          await processDeleteEvent(payload.id, event, connection);
+        } else {
+          await processCreateOrUpdateEvent(eventType, payload.id, event, connection);
+        }
+      },
+    );
+  } else if (resource === "product") {
+    const payload = event.data as BlingWebhookProductPayload;
+    await runWithIdempotency(
+      event,
+      connection,
+      String(payload.id),
+      eventType,
+      async () => {
+        if (eventType === "deleted") {
+          await processProductDeleteEvent(payload.id, event, connection);
+        } else {
+          await processProductCreateOrUpdateEvent(eventType, payload.id, event, connection);
+        }
+      },
+    );
+  } else {
+    console.info(`[BlingWebhookService] Recurso ignorado: ${event.event}`);
   }
 }
 
@@ -541,5 +574,114 @@ async function processDeleteEvent(
 
   console.info(
     `[BlingWebhookService] Evento order.deleted processado com sucesso para pedido ${orderId}.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Processamento de eventos de produto
+// ---------------------------------------------------------------------------
+
+/**
+ * Trata eventos `product.created` e `product.updated`.
+ *
+ * Busca os detalhes completos do produto no Bling via `getBlingProduto` e
+ * realiza um upsert na tabela local `products`:
+ * - Se o produto já existe (por `blingProductId`): atualiza nome, preço e
+ *   imagem, e remove o soft-delete caso estivesse marcado.
+ * - Se não existe: insere com valores default para campos obrigatórios que
+ *   não estão disponíveis no payload do Bling (country, volume, type).
+ */
+async function processProductCreateOrUpdateEvent(
+  eventType: "created" | "updated",
+  productId: number,
+  event: BlingWebhookEvent,
+  connection: BlingConnection,
+): Promise<void> {
+  const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+
+  // 1) Busca detalhes completos do produto na API do Bling
+  const blingProduct = await getBlingProduto(accessToken, productId, onTokenRefresh);
+
+  const blingProductIdStr = String(productId);
+  const imageUrl = blingProduct.midia?.imagens?.internas?.[0]?.link ?? null;
+  const preco = blingProduct.preco ?? 0;
+
+  // 2) Verifica se o produto já existe no banco local
+  const [existing] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.blingProductId, blingProductIdStr))
+    .limit(1);
+
+  if (existing) {
+    // UPDATE: atualiza os campos disponíveis no Bling e reativa se estava soft-deleted
+    await db
+      .update(products)
+      .set({
+        ...(blingProduct.nome ? { name: blingProduct.nome } : {}),
+        ...(preco > 0 ? { negotiatedPrice: preco.toFixed(2) } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
+        deletedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(products.id, existing.id));
+
+    console.info(
+      `[BlingWebhookService] Produto ${productId} atualizado no banco (evento: ${event.event}).`,
+    );
+  } else {
+    // INSERT: cria com defaults para campos obrigatórios não disponíveis no Bling
+    await db.insert(products).values({
+      name: blingProduct.nome ?? `Produto ${productId}`,
+      country: "OUTROS",
+      volume: "750ml",
+      type: "TINTO",
+      negotiatedPrice: preco.toFixed(2),
+      createdBy: connection.userId,
+      blingProductId: blingProductIdStr,
+      ...(imageUrl ? { imageUrl } : {}),
+    });
+
+    console.info(
+      `[BlingWebhookService] Produto ${productId} criado no banco com defaults (evento: ${event.event}).`,
+    );
+  }
+}
+
+/**
+ * Trata o evento `product.deleted`.
+ *
+ * Realiza um soft-delete do produto local marcando `deletedAt` com a data
+ * atual. O registro é mantido no banco para preservar histórico de vínculos
+ * (ex: companyProducts). Se o produto não for encontrado, o evento é ignorado
+ * de forma idempotente.
+ */
+async function processProductDeleteEvent(
+  productId: number,
+  event: BlingWebhookEvent,
+  _connection: BlingConnection,
+): Promise<void> {
+  const blingProductIdStr = String(productId);
+
+  const [existing] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.blingProductId, blingProductIdStr))
+    .limit(1);
+
+  if (!existing) {
+    console.warn(
+      `[BlingWebhookService] Produto ${productId} não encontrado no banco — evento ${event.event} ignorado (idempotente).`,
+    );
+    return;
+  }
+
+  await db
+    .update(products)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(products.id, existing.id));
+
+  console.info(
+    `[BlingWebhookService] Produto ${productId} marcado como deletado (soft delete) — evento ${event.event}.`,
   );
 }

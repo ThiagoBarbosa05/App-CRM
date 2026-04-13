@@ -1914,6 +1914,7 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   blingProductId: text("bling_product_id"),
   imageUrl: text("image_url"),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
@@ -1926,6 +1927,7 @@ export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export type InsertSale = z.infer<typeof insertSaleSchema>;
