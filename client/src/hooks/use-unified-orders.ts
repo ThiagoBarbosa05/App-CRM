@@ -4,6 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 
 export type OrderSource = "bling" | "connect" | "all";
 
+export interface UnifiedOrderItem {
+  id: number;
+  productCode: string | null;
+  productName: string | null;
+  quantity: string;
+  unitValue: string;
+}
+
 export interface UnifiedOrder {
   id: string;
   source: "bling" | "connect";
@@ -20,6 +28,10 @@ export interface UnifiedOrder {
   contactType: string | null;
   // connect-only
   appClientStatus: "found" | "created" | "not_found" | null;
+  saleCode: string | null;
+  contactPhone: string | null;
+  contactCellphone: string | null;
+  connectItems: UnifiedOrderItem[];
 }
 
 export interface UnifiedSalesStatistics {

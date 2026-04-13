@@ -9,6 +9,7 @@ import {
   sql,
   ilike,
   isNotNull,
+  inArray,
   count,
   sum,
   avg,
@@ -371,6 +372,7 @@ export const connectOrdersService = {
       db
         .select({
           id: connectOrders.id,
+          saleCode: connectOrders.saleCode,
           saleDate: connectOrders.saleDate,
           totalValue: connectOrders.totalValue,
           contactName: connectOrders.contactName,
@@ -393,7 +395,42 @@ export const connectOrdersService = {
       db.select({ total: count() }).from(connectOrders).where(where),
     ]);
 
-    return { data: rows, total: Number(total) };
+    // Buscar itens de todos os pedidos retornados
+    const itemsByOrderId = new Map<number, { id: number; productCode: string | null; productName: string | null; quantity: string; unitValue: string }[]>();
+    if (rows.length > 0) {
+      const orderIds = rows.map((r) => r.id);
+      const items = await db
+        .select({
+          id: connectOrderItems.id,
+          orderId: connectOrderItems.orderId,
+          productCode: connectOrderItems.productCode,
+          productName: connectOrderItems.productName,
+          quantity: connectOrderItems.quantity,
+          unitValue: connectOrderItems.unitValue,
+        })
+        .from(connectOrderItems)
+        .where(inArray(connectOrderItems.orderId, orderIds));
+
+      for (const item of items) {
+        if (!itemsByOrderId.has(item.orderId)) {
+          itemsByOrderId.set(item.orderId, []);
+        }
+        itemsByOrderId.get(item.orderId)!.push({
+          id: item.id,
+          productCode: item.productCode,
+          productName: item.productName,
+          quantity: String(item.quantity),
+          unitValue: String(item.unitValue),
+        });
+      }
+    }
+
+    const data = rows.map((row) => ({
+      ...row,
+      items: itemsByOrderId.get(row.id) ?? [],
+    }));
+
+    return { data, total: Number(total) };
   },
 
   /** Estatísticas de vendas no período */

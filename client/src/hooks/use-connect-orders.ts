@@ -2,8 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+export interface ConnectOrderItem {
+  id: number;
+  productCode: string | null;
+  productName: string | null;
+  quantity: string;
+  unitValue: string;
+}
+
 export interface ConnectOrder {
   id: number;
+  saleCode: string | null;
   saleDate: string;
   totalValue: string;
   contactName: string | null;
@@ -17,6 +26,7 @@ export interface ConnectOrder {
   appClientStatus: "found" | "created" | "not_found" | null;
   sourceFile: string | null;
   importedAt: string;
+  items: ConnectOrderItem[];
 }
 
 export interface ConnectSalesStatistics {

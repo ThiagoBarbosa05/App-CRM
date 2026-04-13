@@ -27,10 +27,12 @@ import {
   Hash,
   Link2,
   Link2Off,
+  Package,
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { OrderDetailsDialog } from "@/components/bling-sales/order-details-dialog";
+import { ConnectOrderDetailsDialog, type ConnectOrderDialogData } from "@/components/connect-sales/connect-order-details-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface UnifiedOrdersTableProps {
@@ -120,10 +122,25 @@ export function UnifiedOrdersTable({
   totalOrders = 0,
 }: UnifiedOrdersTableProps) {
   const [, navigate] = useLocation();
-  const [selectedBlingOrderId, setSelectedBlingOrderId] = useState<
-    string | null
-  >(null);
+  const [selectedBlingOrderId, setSelectedBlingOrderId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedConnectOrder, setSelectedConnectOrder] = useState<ConnectOrderDialogData | null>(null);
+  const [isConnectDetailsOpen, setIsConnectDetailsOpen] = useState(false);
+
+  const handleViewConnectDetails = (order: UnifiedOrder) => {
+    setSelectedConnectOrder({
+      saleCode: order.saleCode,
+      saleDate: order.saleDate,
+      totalValue: order.totalValue,
+      contactName: order.contactName,
+      sellerName: order.sellerName,
+      appClientId: order.appClientId,
+      contactPhone: order.contactPhone,
+      contactCellphone: order.contactCellphone,
+      connectItems: order.connectItems,
+    });
+    setIsConnectDetailsOpen(true);
+  };
 
   const handleViewBlingDetails = (blingOrderId: string) => {
     setSelectedBlingOrderId(blingOrderId);
@@ -207,7 +224,12 @@ export function UnifiedOrdersTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  orders.map((order, index) => (
+                  orders.map((order, index) => {
+                    const hasConnectItems =
+                      order.source === "connect" &&
+                      order.connectItems.length > 0;
+
+                    return (
                     <motion.tr
                       key={`${order.source}-${order.id}`}
                       initial={{ opacity: 0 }}
@@ -310,8 +332,8 @@ export function UnifiedOrdersTable({
 
                       {/* Actions */}
                       <TableCell>
-                        {order.blingOrderId && (
-                          <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {order.blingOrderId && (
                             <Button
                               variant="secondary"
                               size="sm"
@@ -322,11 +344,23 @@ export function UnifiedOrdersTable({
                             >
                               <EyeIcon className="h-4 w-4" />
                             </Button>
-                          </div>
-                        )}
+                          )}
+                          {hasConnectItems && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-9 w-9 p-0 bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900 hover:scale-110 transition-all rounded-xl border-none"
+                              onClick={() => handleViewConnectDetails(order)}
+                              title="Ver produtos"
+                            >
+                              <Package className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </motion.tr>
-                  ))
+                    );
+                  })
                 )}
               </AnimatePresence>
             </TableBody>
@@ -407,6 +441,15 @@ export function UnifiedOrdersTable({
         onOpenChange={(open) => {
           setIsDetailsOpen(open);
           if (!open) setSelectedBlingOrderId(null);
+        }}
+      />
+
+      <ConnectOrderDetailsDialog
+        order={selectedConnectOrder}
+        open={isConnectDetailsOpen}
+        onOpenChange={(open) => {
+          setIsConnectDetailsOpen(open);
+          if (!open) setSelectedConnectOrder(null);
         }}
       />
     </div>

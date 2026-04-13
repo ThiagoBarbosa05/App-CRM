@@ -1019,11 +1019,31 @@ async function fetchAggregateSummary(
   const totalOrders = blingOrders + connectOrders;
   const avgTicket = totalOrders > 0 ? totalValue / totalOrders : 0;
 
+  // Contar clientes únicos combinando Bling + Connect (sem duplicar quem comprou nas duas fontes)
+  const uniqueClientsResult = await db.execute<{ unique_clients: unknown }>(sql`
+    SELECT COUNT(DISTINCT client_id)::int AS unique_clients
+    FROM (
+      SELECT app_client_id::text AS client_id
+      FROM bling_orders
+      WHERE deleted_at IS NULL
+        AND sale_date >= ${startDate}
+        AND sale_date <= ${endDate}
+        AND app_client_id IS NOT NULL
+      UNION
+      SELECT app_client_id AS client_id
+      FROM connect_orders
+      WHERE sale_date::date >= ${startDate}::date
+        AND sale_date::date <= ${endDate}::date
+        AND app_client_id IS NOT NULL
+    ) _combined
+  `);
+  const uniqueClients = Number(uniqueClientsResult.rows[0]?.unique_clients ?? blingClients);
+
   return {
     totalValue,
     totalOrders,
     avgTicket,
-    uniqueClients: blingClients,
+    uniqueClients,
   };
 }
 
@@ -1112,6 +1132,9 @@ async function fetchAggregateTopClients(
 ): Promise<TopClientRow[]> {
   if (clientIds && clientIds.length === 0) return [];
 
+  const connectStart = `${startDate}T00:00:00`;
+  const connectEnd = `${endDate}T23:59:59`;
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -1120,20 +1143,41 @@ async function fetchAggregateTopClients(
     avg_ticket: string | null;
   }>(sql`
     SELECT
-      bo.app_client_id                              AS client_id,
-      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
-      COUNT(*)::int                                 AS order_count,
-      SUM(bo.total_value::numeric)::text            AS total_value,
-      AVG(bo.total_value::numeric)::text            AS avg_ticket
-    FROM bling_orders bo
-    LEFT JOIN clients c ON c.id = bo.app_client_id
-    WHERE bo.deleted_at IS NULL
-      AND bo.sale_date >= ${startDate}
-      AND bo.sale_date <= ${endDate}
-      AND bo.app_client_id IS NOT NULL
-      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
-    GROUP BY bo.app_client_id
-    ORDER BY SUM(bo.total_value::numeric) DESC
+      client_id,
+      MAX(client_name)                                             AS client_name,
+      SUM(order_count)::int                                        AS order_count,
+      SUM(total_value)::text                                       AS total_value,
+      (SUM(total_value) / NULLIF(SUM(order_count), 0))::text       AS avg_ticket
+    FROM (
+      SELECT
+        bo.app_client_id                              AS client_id,
+        MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+        COUNT(*)                                      AS order_count,
+        SUM(bo.total_value::numeric)                  AS total_value
+      FROM bling_orders bo
+      LEFT JOIN clients c ON c.id = bo.app_client_id
+      WHERE bo.deleted_at IS NULL
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("bo.app_client_id", clientIds)}
+      GROUP BY bo.app_client_id
+      UNION ALL
+      SELECT
+        co.app_client_id                              AS client_id,
+        MAX(c.name)                                   AS client_name,
+        COUNT(*)                                      AS order_count,
+        SUM(co.total_value::numeric)                  AS total_value
+      FROM connect_orders co
+      LEFT JOIN clients c ON c.id = co.app_client_id
+      WHERE co.sale_date >= ${connectStart}::timestamp
+        AND co.sale_date <= ${connectEnd}::timestamp
+        AND co.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("co.app_client_id", clientIds)}
+      GROUP BY co.app_client_id
+    ) _combined
+    GROUP BY client_id
+    ORDER BY SUM(total_value) DESC
     LIMIT 10
   `);
   return result.rows.map((r) => ({
@@ -1152,6 +1196,9 @@ async function fetchAggregateTopClientsByAvgTicket(
 ): Promise<TopClientRow[]> {
   if (clientIds && clientIds.length === 0) return [];
 
+  const connectStart = `${startDate}T00:00:00`;
+  const connectEnd = `${endDate}T23:59:59`;
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -1160,20 +1207,41 @@ async function fetchAggregateTopClientsByAvgTicket(
     avg_ticket: string | null;
   }>(sql`
     SELECT
-      bo.app_client_id                              AS client_id,
-      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
-      COUNT(*)::int                                 AS order_count,
-      SUM(bo.total_value::numeric)::text            AS total_value,
-      AVG(bo.total_value::numeric)::text            AS avg_ticket
-    FROM bling_orders bo
-    LEFT JOIN clients c ON c.id = bo.app_client_id
-    WHERE bo.deleted_at IS NULL
-      AND bo.sale_date >= ${startDate}
-      AND bo.sale_date <= ${endDate}
-      AND bo.app_client_id IS NOT NULL
-      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
-    GROUP BY bo.app_client_id
-    ORDER BY AVG(bo.total_value::numeric) DESC
+      client_id,
+      MAX(client_name)                                             AS client_name,
+      SUM(order_count)::int                                        AS order_count,
+      SUM(total_value)::text                                       AS total_value,
+      (SUM(total_value) / NULLIF(SUM(order_count), 0))::text       AS avg_ticket
+    FROM (
+      SELECT
+        bo.app_client_id                              AS client_id,
+        MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
+        COUNT(*)                                      AS order_count,
+        SUM(bo.total_value::numeric)                  AS total_value
+      FROM bling_orders bo
+      LEFT JOIN clients c ON c.id = bo.app_client_id
+      WHERE bo.deleted_at IS NULL
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("bo.app_client_id", clientIds)}
+      GROUP BY bo.app_client_id
+      UNION ALL
+      SELECT
+        co.app_client_id                              AS client_id,
+        MAX(c.name)                                   AS client_name,
+        COUNT(*)                                      AS order_count,
+        SUM(co.total_value::numeric)                  AS total_value
+      FROM connect_orders co
+      LEFT JOIN clients c ON c.id = co.app_client_id
+      WHERE co.sale_date >= ${connectStart}::timestamp
+        AND co.sale_date <= ${connectEnd}::timestamp
+        AND co.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("co.app_client_id", clientIds)}
+      GROUP BY co.app_client_id
+    ) _combined
+    GROUP BY client_id
+    ORDER BY (SUM(total_value) / NULLIF(SUM(order_count), 0)) DESC
     LIMIT 10
   `);
   return result.rows.map((r) => ({
@@ -1192,6 +1260,9 @@ async function fetchAggregateTopItemValue(
 ): Promise<TopItemValueRow[]> {
   if (clientIds && clientIds.length === 0) return [];
 
+  const connectStart = `${startDate}T00:00:00`;
+  const connectEnd = `${endDate}T23:59:59`;
+
   const result = await db.execute<{
     client_id: string | null;
     client_name: string | null;
@@ -1199,20 +1270,39 @@ async function fetchAggregateTopItemValue(
     item_count: unknown;
   }>(sql`
     SELECT
-      bo.app_client_id                              AS client_id,
-      MAX(COALESCE(c.name, bo.contact_name))        AS client_name,
-      AVG(boi.value::numeric)::text                 AS avg_item_value,
-      COUNT(boi.id)::int                            AS item_count
-    FROM bling_orders bo
-    JOIN bling_order_items boi ON boi.order_id = bo.id
-    LEFT JOIN clients c ON c.id = bo.app_client_id
-    WHERE bo.deleted_at IS NULL
-      AND bo.sale_date >= ${startDate}
-      AND bo.sale_date <= ${endDate}
-      AND bo.app_client_id IS NOT NULL
-      ${buildClientIdsCondition("bo.app_client_id", clientIds)}
-    GROUP BY bo.app_client_id
-    ORDER BY AVG(boi.value::numeric) DESC
+      client_id,
+      MAX(client_name)                              AS client_name,
+      AVG(item_value)::text                         AS avg_item_value,
+      COUNT(*)::int                                 AS item_count
+    FROM (
+      SELECT
+        bo.app_client_id                            AS client_id,
+        COALESCE(c.name, bo.contact_name)           AS client_name,
+        boi.value::numeric                          AS item_value
+      FROM bling_orders bo
+      JOIN bling_order_items boi ON boi.order_id = bo.id
+      LEFT JOIN clients c ON c.id = bo.app_client_id
+      WHERE bo.deleted_at IS NULL
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("bo.app_client_id", clientIds)}
+      UNION ALL
+      SELECT
+        co.app_client_id                            AS client_id,
+        c.name                                      AS client_name,
+        coi.unit_value::numeric                     AS item_value
+      FROM connect_orders co
+      JOIN connect_order_items coi ON coi.order_id = co.id
+      LEFT JOIN clients c ON c.id = co.app_client_id
+      WHERE co.sale_date >= ${connectStart}::timestamp
+        AND co.sale_date <= ${connectEnd}::timestamp
+        AND co.app_client_id IS NOT NULL
+        ${buildClientIdsCondition("co.app_client_id", clientIds)}
+    ) _combined
+    WHERE client_id IS NOT NULL
+    GROUP BY client_id
+    ORDER BY AVG(item_value) DESC
     LIMIT 10
   `);
   return result.rows.map((r) => ({
@@ -1309,6 +1399,9 @@ async function fetchSellerRanking(
   startDate: string,
   endDate: string,
 ): Promise<SellerRankingRow[]> {
+  const connectStart = `${startDate}T00:00:00`;
+  const connectEnd = `${endDate}T23:59:59`;
+
   const result = await db.execute<{
     seller_id: string | null;
     seller_name: string | null;
@@ -1317,21 +1410,41 @@ async function fetchSellerRanking(
     avg_ticket: string | null;
   }>(sql`
     SELECT
-      COALESCE(u.id, bo.seller_id)                  AS seller_id,
-      MAX(COALESCE(u.name, bo.seller_name))          AS seller_name,
-      COUNT(*)::int                                  AS total_orders,
-      SUM(bo.total_value::numeric)::text             AS total_value,
-      AVG(bo.total_value::numeric)::text             AS avg_ticket
-    FROM bling_orders bo
-    LEFT JOIN LATERAL (
-      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-    ) u ON true
-    WHERE bo.deleted_at IS NULL
-      AND bo.sale_date >= ${startDate}
-      AND bo.sale_date <= ${endDate}
-      AND bo.seller_id IS NOT NULL
-    GROUP BY COALESCE(u.id, bo.seller_id)
-    ORDER BY SUM(bo.total_value::numeric) DESC
+      seller_id,
+      MAX(seller_name)                                               AS seller_name,
+      SUM(total_orders)::int                                         AS total_orders,
+      SUM(total_value)::text                                         AS total_value,
+      (SUM(total_value) / NULLIF(SUM(total_orders), 0))::text        AS avg_ticket
+    FROM (
+      SELECT
+        COALESCE(u.id, bo.seller_id)                AS seller_id,
+        COALESCE(u.name, bo.seller_name)             AS seller_name,
+        COUNT(*)                                     AS total_orders,
+        SUM(bo.total_value::numeric)                 AS total_value
+      FROM bling_orders bo
+      LEFT JOIN LATERAL (
+        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+      ) u ON true
+      WHERE bo.deleted_at IS NULL
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.seller_id IS NOT NULL
+      GROUP BY COALESCE(u.id, bo.seller_id), COALESCE(u.name, bo.seller_name)
+      UNION ALL
+      SELECT
+        co.seller_id,
+        COALESCE(u.name, co.seller_name_raw, 'Desconhecido') AS seller_name,
+        COUNT(*)                                               AS total_orders,
+        SUM(co.total_value::numeric)                          AS total_value
+      FROM connect_orders co
+      LEFT JOIN users u ON co.seller_id = u.id
+      WHERE co.sale_date >= ${connectStart}::timestamp
+        AND co.sale_date <= ${connectEnd}::timestamp
+        AND co.seller_id IS NOT NULL
+      GROUP BY co.seller_id, u.name, co.seller_name_raw
+    ) _combined
+    GROUP BY seller_id
+    ORDER BY SUM(total_value) DESC
     LIMIT 20
   `);
   return result.rows.map((r) => ({
@@ -1653,6 +1766,11 @@ async function fetchClientPortfolioStats(
             AND bo.deleted_at IS NULL
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
         )
+        OR EXISTS (
+          SELECT 1 FROM connect_orders co
+          WHERE co.app_client_id = c.id
+            AND co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
+        )
       )::int AS active_count
     FROM clients c
     WHERE c.responsavel_id = ${userId}
@@ -1694,6 +1812,11 @@ async function fetchAllSellersPortfolioStats(
           WHERE bo.app_client_id = c.id
             AND bo.deleted_at IS NULL
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+        )
+        OR EXISTS (
+          SELECT 1 FROM connect_orders co
+          WHERE co.app_client_id = c.id
+            AND co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
         )
       )::int                                                             AS active_count
     FROM clients c

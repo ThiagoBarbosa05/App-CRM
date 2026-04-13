@@ -1,5 +1,6 @@
 import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
+import { connectOrderItems } from "../../shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,14 @@ export interface UnifiedOrderFilters {
   offset?: number;
 }
 
+export interface UnifiedOrderItem {
+  id: number;
+  productCode: string | null;
+  productName: string | null;
+  quantity: string;
+  unitValue: string;
+}
+
 export interface UnifiedOrder {
   id: string;
   source: "bling" | "connect";
@@ -22,13 +31,17 @@ export interface UnifiedOrder {
   sellerName: string | null;
   sellerId: string | null;
   appClientId: string | null;
-  // bling-only bbbb
+  // bling-only
   orderNumber: string | null;
   blingOrderId: string | null;
   situationValue: string | null;
   contactType: string | null;
   // connect-only
   appClientStatus: string | null;
+  saleCode: string | null;
+  contactPhone: string | null;
+  contactCellphone: string | null;
+  connectItems: UnifiedOrderItem[];
 }
 
 export interface UnifiedSalesStatistics {
@@ -123,7 +136,10 @@ export const unifiedOrdersService = {
         bo.app_client_id                     AS app_client_id,
         bo.situation_value                   AS situation_value,
         bo.contact_type                      AS contact_type,
-        NULL::text                           AS app_client_status
+        NULL::text                           AS app_client_status,
+        NULL::text                           AS sale_code,
+        NULL::text                           AS contact_phone,
+        NULL::text                           AS contact_cellphone
       FROM bling_orders bo
       WHERE bo.deleted_at IS NULL
         AND bo.sale_date >= ${startDate}
@@ -150,7 +166,10 @@ export const unifiedOrdersService = {
         co.app_client_id                              AS app_client_id,
         NULL::text                                    AS situation_value,
         'F'::text                                     AS contact_type,
-        co.app_client_status                          AS app_client_status
+        co.app_client_status                          AS app_client_status,
+        co.sale_code                                  AS sale_code,
+        co.contact_phone                              AS contact_phone,
+        co.contact_cellphone                          AS contact_cellphone
       FROM connect_orders co
       LEFT JOIN users u ON co.seller_id = u.id
       WHERE co.sale_date >= ${connectStart}::timestamp
@@ -193,7 +212,52 @@ export const unifiedOrdersService = {
       situationValue: (row.situation_value as string) ?? null,
       contactType: (row.contact_type as string) ?? null,
       appClientStatus: (row.app_client_status as string) ?? null,
+      saleCode: (row.sale_code as string) ?? null,
+      contactPhone: (row.contact_phone as string) ?? null,
+      contactCellphone: (row.contact_cellphone as string) ?? null,
+      connectItems: [],
     }));
+
+    // Buscar itens dos pedidos Connect presentes nesta página
+    const connectIds = data
+      .filter((o) => o.source === "connect")
+      .map((o) => parseInt(o.id, 10))
+      .filter((n) => !isNaN(n));
+
+    if (connectIds.length > 0) {
+      const items = await db
+        .select({
+          id: connectOrderItems.id,
+          orderId: connectOrderItems.orderId,
+          productCode: connectOrderItems.productCode,
+          productName: connectOrderItems.productName,
+          quantity: connectOrderItems.quantity,
+          unitValue: connectOrderItems.unitValue,
+        })
+        .from(connectOrderItems)
+        .where(inArray(connectOrderItems.orderId, connectIds));
+
+      const itemsByOrderId = new Map<number, UnifiedOrderItem[]>();
+      for (const item of items) {
+        if (!itemsByOrderId.has(item.orderId)) {
+          itemsByOrderId.set(item.orderId, []);
+        }
+        itemsByOrderId.get(item.orderId)!.push({
+          id: item.id,
+          productCode: item.productCode,
+          productName: item.productName,
+          quantity: String(item.quantity),
+          unitValue: String(item.unitValue),
+        });
+      }
+
+      for (const order of data) {
+        if (order.source === "connect") {
+          const numericId = parseInt(order.id, 10);
+          order.connectItems = itemsByOrderId.get(numericId) ?? [];
+        }
+      }
+    }
 
     return { data, total };
   },
