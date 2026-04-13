@@ -2403,6 +2403,8 @@ export class DatabaseStorage implements IStorage {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
 
+    const connectStart = `${startDate}T00:00:00`;
+    const connectEnd = `${endDate}T23:59:59`;
     const portfolioResult = await this.db.execute(sql`
       SELECT
         c.responsavel_id                                            AS user_id,
@@ -2414,6 +2416,12 @@ export class DatabaseStorage implements IStorage {
               AND bo.deleted_at IS NULL
               AND bo.sale_date >= ${startDate}
               AND bo.sale_date <= ${endDate}
+          )
+          OR EXISTS (
+            SELECT 1 FROM connect_orders co
+            WHERE co.app_client_id = c.id
+              AND co.sale_date >= ${connectStart}::timestamp
+              AND co.sale_date <= ${connectEnd}::timestamp
           )
         )::int                                                      AS active_count
       FROM clients c

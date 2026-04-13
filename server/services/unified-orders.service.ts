@@ -426,7 +426,11 @@ export const unifiedOrdersService = {
         co.seller_id,
         COALESCE(u.name, co.seller_name_raw, 'Desconhecido') AS seller_name,
         co.total_value::numeric AS v,
-        0                       AS items_qty,
+        COALESCE((
+          SELECT SUM(coi.quantity::numeric)
+          FROM connect_order_items coi
+          WHERE coi.order_id = co.id
+        ), 0)                   AS items_qty,
         co.app_client_id        AS client_key
       FROM connect_orders co
       LEFT JOIN users u ON co.seller_id = u.id
