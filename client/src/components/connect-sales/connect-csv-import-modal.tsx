@@ -111,7 +111,9 @@ function parseBrazilianCurrencyLocal(str: string): number {
 
 /** Parseia as linhas brutas do CSV usando XLSX */
 function parseCsvToRawLines(fileData: ArrayBuffer): RawCsvLine[] {
-  const workbook = XLSX.read(fileData, { type: "array", raw: true });
+  const decoder = new TextDecoder("utf-8");
+  const csvString = decoder.decode(fileData);
+  const workbook = XLSX.read(csvString, { type: "string", raw: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const raw = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 }) as string[][];
 
