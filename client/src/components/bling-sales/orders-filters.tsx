@@ -8,8 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FilterX, Search, SlidersHorizontal, Briefcase } from "lucide-react";
+import { FilterX, Search, SlidersHorizontal, Briefcase, Store } from "lucide-react";
 import { useAvailableSellers } from "@/hooks/use-bling-orders";
+import { type OrderSource } from "@/hooks/use-unified-orders";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface OrdersFiltersProps {
@@ -18,6 +19,9 @@ interface OrdersFiltersProps {
 
   sellerId?: string;
   onSellerIdChange: (id: string | undefined) => void;
+
+  source?: OrderSource;
+  onSourceChange: (source: OrderSource) => void;
 
   minValue?: number;
   onMinValueChange: (value: number | undefined) => void;
@@ -33,6 +37,8 @@ export function OrdersFilters({
   onContactNameChange,
   sellerId,
   onSellerIdChange,
+  source = "all",
+  onSourceChange,
   minValue,
   onMinValueChange,
   maxValue,
@@ -44,6 +50,7 @@ export function OrdersFilters({
   const handleClearFilters = () => {
     onContactNameChange("");
     onSellerIdChange(undefined);
+    onSourceChange("all");
     onMinValueChange(undefined);
     onMaxValueChange(undefined);
   };
@@ -51,6 +58,7 @@ export function OrdersFilters({
   const hasActiveFilters =
     contactName ||
     sellerId ||
+    source !== "all" ||
     minValue !== undefined ||
     maxValue !== undefined;
 
@@ -89,7 +97,7 @@ export function OrdersFilters({
           </AnimatePresence>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Client Name Search */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
@@ -121,6 +129,40 @@ export function OrdersFilters({
             placeholder="Todos os Vendedores"
             isLoading={isSellersLoading || isLoading}
           />
+
+          {/* Origem Select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+              Origem
+            </label>
+            <Select
+              value={source}
+              onValueChange={(val) => onSourceChange(val as OrderSource)}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
+                <div className="flex items-center gap-3">
+                  <Store className="h-4 w-4 text-violet-500" />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+                <SelectItem value="all" className="rounded-xl font-bold">Todos</SelectItem>
+                <SelectItem value="bling" className="rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-black">B</span>
+                    Bling
+                  </div>
+                </SelectItem>
+                <SelectItem value="connect" className="rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 text-[9px] font-black">C</span>
+                    Connect
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Range de Valor */}
           <div className="space-y-1.5 md:col-span-2 lg:col-span-2">

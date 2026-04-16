@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -7,6 +7,7 @@ import {
   BarChart3,
   Package,
   ShoppingCart,
+  Store,
   TrendingUp,
   Trophy,
   UserMinus,
@@ -18,7 +19,14 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useUnifiedTopSellers, type OrderSource } from "@/hooks/use-unified-orders";
 import { useClientReports } from "@/hooks/useReports";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
@@ -41,7 +49,7 @@ import {
 
 // ─── Bloco de Progresso da Meta ───────────────────────────────────────────────
 
-function GoalProgressBlock({ userId }: { userId: string }) {
+function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?: OrderSource }) {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -54,7 +62,7 @@ function GoalProgressBlock({ userId }: { userId: string }) {
   });
 
   const { data: topSellers = [], isLoading: isTopSellersLoading } =
-    useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
+    useUnifiedTopSellers(monthStart, monthEnd, 100, source);
 
   const goal = useMemo(
     () => goals.find((g) => g.userId === userId),
@@ -411,6 +419,8 @@ export function IndividualSellerView({
   startDate: string;
   endDate: string;
 }) {
+  const [source, setSource] = useState<OrderSource>("all");
+
   const queryUrl = `/api/users/${sellerId}/seller-dashboard?startDate=${startDate}&endDate=${endDate}`;
   const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: [queryUrl],
@@ -549,6 +559,32 @@ export function IndividualSellerView({
   };
   return (
     <div className="space-y-6">
+      {/* Filtro de Origem */}
+      <div className="flex items-center gap-3">
+        <Store className="h-4 w-4 text-slate-400 shrink-0" />
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Origem</span>
+        <Select value={source} onValueChange={(val) => setSource(val as OrderSource)}>
+          <SelectTrigger className="w-40 h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl px-3 text-sm font-bold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+            <SelectItem value="all" className="rounded-xl font-bold">Todos</SelectItem>
+            <SelectItem value="bling" className="rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-black">B</span>
+                Bling
+              </div>
+            </SelectItem>
+            <SelectItem value="connect" className="rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 text-[9px] font-black">C</span>
+                Connect
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
@@ -605,7 +641,7 @@ export function IndividualSellerView({
       </div>
 
       {/* Progresso da Meta */}
-      <GoalProgressBlock userId={sellerId} />
+      <GoalProgressBlock userId={sellerId} source={source} />
 
       {/* Gráfico de Evolução */}
       <SalesEvolutionChart

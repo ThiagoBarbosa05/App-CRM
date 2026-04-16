@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3,
   ShoppingCart,
+  Store,
   TrendingUp,
   Trophy,
   Users,
@@ -15,7 +16,19 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUnifiedTopSellers } from "@/hooks/use-unified-orders";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useUnifiedTopSellers,
+  useUnifiedSalesComparison,
+  useUnifiedSalesEvolution,
+  type OrderSource,
+} from "@/hooks/use-unified-orders";
 import { useClientReports, useGeneralReports } from "@/hooks/useReports";
 import { ReportsStatistics } from "@/components/reports/reports-statistics";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
@@ -39,8 +52,10 @@ import {
 
 function AllSellersGoalProgress({
   sellerPortfolioStats,
+  source = "all",
 }: {
   sellerPortfolioStats: SellerPortfolioStats[];
+  source?: OrderSource;
 }) {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -53,7 +68,7 @@ function AllSellersGoalProgress({
   });
 
   const { data: topSellers = [], isLoading: sellersLoading } =
-    useUnifiedTopSellers(monthStart, monthEnd, 100, "bling");
+    useUnifiedTopSellers(monthStart, monthEnd, 100, source);
 
   const monthLabel = format(now, "MMMM yyyy", { locale: ptBR }).replace(
     /^\w/,
@@ -439,6 +454,8 @@ export function AggregateView({
   startDate: string;
   endDate: string;
 }) {
+  const [source, setSource] = useState<OrderSource>("all");
+
   const queryUrl = `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
   const { data, isLoading, isError, error } = useQuery<AggregateDashboardData>({
     queryKey: [queryUrl],
@@ -446,23 +463,6 @@ export function AggregateView({
   const { data: clientReports } = useClientReports();
   const { data: generalReports } = useGeneralReports();
 
-  const monthlySummary = data?.monthlySummary ?? {
-    totalValue: 0,
-    totalOrders: 0,
-    avgTicket: 0,
-    uniqueClients: 0,
-  };
-  const prevMonthSummary = data?.prevMonthSummary ?? {
-    totalValue: 0,
-    totalOrders: 0,
-    avgTicket: 0,
-    uniqueClients: 0,
-  };
-  const salesEvolution = data?.salesEvolution ?? [];
-  const topProducts = data?.topProducts ?? [];
-  const topClients = data?.topClients ?? [];
-  const sellerRanking = data?.sellerRanking ?? [];
-  const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
   const groupBy = useMemo(() => {
     if (!startDate || !endDate) return "day" as const;
     const days = Math.ceil(
@@ -473,6 +473,25 @@ export function AggregateView({
     if (days > 30) return "week" as const;
     return "day" as const;
   }, [startDate, endDate]);
+
+  // Hooks unificados para KPIs e gráfico filtráveis por origem
+  const { data: salesComparison, isLoading: isComparisonLoading } =
+    useUnifiedSalesComparison(startDate, endDate, source);
+  const { data: unifiedEvolution = [], isLoading: isEvolutionLoading } =
+    useUnifiedSalesEvolution(startDate, endDate, groupBy, source);
+
+  const currentStats = salesComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const previousStats = salesComparison?.previous ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+
+  // Dados que vêm do endpoint Bling-only (produtos, clientes, ranking)
+  const topProducts = data?.topProducts ?? [];
+  const topClients = data?.topClients ?? [];
+  const sellerRanking = data?.sellerRanking ?? [];
+  const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
+  const uniqueClients = data?.monthlySummary?.uniqueClients ?? 0;
+  const prevUniqueClients = data?.prevMonthSummary?.uniqueClients ?? 0;
+
+  const isStatsLoading = isComparisonLoading || isEvolutionLoading;
 
   if (isLoading) {
     return (
@@ -609,47 +628,73 @@ export function AggregateView({
 
   return (
     <div className="space-y-6">
+      {/* Filtro de Origem */}
+      <div className="flex items-center gap-3">
+        <Store className="h-4 w-4 text-slate-400 shrink-0" />
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Origem</span>
+        <Select value={source} onValueChange={(val) => setSource(val as OrderSource)}>
+          <SelectTrigger className="w-40 h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl px-3 text-sm font-bold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+            <SelectItem value="all" className="rounded-xl font-bold">Todos</SelectItem>
+            <SelectItem value="bling" className="rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[9px] font-black">B</span>
+                Bling
+              </div>
+            </SelectItem>
+            <SelectItem value="connect" className="rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 text-[9px] font-black">C</span>
+                Connect
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total Vendido"
-          value={formatCurrency(monthlySummary.totalValue)}
-          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.totalValue)}`}
+          value={isStatsLoading ? "—" : formatCurrency(currentStats.totalValue)}
+          subValue={`vs período anterior: ${formatCurrency(previousStats.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           iconColor="text-emerald-600 dark:text-emerald-400"
-          current={monthlySummary.totalValue}
-          previous={prevMonthSummary.totalValue}
+          current={currentStats.totalValue}
+          previous={previousStats.totalValue}
         />
         <KpiCard
           label="Pedidos"
-          value={String(monthlySummary.totalOrders)}
-          subValue={`vs período anterior: ${prevMonthSummary.totalOrders}`}
+          value={isStatsLoading ? "—" : String(currentStats.totalOrders)}
+          subValue={`vs período anterior: ${previousStats.totalOrders}`}
           icon={<ShoppingCart className="h-4 w-4" />}
           iconBg="bg-blue-50 dark:bg-blue-900/20"
           iconColor="text-blue-600 dark:text-blue-400"
-          current={monthlySummary.totalOrders}
-          previous={prevMonthSummary.totalOrders}
+          current={currentStats.totalOrders}
+          previous={previousStats.totalOrders}
         />
         <KpiCard
           label="Ticket Médio"
-          value={formatCurrency(monthlySummary.avgTicket)}
-          subValue={`vs período anterior: ${formatCurrency(prevMonthSummary.avgTicket)}`}
+          value={isStatsLoading ? "—" : formatCurrency(currentStats.averageValue)}
+          subValue={`vs período anterior: ${formatCurrency(previousStats.averageValue)}`}
           icon={<BarChart3 className="h-4 w-4" />}
           iconBg="bg-amber-50 dark:bg-amber-900/20"
           iconColor="text-amber-600 dark:text-amber-400"
-          current={monthlySummary.avgTicket}
-          previous={prevMonthSummary.avgTicket}
+          current={currentStats.averageValue}
+          previous={previousStats.averageValue}
         />
         <KpiCard
           label="Clientes Únicos"
-          value={String(monthlySummary.uniqueClients)}
-          subValue={`vs período anterior: ${prevMonthSummary.uniqueClients}`}
+          value={String(uniqueClients)}
+          subValue={`vs período anterior: ${prevUniqueClients}`}
           icon={<Users className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconColor="text-purple-600 dark:text-purple-400"
-          current={monthlySummary.uniqueClients}
-          previous={prevMonthSummary.uniqueClients}
+          current={uniqueClients}
+          previous={prevUniqueClients}
         />
       </div>
 
@@ -673,13 +718,13 @@ export function AggregateView({
 
       {/* Gráfico de Evolução */}
       <SalesEvolutionChart
-        data={salesEvolution}
-        isLoading={isLoading}
+        data={unifiedEvolution.map((p) => ({ date: p.period, totalOrders: p.totalOrders, totalValue: p.totalValue }))}
+        isLoading={isEvolutionLoading}
         groupBy={groupBy}
       />
 
       {/* Metas de todos os vendedores */}
-      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} />
+      <AllSellersGoalProgress sellerPortfolioStats={sellerPortfolioStats} source={source} />
 
       {/* Ranking de Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

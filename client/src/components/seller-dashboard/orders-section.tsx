@@ -3,7 +3,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useUnifiedOrders } from "@/hooks/use-unified-orders";
+import { useUnifiedOrders, type OrderSource } from "@/hooks/use-unified-orders";
 import { useBlingOrdersForExport } from "@/hooks/use-bling-orders";
 import { exportBlingOrdersToExcel } from "@/lib/excel-export";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +37,7 @@ export function OrdersSection({
   const [contactName, setContactName] = useState("");
   const debouncedContact = useDebounce(contactName, 500);
   const [sellerId, setSellerId] = useState<string | undefined>();
+  const [source, setSource] = useState<OrderSource>("all");
   const [minValue, setMinValue] = useState<number | undefined>();
   const [maxValue, setMaxValue] = useState<number | undefined>();
 
@@ -46,7 +47,7 @@ export function OrdersSection({
       endDate,
       contactName: debouncedContact || undefined,
       sellerId,
-      source: "all",
+      source,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     },
@@ -138,6 +139,11 @@ export function OrdersSection({
         sellerId={sellerId}
         onSellerIdChange={(id) => {
           setSellerId(id);
+          setPage(1);
+        }}
+        source={source}
+        onSourceChange={(s) => {
+          setSource(s);
           setPage(1);
         }}
         minValue={minValue}
