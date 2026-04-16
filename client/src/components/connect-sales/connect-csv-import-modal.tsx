@@ -109,7 +109,40 @@ function parseBrazilianCurrencyLocal(str: string): number {
   return parseFloat(str.replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", "."));
 }
 
-/** Parseia as linhas brutas do CSV usando XLSX */
+/**
+ * Mapeamento: cabeçalho do CSV → campo de RawCsvLine.
+ * Suporta variações de capitalização e espaços extras via normalização.
+ */
+const CSV_HEADER_MAP: Record<string, keyof RawCsvLine> = {
+  "codigo":              "saleCode",
+  "data de registro":    "saleDate",
+  "quantidade":          "quantity",
+  "codigo produto":      "productCode",
+  "produto":             "productName",
+  "valor":               "unitValue",
+  "nome":                "contactName",
+  "cpf":                 "contactCpf",
+  "cep":                 "contactCep",
+  "rua":                 "contactStreet",
+  "numero":              "contactNumber",
+  "bairro":              "contactNeighborhood",
+  "complemento":         "contactComplement",
+  "cidade":              "contactCity",
+  "telefone":            "contactPhone",
+  "celular":             "contactCellphone",
+  "vendedor":            "sellerNameRaw",
+};
+
+/** Normaliza um cabeçalho para lookup: minúsculas, sem acentos, sem espaços extras */
+function normalizeHeader(h: string): string {
+  return h
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+/** Parseia as linhas brutas do CSV usando XLSX com mapeamento dinâmico de colunas */
 function parseCsvToRawLines(fileData: ArrayBuffer): RawCsvLine[] {
   const decoder = new TextDecoder("utf-8");
   const csvString = decoder.decode(fileData);
@@ -117,29 +150,35 @@ function parseCsvToRawLines(fileData: ArrayBuffer): RawCsvLine[] {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const raw = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 }) as string[][];
 
-  // Pula linha de cabeçalho; valida que existem data (col 0) e código (col 1)
+  if (raw.length === 0) return [];
+
+  // Lê o cabeçalho e monta um índice: posição → campo
+  const headerRow = raw[0];
+  const colIndex = new Map<number, keyof RawCsvLine>();
+  headerRow.forEach((cell, i) => {
+    const key = normalizeHeader(String(cell ?? ""));
+    const field = CSV_HEADER_MAP[key];
+    if (field) colIndex.set(i, field);
+  });
+
+  const empty: RawCsvLine = {
+    saleCode: "", saleDate: "", quantity: "", productCode: "",
+    productName: "", unitValue: "", contactName: "", contactCpf: "",
+    contactCep: "", contactStreet: "", contactNumber: "",
+    contactNeighborhood: "", contactComplement: "", contactCity: "",
+    contactPhone: "", contactCellphone: "", sellerNameRaw: "",
+  };
+
   return raw
     .slice(1)
     .filter((row) => row.length >= 2 && row[0] && row[1])
-    .map((row) => ({
-      saleDate:            String(row[0]  ?? "").trim(),
-      saleCode:            String(row[1]  ?? "").trim(),
-      contactName:         String(row[2]  ?? "").trim(),
-      contactCpf:          String(row[3]  ?? "").trim(),
-      contactCep:          String(row[4]  ?? "").trim(),
-      contactStreet:       String(row[5]  ?? "").trim(),
-      contactNumber:       String(row[6]  ?? "").trim(),
-      contactNeighborhood: String(row[7]  ?? "").trim(),
-      contactComplement:   String(row[8]  ?? "").trim(),
-      contactCity:         String(row[9]  ?? "").trim(),
-      sellerNameRaw:       String(row[10] ?? "").trim(),
-      contactPhone:        String(row[11] ?? "").trim(),
-      contactCellphone:    String(row[12] ?? "").trim(),
-      productCode:         String(row[13] ?? "").trim(),
-      productName:         String(row[14] ?? "").trim(),
-      unitValue:           String(row[15] ?? "").trim(),
-      quantity:            String(row[16] ?? "").trim(),
-    }));
+    .map((row) => {
+      const line: RawCsvLine = { ...empty };
+      colIndex.forEach((field, i) => {
+        line[field] = String(row[i] ?? "").trim();
+      });
+      return line;
+    });
 }
 
 /** Agrega linhas brutas por saleCode, somando os valores dos itens */
