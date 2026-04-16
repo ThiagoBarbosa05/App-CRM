@@ -11,3 +11,4 @@ server/index.ts
 .worktrees/
 .claude/
 image.png
+*.csv

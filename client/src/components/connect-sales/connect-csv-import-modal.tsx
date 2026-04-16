@@ -104,9 +104,9 @@ interface ConnectCsvImportModalProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Converte "1.809,31" ou "1,00" → number */
+/** Converte "R$ 1.809,31" ou "1,00" → number */
 function parseBrazilianCurrencyLocal(str: string): number {
-  return parseFloat(str.replace(/\./g, "").replace(",", "."));
+  return parseFloat(str.replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", "."));
 }
 
 /** Parseia as linhas brutas do CSV usando XLSX */
