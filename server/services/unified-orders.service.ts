@@ -276,7 +276,7 @@ export const unifiedOrdersService = {
 
     const blingFrag = sql`
       SELECT total_value::numeric AS v FROM bling_orders
-      WHERE deleted_at IS NULL AND sale_date >= ${startDate} AND sale_date <= ${endDate}
+      WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}
     `;
 
     const connectFrag = sql`
@@ -350,10 +350,10 @@ export const unifiedOrdersService = {
     // DATE_TRUNC needs a literal — build per-case
     const blingFrag =
       groupBy === "month"
-        ? sql`SELECT DATE_TRUNC('month', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
+        ? sql`SELECT DATE_TRUNC('month', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
         : groupBy === "week"
-          ? sql`SELECT DATE_TRUNC('week', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
-          : sql`SELECT DATE_TRUNC('day', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND sale_date >= ${startDate} AND sale_date <= ${endDate}`;
+          ? sql`SELECT DATE_TRUNC('week', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
+          : sql`SELECT DATE_TRUNC('day', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`;
 
     const connectFrag =
       groupBy === "month"
@@ -416,6 +416,7 @@ export const unifiedOrdersService = {
         SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
       ) u ON true
       WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL

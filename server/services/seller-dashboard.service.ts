@@ -470,6 +470,7 @@ async function buildBlingAggQuery(
     LEFT JOIN clients c ON c.id = bo.app_client_id
     WHERE bo.seller_id = ${blingVendedorId}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
@@ -515,6 +516,7 @@ async function fetchTopItemValue(
     LEFT JOIN clients c ON c.id = bo.app_client_id
     WHERE bo.seller_id = ${blingVendedorId}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
@@ -561,6 +563,7 @@ async function fetchTopClientsByTotalForSeller(
     WHERE c.responsavel_id = ${userId}
       ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
@@ -603,6 +606,7 @@ async function fetchTopClientsByAvgTicketForSeller(
     WHERE c.responsavel_id = ${userId}
       ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
@@ -644,6 +648,7 @@ async function fetchTopItemValueForSeller(
     WHERE c.responsavel_id = ${userId}
       ${buildClientIdsCondition("c.id", clientIds)}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
@@ -777,6 +782,7 @@ async function fetchMonthlySummary(
           FROM bling_orders
           WHERE seller_id = ${blingVendedorId}
             AND deleted_at IS NULL
+            AND situation_id = '9'
             AND sale_date >= ${startDate}
             AND sale_date <= ${endDate}
         `)
@@ -849,6 +855,7 @@ async function fetchSalesEvolution(
           FROM bling_orders
           WHERE seller_id = ${blingVendedorId}
             AND deleted_at IS NULL
+            AND situation_id = '9'
             AND sale_date >= ${startDate}
             AND sale_date <= ${endDate}
           GROUP BY sale_date
@@ -990,6 +997,7 @@ async function fetchAggregateSummary(
         COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
       FROM bling_orders
       WHERE deleted_at IS NULL
+        AND situation_id = '9'
         AND sale_date >= ${startDate}
         AND sale_date <= ${endDate}
     `),
@@ -1026,6 +1034,7 @@ async function fetchAggregateSummary(
       SELECT app_client_id::text AS client_id
       FROM bling_orders
       WHERE deleted_at IS NULL
+        AND situation_id = '9'
         AND sale_date >= ${startDate}
         AND sale_date <= ${endDate}
         AND app_client_id IS NOT NULL
@@ -1067,6 +1076,7 @@ async function fetchAggregateSalesEvolution(
         COALESCE(SUM(total_value::numeric), 0)        AS total_value
       FROM bling_orders
       WHERE deleted_at IS NULL
+        AND situation_id = '9'
         AND sale_date >= ${startDate}
         AND sale_date <= ${endDate}
       GROUP BY sale_date
@@ -1110,6 +1120,7 @@ async function fetchAggregateTopProducts(
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
     WHERE bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
     GROUP BY boi.product_code, boi.description
@@ -1157,6 +1168,7 @@ async function fetchAggregateTopClients(
       FROM bling_orders bo
       LEFT JOIN clients c ON c.id = bo.app_client_id
       WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.app_client_id IS NOT NULL
@@ -1221,6 +1233,7 @@ async function fetchAggregateTopClientsByAvgTicket(
       FROM bling_orders bo
       LEFT JOIN clients c ON c.id = bo.app_client_id
       WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.app_client_id IS NOT NULL
@@ -1283,6 +1296,7 @@ async function fetchAggregateTopItemValue(
       JOIN bling_order_items boi ON boi.order_id = bo.id
       LEFT JOIN clients c ON c.id = bo.app_client_id
       WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.app_client_id IS NOT NULL
@@ -1426,6 +1440,7 @@ async function fetchSellerRanking(
         SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
       ) u ON true
       WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL
@@ -1490,6 +1505,7 @@ async function fetchSingleSellerWinePriceTier(
       SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
     ) u ON true
     WHERE bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.seller_id = ${blingVendedorId}
@@ -1559,6 +1575,7 @@ async function fetchSellerWinePriceTierStats(
       SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
     ) u ON true
     WHERE bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.seller_id IS NOT NULL
@@ -1631,6 +1648,7 @@ export async function getSellerTierCounts(
       SELECT id FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
     ) u ON true
     WHERE bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND COALESCE(u.id, bo.seller_id) = ${userId}
@@ -1681,6 +1699,7 @@ export async function getWinePriceTierItems(
     ) u ON true
     LEFT JOIN clients c ON c.id = bo.app_client_id
     WHERE bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND COALESCE(u.id, bo.seller_id) = ${sellerId}
@@ -1724,6 +1743,7 @@ async function fetchTopProducts(
     JOIN bling_order_items boi ON boi.order_id = bo.id
     WHERE bo.seller_id = ${blingVendedorId}
       AND bo.deleted_at IS NULL
+      AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
     GROUP BY boi.product_code, boi.description
@@ -1764,6 +1784,7 @@ async function fetchClientPortfolioStats(
           SELECT 1 FROM bling_orders bo
           WHERE bo.app_client_id = c.id
             AND bo.deleted_at IS NULL
+            AND bo.situation_id = '9'
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
         )
         OR EXISTS (
@@ -1811,6 +1832,7 @@ async function fetchAllSellersPortfolioStats(
           SELECT 1 FROM bling_orders bo
           WHERE bo.app_client_id = c.id
             AND bo.deleted_at IS NULL
+            AND bo.situation_id = '9'
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
         )
         OR EXISTS (
