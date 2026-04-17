@@ -64,6 +64,14 @@ function Router() {
         )}
       />
       <Route
+        path="/clientes/duplicatas"
+        component={() => (
+          <MainLayout>
+            <DuplicatesPage />
+          </MainLayout>
+        )}
+      />
+      <Route
         path="/clientes/:id"
         component={() => (
           <MainLayout>
@@ -183,14 +191,6 @@ function Router() {
         component={() => (
           <MainLayout>
             <SellerPerformancePage />
-          </MainLayout>
-        )}
-      />
-      <Route
-        path="/clientes/duplicatas"
-        component={() => (
-          <MainLayout>
-            <DuplicatesPage />
           </MainLayout>
         )}
       />
