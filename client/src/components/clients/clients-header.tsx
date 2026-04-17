@@ -1,6 +1,7 @@
-import { Users, Upload, Plus } from "lucide-react";
+import { Users, Upload, Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 
 interface ClientsHeaderProps {
   totalItems: number;
@@ -37,6 +38,15 @@ export function ClientsHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          <Link href="/clientes/duplicatas">
+            <Button
+              variant="outline"
+              className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicados
+            </Button>
+          </Link>
           {user?.role === "admin" && (
             <Button
               variant="outline"
