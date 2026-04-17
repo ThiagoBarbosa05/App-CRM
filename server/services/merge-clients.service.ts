@@ -1,0 +1,101 @@
+import { db } from "../db";
+import {
+  clients,
+  deals,
+  cashbackTransactions,
+  clientCashbackBalance,
+  cashbackUsage,
+  clientDebts,
+  sales,
+  messageJobsLogs,
+} from "../../shared/schema";
+import { eq, sql } from "drizzle-orm";
+
+/**
+ * Unifica dois clientes: mantém `keepId`, reatribui todos os dados de `mergeId`
+ * e deleta o cliente duplicado.
+ *
+ * Retorna o cliente mantido após o merge.
+ */
+export async function mergeClients(keepId: string, mergeId: string) {
+  if (keepId === mergeId) {
+    throw new Error("Os dois clientes não podem ser o mesmo.");
+  }
+
+  const [keepClient, mergeClient] = await Promise.all([
+    db.select().from(clients).where(eq(clients.id, keepId)).limit(1),
+    db.select().from(clients).where(eq(clients.id, mergeId)).limit(1),
+  ]);
+
+  if (!keepClient[0]) throw new Error("Cliente principal não encontrado.");
+  if (!mergeClient[0]) throw new Error("Cliente duplicado não encontrado.");
+
+  const keep = keepClient[0];
+  const merge = mergeClient[0];
+
+  // Campos que serão preenchidos com dados do duplicado quando o principal estiver vazio
+  const fillFromMerge: Partial<typeof keep> = {};
+  if (!keep.phone && merge.phone) fillFromMerge.phone = merge.phone;
+  if (!keep.cpf && merge.cpf) fillFromMerge.cpf = merge.cpf;
+  if (!keep.email && merge.email) fillFromMerge.email = merge.email;
+  if (!keep.birthday && merge.birthday) fillFromMerge.birthday = merge.birthday;
+  if (!keep.address && merge.address) fillFromMerge.address = merge.address;
+  if (!keep.cep && merge.cep) fillFromMerge.cep = merge.cep;
+  if (!keep.city && merge.city) fillFromMerge.city = merge.city;
+  if (!keep.state && merge.state) fillFromMerge.state = merge.state;
+  if (!keep.neighborhood && merge.neighborhood) fillFromMerge.neighborhood = merge.neighborhood;
+  if (!keep.nomeFantasia && merge.nomeFantasia) fillFromMerge.nomeFantasia = merge.nomeFantasia;
+  if (!keep.inscricaoEstadual && merge.inscricaoEstadual) fillFromMerge.inscricaoEstadual = merge.inscricaoEstadual;
+  // Merge markers (union sem duplicatas)
+  const mergedMarkers = Array.from(new Set([...keep.markers, ...merge.markers]));
+
+  await db.transaction(async (tx) => {
+    // 1. Reatribuir FKs não-cascade para o cliente principal
+    await tx.update(deals).set({ clientId: keepId }).where(eq(deals.clientId, mergeId));
+    await tx.update(cashbackTransactions).set({ clientId: keepId }).where(eq(cashbackTransactions.clientId, mergeId));
+    await tx.update(cashbackUsage).set({ clientId: keepId }).where(eq(cashbackUsage.clientId, mergeId));
+    await tx.update(clientDebts).set({ clientId: keepId }).where(eq(clientDebts.clientId, mergeId));
+    await tx.update(sales).set({ clientId: keepId }).where(eq(sales.clientId, mergeId));
+    await tx.update(messageJobsLogs).set({ clientId: keepId }).where(eq(messageJobsLogs.clientId, mergeId));
+
+    // 2. Merge de saldo de cashback (somar se ambos tiverem)
+    const [mergeBalance] = await tx
+      .select()
+      .from(clientCashbackBalance)
+      .where(eq(clientCashbackBalance.clientId, mergeId))
+      .limit(1);
+
+    if (mergeBalance) {
+      const [keepBalance] = await tx
+        .select()
+        .from(clientCashbackBalance)
+        .where(eq(clientCashbackBalance.clientId, keepId))
+        .limit(1);
+
+      if (keepBalance) {
+        await tx
+          .update(clientCashbackBalance)
+          .set({
+            totalEarned: sql`${clientCashbackBalance.totalEarned} + ${mergeBalance.totalEarned}`,
+            totalUsed: sql`${clientCashbackBalance.totalUsed} + ${mergeBalance.totalUsed}`,
+            currentBalance: sql`${clientCashbackBalance.currentBalance} + ${mergeBalance.currentBalance}`,
+          })
+          .where(eq(clientCashbackBalance.clientId, keepId));
+        await tx.delete(clientCashbackBalance).where(eq(clientCashbackBalance.clientId, mergeId));
+      } else {
+        await tx.update(clientCashbackBalance).set({ clientId: keepId }).where(eq(clientCashbackBalance.clientId, mergeId));
+      }
+    }
+
+    // 3. Atualizar campos em branco do cliente principal
+    const updateData: Record<string, unknown> = { markers: mergedMarkers };
+    Object.assign(updateData, fillFromMerge);
+    await tx.update(clients).set(updateData).where(eq(clients.id, keepId));
+
+    // 4. Deletar o cliente duplicado (cascade cuida de interactions, birthday reminders, etc.)
+    await tx.delete(clients).where(eq(clients.id, mergeId));
+  });
+
+  const [updated] = await db.select().from(clients).where(eq(clients.id, keepId)).limit(1);
+  return updated;
+}

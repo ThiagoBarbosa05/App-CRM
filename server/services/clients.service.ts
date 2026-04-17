@@ -2,6 +2,9 @@ import { ClientsRepository } from "server/repositories/clients.repository";
 import { storage, ClientFilters } from "../storage";
 import { insertClientSchema, updateClientSchema } from "@shared/schema";
 import { z } from "zod";
+import { db } from "../db";
+import { clients } from "../../shared/schema";
+import { eq, and, ne, sql as drizzleSql } from "drizzle-orm";
 import { generateConfirmationCode } from "../lib/utils";
 import {
   syncContact,
@@ -239,6 +242,9 @@ export class ClientsService {
       // Validar dados usando o schema Zod
       const validatedData = insertClientSchema.parse(processedData);
 
+      // Verificar CPF e e-mail duplicados antes de inserir
+      await this.checkCpfEmailUniqueness(validatedData.cpf ?? null, validatedData.email ?? null, null);
+
       // Gerar código de confirmação
       const confirmationCode = generateConfirmationCode();
 
@@ -419,6 +425,12 @@ export class ClientsService {
           "Este número de telefone já está cadastrado para outro cliente.",
         );
       }
+      if (error && error.toString().includes("clients_cpf_unique")) {
+        throw new Error("Este CPF/CNPJ já está cadastrado para outro cliente.");
+      }
+      if (error && error.toString().includes("clients_email_unique")) {
+        throw new Error("Este e-mail já está cadastrado para outro cliente.");
+      }
 
       throw error;
     }
@@ -445,6 +457,15 @@ export class ClientsService {
 
       // Validar dados usando o schema Zod (partial para permitir atualizações parciais)
       const validatedData = updateClientSchema.parse(processedData);
+
+      // Verificar CPF e e-mail duplicados antes de atualizar
+      if (validatedData.cpf !== undefined || validatedData.email !== undefined) {
+        await this.checkCpfEmailUniqueness(
+          validatedData.cpf ?? null,
+          validatedData.email ?? null,
+          clientId,
+        );
+      }
 
       // Atualizar cliente através do repositório
       const client = await this.clientsRepository.updateClient(
@@ -546,14 +567,76 @@ export class ClientsService {
         throw error;
       }
 
-      // Re-throw erros de banco (telefone duplicado, etc.)
+      // Re-throw erros de banco (telefone/cpf/email duplicado, etc.)
       if (error && error.toString().includes("clients_phone_unique")) {
         throw new Error(
           "Este número de telefone já está cadastrado para outro cliente.",
         );
       }
+      if (error && error.toString().includes("clients_cpf_unique")) {
+        throw new Error("Este CPF/CNPJ já está cadastrado para outro cliente.");
+      }
+      if (error && error.toString().includes("clients_email_unique")) {
+        throw new Error("Este e-mail já está cadastrado para outro cliente.");
+      }
 
       throw new Error("Erro ao atualizar cliente");
+    }
+  }
+
+  /**
+   * Verifica se CPF ou e-mail já estão cadastrados para outro cliente.
+   * excludeId é o ID do cliente sendo editado (para não conflitar consigo mesmo).
+   */
+  private async checkCpfEmailUniqueness(
+    cpf: string | null,
+    email: string | null,
+    excludeId: string | null,
+  ): Promise<void> {
+    if (cpf) {
+      const normalizedCpf = cpf.replace(/\D/g, "");
+      if (normalizedCpf.length > 0) {
+        const existing = await db
+          .select({ id: clients.id, name: clients.name })
+          .from(clients)
+          .where(
+            excludeId
+              ? and(
+                  drizzleSql`regexp_replace(${clients.cpf}, '[^0-9]', '', 'g') = ${normalizedCpf}`,
+                  ne(clients.id, excludeId),
+                )
+              : drizzleSql`regexp_replace(${clients.cpf}, '[^0-9]', '', 'g') = ${normalizedCpf}`,
+          )
+          .limit(1);
+        if (existing.length > 0) {
+          throw new Error(
+            `Este CPF/CNPJ já está cadastrado para o cliente "${existing[0].name}".`,
+          );
+        }
+      }
+    }
+
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail.length > 0) {
+        const existing = await db
+          .select({ id: clients.id, name: clients.name })
+          .from(clients)
+          .where(
+            excludeId
+              ? and(
+                  drizzleSql`lower(${clients.email}) = ${normalizedEmail}`,
+                  ne(clients.id, excludeId),
+                )
+              : drizzleSql`lower(${clients.email}) = ${normalizedEmail}`,
+          )
+          .limit(1);
+        if (existing.length > 0) {
+          throw new Error(
+            `Este e-mail já está cadastrado para o cliente "${existing[0].name}".`,
+          );
+        }
+      }
     }
   }
 

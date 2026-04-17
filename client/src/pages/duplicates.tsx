@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   AlertTriangle,
@@ -8,12 +8,26 @@ import {
   Mail,
   CreditCard,
   UserCheck,
+  Merge,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 interface DuplicateClient {
   id: string;
@@ -50,8 +64,17 @@ const reasonColor = (reason: string) => {
   return "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300";
 };
 
+interface MergeTarget {
+  keepId: string;
+  keepName: string;
+  mergeId: string;
+  mergeName: string;
+}
+
 export default function DuplicatesPage() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
 
   const { data: groups = [], isLoading, refetch, isFetching } = useQuery<DuplicateGroup[]>({
     queryKey: ["/api/clients/duplicates"],
@@ -59,6 +82,27 @@ export default function DuplicatesPage() {
       const res = await fetch("/api/clients/duplicates");
       if (!res.ok) throw new Error("Erro ao buscar duplicatas");
       return res.json();
+    },
+  });
+
+  const mergeMutation = useMutation({
+    mutationFn: async ({ keepId, mergeId }: { keepId: string; mergeId: string }) => {
+      const res = await fetch(`/api/clients/${keepId}/merge/${mergeId}`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Erro ao unificar clientes.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Clientes unificados com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      setMergeTarget(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao unificar", description: error.message, variant: "destructive" });
+      setMergeTarget(null);
     },
   });
 
@@ -157,6 +201,24 @@ export default function DuplicatesPage() {
                 <Badge className="ml-auto text-[10px] bg-white/60 dark:bg-black/20 border-current text-current hover:bg-white/60">
                   {group.clients.length} clientes
                 </Badge>
+                {group.clients.length === 2 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] gap-1 border-current text-current bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
+                    onClick={() =>
+                      setMergeTarget({
+                        keepId: group.clients[0].id,
+                        keepName: group.clients[0].name,
+                        mergeId: group.clients[1].id,
+                        mergeName: group.clients[1].name,
+                      })
+                    }
+                  >
+                    <Merge className="h-3 w-3" />
+                    Unificar
+                  </Button>
+                )}
               </div>
 
               {/* Clients */}
@@ -210,6 +272,38 @@ export default function DuplicatesPage() {
           ))}
         </div>
       )}
+
+      {/* Diálogo de confirmação de merge */}
+      <AlertDialog open={!!mergeTarget} onOpenChange={(open) => !open && setMergeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unificar clientes</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <p>
+                  O cliente <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.mergeName}"</strong> será
+                  removido e todos os seus dados (pedidos, interações, cashback) serão transferidos para{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.keepName}"</strong>.
+                </p>
+                <p className="text-red-600 dark:text-red-400 font-medium">Esta ação é irreversível.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (mergeTarget) {
+                  mergeMutation.mutate({ keepId: mergeTarget.keepId, mergeId: mergeTarget.mergeId });
+                }
+              }}
+            >
+              Confirmar Unificação
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

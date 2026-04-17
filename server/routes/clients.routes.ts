@@ -14,6 +14,7 @@ import { getClientByIdController } from "../controllers/clients/get-client-by-id
 import { getClientPurchaseInsightsController } from "../controllers/clients/get-client-purchase-insights.controller";
 import { checkDuplicateController } from "../controllers/clients/check-duplicate.controller";
 import { getDuplicatesController } from "../controllers/clients/get-duplicates.controller";
+import { mergeClientsController } from "../controllers/clients/merge-clients.controller";
 import multer from "multer";
 
 /**
@@ -49,6 +50,7 @@ const clientsImportUpload = multer({
 clientsRouter.get("/", getClientsController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);
+clientsRouter.post("/:keepId/merge/:mergeId", mergeClientsController);
 clientsRouter.post("/import", clientsImportUpload.single("file"), async (req, res) => {
   try {
     if (!req.file) {

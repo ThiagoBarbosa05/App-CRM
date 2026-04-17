@@ -28,7 +28,14 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+  subMonths,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 
@@ -89,22 +96,31 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("desempenho");
 
   // ── Date range ────────────────────────────────────────────────────────────
+  type DatePreset = "hoje" | "este-mes" | "mes-passado" | "periodo";
+  const [datePreset, setDatePreset] = useState<DatePreset>("este-mes");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+
+  const dateRange = useMemo<DateRange>(() => {
     const now = new Date();
+    if (datePreset === "hoje")
+      return { from: startOfDay(now), to: endOfDay(now) };
+    if (datePreset === "mes-passado") {
+      const prev = subMonths(now, 1);
+      return { from: startOfMonth(prev), to: endOfMonth(prev) };
+    }
+    if (datePreset === "periodo" && customRange?.from)
+      return { from: customRange.from, to: customRange.to ?? customRange.from };
     return { from: startOfMonth(now), to: endOfMonth(now) };
-  });
+  }, [datePreset, customRange]);
 
   const startDate = useMemo(
-    () =>
-      dateRange?.from
-        ? format(dateRange.from, "yyyy-MM-dd")
-        : format(startOfMonth(new Date()), "yyyy-MM-dd"),
-    [dateRange?.from],
+    () => format(dateRange.from!, "yyyy-MM-dd"),
+    [dateRange.from],
   );
   const endDate = useMemo(
-    () => (dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : startDate),
-    [dateRange?.to, startDate],
+    () => format(dateRange.to!, "yyyy-MM-dd"),
+    [dateRange.to],
   );
 
   // ── Seletor de vendedor (admin) ────────────────────────────────────────────
@@ -175,44 +191,68 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start gap-3 shrink-0">
-          {/* Date range picker */}
+          {/* Filtro de período */}
           <div className="flex flex-col items-start gap-1">
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium h-9 px-3"
+            <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0.5 gap-0.5">
+              {(
+                [
+                  { value: "hoje", label: "Hoje" },
+                  { value: "este-mes", label: "Este mês" },
+                  { value: "mes-passado", label: "Mês passado" },
+                ] as const
+              ).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setDatePreset(value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 ${
+                    datePreset === value
+                      ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800"
+                      : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                  }`}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
+                  {label}
+                </button>
+              ))}
+
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    onClick={() => setDatePreset("periodo")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 ${
+                      datePreset === "periodo"
+                        ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800"
+                        : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {datePreset === "periodo" && customRange?.from ? (
                       <span>
-                        {format(dateRange.from, "dd/MM/yy")} —{" "}
-                        {format(dateRange.to, "dd/MM/yy")}
+                        {format(customRange.from, "dd/MM/yy")}
+                        {customRange.to &&
+                          customRange.to !== customRange.from &&
+                          ` — ${format(customRange.to, "dd/MM/yy")}`}
                       </span>
                     ) : (
-                      format(dateRange.from, "dd/MM/yy")
-                    )
-                  ) : (
-                    <span>Selecione um período</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <CalendarComponent
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={(range) => {
-                    setDateRange(range);
-                    if (range?.from && range?.to) setIsCalendarOpen(false);
-                  }}
-                  numberOfMonths={2}
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
+                      "Período"
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    initialFocus
+                    mode="range"
+                    defaultMonth={customRange?.from ?? new Date()}
+                    selected={customRange}
+                    onSelect={(range) => {
+                      setCustomRange(range);
+                      if (range?.from && range?.to) setIsCalendarOpen(false);
+                    }}
+                    numberOfMonths={2}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <p className="text-xs text-slate-400">
               Afeta gráficos e métricas do período
             </p>

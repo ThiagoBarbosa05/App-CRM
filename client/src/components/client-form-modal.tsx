@@ -185,6 +185,11 @@ export default function ClientFormModal({
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Bloquear submit se houver match exato de CPF ou email (não de nome similar)
+  const hasBlockingDuplicate = duplicates.some((d) =>
+    d.matchReasons.some((r) => r.includes("CPF") || r.includes("E-mail")),
+  );
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -963,11 +968,12 @@ export default function ClientFormModal({
           >
             Cancelar
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             form="client-form"
-            disabled={isSubmitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 font-medium transition-colors"
+            disabled={isSubmitting || hasBlockingDuplicate}
+            title={hasBlockingDuplicate ? "Resolva a duplicidade de CPF/e-mail antes de salvar" : undefined}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
