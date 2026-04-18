@@ -104,10 +104,14 @@ productsRouter.get("/:productId/companies", async (req, res) => {
   }
 });
 
-productsRouter.get("/statistics", async (_req, res) => {
+productsRouter.get("/statistics", async (req, res) => {
   try {
     console.log("Fetching products statistics...");
-    const statistics = await storage.getProductsStatistics();
+    const { startDate, endDate } = req.query;
+    const statistics = await storage.getProductsStatistics(
+      startDate as string | undefined,
+      endDate as string | undefined,
+    );
 
     return res.json(statistics);
   } catch (error) {

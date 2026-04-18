@@ -1877,11 +1877,28 @@ export const sales = pgTable("sales", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const productCategories = pgTable("product_categories", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertProductCategorySchema = createInsertSchema(
+  productCategories,
+).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+export type ProductCategory = typeof productCategories.$inferSelect;
+
 export const products = pgTable("products", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  category: text("category").notNull().default("OUTROS"),
   country: text("country", {
     enum: [
       "CHILE",

@@ -99,7 +99,7 @@ export function ProductsFilters({
             <option value="187ml">187ml</option>
             <option value="375ml">375ml</option>
             <option value="750ml">750ml</option>
-            <option value="1.5L">1.5L</option>
+            <option value="1500ml">1500ml</option>
           </select>
           <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300 transition-colors">
             <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">

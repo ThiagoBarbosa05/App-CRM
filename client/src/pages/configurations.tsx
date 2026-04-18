@@ -19,6 +19,7 @@ import {
   Download,
   GraduationCap,
   Grid,
+  Grid3X3,
   LayoutPanelTop,
   Settings,
   Tag,
@@ -47,6 +48,7 @@ import { ConfigurationsHeader } from "@/components/configurations/configurations
 import { motion, AnimatePresence } from "framer-motion";
 import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { WinePriceTierSettings } from "@/components/settings-management";
+import ProductCategoriesManagement from "@/components/product-categories-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -275,13 +277,25 @@ export default function Configurations() {
               <TabsTrigger
                 value="wine-price-tiers"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                 title="Gerenciar faixas de preço de vinhos"
               >
                 <DollarSignIcon className="size-4" />
                 <span className="text-xs font-medium ">Faixas de Preço</span>
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="product-categories"
+                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
+                title="Gerenciar categorias de produto"
+              >
+                <Grid3X3 className="size-4" />
+                <span className="text-xs font-medium">Cat. Produto</span>
               </TabsTrigger>
             </div>
           </TabsList>
@@ -356,6 +370,10 @@ export default function Configurations() {
 
             <TabsContent value="wine-price-tiers">
               <WinePriceTierSettings />
+            </TabsContent>
+
+            <TabsContent value="product-categories">
+              <ProductCategoriesManagement />
             </TabsContent>
           </motion.div>
         </AnimatePresence>

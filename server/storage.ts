@@ -92,6 +92,9 @@ import {
   type Sale, // Importação do tipo de venda
   type InsertSale, // Importação do tipo de inserção de venda
   products,
+  productCategories,
+  type InsertProductCategory,
+  type ProductCategory,
   companyProducts,
   type InsertCompanyProduct,
   type CompanyProduct,
@@ -533,6 +536,12 @@ export interface IStorage {
     userId?: string;
   }): Promise<any>;
   deleteSale(saleId: string): Promise<boolean>;
+
+  // Product Categories Methods
+  getProductCategories(): Promise<ProductCategory[]>;
+  createProductCategory(data: InsertProductCategory): Promise<ProductCategory>;
+  updateProductCategory(id: string, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined>;
+  deleteProductCategory(id: string): Promise<boolean>;
 
   // Products Methods
   getProducts(
@@ -4779,6 +4788,37 @@ export class DatabaseStorage implements IStorage {
       .from(products)
       .where(notInArray(products.id, linkedProducts))
       .orderBy(asc(products.name));
+  }
+
+  async getProductCategories(): Promise<ProductCategory[]> {
+    return await this.db
+      .select()
+      .from(productCategories)
+      .orderBy(asc(productCategories.name));
+  }
+
+  async createProductCategory(data: InsertProductCategory): Promise<ProductCategory> {
+    const [category] = await this.db
+      .insert(productCategories)
+      .values(data)
+      .returning();
+    return category;
+  }
+
+  async updateProductCategory(id: string, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const [category] = await this.db
+      .update(productCategories)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(productCategories.id, id))
+      .returning();
+    return category || undefined;
+  }
+
+  async deleteProductCategory(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(productCategories)
+      .where(eq(productCategories.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async updateCompanyProductPrice(

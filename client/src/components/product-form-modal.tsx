@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -31,8 +31,14 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
+interface ProductCategory {
+  id: string;
+  name: string;
+}
+
 const productSchema = z.object({
   name: z.string().min(1, "Nome do vinho é obrigatório"),
+  category: z.string().min(1, "Categoria é obrigatória"),
   country: z.enum([
     "CHILE",
     "ARGENTINA",
@@ -56,6 +62,7 @@ type ProductFormData = z.infer<typeof productSchema>;
 interface Product {
   id: string;
   name: string;
+  category: string;
   country: string;
   volume: string;
   type: string;
@@ -77,10 +84,17 @@ export function ProductFormModal({
   const { user } = useAuth();
   const isEditing = !!product;
 
+  const { data: productCategories = [] } = useQuery<ProductCategory[]>({
+    queryKey: ["/api/product-categories"],
+    retry: 3,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: "",
+      category: "",
       country: "BRASIL",
       volume: "750ml",
       type: "TINTO",
@@ -92,6 +106,7 @@ export function ProductFormModal({
     if (product) {
       form.reset({
         name: product.name,
+        category: product.category || "",
         country: product.country as any,
         volume: product.volume as any,
         type: product.type as any,
@@ -100,6 +115,7 @@ export function ProductFormModal({
     } else {
       form.reset({
         name: "",
+        category: "",
         country: "BRASIL",
         volume: "750ml",
         type: "TINTO",
@@ -218,6 +234,31 @@ export function ProductFormModal({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(productCategories as ProductCategory[]).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
