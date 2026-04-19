@@ -143,6 +143,7 @@ import {
   like,
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { format, subMonths } from "date-fns";
 
 export interface ClientFilters {
   search?: string;
@@ -4646,7 +4647,7 @@ export class DatabaseStorage implements IStorage {
           products,
           eq(blingOrderItems.productId, products.blingProductId),
         )
-        .where(isNull(blingOrders.deletedAt))
+        .where(and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO")))
         .groupBy(
           products.id,
           products.name,
@@ -4664,9 +4665,10 @@ export class DatabaseStorage implements IStorage {
         startDate && endDate
           ? and(
               isNull(blingOrders.deletedAt),
+              eq(products.category, "VINHO"),
               sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
             )
-          : isNull(blingOrders.deletedAt);
+          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
 
       const revenueByType = await this.db
         .select({
@@ -4689,6 +4691,109 @@ export class DatabaseStorage implements IStorage {
       return { topProductsByRevenue, revenueByType };
     } catch (error) {
       console.error("Error fetching products statistics:", error);
+      throw error;
+    }
+  }
+
+  async getProductById(productId: string) {
+    const [result] = await this.db
+      .select({
+        id: products.id,
+        name: products.name,
+        category: products.category,
+        type: products.type,
+        country: products.country,
+        volume: products.volume,
+        negotiatedPrice: products.negotiatedPrice,
+        createdBy: products.createdBy,
+        createdAt: products.createdAt,
+        imageUrl: products.imageUrl,
+        blingProductId: products.blingProductId,
+        createdByName: users.name,
+        clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
+      })
+      .from(products)
+      .leftJoin(users, eq(products.createdBy, users.id))
+      .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
+      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+      .groupBy(products.id, users.name);
+    return result ?? null;
+  }
+
+  async getProductProfile(productId: string) {
+    try {
+      const twelveMonthsAgo = format(subMonths(new Date(), 12), "yyyy-MM-dd");
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      const baseConditions = and(
+        eq(products.id, productId),
+        isNull(blingOrders.deletedAt),
+        sql`${blingOrders.saleDate} >= ${twelveMonthsAgo}`,
+        sql`${blingOrders.saleDate} <= ${today}`,
+      );
+
+      // Summary stats
+      const [summary] = await this.db
+        .select({
+          totalRevenue: sql<string>`COALESCE(SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric), 0)`,
+          totalQuantity: sql<string>`COALESCE(SUM(${blingOrderItems.quantity}::numeric), 0)`,
+          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
+          buyerCount: sql<number>`COUNT(DISTINCT ${blingOrders.companyId})::int`,
+        })
+        .from(products)
+        .leftJoin(blingOrderItems, eq(blingOrderItems.productId, products.blingProductId))
+        .leftJoin(blingOrders, and(eq(blingOrderItems.orderId, blingOrders.id), isNull(blingOrders.deletedAt), sql`${blingOrders.saleDate} >= ${twelveMonthsAgo}`, sql`${blingOrders.saleDate} <= ${today}`))
+        .where(eq(products.id, productId));
+
+      // Month-by-month history
+      const monthlyHistory = await this.db
+        .select({
+          month: sql<string>`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
+          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
+          totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
+          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
+        })
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .where(baseConditions)
+        .groupBy(sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`)
+        .orderBy(sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM') ASC`);
+
+      // Buyers
+      const buyers = await this.db
+        .select({
+          companyId: blingOrders.companyId,
+          companyName: companies.nomeFantasia,
+          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
+          totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
+          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
+          lastPurchase: sql<string>`MAX(${blingOrders.saleDate})`,
+        })
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .leftJoin(companies, eq(blingOrders.companyId, companies.id))
+        .where(baseConditions)
+        .groupBy(blingOrders.companyId, companies.nomeFantasia)
+        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
+
+      const totalRev = parseFloat(summary?.totalRevenue ?? "0");
+      const totalQty = parseFloat(summary?.totalQuantity ?? "0");
+
+      return {
+        summary: {
+          totalRevenue: totalRev,
+          totalQuantity: totalQty,
+          averagePrice: totalQty > 0 ? totalRev / totalQty : 0,
+          orderCount: summary?.orderCount ?? 0,
+          buyerCount: summary?.buyerCount ?? 0,
+        },
+        monthlyHistory,
+        buyers,
+      };
+    } catch (error) {
+      console.error("Error fetching product profile:", error);
       throw error;
     }
   }

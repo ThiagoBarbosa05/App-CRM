@@ -88,6 +88,29 @@ productsRouter.delete("/:id", async (req, res) => {
   }
 });
 
+productsRouter.get("/:productId/detail", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await storage.getProductById(productId);
+    if (!product) return res.status(404).json({ message: "Produto não encontrado" });
+    return res.json(product);
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    return res.status(500).json({ message: "Erro ao buscar produto" });
+  }
+});
+
+productsRouter.get("/:productId/profile", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const profile = await storage.getProductProfile(productId);
+    return res.json(profile);
+  } catch (error) {
+    console.error("Error fetching product profile:", error);
+    return res.status(500).json({ message: "Erro ao buscar perfil do produto" });
+  }
+});
+
 productsRouter.get("/:productId/companies", async (req, res) => {
   try {
     const { productId } = req.params;

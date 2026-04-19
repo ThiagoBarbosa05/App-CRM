@@ -205,6 +205,7 @@ export function ProductFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products/statistics"] });
       toast({
         title: isEditing ? "Produto atualizado" : "Produto criado",
         description: isEditing

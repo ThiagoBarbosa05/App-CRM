@@ -8,29 +8,13 @@ import { BlingProductSyncModal } from "@/components/bling-product-sync-modal";
 import { queryClient } from "@/lib/queryClient";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import {
-  Wine,
-  MapPin,
-  Ruler,
-  Tag,
-  DollarSign,
-  Users,
-  Calendar,
-  User,
-} from "lucide-react";
 
 // Extracted Components
 import { ProductsHeader } from "@/components/products/products-header";
 import { ProductsStatistics } from "@/components/products/products-statistics";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ProductsTable } from "@/components/products/products-table";
+import { ProductProfileSheet } from "@/components/products/product-profile-sheet";
 
 interface Product {
   id: string;
@@ -54,8 +38,6 @@ export default function Products() {
   const [selectedProductForClients, setSelectedProductForClients] =
     useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [selectedProductForDetail, setSelectedProductForDetail] =
-    useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -168,10 +150,6 @@ export default function Products() {
     setIsClientsModalOpen(true);
   }, []);
 
-  const handleViewDetail = useCallback((product: Product) => {
-    setSelectedProductForDetail(product);
-  }, []);
-
   const handleExportProducts = useCallback(() => {
     const exportData = products.map((product: Product) => ({
       "Nome do Vinho": product.name,
@@ -280,7 +258,7 @@ export default function Products() {
             onEdit={handleEditProduct}
             onDelete={(id) => deleteProductMutation.mutate(id)}
             onViewClients={handleViewClients}
-            onViewDetail={handleViewDetail}
+            onViewDetail={() => {}}
             getCountryFlag={getCountryFlag}
             getTypeColor={getTypeColor}
             currentPage={currentPage}
@@ -316,169 +294,6 @@ export default function Products() {
         onOpenChange={setIsBlingModalOpen}
       />
 
-      <Sheet
-        open={!!selectedProductForDetail}
-        onOpenChange={(open) => {
-          if (!open) setSelectedProductForDetail(null);
-        }}
-      >
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          {selectedProductForDetail && (
-            <>
-              <SheetHeader className="mb-6">
-                {selectedProductForDetail.imageUrl && (
-                  <div className="w-full h-56 rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50 mb-5 bg-slate-50 dark:bg-slate-800/80 relative group shadow-sm flex items-center justify-center">
-                    <img
-                      src={selectedProductForDetail.imageUrl}
-                      alt={selectedProductForDetail.name}
-                      className="w-full h-full object-contain p-2 mix-blend-multiply dark:mix-blend-normal group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                )}
-                <div className="flex items-center gap-4">
-                  {!selectedProductForDetail.imageUrl && (
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center border border-blue-100/50 dark:border-slate-700/80 shrink-0 shadow-inner">
-                      <Wine className="h-7 w-7 text-blue-500 dark:text-blue-400" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <SheetTitle className="text-left text-xl font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">
-                      {selectedProductForDetail.name}
-                    </SheetTitle>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                      REF: {selectedProductForDetail.id.slice(0, 8)}
-                    </p>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <div className="space-y-5">
-                {/* Price highlight */}
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-3xl p-5 border border-emerald-100/60 dark:border-emerald-800/40 relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-emerald-500/5 mix-blend-overlay group-hover:bg-emerald-500/10 transition-colors" />
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">
-                        Preço Unitário
-                      </span>
-                    </div>
-                    <p className="text-3xl font-extrabold text-emerald-800 dark:text-emerald-300 tracking-tight">
-                      R${" "}
-                      {parseFloat(
-                        selectedProductForDetail.negotiatedPrice,
-                      ).toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Details grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                        Origem
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-2xl filter drop-shadow-sm">
-                        {getCountryFlag(selectedProductForDetail.country)}
-                      </span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider">
-                        {selectedProductForDetail.country}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <Ruler className="h-4 w-4 text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                        Volume
-                      </span>
-                    </div>
-                    <p className="font-extrabold text-slate-800 dark:text-slate-200 text-base">
-                      {selectedProductForDetail.volume}
-                    </p>
-                  </div>
-
-                  <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Tag className="h-4 w-4 text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                        Variação
-                      </span>
-                    </div>
-                    <Badge
-                      className={`font-black uppercase text-[11px] tracking-widest shadow-sm ${getTypeColor(selectedProductForDetail.type)} border-0 px-2.5 py-1`}
-                    >
-                      {selectedProductForDetail.type}
-                    </Badge>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-2xl p-4 border border-blue-100/80 dark:border-blue-800/50 shadow-sm relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-blue-500/5 mix-blend-overlay group-hover:bg-blue-500/10 transition-colors" />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest">
-                          Vínculos
-                        </span>
-                      </div>
-                      <p className="font-extrabold text-blue-800 dark:text-blue-300 text-2xl tracking-tight leading-none mb-1">
-                        {selectedProductForDetail.clientCount}
-                      </p>
-                      <p className="text-[10px] font-black text-blue-600/70 dark:text-blue-400/80 uppercase tracking-widest">
-                        clientes
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Meta info */}
-                <div className="space-y-3 pt-3">
-                  <div className="flex items-center gap-4 py-3 px-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/80">
-                    <div className="h-9 w-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-slate-600 shadow-sm">
-                      <User className="h-4.5 w-4.5 text-slate-500" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                        Criado por
-                      </p>
-                      <p className="text-[15px] font-bold text-slate-800 dark:text-slate-200">
-                        {selectedProductForDetail.createdByName || "Sistema"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 py-3 px-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/80">
-                    <div className="h-9 w-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-slate-600 shadow-sm">
-                      <Calendar className="h-4.5 w-4.5 text-slate-500" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                        Data de criação
-                      </p>
-                      <p className="text-[15px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                        {new Date(
-                          selectedProductForDetail.createdAt,
-                        ).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

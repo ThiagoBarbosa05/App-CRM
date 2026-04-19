@@ -20,6 +20,7 @@ import Cashback from "@/pages/cashback";
 import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
+import ProductProfilePage from "./pages/product-profile";
 import UmblerContactsPage from "./pages/umbler-contacts";
 import CreateCampaignPage from "./pages/create-campaign-improved";
 import CampaignsDashboardPage from "./pages/campaigns-dashboard";
@@ -158,6 +159,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Products />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/products/:id"
+        component={() => (
+          <MainLayout>
+            <ProductProfilePage />
           </MainLayout>
         )}
       />

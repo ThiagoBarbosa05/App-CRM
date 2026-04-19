@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
 
 interface Product {
   id: string;
@@ -91,6 +92,7 @@ export function ProductsTable({
   totalProducts,
   setCurrentPage,
 }: ProductsTableProps) {
+  const [, navigate] = useLocation();
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
       <div className="overflow-x-auto grow">
@@ -183,7 +185,7 @@ export function ProductsTable({
                     <TableCell className="py-5 px-6">
                       <div
                         className="flex items-center gap-4 cursor-pointer"
-                        onClick={() => onViewDetail(product)}
+                        onClick={() => navigate(`/products/${product.id}`)}
                       >
                         <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-slate-700/60 group-hover:scale-105 group-hover:shadow-md group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300 overflow-hidden relative">
                           <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
