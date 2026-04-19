@@ -67,6 +67,16 @@ interface ProductsTableProps {
   setCurrentPage: (page: number) => void;
 }
 
+function isAccessoryProduct(category?: string) {
+  return (
+    category
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .startsWith("ACESSOR") ?? false
+  );
+}
+
 export function ProductsTable({
   products,
   isFetching,
@@ -198,22 +208,30 @@ export function ProductsTable({
                       </div>
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden sm:table-cell">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-2xl leading-none filter drop-shadow-sm">
-                          {getCountryFlag(product.country)}
-                        </span>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
-                          {product.country}
-                        </span>
-                      </div>
+                      {isAccessoryProduct(product.category) ? (
+                        <span className="text-xs text-slate-400">—</span>
+                      ) : (
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl leading-none filter drop-shadow-sm">
+                            {getCountryFlag(product.country)}
+                          </span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                            {product.country}
+                          </span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden md:table-cell">
-                      <Badge
-                        variant="secondary"
-                        className="bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 font-bold border-0"
-                      >
-                        {product.volume}
-                      </Badge>
+                      {isAccessoryProduct(product.category) ? (
+                        <span className="text-xs text-slate-400">—</span>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 font-bold border-0"
+                        >
+                          {product.volume}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden lg:table-cell">
                       {product.category ? (
@@ -228,13 +246,17 @@ export function ProductsTable({
                       )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden lg:table-cell">
-                      <Badge
-                        className={`font-black uppercase text-[10px] tracking-widest shadow-sm ${getTypeColor(
-                          product.type,
-                        )} border-0 px-2.5 py-1`}
-                      >
-                        {product.type}
-                      </Badge>
+                      {isAccessoryProduct(product.category) ? (
+                        <span className="text-xs text-slate-400">—</span>
+                      ) : (
+                        <Badge
+                          className={`font-black uppercase text-[10px] tracking-widest shadow-sm ${getTypeColor(
+                            product.type,
+                          )} border-0 px-2.5 py-1`}
+                        >
+                          {product.type}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="py-5 px-6">
                       <div className="flex flex-col gap-0.5">
