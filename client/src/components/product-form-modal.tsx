@@ -62,7 +62,13 @@ const productSchema = z
     negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
   })
   .superRefine((data, ctx) => {
-    if (data.category !== "ACESSORIO") {
+    const isAcessorio = data.category
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .startsWith("ACESSOR");
+
+    if (!isAcessorio) {
       if (!data.country) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -126,7 +132,12 @@ export function ProductFormModal({
   });
 
   const watchedCategory = form.watch("category");
-  const isAccessory = watchedCategory === "ACESSORIO";
+  const isAccessory =
+    watchedCategory
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .startsWith("ACESSOR") ?? false;
 
   useEffect(() => {
     if (product) {
@@ -305,32 +316,23 @@ export function ProductFormModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>País</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
-                          <SelectItem value="ARGENTINA">
-                            🇦🇷 Argentina
-                          </SelectItem>
+                          <SelectItem value="ARGENTINA">🇦🇷 Argentina</SelectItem>
                           <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
                           <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
                           <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
                           <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
                           <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
-                          <SelectItem value="PORTUGAL">
-                            🇵🇹 Portugal
-                          </SelectItem>
+                          <SelectItem value="PORTUGAL">🇵🇹 Portugal</SelectItem>
                           <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
-                          <SelectItem value="ALEMANHA">
-                            🇩🇪 Alemanha
-                          </SelectItem>
+                          <SelectItem value="ALEMANHA">🇩🇪 Alemanha</SelectItem>
                           <SelectItem value="OUTROS">🌍 Outros</SelectItem>
                         </SelectContent>
                       </Select>
@@ -372,10 +374,10 @@ export function ProductFormModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -383,9 +385,7 @@ export function ProductFormModal({
                         <SelectItem value="BRANCO">Branco</SelectItem>
                         <SelectItem value="ROSE">Rosé</SelectItem>
                         <SelectItem value="TINTO">Tinto</SelectItem>
-                        <SelectItem value="PÓS-REFEIÇÃO">
-                          Pós-refeição
-                        </SelectItem>
+                        <SelectItem value="PÓS-REFEIÇÃO">Pós-refeição</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
