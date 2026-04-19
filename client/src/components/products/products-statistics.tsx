@@ -12,6 +12,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 import {
   PieChart,
   Pie,
@@ -107,6 +108,7 @@ export function ProductsStatistics({
   getCountryFlag,
   getTypeColor,
 }: ProductsStatisticsProps) {
+  const [, navigate] = useLocation();
   const [isOpen, setIsOpen] = useState(true);
   const [winePeriod, setWinePeriod] = useState<WinePeriod>("mes_atual");
 
@@ -251,7 +253,8 @@ export function ProductsStatistics({
                   return (
                     <div
                       key={product.productId}
-                      className="group/row relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 dark:border-slate-800 dark:bg-slate-950/55 p-3.5 shadow-sm hover:-translate-y-0.5 transition-all duration-300"
+                      onClick={() => navigate(`/products/${product.productId}`)}
+                      className="group/row relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 dark:border-slate-800 dark:bg-slate-950/55 p-3.5 shadow-sm hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                     >
                       <div
                         className={cn(
