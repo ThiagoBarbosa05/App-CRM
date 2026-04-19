@@ -55,7 +55,7 @@ const productSchema = z
         "OUTROS",
       ])
       .optional(),
-    volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]),
+    volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]).optional(),
     type: z
       .enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"])
       .optional(),
@@ -74,6 +74,13 @@ const productSchema = z
           code: z.ZodIssueCode.custom,
           message: "País é obrigatório",
           path: ["country"],
+        });
+      }
+      if (!data.volume) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Volume é obrigatório",
+          path: ["volume"],
         });
       }
       if (!data.type) {
@@ -164,6 +171,7 @@ export function ProductFormModal({
   useEffect(() => {
     if (isAccessory) {
       form.setValue("country", undefined);
+      form.setValue("volume", undefined);
       form.setValue("type", undefined);
     }
   }, [isAccessory, form]);
@@ -342,29 +350,31 @@ export function ProductFormModal({
                 />
               )}
 
-              <FormField
-                control={form.control}
-                name="volume"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Volume</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="187ml">187ml</SelectItem>
-                        <SelectItem value="375ml">375ml</SelectItem>
-                        <SelectItem value="750ml">750ml</SelectItem>
-                        <SelectItem value="1500ml">1500ml</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isAccessory && (
+                <FormField
+                  control={form.control}
+                  name="volume"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Volume</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="187ml">187ml</SelectItem>
+                          <SelectItem value="375ml">375ml</SelectItem>
+                          <SelectItem value="750ml">750ml</SelectItem>
+                          <SelectItem value="1500ml">1500ml</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             {!isAccessory && (
