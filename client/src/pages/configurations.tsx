@@ -14,7 +14,6 @@ import {
   Bookmark,
   BookMarked,
   Bot,
-  CalendarIcon,
   CircleDollarSign,
   Download,
   GraduationCap,
@@ -39,7 +38,6 @@ import LearningImagesManagement from "@/components/learning-images-management";
 import CashbackSettingsManagement from "@/components/cashback-settings-management";
 import ClientDebtsManagement from "@/components/client-debts-management";
 import DataExportManagement from "@/components/data-export-management";
-import EventsManagement from "@/components/events-management";
 import { Separator } from "@/components/ui/separator";
 import { AutomationManagement } from "@/components/automation-management";
 import { DealQuestionsManagement } from "@/components/deal-questions-management";
@@ -165,18 +163,6 @@ export default function Configurations() {
               >
                 <LayoutPanelTop className="size-4" />
                 <span className="text-xs font-medium ">Setores</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="events"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar eventos"
-              >
-                <CalendarIcon className="size-4" />
-                <span className="text-xs font-medium ">Eventos</span>
               </TabsTrigger>
 
               <TabsTrigger
@@ -330,10 +316,6 @@ export default function Configurations() {
 
             <TabsContent value="sectors">
               <SectorsManagement />
-            </TabsContent>
-
-            <TabsContent value="events">
-              <EventsManagement />
             </TabsContent>
 
             <TabsContent value="learning-images" className="h-full">

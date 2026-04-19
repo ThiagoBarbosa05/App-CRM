@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
   // { href: "/acompanhamento", icon: ClipboardList, label: "Acompanhamento" },
   // { href: "/empresas", icon: Building2, label: "Empresas" },
   { href: "/products", icon: Wine, label: "Produtos" },
+  { href: "/eventos", icon: CalendarDays, label: "Eventos" },
   {
     href: "/funil",
     icon: GitBranch,

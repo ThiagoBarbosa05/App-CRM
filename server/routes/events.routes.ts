@@ -247,6 +247,23 @@ eventsRouter.put("/:eventId/participants/:participantId", async (req, res) => {
   }
 });
 
+eventsRouter.patch("/:eventId/participants/:participantId/attendance", async (req, res) => {
+  try {
+    const { participantId } = req.params;
+    const schema = z.object({ attended: z.boolean().nullable() });
+    const { attended } = schema.parse(req.body);
+    const participant = await storage.updateEventParticipant(participantId, { attended });
+    return res.json(participant);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const validationError = fromZodError(error);
+      return res.status(400).json({ message: validationError.toString() });
+    }
+    console.error("Error updating attendance:", error);
+    return res.status(500).json({ message: "Erro ao atualizar presença" });
+  }
+});
+
 eventsRouter.delete("/:eventId/participants/:participantId", async (req, res) => {
   try {
     const { participantId } = req.params;

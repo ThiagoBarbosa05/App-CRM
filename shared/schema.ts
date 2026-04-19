@@ -2080,6 +2080,7 @@ export const eventParticipants = pgTable("event_participants", {
     .default("inscrito"),
   numberOfParticipants: integer("number_of_participants").notNull().default(1),
   notes: text("notes"),
+  attended: boolean("attended"),
   registeredBy: varchar("registered_by")
     .references(() => users.id)
     .notNull(),
@@ -2184,6 +2185,7 @@ export const insertEventParticipantSchema = createInsertSchema(
     status: z
       .enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"])
       .default("inscrito"),
+    attended: z.boolean().nullable().optional(),
   });
 
 // Tipos para eventos

@@ -30,6 +30,7 @@ import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
 import CalculadoraVinho from "./pages/calculadora-vinho";
+import EventsPage from "./pages/events";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -167,6 +168,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <ProductProfilePage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/eventos"
+        component={() => (
+          <MainLayout>
+            <EventsPage />
           </MainLayout>
         )}
       />

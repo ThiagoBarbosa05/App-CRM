@@ -26,7 +26,9 @@
       "Bash(npx tsx *)",
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:5000/api/product-categories -b \"auth_token=test\")",
-      "Bash(curl -s http://localhost:5000/api/product-categories)"
+      "Bash(curl -s http://localhost:5000/api/product-categories)",
+      "Bash(curl -s http://localhost:5000/api/auth/me)",
+      "Bash(curl -s \"http://localhost:5000/api/events\" -H \"x-user-id: $\\(curl -s http://localhost:5000/api/auth/me)"
     ]
   }
 }

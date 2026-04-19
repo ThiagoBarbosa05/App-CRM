@@ -119,7 +119,7 @@ export function ProductsStatistics({
   getTypeColor,
 }: ProductsStatisticsProps) {
   const [, navigate] = useLocation();
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [winePeriod, setWinePeriod] = useState<WinePeriod>("mes_atual");
   const [qtyPeriod, setQtyPeriod] = useState<WinePeriod>("mes_atual");
   const [selectedType, setSelectedType] = useState<WineType>("TODOS");

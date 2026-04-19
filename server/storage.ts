@@ -5023,6 +5023,18 @@ export class DatabaseStorage implements IStorage {
             WHERE ${eventParticipants.eventId} = ${events.id}
             AND ${eventParticipants.status} != 'cancelado'
           )`,
+          paidParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status IN ('confirmado', 'presente')
+          )`,
+          pendingParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'inscrito'
+          )`,
         })
         .from(events)
         .leftJoin(users, eq(events.createdBy, users.id))
@@ -5145,6 +5157,7 @@ export class DatabaseStorage implements IStorage {
           status: eventParticipants.status,
           numberOfParticipants: eventParticipants.numberOfParticipants,
           notes: eventParticipants.notes,
+          attended: eventParticipants.attended,
           registeredBy: eventParticipants.registeredBy,
           client: clients,
           user: users,
@@ -5163,6 +5176,7 @@ export class DatabaseStorage implements IStorage {
         status: row.status,
         numberOfParticipants: row.numberOfParticipants,
         notes: row.notes,
+        attended: row.attended,
         registeredBy: row.registeredBy,
         clientName: row.client?.name || null,
         clientPhone: row.client?.phone || null,
@@ -5182,6 +5196,7 @@ export class DatabaseStorage implements IStorage {
         .select({
           participantId: eventParticipants.id,
           status: eventParticipants.status,
+          attended: eventParticipants.attended,
           registrationDate: eventParticipants.registrationDate,
           numberOfParticipants: eventParticipants.numberOfParticipants,
           notes: eventParticipants.notes,
@@ -5200,6 +5215,7 @@ export class DatabaseStorage implements IStorage {
       return results.map((row) => ({
         participantId: row.participantId,
         status: row.status,
+        attended: row.attended,
         registrationDate: row.registrationDate,
         numberOfParticipants: row.numberOfParticipants,
         notes: row.notes,

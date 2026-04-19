@@ -54,6 +54,9 @@ import {
   ImageIcon,
   UploadIcon,
   XIcon,
+  TrendingUpIcon,
+  CircleDollarSignIcon,
+  ClockIcon,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -92,6 +95,8 @@ interface Event {
   updatedAt: string;
   creatorName: string;
   participantCount: number;
+  paidParticipants: number;
+  pendingParticipants: number;
   attachments?: EventAttachment[];
 }
 
@@ -621,21 +626,23 @@ export default function EventsManagement() {
       return;
     }
 
-    // Validar se a data do evento não é no passado (considerando fuso brasileiro)
     const eventDate = new Date(formData.eventDate + ":00-03:00");
-    const now = new Date();
-    // Obter hora atual no fuso brasileiro para comparação justa
-    const nowInBrasilia = new Date(
-      now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
-    );
 
-    if (eventDate < nowInBrasilia) {
-      toast({
-        title: "Erro",
-        description: "A data do evento não pode ser no passado",
-        variant: "destructive",
-      });
-      return;
+    // Validar se a data do evento não é no passado (apenas na criação)
+    if (!editingEvent) {
+      const now = new Date();
+      const nowInBrasilia = new Date(
+        now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+      );
+
+      if (eventDate < nowInBrasilia) {
+        toast({
+          title: "Erro",
+          description: "A data do evento não pode ser no passado",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Validar se o prazo de inscrição não é após a data do evento
@@ -953,8 +960,8 @@ export default function EventsManagement() {
 
   return (
     <>
-      <div className="flex flex-col h-full">
-        <Card className="flex flex-col flex-1 overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
+      <div>
+        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
           <CardHeader className="bg-gradient-to-r from-orange-100 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b border-slate-200 dark:border-slate-700">
             <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
               <div className="flex-1 min-w-0">
@@ -972,17 +979,19 @@ export default function EventsManagement() {
                 </CardDescription>
               </div>
 
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto flex-shrink-0"
-              >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Novo Evento
-              </Button>
+              {user?.role === "admin" && (
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto flex-shrink-0"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  Novo Evento
+                </Button>
+              )}
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col flex-1 min-h-0 gap-6 p-3 md:p-6">
+          <CardContent className="flex flex-col gap-6 p-3 md:p-6">
             {/* Filtros modernos */}
             <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row gap-4">
               <div className="relative flex-1 min-w-0">
@@ -1017,8 +1026,54 @@ export default function EventsManagement() {
               </div>
             </div>
 
+            {/* Cards de receita — apenas admin */}
+            {user?.role === "admin" && !isLoading && filteredEvents.length > 0 && (() => {
+              const price = (e: Event) => parseFloat(e.pricePerPerson) || 0;
+              const confirmed = filteredEvents.reduce((acc, e) => acc + e.paidParticipants * price(e), 0);
+              const potential = filteredEvents.reduce((acc, e) => acc + e.pendingParticipants * price(e), 0);
+              const totalPeople = filteredEvents.reduce((acc, e) => acc + e.participantCount, 0);
+              const activeEvents = filteredEvents.filter(e => e.status === "ativo").length;
+
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CircleDollarSignIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-xs font-medium text-green-700 dark:text-green-400">Receita Confirmada</span>
+                    </div>
+                    <p className="text-lg font-bold text-green-800 dark:text-green-300">{formatCurrency(confirmed)}</p>
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Confirmados + presentes</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ClockIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Receita Potencial</span>
+                    </div>
+                    <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{formatCurrency(potential)}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Inscritos aguardando confirmação</p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingUpIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Receita Total</span>
+                    </div>
+                    <p className="text-lg font-bold text-blue-800 dark:text-blue-300">{formatCurrency(confirmed + potential)}</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-500 mt-0.5">Confirmada + potencial</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <UsersIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-400">Participantes</span>
+                    </div>
+                    <p className="text-lg font-bold text-slate-800 dark:text-slate-200">{totalPeople}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-0.5">{activeEvents} evento{activeEvents !== 1 ? "s" : ""} ativo{activeEvents !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {isLoading ? (
-              <div className="space-y-4 flex-1">
+              <div className="space-y-4">
                 {/* Skeleton Items */}
                 {Array.from({ length: 6 }).map((_, index) => (
                   <div
@@ -1048,7 +1103,7 @@ export default function EventsManagement() {
                 ))}
               </div>
             ) : filteredEvents.length === 0 ? (
-              <div className="text-center py-12 flex-1 flex flex-col items-center justify-center">
+              <div className="text-center py-12 flex flex-col items-center justify-center">
                 <div className="p-4 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 mb-6">
                   <CalendarDays className="h-12 w-12 text-orange-600 dark:text-orange-400" />
                 </div>
@@ -1062,7 +1117,7 @@ export default function EventsManagement() {
                     ? "Ajuste os filtros para encontrar eventos ou crie um novo evento."
                     : "Comece criando seu primeiro evento para engajar clientes e expandir seu negócio."}
                 </p>
-                {!searchTerm && statusFilter === "all" ? (
+                {!searchTerm && statusFilter === "all" && user?.role === "admin" ? (
                   <Button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
@@ -1082,18 +1137,20 @@ export default function EventsManagement() {
                     >
                       Limpar filtros
                     </Button>
-                    <Button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white w-full sm:w-auto"
-                    >
-                      <CalendarIcon className="h-4 w-4 mr-2" />
-                      Novo Evento
-                    </Button>
+                    {user?.role === "admin" && (
+                      <Button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white w-full sm:w-auto"
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        Novo Evento
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="space-y-4 flex-1">
+              <div className="space-y-4">
                 {filteredEvents.map((event) => (
                   <div
                     key={event.id}
@@ -1165,6 +1222,29 @@ export default function EventsManagement() {
                         </div>
                       </div>
 
+                      {/* Receita do evento — apenas admin */}
+                      {user?.role === "admin" && (() => {
+                        const price = parseFloat(event.pricePerPerson) || 0;
+                        const confirmed = event.paidParticipants * price;
+                        const potential = event.pendingParticipants * price;
+                        return (
+                          <div className="flex flex-wrap items-center gap-4 text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-1.5">
+                              <CircleDollarSignIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              <span className="text-slate-500 dark:text-slate-400">Confirmada:</span>
+                              <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(confirmed)}</span>
+                            </div>
+                            {potential > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <ClockIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                <span className="text-slate-500 dark:text-slate-400">Potencial:</span>
+                                <span className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(potential)}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Imagens do evento (se houver) */}
                       {event.attachments && event.attachments.length > 0 && (
                         <div className="flex items-center gap-2">
@@ -1203,43 +1283,47 @@ export default function EventsManagement() {
                       )}
 
                       {/* Ações */}
-                      <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-100 dark:border-slate-700">
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => setParticipantsEvent(event)}
-                          title="Gerenciar Participantes"
-                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-9 w-9 p-0 rounded-lg"
+                          className="text-orange-600 border-orange-200 hover:text-orange-700 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-800 dark:hover:bg-orange-900/20 rounded-lg gap-2"
                         >
                           <UserCheckIcon className="h-4 w-4" />
+                          <span>Participantes</span>
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handlePrintParticipants(event)}
-                          title="Imprimir Lista"
-                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/20 h-9 w-9 p-0 rounded-lg"
+                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/20 rounded-lg gap-2"
                         >
                           <PrinterIcon className="h-4 w-4" />
+                          <span>Imprimir</span>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(event)}
-                          title="Editar Evento"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-9 w-9 p-0 rounded-lg"
-                        >
-                          <EditIcon className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEventToDelete(event)}
-                          title="Excluir Evento"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-9 w-9 p-0 rounded-lg"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </Button>
+                        {user?.role === "admin" && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(event)}
+                              className="text-blue-600 border-blue-200 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/20 rounded-lg gap-2"
+                            >
+                              <EditIcon className="h-4 w-4" />
+                              <span>Editar</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEventToDelete(event)}
+                              className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-900/20 rounded-lg gap-2"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                              <span>Excluir</span>
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1662,10 +1746,10 @@ export default function EventsManagement() {
                     onChange={handleAddAttachment}
                     disabled={isUploading}
                     className="hidden"
-                    id="image-upload"
+                    id="attachment-upload"
                   />
                   <label
-                    htmlFor="image-upload"
+                    htmlFor="attachment-upload"
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border border-orange-300 rounded-lg cursor-pointer hover:bg-orange-50 dark:border-orange-600 dark:hover:bg-orange-900/20 transition-colors ${
                       isUploading
                         ? "opacity-50 cursor-not-allowed"

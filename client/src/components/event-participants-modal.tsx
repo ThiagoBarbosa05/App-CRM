@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   PlusIcon,
   SearchIcon,
@@ -37,6 +38,9 @@ import {
   EditIcon,
   UsersIcon,
   Plus,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
@@ -49,6 +53,7 @@ interface EventParticipant {
   status: "inscrito" | "confirmado" | "presente" | "ausente" | "cancelado";
   numberOfParticipants: number;
   notes: string | null;
+  attended: boolean | null;
   registeredBy: string;
   clientName: string;
   clientPhone: string;
@@ -333,6 +338,31 @@ export default function EventParticipantsModal({
     },
   });
 
+  // Mutation para confirmar/negar presença
+  const updateAttendanceMutation = useMutation({
+    mutationFn: async ({ participantId, attended }: { participantId: string; attended: boolean | null }) => {
+      const response = await fetch(
+        `/api/events/${event?.id}/participants/${participantId}/attendance`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attended }),
+        }
+      );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao atualizar presença");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const statusConfig = PARTICIPANT_STATUS.find((s) => s.value === status);
     return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
@@ -407,34 +437,64 @@ export default function EventParticipantsModal({
                   )}
                   {event.maxCapacity && ` / ${event.maxCapacity}`} participantes
                 </span>
-                <Button onClick={() => setIsAddModalOpen(true)}>
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Adicionar Participante
-                </Button>
+                {user?.role === "admin" && (
+                  <Button onClick={() => setIsAddModalOpen(true)}>
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Adicionar Participante
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* Tabela de participantes */}
             {isLoadingParticipants ? (
-              <div>Carregando participantes...</div>
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-3 border rounded-lg">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-8 ml-auto" />
+                    <Skeleton className="h-5 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredParticipants.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <UsersIcon className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+                <p className="font-medium">Nenhum participante encontrado</p>
+                <p className="text-sm mt-1">
+                  {searchTerm || statusFilter !== "all"
+                    ? "Ajuste os filtros para ver os participantes."
+                    : "Ainda não há participantes neste evento."}
+                </p>
+              </div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Nº Participantes</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data de Inscrição</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Ações</TableHead>
+                  <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                    <TableHead className="font-semibold">Cliente</TableHead>
+                    <TableHead className="font-semibold">Contato</TableHead>
+                    <TableHead className="font-semibold text-center">Nº Pessoas</TableHead>
+                    <TableHead className="font-semibold">Status Pgto.</TableHead>
+                    <TableHead className="font-semibold text-center">Presença</TableHead>
+                    <TableHead className="font-semibold">Inscrição</TableHead>
+                    <TableHead className="font-semibold">Responsável</TableHead>
+                    {user?.role === "admin" && (
+                      <TableHead className="font-semibold">Ações</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredParticipants.map((participant) => (
-                    <TableRow key={participant.id}>
+                    <TableRow
+                      key={participant.id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                    >
                       <TableCell>
-                        <div className="font-medium">
+                        <div className="font-medium text-slate-900 dark:text-slate-100">
                           {participant.clientName || (
                             <span className="text-gray-400 italic">
                               Cliente removido
@@ -442,51 +502,103 @@ export default function EventParticipantsModal({
                           )}
                         </div>
                         {participant.notes && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs text-gray-500 mt-0.5">
                             {participant.notes}
                           </div>
                         )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{participant.clientPhone || "N/A"}</div>
+                          <div className="text-slate-700 dark:text-slate-300">{participant.clientPhone || "—"}</div>
                           {participant.clientEmail && (
-                            <div className="text-gray-500">
+                            <div className="text-gray-500 text-xs">
                               {participant.clientEmail}
                             </div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-semibold text-lg">
+                        <span className="font-semibold text-base text-slate-800 dark:text-slate-200">
                           {participant.numberOfParticipants}
                         </span>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(participant.status)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
+                        {user?.role === "admin" ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => updateAttendanceMutation.mutate({
+                                participantId: participant.id,
+                                attended: participant.attended === true ? null : true,
+                              })}
+                              title="Marcar como presente"
+                              className={`p-1 rounded-full transition-colors ${
+                                participant.attended === true
+                                  ? "text-green-600 bg-green-100 dark:bg-green-900/30"
+                                  : "text-slate-300 hover:text-green-500 dark:text-slate-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              }`}
+                            >
+                              <CheckCircle2 className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => updateAttendanceMutation.mutate({
+                                participantId: participant.id,
+                                attended: participant.attended === false ? null : false,
+                              })}
+                              title="Marcar como ausente"
+                              className={`p-1 rounded-full transition-colors ${
+                                participant.attended === false
+                                  ? "text-red-600 bg-red-100 dark:bg-red-900/30"
+                                  : "text-slate-300 hover:text-red-500 dark:text-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              }`}
+                            >
+                              <XCircle className="h-5 w-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="flex justify-center">
+                            {participant.attended === true ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            ) : participant.attended === false ? (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            ) : (
+                              <MinusCircle className="h-5 w-5 text-slate-300" />
+                            )}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                         {formatDate(participant.registrationDate)}
                       </TableCell>
-                      <TableCell>{participant.registeredByName}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingParticipant(participant)}
-                          >
-                            <EditIcon className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setParticipantToDelete(participant)}
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
+                        {participant.registeredByName}
                       </TableCell>
+                      {user?.role === "admin" && (
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingParticipant(participant)}
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 gap-1.5"
+                            >
+                              <EditIcon className="h-3.5 w-3.5" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setParticipantToDelete(participant)}
+                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 gap-1.5"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                              Remover
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

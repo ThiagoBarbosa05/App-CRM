@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, MapPin, Tag, Users, PartyPopper } from "lucide-react";
+import { CalendarDays, MapPin, Tag, Users, PartyPopper, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -22,6 +22,7 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
   const { data: clientEvents, isLoading } = useQuery<Array<{
     participantId: string;
     status: string;
+    attended: boolean | null;
     registrationDate: string | Date | null;
     numberOfParticipants: number;
     notes: string | null;
@@ -69,24 +70,31 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
     );
   }
 
-  const attended = clientEvents.filter((e) => e.status === "presente").length;
   const total = clientEvents.length;
+  const attended = clientEvents.filter((e) => e.attended === true).length;
+  const absent = clientEvents.filter((e) => e.attended === false).length;
+  const pending = clientEvents.filter((e) => e.attended === null).length;
 
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center">
           <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{total}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total de eventos</p>
         </div>
         <div className="rounded-xl border border-green-200 dark:border-green-800/50 bg-green-50 dark:bg-green-900/20 p-4 text-center">
           <p className="text-2xl font-bold text-green-700 dark:text-green-400">{attended}</p>
-          <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Presenças confirmadas</p>
+          <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Presente</p>
+        </div>
+        <div className="rounded-xl border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4 text-center">
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{absent}</p>
+          <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Ausente</p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center">
           <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {total > 0 ? Math.round((attended / total) * 100) : 0}%
+            {total > 0 && (attended + absent) > 0 ? Math.round((attended / (attended + absent)) * 100) : "—"}
+            {(attended + absent) > 0 ? "%" : ""}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Taxa de presença</p>
         </div>
@@ -110,6 +118,24 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
                     <Badge className={cn("text-xs font-medium border-0 px-2 py-0.5", statusConfig.className)}>
                       {statusConfig.label}
                     </Badge>
+                    {item.attended === true && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Presente
+                      </span>
+                    )}
+                    {item.attended === false && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                        <XCircle className="h-3 w-3" />
+                        Ausente
+                      </span>
+                    )}
+                    {item.attended === null && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                        <MinusCircle className="h-3 w-3" />
+                        Não confirmado
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
