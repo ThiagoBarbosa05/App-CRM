@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ProductFormModal } from "@/components/product-form-modal";
@@ -31,6 +32,7 @@ interface Product {
 }
 
 export default function Products() {
+  const [, navigate] = useLocation();
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -258,7 +260,7 @@ export default function Products() {
             onEdit={handleEditProduct}
             onDelete={(id) => deleteProductMutation.mutate(id)}
             onViewClients={handleViewClients}
-            onViewDetail={() => {}}
+            onViewDetail={(product) => navigate(`/products/${product.id}`)}
             getCountryFlag={getCountryFlag}
             getTypeColor={getTypeColor}
             currentPage={currentPage}

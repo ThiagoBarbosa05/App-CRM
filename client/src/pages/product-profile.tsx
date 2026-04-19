@@ -74,6 +74,16 @@ interface ProfileData {
   }[];
 }
 
+function isWineCategory(category?: string) {
+  return (
+    category
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .startsWith("VINHO") ?? false
+  );
+}
+
 const TYPE_COLORS: Record<string, string> = {
   TINTO: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   BRANCO: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300",
@@ -152,6 +162,7 @@ export default function ProductProfilePage() {
 
   const typeColor = TYPE_COLORS[product?.type ?? ""] ?? "bg-gray-100 text-gray-800";
   const flag = COUNTRY_FLAGS[product?.country ?? ""] ?? "🌍";
+  const isWine = isWineCategory(product?.category);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-12">
@@ -278,35 +289,41 @@ export default function ProductProfilePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">País</span>
+              {isWine && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">País</span>
+                  </div>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                    {flag} {product?.country ?? "—"}
+                  </p>
                 </div>
-                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                  {flag} {product?.country ?? "—"}
-                </p>
-              </div>
+              )}
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                <div className="flex items-center gap-2 mb-2">
-                  <Ruler className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume</span>
+              {isWine && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Ruler className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Volume</span>
+                  </div>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{product?.volume ?? "—"}</p>
                 </div>
-                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{product?.volume ?? "—"}</p>
-              </div>
+              )}
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                <div className="flex items-center gap-2 mb-2">
-                  <Tag className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo</span>
+              {isWine && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tipo</span>
+                  </div>
+                  {product?.type ? (
+                    <Badge className={`text-[11px] font-black uppercase border-0 ${typeColor}`}>{product.type}</Badge>
+                  ) : (
+                    <p className="text-sm text-slate-400">—</p>
+                  )}
                 </div>
-                {product?.type ? (
-                  <Badge className={`text-[11px] font-black uppercase border-0 ${typeColor}`}>{product.type}</Badge>
-                ) : (
-                  <p className="text-sm text-slate-400">—</p>
-                )}
-              </div>
+              )}
 
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
                 <div className="flex items-center gap-2 mb-2">
