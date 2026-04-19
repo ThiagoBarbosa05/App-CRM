@@ -4763,8 +4763,8 @@ export class DatabaseStorage implements IStorage {
       // Buyers
       const buyers = await this.db
         .select({
-          companyId: blingOrders.companyId,
-          companyName: companies.nomeFantasia,
+          companyId: blingOrders.contactId,
+          companyName: blingOrders.contactName,
           totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
           totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
           orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
@@ -4773,9 +4773,8 @@ export class DatabaseStorage implements IStorage {
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
         .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
-        .leftJoin(companies, eq(blingOrders.companyId, companies.id))
         .where(baseConditions)
-        .groupBy(blingOrders.companyId, companies.nomeFantasia)
+        .groupBy(blingOrders.contactId, blingOrders.contactName)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
 
       const totalRev = parseFloat(summary?.totalRevenue ?? "0");
