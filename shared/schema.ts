@@ -1913,13 +1913,13 @@ export const products = pgTable("products", {
       "ALEMANHA",
       "OUTROS",
     ],
-  }).notNull(),
+  }),
   volume: text("volume", {
     enum: ["187ml", "375ml", "750ml", "1500ml"],
   }).notNull(),
   type: text("type", {
     enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"],
-  }).notNull(),
+  }),
   negotiatedPrice: decimal("negotiated_price", {
     precision: 10,
     scale: 2,

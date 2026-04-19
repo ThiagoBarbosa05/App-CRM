@@ -36,33 +36,56 @@ interface ProductCategory {
   name: string;
 }
 
-const productSchema = z.object({
-  name: z.string().min(1, "Nome do vinho é obrigatório"),
-  category: z.string().min(1, "Categoria é obrigatória"),
-  country: z.enum([
-    "CHILE",
-    "ARGENTINA",
-    "URUGUAI",
-    "BRASIL",
-    "EUA",
-    "FRANÇA",
-    "ITÁLIA",
-    "PORTUGAL",
-    "ESPANHA",
-    "ALEMANHA",
-    "OUTROS",
-  ]),
-  volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]),
-  type: z.enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"]),
-  negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
-});
+const productSchema = z
+  .object({
+    name: z.string().min(1, "Nome do vinho é obrigatório"),
+    category: z.string().min(1, "Categoria é obrigatória"),
+    country: z
+      .enum([
+        "CHILE",
+        "ARGENTINA",
+        "URUGUAI",
+        "BRASIL",
+        "EUA",
+        "FRANÇA",
+        "ITÁLIA",
+        "PORTUGAL",
+        "ESPANHA",
+        "ALEMANHA",
+        "OUTROS",
+      ])
+      .optional(),
+    volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]),
+    type: z
+      .enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"])
+      .optional(),
+    negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.category !== "ACESSORIO") {
+      if (!data.country) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "País é obrigatório",
+          path: ["country"],
+        });
+      }
+      if (!data.type) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Tipo é obrigatório",
+          path: ["type"],
+        });
+      }
+    }
+  });
 
 type ProductFormData = z.infer<typeof productSchema>;
 
 interface Product {
   id: string;
   name: string;
-  category: string;
+  category?: string;
   country: string;
   volume: string;
   type: string;
@@ -102,14 +125,17 @@ export function ProductFormModal({
     },
   });
 
+  const watchedCategory = form.watch("category");
+  const isAccessory = watchedCategory === "ACESSORIO";
+
   useEffect(() => {
     if (product) {
       form.reset({
         name: product.name,
         category: product.category || "",
-        country: product.country as any,
+        country: (product.country as any) || undefined,
         volume: product.volume as any,
-        type: product.type as any,
+        type: (product.type as any) || undefined,
         negotiatedPrice: product.negotiatedPrice,
       });
     } else {
@@ -123,6 +149,13 @@ export function ProductFormModal({
       });
     }
   }, [product, form]);
+
+  useEffect(() => {
+    if (isAccessory) {
+      form.setValue("country", undefined);
+      form.setValue("type", undefined);
+    }
+  }, [isAccessory, form]);
 
   const productMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -265,36 +298,47 @@ export function ProductFormModal({
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>País</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
-                        <SelectItem value="ARGENTINA">🇦🇷 Argentina</SelectItem>
-                        <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
-                        <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
-                        <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
-                        <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
-                        <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
-                        <SelectItem value="PORTUGAL">🇵🇹 Portugal</SelectItem>
-                        <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
-                        <SelectItem value="ALEMANHA">🇩🇪 Alemanha</SelectItem>
-                        <SelectItem value="OUTROS">🌍 Outros</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isAccessory && (
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>País</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
+                          <SelectItem value="ARGENTINA">
+                            🇦🇷 Argentina
+                          </SelectItem>
+                          <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
+                          <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
+                          <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
+                          <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
+                          <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
+                          <SelectItem value="PORTUGAL">
+                            🇵🇹 Portugal
+                          </SelectItem>
+                          <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
+                          <SelectItem value="ALEMANHA">
+                            🇩🇪 Alemanha
+                          </SelectItem>
+                          <SelectItem value="OUTROS">🌍 Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -321,30 +365,34 @@ export function ProductFormModal({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ESPUMANTE">Espumante</SelectItem>
-                      <SelectItem value="BRANCO">Branco</SelectItem>
-                      <SelectItem value="ROSE">Rosé</SelectItem>
-                      <SelectItem value="TINTO">Tinto</SelectItem>
-                      <SelectItem value="PÓS-REFEIÇÃO">Pós-refeição</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isAccessory && (
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="ESPUMANTE">Espumante</SelectItem>
+                        <SelectItem value="BRANCO">Branco</SelectItem>
+                        <SelectItem value="ROSE">Rosé</SelectItem>
+                        <SelectItem value="TINTO">Tinto</SelectItem>
+                        <SelectItem value="PÓS-REFEIÇÃO">
+                          Pós-refeição
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

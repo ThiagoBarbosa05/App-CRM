@@ -35,6 +35,7 @@ import { ProductsTable } from "@/components/products/products-table";
 interface Product {
   id: string;
   name: string;
+  category?: string;
   country: string;
   volume: string;
   type: string;
@@ -63,6 +64,8 @@ export default function Products() {
   const [debouncedCountryFilter, setDebouncedCountryFilter] = useState("");
   const [volumeFilter, setVolumeFilter] = useState("");
   const [debouncedVolumeFilter, setDebouncedVolumeFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [debouncedCategoryFilter, setDebouncedCategoryFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const { toast } = useToast();
@@ -73,10 +76,11 @@ export default function Products() {
       setDebouncedTypeFilter(typeFilter);
       setDebouncedCountryFilter(countryFilter);
       setDebouncedVolumeFilter(volumeFilter);
+      setDebouncedCategoryFilter(categoryFilter);
       setCurrentPage(1);
     }, 500);
     return () => clearTimeout(handler);
-  }, [searchQuery, typeFilter, countryFilter, volumeFilter]);
+  }, [searchQuery, typeFilter, countryFilter, volumeFilter, categoryFilter]);
 
   const { data, isFetching } = useQuery({
     queryKey: [
@@ -85,6 +89,7 @@ export default function Products() {
       debouncedTypeFilter,
       debouncedCountryFilter,
       debouncedVolumeFilter,
+      debouncedCategoryFilter,
       currentPage,
       pageSize,
     ],
@@ -95,6 +100,7 @@ export default function Products() {
       if (debouncedCountryFilter)
         params.append("country", debouncedCountryFilter);
       if (debouncedVolumeFilter) params.append("volume", debouncedVolumeFilter);
+      if (debouncedCategoryFilter) params.append("category", debouncedCategoryFilter);
       params.append("page", currentPage.toString());
       params.append("pageSize", pageSize.toString());
 
@@ -264,6 +270,8 @@ export default function Products() {
             setCountryFilter={setCountryFilter}
             volumeFilter={volumeFilter}
             setVolumeFilter={setVolumeFilter}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
           />
 
           <ProductsTable

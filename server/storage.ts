@@ -171,6 +171,7 @@ export interface ProductFilters {
   type?: string;
   country?: string;
   volume?: string;
+  category?: string;
 }
 
 export interface IStorage {
@@ -1184,6 +1185,7 @@ export class DatabaseStorage implements IStorage {
         .select({
           id: products.id,
           name: products.name,
+          category: products.category,
           type: products.type,
           country: products.country,
           volume: products.volume,
@@ -1212,6 +1214,9 @@ export class DatabaseStorage implements IStorage {
       }
       if (filters.volume) {
         conditions.push(ilike(products.volume, `%${filters.volume}%`));
+      }
+      if (filters.category) {
+        conditions.push(eq(products.category, filters.category));
       }
 
       if (conditions.length > 0) {

@@ -10,7 +10,7 @@ export const companyProductsRouter = Router();
 
 productsRouter.get("/", async (req, res) => {
   try {
-    const { name, type, country, volume } = req.query;
+    const { name, type, country, volume, category } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
 
@@ -19,6 +19,7 @@ productsRouter.get("/", async (req, res) => {
       type: type as string | undefined,
       country: country as string | undefined,
       volume: volume as string | undefined,
+      category: category as string | undefined,
     };
 
     const { data, total } = await storage.getProducts(filters, page, pageSize);

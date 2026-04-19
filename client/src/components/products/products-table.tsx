@@ -41,6 +41,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface Product {
   id: string;
   name: string;
+  category?: string;
   country: string;
   volume: string;
   type: string;
@@ -90,13 +91,16 @@ export function ProductsTable({
                 Produto
               </TableHead>
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden sm:table-cell">
-                Origem
+                País
               </TableHead>
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden md:table-cell">
                 Volume
               </TableHead>
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden lg:table-cell">
-                Variação
+                Categoria
+              </TableHead>
+              <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden lg:table-cell">
+                Tipo
               </TableHead>
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                 Preço
@@ -117,7 +121,7 @@ export function ProductsTable({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <TableCell colSpan={7} className="text-center py-32">
+                  <TableCell colSpan={8} className="text-center py-32">
                     <div className="flex flex-col items-center gap-5">
                       <div className="relative">
                         <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-blue-500/20 border-t-blue-600" />
@@ -140,7 +144,7 @@ export function ProductsTable({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <TableCell colSpan={7} className="text-center py-32">
+                  <TableCell colSpan={8} className="text-center py-32">
                     <div className="flex flex-col items-center gap-5">
                       <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900 rounded-3xl shadow-inner border border-slate-200/50 dark:border-slate-700/50">
                         <Wine className="h-10 w-10 text-slate-400 dark:text-slate-500" />
@@ -210,6 +214,18 @@ export function ProductsTable({
                       >
                         {product.volume}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="py-5 px-6 hidden lg:table-cell">
+                      {product.category ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-violet-100/80 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold border-0 text-[10px] uppercase tracking-widest"
+                        >
+                          {product.category}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden lg:table-cell">
                       <Badge
