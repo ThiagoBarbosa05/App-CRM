@@ -62,13 +62,13 @@ const productSchema = z
     negotiatedPrice: z.string().min(1, "Valor negociado é obrigatório"),
   })
   .superRefine((data, ctx) => {
-    const isAcessorio = data.category
+    const isVinho = data.category
       ?.normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
-      .startsWith("ACESSOR");
+      .startsWith("VINHO");
 
-    if (!isAcessorio) {
+    if (isVinho) {
       if (!data.country) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -139,12 +139,12 @@ export function ProductFormModal({
   });
 
   const watchedCategory = form.watch("category");
-  const isAccessory =
+  const isWine =
     watchedCategory
       ?.normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
-      .startsWith("ACESSOR") ?? false;
+      .startsWith("VINHO") ?? false;
 
   useEffect(() => {
     if (product) {
@@ -169,12 +169,12 @@ export function ProductFormModal({
   }, [product, form]);
 
   useEffect(() => {
-    if (isAccessory) {
+    if (!isWine) {
       form.setValue("country", undefined);
       form.setValue("volume", undefined);
       form.setValue("type", undefined);
     }
-  }, [isAccessory, form]);
+  }, [isWine, form]);
 
   const productMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -317,7 +317,7 @@ export function ProductFormModal({
             />
 
             <div className="grid grid-cols-2 gap-4">
-              {!isAccessory && (
+              {isWine && (
                 <FormField
                   control={form.control}
                   name="country"
@@ -350,7 +350,7 @@ export function ProductFormModal({
                 />
               )}
 
-              {!isAccessory && (
+              {isWine && (
                 <FormField
                   control={form.control}
                   name="volume"
@@ -377,7 +377,7 @@ export function ProductFormModal({
               )}
             </div>
 
-            {!isAccessory && (
+            {isWine && (
               <FormField
                 control={form.control}
                 name="type"

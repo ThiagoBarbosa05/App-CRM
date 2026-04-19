@@ -67,13 +67,13 @@ interface ProductsTableProps {
   setCurrentPage: (page: number) => void;
 }
 
-function isAccessoryProduct(category?: string) {
+function isWineProduct(category?: string) {
   return (
     category
       ?.normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
-      .startsWith("ACESSOR") ?? false
+      .startsWith("VINHO") ?? false
   );
 }
 
@@ -208,7 +208,7 @@ export function ProductsTable({
                       </div>
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden sm:table-cell">
-                      {isAccessoryProduct(product.category) ? (
+                      {!isWineProduct(product.category) ? (
                         <span className="text-xs text-slate-400">—</span>
                       ) : (
                         <div className="flex items-center gap-2.5">
@@ -222,7 +222,7 @@ export function ProductsTable({
                       )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden md:table-cell">
-                      {isAccessoryProduct(product.category) ? (
+                      {!isWineProduct(product.category) ? (
                         <span className="text-xs text-slate-400">—</span>
                       ) : (
                         <Badge
@@ -246,7 +246,7 @@ export function ProductsTable({
                       )}
                     </TableCell>
                     <TableCell className="py-5 px-6 hidden lg:table-cell">
-                      {isAccessoryProduct(product.category) ? (
+                      {!isWineProduct(product.category) ? (
                         <span className="text-xs text-slate-400">—</span>
                       ) : (
                         <Badge
