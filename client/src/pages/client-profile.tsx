@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   AlertCircle,
   AlertTriangle,
+  PartyPopper,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -22,6 +23,7 @@ import { ClientInfoTab } from "@/components/clients/client-info-tab";
 import { ClientFunnelsTab } from "@/components/clients/client-funnels-tab";
 import { ClientWhatsAppTab } from "@/components/clients/client-whatsapp-tab";
 import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab";
+import { ClientEventsTab } from "@/components/clients/client-events-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -202,6 +204,13 @@ export default function ClientProfilePage() {
                 Compras
               </TabsTrigger>
               <TabsTrigger
+                value="eventos"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-purple-500/20 dark:data-[state=active]:bg-purple-600"
+              >
+                <PartyPopper className="h-4 w-4" />
+                Eventos
+              </TabsTrigger>
+              <TabsTrigger
                 value="cashback"
                 className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-amber-500/20 dark:data-[state=active]:bg-amber-600"
               >
@@ -253,6 +262,10 @@ export default function ClientProfilePage() {
 
                 {activeTab === "compras" && (
                   <ClientPurchasesTab client={client} />
+                )}
+
+                {activeTab === "eventos" && (
+                  <ClientEventsTab clientId={client.id} />
                 )}
 
                 {activeTab === "cashback" && (

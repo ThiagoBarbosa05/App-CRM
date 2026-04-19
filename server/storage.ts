@@ -577,6 +577,21 @@ export interface IStorage {
   deleteEvent(eventId: string): Promise<boolean>;
   updateExpiredEvents(): Promise<number>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
+  getClientEvents(clientId: string): Promise<Array<{
+    participantId: string;
+    status: string;
+    registrationDate: Date | null;
+    numberOfParticipants: number;
+    notes: string | null;
+    event: {
+      id: string;
+      name: string;
+      eventDate: Date;
+      location: string;
+      category: string;
+      pricePerPerson: string;
+    };
+  }>>;
   addEventParticipant(
     participantData: InsertEventParticipant,
   ): Promise<EventParticipant>;
@@ -4688,7 +4703,31 @@ export class DatabaseStorage implements IStorage {
           sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`,
         );
 
-      return { topProductsByRevenue, revenueByType };
+      // Quantity by product — com filtro de data quando fornecido, agrupado por produto e tipo
+      const quantityByProductConditions =
+        startDate && endDate
+          ? and(
+              isNull(blingOrders.deletedAt),
+              eq(products.category, "VINHO"),
+              sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
+            )
+          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
+
+      const quantityByProduct = await this.db
+        .select({
+          productId: products.id,
+          productName: products.name,
+          productType: products.type,
+          totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
+        })
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .where(quantityByProductConditions)
+        .groupBy(products.id, products.name, products.type)
+        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric) DESC`);
+
+      return { topProductsByRevenue, revenueByType, quantityByProduct };
     } catch (error) {
       console.error("Error fetching products statistics:", error);
       throw error;
@@ -5133,6 +5172,48 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error("Error fetching event participants:", error);
+      throw error;
+    }
+  }
+
+  async getClientEvents(clientId: string) {
+    try {
+      const results = await this.db
+        .select({
+          participantId: eventParticipants.id,
+          status: eventParticipants.status,
+          registrationDate: eventParticipants.registrationDate,
+          numberOfParticipants: eventParticipants.numberOfParticipants,
+          notes: eventParticipants.notes,
+          eventId: events.id,
+          eventName: events.name,
+          eventDate: events.eventDate,
+          eventLocation: events.location,
+          eventCategory: events.category,
+          eventPrice: events.pricePerPerson,
+        })
+        .from(eventParticipants)
+        .innerJoin(events, eq(eventParticipants.eventId, events.id))
+        .where(sql`${eventParticipants.clientId} = ${clientId}`)
+        .orderBy(desc(events.eventDate));
+
+      return results.map((row) => ({
+        participantId: row.participantId,
+        status: row.status,
+        registrationDate: row.registrationDate,
+        numberOfParticipants: row.numberOfParticipants,
+        notes: row.notes,
+        event: {
+          id: row.eventId,
+          name: row.eventName,
+          eventDate: row.eventDate,
+          location: row.eventLocation,
+          category: row.eventCategory,
+          pricePerPerson: row.eventPrice,
+        },
+      }));
+    } catch (error) {
+      console.error("Error fetching client events:", error);
       throw error;
     }
   }

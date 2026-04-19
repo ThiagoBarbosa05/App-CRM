@@ -5,7 +5,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DollarSign, PieChart as PieChartIcon, ChevronDown, BarChart3 } from "lucide-react";
+import { DollarSign, PieChart as PieChartIcon, ChevronDown, BarChart3, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
@@ -100,6 +100,16 @@ function CustomPieTooltip({ active, payload }: any) {
 }
 
 type WinePeriod = "mes_atual" | "ultimos_12";
+type WineType = "TODOS" | "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO";
+
+const TYPE_BUTTON_STYLES: Record<WineType, string> = {
+  TODOS:        "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300",
+  ESPUMANTE:    "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
+  BRANCO:       "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300",
+  ROSE:         "bg-pink-100 text-pink-800 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-300",
+  TINTO:        "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300",
+  "PÓS-REFEIÇÃO": "bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300",
+};
 
 export function ProductsStatistics({
   statistics,
@@ -111,6 +121,8 @@ export function ProductsStatistics({
   const [, navigate] = useLocation();
   const [isOpen, setIsOpen] = useState(true);
   const [winePeriod, setWinePeriod] = useState<WinePeriod>("mes_atual");
+  const [qtyPeriod, setQtyPeriod] = useState<WinePeriod>("mes_atual");
+  const [selectedType, setSelectedType] = useState<WineType>("TODOS");
 
   const { startDate: wineStartDate, endDate: wineEndDate } = useMemo(() => {
     const now = new Date();
@@ -119,17 +131,39 @@ export function ProductsStatistics({
       : { startDate: format(subMonths(now, 12), "yyyy-MM-dd"), endDate: format(now, "yyyy-MM-dd") };
   }, [winePeriod]);
 
-  const { data: wineStats, isLoading: isLoadingWine } = useQuery<{ revenueByType: any[] }>({
-    queryKey: ["/api/products/statistics", "revenueByType", wineStartDate, wineEndDate],
+  const { startDate: qtyStartDate, endDate: qtyEndDate } = useMemo(() => {
+    const now = new Date();
+    return qtyPeriod === "mes_atual"
+      ? { startDate: format(startOfMonth(now), "yyyy-MM-dd"), endDate: format(endOfMonth(now), "yyyy-MM-dd") }
+      : { startDate: format(subMonths(now, 12), "yyyy-MM-dd"), endDate: format(now, "yyyy-MM-dd") };
+  }, [qtyPeriod]);
+
+  const { data: qtyStats, isLoading: isLoadingQty, isFetching: isFetchingQty } = useQuery<{ quantityByProduct: any[] }>({
+    queryKey: ["/api/products/statistics", "qty", qtyStartDate, qtyEndDate],
     queryFn: async () => {
       const res = await fetch(
-        `/api/products/statistics?startDate=${wineStartDate}&endDate=${wineEndDate}`
+        `/api/products/statistics?startDate=${qtyStartDate}&endDate=${qtyEndDate}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) throw new Error("Falha ao buscar quantidade por produto");
+      return res.json();
+    },
+    staleTime: 60 * 1000,
+    retry: 2,
+  });
+
+  const { data: wineStats, isLoading: isLoadingWine, isFetching: isFetchingWine } = useQuery<{ revenueByType: any[] }>({
+    queryKey: ["/api/products/statistics", "wine", wineStartDate, wineEndDate],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/products/statistics?startDate=${wineStartDate}&endDate=${wineEndDate}`,
+        { credentials: "include" }
       );
       if (!res.ok) throw new Error("Falha ao buscar receita por tipo de vinho");
       return res.json();
     },
-    placeholderData: (prev: any) => prev,
-    staleTime: 0,
+    staleTime: 60 * 1000,
+    retry: 2,
   });
 
   if (error) {
@@ -159,6 +193,13 @@ export function ProductsStatistics({
     ...topProductsByRevenue.map((p: any) => parseFloat(p.totalRevenue || "0")),
     0
   );
+
+  const allQuantityByProduct: any[] = qtyStats?.quantityByProduct ?? [];
+  const filteredByType = selectedType === "TODOS"
+    ? allQuantityByProduct
+    : allQuantityByProduct.filter((p: any) => p.productType === selectedType);
+  const totalQty = filteredByType.reduce((acc: number, p: any) => acc + parseFloat(p.totalQuantity || "0"), 0);
+  const maxQty = Math.max(...filteredByType.map((p: any) => parseFloat(p.totalQuantity || "0")), 0);
 
   const wineRevenueByType: any[] = wineStats?.revenueByType ?? [];
   const totalRevenue = wineRevenueByType.reduce(
@@ -212,7 +253,7 @@ export function ProductsStatistics({
 
       {/* Conteúdo expansível */}
       {isOpen && (
-        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
       {/* Card 1 — Faturamento por Vinho */}
       <motion.div variants={itemVariants}>
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
@@ -356,7 +397,7 @@ export function ProductsStatistics({
             </div>
           </CardHeader>
           <CardContent className="p-4 bg-white dark:bg-slate-900">
-            {isLoadingWine ? (
+            {(isLoadingWine || isFetchingWine) ? (
               <div className="flex items-center justify-center py-12">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
               </div>
@@ -436,6 +477,122 @@ export function ProductsStatistics({
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Card 3 — Produtos Vendidos por Tipo */}
+      <motion.div variants={itemVariants}>
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 p-6 transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-800/80">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800 dark:text-slate-100">
+                  <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                    <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  Produtos Vendidos
+                </CardTitle>
+                <CardDescription className="text-slate-500 dark:text-slate-400 mt-1 font-medium ml-[52px]">
+                  Quantidade de garrafas vendidas por tipo
+                </CardDescription>
+              </div>
+              <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 mt-0.5">
+                {(["mes_atual", "ultimos_12"] as WinePeriod[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setQtyPeriod(p)}
+                    className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      qtyPeriod === p
+                        ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                        : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {p === "mes_atual" ? "Mês Atual" : "12 Meses"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Type filter buttons */}
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {(["TODOS", "ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as WineType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSelectedType(t)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all duration-150 border",
+                    selectedType === t
+                      ? cn(TYPE_BUTTON_STYLES[t], "ring-2 ring-offset-1 ring-current border-transparent")
+                      : "bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                  )}
+                >
+                  {t === "TODOS" ? "Todos" : t}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-4 bg-white dark:bg-slate-900">
+            {(isLoadingQty || isFetchingQty) ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              </div>
+            ) : filteredByType.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
+                  <Package className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-slate-900 dark:text-white font-semibold">Nenhum dado disponível</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">
+                  Sem vendas no período selecionado
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Total */}
+                <div className="flex items-center justify-between px-1 mb-3">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Total no período
+                  </span>
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100">
+                    {totalQty.toFixed(0)} unid.
+                  </span>
+                </div>
+
+                {filteredByType.map((product: any) => {
+                  const qty = parseFloat(product.totalQuantity || "0");
+                  const barWidth = maxQty > 0 ? Math.max((qty / maxQty) * 100, 4) : 0;
+                  const typeStyle = TYPE_BUTTON_STYLES[product.productType as WineType] ?? TYPE_BUTTON_STYLES["TODOS"];
+
+                  return (
+                    <div key={product.productId} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate flex-1">
+                          {product.productName}
+                        </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {selectedType === "TODOS" && product.productType && (
+                            <span className={cn("text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md", typeStyle)}>
+                              {product.productType}
+                            </span>
+                          )}
+                          <span className="text-xs font-black text-blue-700 dark:text-blue-300 w-16 text-right">
+                            {qty.toFixed(0)} unid.
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

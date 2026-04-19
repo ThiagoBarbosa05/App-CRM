@@ -21,6 +21,17 @@ const s3 = new S3Client({
 
 export const eventsRouter = Router();
 
+eventsRouter.get("/client/:clientId", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const clientEvents = await storage.getClientEvents(clientId);
+    return res.json(clientEvents);
+  } catch (error) {
+    console.error("Error fetching client events:", error);
+    return res.status(500).json({ message: "Erro ao buscar eventos do cliente" });
+  }
+});
+
 eventsRouter.get("/", async (req, res) => {
   try {
     const userId = req.user?.userId;
