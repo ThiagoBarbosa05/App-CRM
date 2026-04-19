@@ -195,9 +195,10 @@ export function ProductsStatistics({
   );
 
   const allQuantityByProduct: any[] = qtyStats?.quantityByProduct ?? [];
-  const filteredByType = selectedType === "TODOS"
+  const filteredByType = (selectedType === "TODOS"
     ? allQuantityByProduct
-    : allQuantityByProduct.filter((p: any) => p.productType === selectedType);
+    : allQuantityByProduct.filter((p: any) => p.productType === selectedType)
+  ).slice(0, 20);
   const totalQty = filteredByType.reduce((acc: number, p: any) => acc + parseFloat(p.totalQuantity || "0"), 0);
   const maxQty = Math.max(...filteredByType.map((p: any) => parseFloat(p.totalQuantity || "0")), 0);
 
