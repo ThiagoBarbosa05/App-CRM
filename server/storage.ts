@@ -5027,13 +5027,13 @@ export class DatabaseStorage implements IStorage {
             SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
             FROM event_participants ep
             WHERE ep.event_id = "events"."id"
-            AND ep.status IN ('confirmado', 'presente')
+            AND ep.status IN ('inscrito', 'confirmado', 'ausente')
           )`,
           pendingParticipants: sql<number>`(
             SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
             FROM event_participants ep
             WHERE ep.event_id = "events"."id"
-            AND ep.status = 'inscrito'
+            AND ep.status = 'presente'
           )`,
         })
         .from(events)
