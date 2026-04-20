@@ -1042,7 +1042,7 @@ export default function EventsManagement() {
                       <span className="text-xs font-medium text-green-700 dark:text-green-400">Receita Confirmada</span>
                     </div>
                     <p className="text-lg font-bold text-green-800 dark:text-green-300">{formatCurrency(confirmed)}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Confirmados + presentes</p>
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Participantes com status PAGO</p>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -1050,7 +1050,7 @@ export default function EventsManagement() {
                       <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Receita Potencial</span>
                     </div>
                     <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{formatCurrency(potential)}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Inscritos aguardando confirmação</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Pendentes + pagar na hora</p>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
