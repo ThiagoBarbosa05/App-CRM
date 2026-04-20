@@ -30,11 +30,13 @@ function normalizePhone(phone: string): string {
 
 /**
  * Normaliza CPF/CNPJ removendo tudo que não é dígito.
+ * Retorna null se vazio, nulo, ou composto apenas de zeros (ex: 000.000.000-00).
  */
 function normalizeDocument(doc: string | null): string | null {
   if (!doc) return null;
   const d = doc.replace(/\D/g, "");
-  return d.length > 0 ? d : null;
+  if (d.length === 0 || /^0+$/.test(d)) return null;
+  return d;
 }
 
 /**
@@ -156,7 +158,10 @@ export async function findAllDuplicates(): Promise<DuplicateGroup[]> {
       string_agg(categoria, '|' ORDER BY created_at)         AS categorias,
       string_agg(created_at::text, '|' ORDER BY created_at)  AS created_ats
     FROM clients
-    WHERE cpf IS NOT NULL AND cpf <> ''
+    WHERE cpf IS NOT NULL
+      AND cpf <> ''
+      AND regexp_replace(cpf, '[^0-9]', '', 'g') <> ''
+      AND regexp_replace(cpf, '[^0-9]', '', 'g') !~ '^0+$'
     GROUP BY regexp_replace(cpf, '[^0-9]', '', 'g')
     HAVING count(*) > 1
     ORDER BY count(*) DESC
