@@ -363,7 +363,10 @@ export default function EventParticipantsModal({
     },
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, attended?: boolean | null) => {
+    if (attended === false) {
+      return <Badge className="bg-red-100 text-red-800">AUSENTE</Badge>;
+    }
     const statusConfig = PARTICIPANT_STATUS.find((s) => s.value === status);
     return <Badge className={statusConfig?.color}>{statusConfig?.label}</Badge>;
   };
@@ -523,7 +526,7 @@ export default function EventParticipantsModal({
                         </span>
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(participant.status)}
+                        {getStatusBadge(participant.status, participant.attended)}
                       </TableCell>
                       <TableCell className="text-center">
                         {user?.role === "admin" ? (
