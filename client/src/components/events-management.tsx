@@ -1042,7 +1042,7 @@ export default function EventsManagement() {
                       <span className="text-xs font-medium text-green-700 dark:text-green-400">Receita Confirmada</span>
                     </div>
                     <p className="text-lg font-bold text-green-800 dark:text-green-300">{formatCurrency(confirmed)}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Pagos + convidados + pagar na hora</p>
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">Pagos + pagar na hora</p>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
