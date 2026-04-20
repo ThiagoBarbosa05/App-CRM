@@ -5053,6 +5053,18 @@ export class DatabaseStorage implements IStorage {
             WHERE ep.event_id = "events"."id"
             AND ep.attended = true
           )`,
+          convidadoCount: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'convidado'
+          )`,
+          absentCount: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.attended = false
+          )`,
         })
         .from(events)
         .leftJoin(users, eq(events.createdBy, users.id))

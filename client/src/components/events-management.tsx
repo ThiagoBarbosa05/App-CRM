@@ -1219,19 +1219,19 @@ export default function EventsManagement() {
                             {event.maxCapacity && `/${event.maxCapacity}`}{" "}
                             pessoas
                           </span>
-                          {(event as any).confirmedParticipants > 0 && (
+                          {(event as any).paidParticipants > 0 && (
                             <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).confirmedParticipants} confirmados
+                              {(event as any).paidParticipants} pagantes
                             </span>
                           )}
-                          {(event as any).presentCount > 0 && (
-                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).presentCount} presentes
+                          {(event as any).convidadoCount > 0 && (
+                            <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-1.5 py-0.5 rounded-full font-medium">
+                              {(event as any).convidadoCount} convidados
                             </span>
                           )}
-                          {(event as any).ausenteParticipants > 0 && (
-                            <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).ausenteParticipants} pagar na hora
+                          {(event as any).absentCount > 0 && (
+                            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded-full font-medium">
+                              {(event as any).absentCount} ausentes
                             </span>
                           )}
                         </div>
