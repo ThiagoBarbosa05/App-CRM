@@ -1246,7 +1246,7 @@ export default function EventsManagement() {
                           <div className="flex flex-wrap items-center gap-4 text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700">
                             <div className="flex items-center gap-1.5">
                               <CircleDollarSignIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                              <span className="text-slate-500 dark:text-slate-400">Confirmada:</span>
+                              <span className="text-slate-500 dark:text-slate-400">Receita:</span>
                               <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(confirmed)}</span>
                             </div>
                             {potential > 0 && (
