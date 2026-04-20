@@ -322,4 +322,114 @@ eventsRouter.delete("/:eventId/attachments/:attachmentId", async (req, res) => {
   }
 });
 
+// Analytics de eventos
+eventsRouter.get("/analytics", async (req, res) => {
+  try {
+    const { db } = storage as any;
+
+    const [revenueRows, topClientsRows, statusRows, occupancyRows] = await Promise.all([
+      // 1. Receita mês a mês
+      db.execute(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', ev.event_date), 'YYYY-MM') as month,
+          TO_CHAR(DATE_TRUNC('month', ev.event_date), 'MM/YYYY') as label,
+          COALESCE(SUM(COALESCE(ev.wine_revenue::numeric, 0)), 0) as wine_revenue,
+          COALESCE(ep_rev.event_revenue, 0) as event_revenue
+        FROM events ev
+        LEFT JOIN (
+          SELECT
+            DATE_TRUNC('month', e.event_date) as month_key,
+            SUM(CASE WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                     ELSE ep.number_of_participants::numeric * e.price_per_person::numeric END) as event_revenue
+          FROM events e
+          JOIN event_participants ep ON ep.event_id = e.id
+          WHERE e.status != 'cancelado' AND ep.status IN ('pago','pagar_na_hora')
+          GROUP BY DATE_TRUNC('month', e.event_date)
+        ) ep_rev ON DATE_TRUNC('month', ev.event_date) = ep_rev.month_key
+        WHERE ev.status != 'cancelado'
+        GROUP BY DATE_TRUNC('month', ev.event_date), ep_rev.event_revenue
+        ORDER BY DATE_TRUNC('month', ev.event_date)
+      `),
+
+      // 2. Clientes mais assíduos
+      db.execute(`
+        SELECT c.name, COUNT(DISTINCT ep.event_id)::int as event_count, SUM(ep.number_of_participants)::int as total_people
+        FROM event_participants ep
+        JOIN clients c ON c.id = ep.client_id
+        WHERE ep.status != 'cancelado'
+        GROUP BY c.id, c.name
+        ORDER BY event_count DESC, total_people DESC
+        LIMIT 10
+      `),
+
+      // 3. Distribuição de status
+      db.execute(`
+        SELECT status, SUM(number_of_participants)::int as total
+        FROM event_participants
+        WHERE status != 'cancelado'
+        GROUP BY status
+        ORDER BY total DESC
+      `),
+
+      // 4. Ocupação dos eventos (só eventos com capacidade máxima definida)
+      db.execute(`
+        SELECT
+          e.name,
+          TO_CHAR(e.event_date, 'DD/MM/YY') as date,
+          COALESCE(SUM(ep.number_of_participants) FILTER (WHERE ep.status != 'cancelado'), 0)::int as participant_count,
+          e.max_capacity,
+          ROUND(
+            COALESCE(SUM(ep.number_of_participants) FILTER (WHERE ep.status != 'cancelado'), 0)::numeric
+            / e.max_capacity::numeric * 100, 1
+          ) as occupancy_pct
+        FROM events e
+        LEFT JOIN event_participants ep ON ep.event_id = e.id
+        WHERE e.max_capacity IS NOT NULL AND e.max_capacity > 0 AND e.status != 'cancelado'
+        GROUP BY e.id, e.name, e.event_date, e.max_capacity
+        ORDER BY e.event_date DESC
+        LIMIT 15
+      `)
+    ]);
+
+    const statusLabels: Record<string, string> = {
+      pago: "Pago",
+      convidado: "Convidado",
+      pendente: "Pendente",
+      pagar_na_hora: "Pagar na Hora",
+    };
+
+    return res.json({
+      revenueByMonth: revenueRows.rows.map((r: any) => ({
+        month: r.month,
+        label: r.label,
+        eventRevenue: parseFloat(r.event_revenue) || 0,
+        wineRevenue: parseFloat(r.wine_revenue) || 0,
+        total: (parseFloat(r.event_revenue) || 0) + (parseFloat(r.wine_revenue) || 0),
+      })),
+      topClients: topClientsRows.rows.map((r: any) => ({
+        name: r.name?.split(" ").slice(0, 2).join(" "),
+        fullName: r.name,
+        eventCount: r.event_count,
+        totalPeople: r.total_people,
+      })),
+      statusDistribution: statusRows.rows.map((r: any) => ({
+        status: r.status,
+        label: statusLabels[r.status] || r.status,
+        total: r.total,
+      })),
+      eventOccupancy: occupancyRows.rows.map((r: any) => ({
+        name: r.name?.length > 22 ? r.name.substring(0, 22) + "…" : r.name,
+        fullName: r.name,
+        date: r.date,
+        participantCount: r.participant_count,
+        maxCapacity: r.max_capacity,
+        occupancyPct: parseFloat(r.occupancy_pct) || 0,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching event analytics:", error);
+    return res.status(500).json({ message: "Erro ao buscar análises de eventos" });
+  }
+});
+
 export default eventsRouter;

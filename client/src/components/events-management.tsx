@@ -57,6 +57,7 @@ import {
   TrendingUpIcon,
   CircleDollarSignIcon,
   ClockIcon,
+  BarChart2Icon,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +69,7 @@ import {
   baseS3Url,
 } from "@/lib/utils";
 import EventParticipantsModal from "@/components/event-participants-modal";
+import EventsAnalytics from "@/components/events-analytics";
 
 interface EventAttachment {
   id?: string;
@@ -167,6 +169,7 @@ export default function EventsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [activeView, setActiveView] = useState<"eventos" | "analises">("eventos");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
@@ -984,18 +987,51 @@ export default function EventsManagement() {
                 </CardDescription>
               </div>
 
-              {user?.role === "admin" && (
-                <Button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto flex-shrink-0"
-                >
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  Novo Evento
-                </Button>
-              )}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Tab switcher */}
+                <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 gap-1">
+                  <button
+                    onClick={() => setActiveView("eventos")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      activeView === "eventos"
+                        ? "bg-orange-500 text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Eventos
+                  </button>
+                  <button
+                    onClick={() => setActiveView("analises")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      activeView === "analises"
+                        ? "bg-orange-500 text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <BarChart2Icon className="h-3.5 w-3.5" />
+                    Análises
+                  </button>
+                </div>
+
+                {user?.role === "admin" && activeView === "eventos" && (
+                  <Button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto"
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    Novo Evento
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
 
+          {activeView === "analises" ? (
+            <CardContent className="p-3 md:p-6">
+              <EventsAnalytics />
+            </CardContent>
+          ) : (
           <CardContent className="flex flex-col gap-6 p-3 md:p-6">
             {/* Filtros modernos */}
             <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row gap-4">
@@ -1403,6 +1439,7 @@ export default function EventsManagement() {
               </div>
             )}
           </CardContent>
+          )}
         </Card>
       </div>
 
