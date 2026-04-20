@@ -1219,9 +1219,14 @@ export default function EventsManagement() {
                             {event.maxCapacity && `/${event.maxCapacity}`}{" "}
                             pessoas
                           </span>
-                          {(event as any).paidParticipants > 0 && (
+                          {(event as any).confirmedParticipants > 0 && (
                             <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).paidParticipants} confirmados
+                              {(event as any).confirmedParticipants} confirmados
+                            </span>
+                          )}
+                          {(event as any).presentCount > 0 && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+                              {(event as any).presentCount} presentes
                             </span>
                           )}
                           {(event as any).ausenteParticipants > 0 && (

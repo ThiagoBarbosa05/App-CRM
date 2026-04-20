@@ -2209,6 +2209,8 @@ export interface EventWithDetails extends Event {
   paidParticipants?: number;
   pendingParticipants?: number;
   ausenteParticipants?: number;
+  confirmedParticipants?: number;
+  presentCount?: number;
   creatorName?: string;
   attachments?: EventAttachment[];
 }
