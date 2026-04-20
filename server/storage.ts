@@ -5030,7 +5030,12 @@ export class DatabaseStorage implements IStorage {
             AND ep.status IN ('pago', 'pagar_na_hora')
           )`,
           eventRevenue: sql<number>`(
-            SELECT COALESCE(SUM(ep.number_of_participants::numeric * COALESCE(ep.custom_price::numeric, "events"."price_per_person"::numeric)), 0)
+            SELECT COALESCE(SUM(
+              CASE
+                WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                ELSE ep.number_of_participants::numeric * "events"."price_per_person"::numeric
+              END
+            ), 0)
             FROM event_participants ep
             WHERE ep.event_id = "events"."id"
             AND ep.status IN ('pago', 'pagar_na_hora')

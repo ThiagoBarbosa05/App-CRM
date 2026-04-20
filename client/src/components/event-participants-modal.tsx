@@ -129,6 +129,9 @@ export default function EventParticipantsModal({
     notes: "",
   });
 
+  const [editingValueId, setEditingValueId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [debouncedClientSearchTerm, setDebouncedClientSearchTerm] =
     useState("");
@@ -260,6 +263,38 @@ export default function EventParticipantsModal({
       });
     },
   });
+
+  // Mutation para salvar preço customizado inline
+  const updatePriceMutation = useMutation({
+    mutationFn: async ({ participantId, customPrice }: { participantId: string; customPrice: string | null }) => {
+      const response = await fetch(
+        `/api/events/${event?.id}/participants/${participantId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customPrice }),
+        }
+      );
+      if (!response.ok) throw new Error("Erro ao salvar valor");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      setEditingValueId(null);
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível salvar o valor.", variant: "destructive" });
+    },
+  });
+
+  const commitPrice = (participantId: string) => {
+    const val = editingValue.trim();
+    updatePriceMutation.mutate({
+      participantId,
+      customPrice: val === "" ? null : val,
+    });
+  };
 
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
@@ -529,23 +564,56 @@ export default function EventParticipantsModal({
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {(() => {
-                          const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
-                          const unitPrice = participant.customPrice ? parseFloat(participant.customPrice) : eventPrice;
-                          const total = unitPrice * participant.numberOfParticipants;
-                          return (
-                            <div className="text-sm">
-                              <span className={`font-semibold ${participant.customPrice ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
-                                {formatCurrency(total)}
-                              </span>
-                              {participant.customPrice && eventPrice !== unitPrice && (
-                                <div className="text-xs text-slate-400 line-through">
-                                  {formatCurrency(eventPrice * participant.numberOfParticipants)}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        {user?.role === "admin" && editingValueId === participant.id ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              autoFocus
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => commitPrice(participant.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitPrice(participant.id);
+                                if (e.key === "Escape") setEditingValueId(null);
+                              }}
+                              className="w-24 text-right text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className={`text-sm cursor-pointer group ${user?.role === "admin" ? "hover:bg-slate-100 dark:hover:bg-slate-700 rounded px-1 py-0.5" : ""}`}
+                            title={user?.role === "admin" ? "Clique para editar o valor" : undefined}
+                            onClick={() => {
+                              if (user?.role !== "admin") return;
+                              const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
+                              const displayed = participant.customPrice
+                                ? parseFloat(participant.customPrice).toFixed(2)
+                                : (eventPrice * participant.numberOfParticipants).toFixed(2);
+                              setEditingValue(displayed);
+                              setEditingValueId(participant.id);
+                            }}
+                          >
+                            {(() => {
+                              const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
+                              const defaultTotal = eventPrice * participant.numberOfParticipants;
+                              const customTotal = participant.customPrice ? parseFloat(participant.customPrice) : null;
+                              return (
+                                <>
+                                  <span className={`font-semibold ${customTotal !== null ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
+                                    {formatCurrency(customTotal !== null ? customTotal : defaultTotal)}
+                                  </span>
+                                  {customTotal !== null && (
+                                    <div className="text-xs text-slate-400 line-through">
+                                      {formatCurrency(defaultTotal)}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(participant.status, participant.attended)}
@@ -869,27 +937,6 @@ export default function EventParticipantsModal({
                   placeholder="Quantos participantes..."
                   data-testid="input-edit-number-participants"
                 />
-              </div>
-
-              <div>
-                <Label>Valor (R$)</Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={editingParticipant.customPrice ?? ""}
-                    onChange={(e) =>
-                      setEditingParticipant((prev) =>
-                        prev ? { ...prev, customPrice: e.target.value === "" ? null : e.target.value } : null
-                      )
-                    }
-                    placeholder={`Padrão: R$ ${parseFloat(event?.pricePerPerson || "0").toFixed(2).replace(".", ",")}`}
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Deixe vazio para usar o valor padrão do evento. Preencha apenas se houver desconto ou condição especial.
-                </p>
               </div>
 
               <div>
