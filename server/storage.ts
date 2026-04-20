@@ -5035,6 +5035,12 @@ export class DatabaseStorage implements IStorage {
             WHERE ep.event_id = "events"."id"
             AND ep.status = 'presente'
           )`,
+          ausenteParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'ausente'
+          )`,
         })
         .from(events)
         .leftJoin(users, eq(events.createdBy, users.id))

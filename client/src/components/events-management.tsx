@@ -1219,14 +1219,24 @@ export default function EventsManagement() {
                             {event.maxCapacity && `/${event.maxCapacity}`}{" "}
                             pessoas
                           </span>
+                          {(event as any).paidParticipants > 0 && (
+                            <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium">
+                              {(event as any).paidParticipants} confirmados
+                            </span>
+                          )}
+                          {(event as any).ausenteParticipants > 0 && (
+                            <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-medium">
+                              {(event as any).ausenteParticipants} pagar na hora
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       {/* Receita do evento — apenas admin */}
                       {user?.role === "admin" && (() => {
                         const price = parseFloat(event.pricePerPerson) || 0;
-                        const confirmed = event.paidParticipants * price;
-                        const potential = event.pendingParticipants * price;
+                        const confirmed = (event as any).paidParticipants * price;
+                        const potential = (event as any).pendingParticipants * price;
                         return (
                           <div className="flex flex-wrap items-center gap-4 text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700">
                             <div className="flex items-center gap-1.5">

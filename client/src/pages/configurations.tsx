@@ -249,7 +249,7 @@ export default function Configurations() {
                 <span className="text-xs font-medium ">Contas Bling</span>
               </TabsTrigger>
 
-              <TabsTrigger
+              {/* <TabsTrigger
                 value="umbler-sync"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
                        data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
@@ -259,7 +259,7 @@ export default function Configurations() {
               >
                 <RefreshCcw className="size-4" />
                 <span className="text-xs font-medium ">Umbler Sync</span>
-              </TabsTrigger>
+              </TabsTrigger> */}
               <TabsTrigger
                 value="wine-price-tiers"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
