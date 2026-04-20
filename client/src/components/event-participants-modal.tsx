@@ -42,7 +42,7 @@ import {
   XCircle,
   MinusCircle,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
 
 interface EventParticipant {
@@ -52,6 +52,7 @@ interface EventParticipant {
   registrationDate: string;
   status: "pago" | "convidado" | "pendente" | "pagar_na_hora" | "cancelado";
   numberOfParticipants: number;
+  customPrice: string | null;
   notes: string | null;
   attended: boolean | null;
   registeredBy: string;
@@ -74,6 +75,7 @@ interface Event {
   eventDate: string;
   location: string;
   maxCapacity: number | null;
+  pricePerPerson?: string | null;
 }
 
 interface EventParticipantsModalProps {
@@ -261,7 +263,7 @@ export default function EventParticipantsModal({
 
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
-    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number }) => {
+    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number; customPrice: string | null }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${editingParticipant?.id}`,
         {
@@ -384,8 +386,8 @@ export default function EventParticipantsModal({
     addParticipantMutation.mutate(newParticipant);
   };
 
-  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number) => {
-    updateParticipantMutation.mutate({ status, notes, numberOfParticipants });
+  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number, customPrice: string | null) => {
+    updateParticipantMutation.mutate({ status, notes, numberOfParticipants, customPrice });
   };
 
   if (!event) return null;
@@ -481,6 +483,7 @@ export default function EventParticipantsModal({
                     <TableHead className="font-semibold">Cliente</TableHead>
                     <TableHead className="font-semibold">Contato</TableHead>
                     <TableHead className="font-semibold text-center">Nº Pessoas</TableHead>
+                    <TableHead className="font-semibold text-right">Valor</TableHead>
                     <TableHead className="font-semibold">Status Pgto.</TableHead>
                     <TableHead className="font-semibold text-center">Presença</TableHead>
                     <TableHead className="font-semibold">Inscrição</TableHead>
@@ -524,6 +527,25 @@ export default function EventParticipantsModal({
                         <span className="font-semibold text-base text-slate-800 dark:text-slate-200">
                           {participant.numberOfParticipants}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(() => {
+                          const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
+                          const unitPrice = participant.customPrice ? parseFloat(participant.customPrice) : eventPrice;
+                          const total = unitPrice * participant.numberOfParticipants;
+                          return (
+                            <div className="text-sm">
+                              <span className={`font-semibold ${participant.customPrice ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
+                                {formatCurrency(total)}
+                              </span>
+                              {participant.customPrice && eventPrice !== unitPrice && (
+                                <div className="text-xs text-slate-400 line-through">
+                                  {formatCurrency(eventPrice * participant.numberOfParticipants)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(participant.status, participant.attended)}
@@ -850,6 +872,27 @@ export default function EventParticipantsModal({
               </div>
 
               <div>
+                <Label>Valor (R$)</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editingParticipant.customPrice ?? ""}
+                    onChange={(e) =>
+                      setEditingParticipant((prev) =>
+                        prev ? { ...prev, customPrice: e.target.value === "" ? null : e.target.value } : null
+                      )
+                    }
+                    placeholder={`Padrão: R$ ${parseFloat(event?.pricePerPerson || "0").toFixed(2).replace(".", ",")}`}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Deixe vazio para usar o valor padrão do evento. Preencha apenas se houver desconto ou condição especial.
+                </p>
+              </div>
+
+              <div>
                 <Label>Observações</Label>
                 <Textarea
                   value={editingParticipant.notes || ""}
@@ -878,7 +921,8 @@ export default function EventParticipantsModal({
                 handleUpdateParticipant(
                   editingParticipant.status,
                   editingParticipant.notes || "",
-                  editingParticipant.numberOfParticipants
+                  editingParticipant.numberOfParticipants,
+                  editingParticipant.customPrice || null
                 )
               }
               disabled={updateParticipantMutation.isPending}

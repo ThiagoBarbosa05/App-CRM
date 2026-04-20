@@ -2079,6 +2079,7 @@ export const eventParticipants = pgTable("event_participants", {
     .notNull()
     .default("pago"),
   numberOfParticipants: integer("number_of_participants").notNull().default(1),
+  customPrice: numeric("custom_price"),
   notes: text("notes"),
   attended: boolean("attended"),
   registeredBy: varchar("registered_by")
@@ -2213,6 +2214,7 @@ export interface EventWithDetails extends Event {
   presentCount?: number;
   convidadoCount?: number;
   absentCount?: number;
+  eventRevenue?: number;
   creatorName?: string;
   attachments?: EventAttachment[];
 }

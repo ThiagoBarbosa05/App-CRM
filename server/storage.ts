@@ -5029,6 +5029,12 @@ export class DatabaseStorage implements IStorage {
             WHERE ep.event_id = "events"."id"
             AND ep.status IN ('pago', 'pagar_na_hora')
           )`,
+          eventRevenue: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants::numeric * COALESCE(ep.custom_price::numeric, "events"."price_per_person"::numeric)), 0)
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status IN ('pago', 'pagar_na_hora')
+          )`,
           pendingParticipants: sql<number>`(
             SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
             FROM event_participants ep
@@ -5186,6 +5192,7 @@ export class DatabaseStorage implements IStorage {
           registrationDate: eventParticipants.registrationDate,
           status: eventParticipants.status,
           numberOfParticipants: eventParticipants.numberOfParticipants,
+          customPrice: eventParticipants.customPrice,
           notes: eventParticipants.notes,
           attended: eventParticipants.attended,
           registeredBy: eventParticipants.registeredBy,
@@ -5205,6 +5212,7 @@ export class DatabaseStorage implements IStorage {
         registrationDate: row.registrationDate,
         status: row.status,
         numberOfParticipants: row.numberOfParticipants,
+        customPrice: row.customPrice,
         notes: row.notes,
         attended: row.attended,
         registeredBy: row.registeredBy,
