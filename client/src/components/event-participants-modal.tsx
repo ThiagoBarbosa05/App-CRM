@@ -50,7 +50,7 @@ interface EventParticipant {
   eventId: string;
   clientId: string;
   registrationDate: string;
-  status: "inscrito" | "confirmado" | "presente" | "ausente" | "cancelado";
+  status: "pago" | "convidado" | "pendente" | "pagar_na_hora" | "cancelado";
   numberOfParticipants: number;
   notes: string | null;
   attended: boolean | null;
@@ -83,19 +83,19 @@ interface EventParticipantsModalProps {
 }
 
 const PARTICIPANT_STATUS = [
-  { value: "inscrito", label: "PAGO", color: "bg-blue-100 text-blue-800" },
+  { value: "pago", label: "PAGO", color: "bg-blue-100 text-blue-800" },
   {
-    value: "confirmado",
+    value: "convidado",
     label: "CONVIDADO",
     color: "bg-green-100 text-green-800",
   },
   {
-    value: "presente",
+    value: "pendente",
     label: "PENDENTE",
     color: "bg-emerald-100 text-emerald-800",
   },
   {
-    value: "ausente",
+    value: "pagar_na_hora",
     label: "PAGAR NA HORA",
     color: "bg-orange-100 text-orange-800",
   },
@@ -122,7 +122,7 @@ export default function EventParticipantsModal({
 
   const [newParticipant, setNewParticipant] = useState({
     clientId: "",
-    status: "inscrito",
+    status: "pago",
     numberOfParticipants: 1,
     notes: "",
   });
@@ -240,7 +240,7 @@ export default function EventParticipantsModal({
       setIsAddModalOpen(false);
       setNewParticipant({
         clientId: "",
-        status: "inscrito",
+        status: "pago",
         numberOfParticipants: 1,
         notes: "",
       });

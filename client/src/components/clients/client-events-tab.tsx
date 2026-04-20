@@ -11,10 +11,10 @@ interface ClientEventsTabProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  inscrito: { label: "Inscrito", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  confirmado: { label: "Confirmado", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" },
-  presente: { label: "Presente", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-  ausente: { label: "Ausente", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+  pago: { label: "Pago", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  convidado: { label: "Convidado", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" },
+  pendente: { label: "Pendente", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  pagar_na_hora: { label: "Pagar na Hora", className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
   cancelado: { label: "Cancelado", className: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" },
 };
 

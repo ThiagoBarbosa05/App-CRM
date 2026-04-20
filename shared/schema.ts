@@ -2074,10 +2074,10 @@ export const eventParticipants = pgTable("event_participants", {
   }),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
   status: text("status", {
-    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],
+    enum: ["pago", "convidado", "pendente", "pagar_na_hora", "cancelado"],
   })
     .notNull()
-    .default("inscrito"),
+    .default("pago"),
   numberOfParticipants: integer("number_of_participants").notNull().default(1),
   notes: text("notes"),
   attended: boolean("attended"),
@@ -2099,10 +2099,10 @@ export const eventGuests = pgTable("event_guests", {
   email: text("email"),
   registrationDate: timestamp("registration_date").defaultNow().notNull(),
   status: text("status", {
-    enum: ["inscrito", "confirmado", "presente", "ausente", "cancelado"],
+    enum: ["pago", "convidado", "pendente", "pagar_na_hora", "cancelado"],
   })
     .notNull()
-    .default("confirmado"), // Convidados começam como "confirmado"
+    .default("convidado"), // Convidados começam como "convidado"
   numberOfParticipants: integer("number_of_participants").notNull().default(1),
   notes: text("notes"),
   registeredBy: varchar("registered_by")
@@ -2183,8 +2183,8 @@ export const insertEventParticipantSchema = createInsertSchema(
   })
   .extend({
     status: z
-      .enum(["inscrito", "confirmado", "presente", "ausente", "cancelado"])
-      .default("inscrito"),
+      .enum(["pago", "convidado", "pendente", "pagar_na_hora", "cancelado"])
+      .default("pago"),
     attended: z.boolean().nullable().optional(),
   });
 
