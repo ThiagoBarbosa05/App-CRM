@@ -1159,215 +1159,189 @@ export default function EventsManagement() {
                 {filteredEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
+                    className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-md hover:border-orange-200 dark:hover:border-orange-900/50 transition-all duration-200 flex"
                   >
-                    <div className="p-4 sm:p-6 space-y-4">
-                      {/* Header com imagem de capa, título, categoria e status */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          {/* Imagem de Capa Retangular Horizontal */}
-                          {event.imageUrl && (
-                            <div className="w-32 h-20 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900 flex-shrink-0">
-                              <img
-                                src={event.imageUrl}
-                                alt={event.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              />
-                            </div>
-                          )}
+                    {/* Acento lateral esquerdo */}
+                    <div className="w-1 flex-shrink-0 bg-gradient-to-b from-orange-500 to-amber-400" />
 
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 flex-shrink-0">
-                              <CalendarIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-base leading-tight">
+                    <div className="flex-1 p-4 sm:p-5 min-w-0">
+                      {/* ── HEADER ── */}
+                      <div className="flex items-start gap-3">
+                        {event.imageUrl && (
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700 ring-1 ring-slate-200 dark:ring-slate-600">
+                            <img
+                              src={event.imageUrl}
+                              alt={event.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-xs font-semibold text-orange-500 dark:text-orange-400 uppercase tracking-wider">
+                                {event.category}
+                              </span>
+                              <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg leading-tight mt-0.5 truncate">
                                 {event.name}
                               </h3>
-                              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                {event.category}
-                              </p>
+                            </div>
+                            <div className="flex-shrink-0 mt-0.5">
+                              {getStatusBadge(event.status)}
                             </div>
                           </div>
-                        </div>
-                        <div className="flex-shrink-0">
-                          {getStatusBadge(event.status)}
+
+                          {/* Chips de info */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3.5 w-3.5 text-orange-400" />
+                              {formatEventDateTime(event.eventDate)}
+                            </span>
+                            <span className="flex items-center gap-1 truncate">
+                              <MapPinIcon className="h-3.5 w-3.5 text-orange-400 flex-shrink-0" />
+                              <span className="truncate" title={event.location}>{event.location}</span>
+                            </span>
+                            <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                              <CircleDollarSignIcon className="h-3.5 w-3.5 text-orange-400" />
+                              {formatCurrency(parseFloat(event.pricePerPerson))} / pessoa
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Informações do evento */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                          <CalendarIcon className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">
-                            {formatEventDateTime(event.eventDate)}
-                          </span>
+                      {/* ── PARTICIPANTES ── */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 rounded-full px-2.5 py-1">
+                          <UsersIcon className="h-3.5 w-3.5" />
+                          <span>{event.participantCount}{event.maxCapacity ? `/${event.maxCapacity}` : ""} total</span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                          <MapPinIcon className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate" title={event.location}>
-                            {event.location}
+                        {(event as any).paidParticipants > 0 && (
+                          <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 px-2.5 py-1 rounded-full font-medium">
+                            {(event as any).paidParticipants} pagantes
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Preço:
+                        )}
+                        {(event as any).convidadoCount > 0 && (
+                          <span className="text-xs bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-1 rounded-full font-medium">
+                            {(event as any).convidadoCount} convidados
                           </span>
-                          <span className="font-medium text-slate-900 dark:text-slate-100">
-                            {formatCurrency(parseFloat(event.pricePerPerson))}
+                        )}
+                        {(event as any).absentCount > 0 && (
+                          <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 px-2.5 py-1 rounded-full font-medium">
+                            {(event as any).absentCount} ausentes
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                          <UsersIcon className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">
-                            {event.participantCount}
-                            {event.maxCapacity && `/${event.maxCapacity}`}{" "}
-                            pessoas
+                        )}
+                        {(event as any).pendingParticipants > 0 && (
+                          <span className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 px-2.5 py-1 rounded-full font-medium">
+                            {(event as any).pendingParticipants} pendentes
                           </span>
-                          {(event as any).paidParticipants > 0 && (
-                            <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).paidParticipants} pagantes
-                            </span>
-                          )}
-                          {(event as any).convidadoCount > 0 && (
-                            <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).convidadoCount} convidados
-                            </span>
-                          )}
-                          {(event as any).absentCount > 0 && (
-                            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded-full font-medium">
-                              {(event as any).absentCount} ausentes
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
 
-                      {/* Receita do evento — apenas admin */}
+                      {/* ── RECEITA (admin only) ── */}
                       {user?.role === "admin" && (() => {
                         const price = parseFloat(event.pricePerPerson) || 0;
-                        const eventRevenue = parseFloat(String((event as any).eventRevenue ?? 0)) || ((event as any).paidParticipants * price);
+                        const eventRev = parseFloat(String((event as any).eventRevenue ?? 0)) || ((event as any).paidParticipants * price);
                         const wineRev = parseFloat(event.wineRevenue || "0") || 0;
-                        const totalRevenue = eventRevenue + wineRev;
+                        const totalRev = eventRev + wineRev;
                         const potential = (event as any).pendingParticipants * price;
+                        const hasWine = wineRev > 0;
                         return (
-                          <div className="text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700 space-y-1.5">
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-1.5">
-                                <CircleDollarSignIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                                <span className="text-slate-500 dark:text-slate-400">Receita Evento:</span>
-                              </div>
-                              <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(eventRevenue)}</span>
+                          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-lg px-3 py-2">
+                              <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-500 uppercase tracking-wide">Receita Evento</p>
+                              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{formatCurrency(eventRev)}</p>
                             </div>
-                            {wineRev > 0 && (
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-1.5">
-                                  <CircleDollarSignIcon className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                                  <span className="text-slate-500 dark:text-slate-400">Receita Venda Vinho:</span>
-                                </div>
-                                <span className="font-semibold text-purple-700 dark:text-purple-400">{formatCurrency(wineRev)}</span>
+                            {hasWine ? (
+                              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/40 rounded-lg px-3 py-2">
+                                <p className="text-[10px] font-medium text-purple-600 dark:text-purple-500 uppercase tracking-wide">Venda Vinho</p>
+                                <p className="text-sm font-bold text-purple-700 dark:text-purple-400 mt-0.5">{formatCurrency(wineRev)}</p>
                               </div>
-                            )}
-                            {wineRev > 0 && (
-                              <div className="flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-600 pt-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <CircleDollarSignIcon className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
-                                  <span className="font-medium text-slate-700 dark:text-slate-300">Receita Total:</span>
-                                </div>
-                                <span className="font-bold text-slate-800 dark:text-slate-100">{formatCurrency(totalRevenue)}</span>
+                            ) : null}
+                            {hasWine ? (
+                              <div className="bg-slate-900 dark:bg-slate-100/10 border border-slate-700 dark:border-slate-600 rounded-lg px-3 py-2">
+                                <p className="text-[10px] font-medium text-slate-300 dark:text-slate-400 uppercase tracking-wide">Receita Total</p>
+                                <p className="text-sm font-bold text-white dark:text-slate-100 mt-0.5">{formatCurrency(totalRev)}</p>
                               </div>
-                            )}
-                            {potential > 0 && (
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-1.5">
-                                  <ClockIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                                  <span className="text-slate-500 dark:text-slate-400">Potencial (pendentes):</span>
-                                </div>
-                                <span className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(potential)}</span>
+                            ) : null}
+                            {potential > 0 ? (
+                              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40 rounded-lg px-3 py-2">
+                                <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase tracking-wide">Potencial</p>
+                                <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mt-0.5">{formatCurrency(potential)}</p>
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         );
                       })()}
 
-                      {/* Imagens do evento (se houver) */}
-                      {event.attachments && event.attachments.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                          <span className="text-sm text-slate-500 dark:text-slate-400 flex-shrink-0">
-                            {event.attachments.length} imagem
-                            {event.attachments.length !== 1 ? "s" : ""}
-                          </span>
-                          <div className="flex gap-1 overflow-x-auto">
-                            {event.attachments
-                              .slice(0, 4)
-                              .map((attachment, index) => (
+                      {/* ── RODAPÉ: thumbnails + ações ── */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                        {/* Thumbnails */}
+                        <div className="flex items-center gap-1.5">
+                          {event.attachments && event.attachments.length > 0 ? (
+                            <>
+                              {event.attachments.slice(0, 4).map((attachment, index) => (
                                 <div
                                   key={index}
-                                  className="w-8 h-8 flex-shrink-0 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800"
+                                  className="w-7 h-7 flex-shrink-0 rounded-md border border-slate-200 dark:border-slate-600 overflow-hidden bg-slate-100 dark:bg-slate-700"
                                 >
                                   <img
                                     src={`${baseS3Url}${attachment.fileUrl}`}
                                     alt={attachment.fileName}
                                     className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      const target =
-                                        e.target as HTMLImageElement;
-                                      target.style.display = "none";
-                                    }}
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                                   />
                                 </div>
                               ))}
-                            {event.attachments.length > 4 && (
-                              <div className="w-8 h-8 flex-shrink-0 rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400">
-                                +{event.attachments.length - 4}
-                              </div>
-                            )}
-                          </div>
+                              {event.attachments.length > 4 && (
+                                <span className="text-xs text-slate-400 dark:text-slate-500">+{event.attachments.length - 4}</span>
+                              )}
+                            </>
+                          ) : <span />}
                         </div>
-                      )}
 
-                      {/* Ações */}
-                      <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setParticipantsEvent(event)}
-                          className="text-orange-600 border-orange-200 hover:text-orange-700 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-800 dark:hover:bg-orange-900/20 rounded-lg gap-2"
-                        >
-                          <UserCheckIcon className="h-4 w-4" />
-                          <span>Participantes</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePrintParticipants(event)}
-                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/20 rounded-lg gap-2"
-                        >
-                          <PrinterIcon className="h-4 w-4" />
-                          <span>Imprimir</span>
-                        </Button>
-                        {user?.role === "admin" && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(event)}
-                              className="text-blue-600 border-blue-200 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/20 rounded-lg gap-2"
-                            >
-                              <EditIcon className="h-4 w-4" />
-                              <span>Editar</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEventToDelete(event)}
-                              className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-900/20 rounded-lg gap-2"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                              <span>Excluir</span>
-                            </Button>
-                          </>
-                        )}
+                        {/* Botões de ação */}
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setParticipantsEvent(event)}
+                            className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-800/60 dark:hover:bg-orange-900/20 gap-1.5 h-8 text-xs rounded-lg"
+                          >
+                            <UserCheckIcon className="h-3.5 w-3.5" />
+                            Participantes
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePrintParticipants(event)}
+                            title="Imprimir lista"
+                            className="h-8 w-8 p-0 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          >
+                            <PrinterIcon className="h-4 w-4" />
+                          </Button>
+                          {user?.role === "admin" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(event)}
+                                title="Editar evento"
+                                className="h-8 w-8 p-0 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              >
+                                <EditIcon className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEventToDelete(event)}
+                                title="Excluir evento"
+                                className="h-8 w-8 p-0 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
