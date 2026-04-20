@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -27,7 +28,7 @@ import { formatCurrency } from "@/lib/utils";
 
 interface AnalyticsData {
   revenueByMonth: { month: string; label: string; eventRevenue: number; wineRevenue: number; total: number }[];
-  topClients: { name: string; fullName: string; eventCount: number; totalPeople: number }[];
+  topClients: { clientId: string; name: string; fullName: string; eventCount: number; totalPeople: number }[];
   statusDistribution: { status: string; label: string; total: number }[];
   eventOccupancy: { name: string; fullName: string; date: string; participantCount: number; maxCapacity: number; occupancyPct: number }[];
 }
@@ -86,7 +87,28 @@ const CustomClientTooltip = ({ active, payload }: any) => {
   );
 };
 
+function ClickableYAxisTick({ x, y, payload, clients, onNavigate }: any) {
+  const client = clients?.find((c: any) => c.name === payload.value);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fill={client ? "#f97316" : "#64748b"}
+        fontSize={11}
+        style={{ cursor: client ? "pointer" : "default", textDecoration: client ? "underline" : "none" }}
+        onClick={() => client && onNavigate(`/clientes/${client.clientId}`)}
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+}
+
 export default function EventsAnalytics() {
+  const [, navigate] = useLocation();
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
     queryKey: ["/api/events/analytics"],
   });
@@ -214,9 +236,21 @@ export default function EventsAnalytics() {
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: "#64748b" }} width={100} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={100}
+                    tick={<ClickableYAxisTick clients={data.topClients} onNavigate={navigate} />}
+                  />
                   <Tooltip content={<CustomClientTooltip />} />
-                  <Bar dataKey="eventCount" name="Eventos" fill="#f97316" radius={[0, 4, 4, 0]}>
+                  <Bar
+                    dataKey="eventCount"
+                    name="Eventos"
+                    fill="#f97316"
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(entry: any) => entry?.clientId && navigate(`/clientes/${entry.clientId}`)}
+                  >
                     <LabelList dataKey="eventCount" position="right" style={{ fontSize: 11, fill: "#64748b" }} />
                   </Bar>
                 </BarChart>

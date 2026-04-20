@@ -353,7 +353,7 @@ eventsRouter.get("/analytics", async (req, res) => {
 
       // 2. Clientes mais assíduos
       db.execute(`
-        SELECT c.name, COUNT(DISTINCT ep.event_id)::int as event_count, SUM(ep.number_of_participants)::int as total_people
+        SELECT c.id as client_id, c.name, COUNT(DISTINCT ep.event_id)::int as event_count, SUM(ep.number_of_participants)::int as total_people
         FROM event_participants ep
         JOIN clients c ON c.id = ep.client_id
         WHERE ep.status != 'cancelado'
@@ -407,6 +407,7 @@ eventsRouter.get("/analytics", async (req, res) => {
         total: (parseFloat(r.event_revenue) || 0) + (parseFloat(r.wine_revenue) || 0),
       })),
       topClients: topClientsRows.rows.map((r: any) => ({
+        clientId: r.client_id,
         name: r.name?.split(" ").slice(0, 2).join(" "),
         fullName: r.name,
         eventCount: r.event_count,
