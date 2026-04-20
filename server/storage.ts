@@ -5013,6 +5013,7 @@ export class DatabaseStorage implements IStorage {
           category: events.category,
           status: events.status,
           notes: events.notes,
+          wineRevenue: events.wineRevenue,
           createdBy: events.createdBy,
           createdAt: events.createdAt,
           updatedAt: events.updatedAt,

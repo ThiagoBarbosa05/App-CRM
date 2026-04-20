@@ -90,6 +90,7 @@ interface Event {
   category: string;
   status: "planejado" | "ativo" | "finalizado" | "cancelado";
   notes: string | null;
+  wineRevenue: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -111,6 +112,7 @@ interface EventFormData {
   category: string;
   status: string;
   notes: string;
+  wineRevenue: string;
   imageUrl?: string | null;
   attachments: EventAttachment[];
 }
@@ -185,6 +187,7 @@ export default function EventsManagement() {
     category: "Geral",
     status: "planejado",
     notes: "",
+    wineRevenue: "",
     imageUrl: null,
     attachments: [],
   });
@@ -580,6 +583,7 @@ export default function EventsManagement() {
       category: "Geral",
       status: "planejado",
       notes: "",
+      wineRevenue: "",
       imageUrl: null,
       attachments: [],
     });
@@ -683,6 +687,7 @@ export default function EventsManagement() {
       imageUrl: event.imageUrl || null,
       status: event.status,
       notes: event.notes || "",
+      wineRevenue: event.wineRevenue || "",
       attachments: event.attachments || [],
     });
   };
@@ -1240,19 +1245,43 @@ export default function EventsManagement() {
                       {/* Receita do evento — apenas admin */}
                       {user?.role === "admin" && (() => {
                         const price = parseFloat(event.pricePerPerson) || 0;
-                        const revenue = (event as any).eventRevenue ?? ((event as any).paidParticipants * price);
+                        const eventRevenue = parseFloat(String((event as any).eventRevenue ?? 0)) || ((event as any).paidParticipants * price);
+                        const wineRev = parseFloat(event.wineRevenue || "0") || 0;
+                        const totalRevenue = eventRevenue + wineRev;
                         const potential = (event as any).pendingParticipants * price;
                         return (
-                          <div className="flex flex-wrap items-center gap-4 text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700">
-                            <div className="flex items-center gap-1.5">
-                              <CircleDollarSignIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                              <span className="text-slate-500 dark:text-slate-400">Receita:</span>
-                              <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(revenue)}</span>
-                            </div>
-                            {potential > 0 && (
+                          <div className="text-sm py-2 px-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700 space-y-1.5">
+                            <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-1.5">
-                                <ClockIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                                <span className="text-slate-500 dark:text-slate-400">Potencial:</span>
+                                <CircleDollarSignIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                <span className="text-slate-500 dark:text-slate-400">Receita Evento:</span>
+                              </div>
+                              <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(eventRevenue)}</span>
+                            </div>
+                            {wineRev > 0 && (
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-1.5">
+                                  <CircleDollarSignIcon className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                                  <span className="text-slate-500 dark:text-slate-400">Receita Venda Vinho:</span>
+                                </div>
+                                <span className="font-semibold text-purple-700 dark:text-purple-400">{formatCurrency(wineRev)}</span>
+                              </div>
+                            )}
+                            {wineRev > 0 && (
+                              <div className="flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-600 pt-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <CircleDollarSignIcon className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300 flex-shrink-0" />
+                                  <span className="font-medium text-slate-700 dark:text-slate-300">Receita Total:</span>
+                                </div>
+                                <span className="font-bold text-slate-800 dark:text-slate-100">{formatCurrency(totalRevenue)}</span>
+                              </div>
+                            )}
+                            {potential > 0 && (
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-1.5">
+                                  <ClockIcon className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                  <span className="text-slate-500 dark:text-slate-400">Potencial (pendentes):</span>
+                                </div>
                                 <span className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(potential)}</span>
                               </div>
                             )}
@@ -1711,6 +1740,29 @@ export default function EventsManagement() {
                       }))
                     }
                     placeholder="50"
+                    className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="wineRevenue"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Receita Venda de Vinhos (R$)
+                  </Label>
+                  <Input
+                    id="wineRevenue"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.wineRevenue}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        wineRevenue: e.target.value,
+                      }))
+                    }
+                    placeholder="0.00"
                     className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
                   />
                 </div>

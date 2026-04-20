@@ -2042,6 +2042,7 @@ export const events = pgTable("events", {
     .default("planejado"),
   notes: text("notes"),
   imageUrl: text("image_url"),
+  wineRevenue: decimal("wine_revenue", { precision: 10, scale: 2 }),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
