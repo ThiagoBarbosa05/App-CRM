@@ -37,6 +37,11 @@ export async function mergeClients(keepId: string, mergeId: string) {
   // Campos que serão preenchidos com dados do duplicado quando o principal estiver vazio
   const fillFromMerge: Partial<typeof keep> = {};
 
+  // Nome: usa o mais completo (mais longo)
+  if (merge.name && merge.name.trim().length > keep.name.trim().length) {
+    fillFromMerge.name = merge.name.trim();
+  }
+
   // Contato
   if (!keep.phone && merge.phone) fillFromMerge.phone = merge.phone;
   if (!keep.fixedPhone && merge.fixedPhone) fillFromMerge.fixedPhone = merge.fixedPhone;
