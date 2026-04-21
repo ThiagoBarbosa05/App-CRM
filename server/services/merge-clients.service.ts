@@ -36,18 +36,43 @@ export async function mergeClients(keepId: string, mergeId: string) {
 
   // Campos que serão preenchidos com dados do duplicado quando o principal estiver vazio
   const fillFromMerge: Partial<typeof keep> = {};
+
+  // Contato
   if (!keep.phone && merge.phone) fillFromMerge.phone = merge.phone;
-  if (!keep.cpf && merge.cpf) fillFromMerge.cpf = merge.cpf;
+  if (!keep.fixedPhone && merge.fixedPhone) fillFromMerge.fixedPhone = merge.fixedPhone;
   if (!keep.email && merge.email) fillFromMerge.email = merge.email;
+
+  // Documento
+  if (!keep.cpf && merge.cpf) fillFromMerge.cpf = merge.cpf;
+  if (!keep.cpf && merge.documentType) fillFromMerge.documentType = merge.documentType;
+
+  // Dados pessoais
   if (!keep.birthday && merge.birthday) fillFromMerge.birthday = merge.birthday;
-  if (!keep.address && merge.address) fillFromMerge.address = merge.address;
-  if (!keep.cep && merge.cep) fillFromMerge.cep = merge.cep;
-  if (!keep.city && merge.city) fillFromMerge.city = merge.city;
-  if (!keep.state && merge.state) fillFromMerge.state = merge.state;
-  if (!keep.neighborhood && merge.neighborhood) fillFromMerge.neighborhood = merge.neighborhood;
   if (!keep.nomeFantasia && merge.nomeFantasia) fillFromMerge.nomeFantasia = merge.nomeFantasia;
   if (!keep.inscricaoEstadual && merge.inscricaoEstadual) fillFromMerge.inscricaoEstadual = merge.inscricaoEstadual;
-  // Merge markers (union sem duplicatas)
+
+  // Endereço
+  if (!keep.cep && merge.cep) fillFromMerge.cep = merge.cep;
+  if (!keep.address && merge.address) fillFromMerge.address = merge.address;
+  if (!keep.number && merge.number) fillFromMerge.number = merge.number;
+  if (!keep.neighborhood && merge.neighborhood) fillFromMerge.neighborhood = merge.neighborhood;
+  if (!keep.city && merge.city) fillFromMerge.city = merge.city;
+  if (!keep.state && merge.state) fillFromMerge.state = merge.state;
+
+  // Classificação
+  if (!keep.responsavelId && merge.responsavelId) fillFromMerge.responsavelId = merge.responsavelId;
+  if (keep.categoria === "cliente" && merge.categoria && merge.categoria !== "cliente") {
+    fillFromMerge.categoria = merge.categoria;
+  }
+  if (keep.origem === "manual" && merge.origem && merge.origem !== "manual") {
+    fillFromMerge.origem = merge.origem;
+  }
+
+  // Integrações externas
+  if (!keep.umblerContactId && merge.umblerContactId) fillFromMerge.umblerContactId = merge.umblerContactId;
+  if (!keep.blingContactId && merge.blingContactId) fillFromMerge.blingContactId = merge.blingContactId;
+
+  // Marcadores: união sem duplicatas
   const mergedMarkers = Array.from(new Set([...keep.markers, ...merge.markers]));
 
   await db.transaction(async (tx) => {
