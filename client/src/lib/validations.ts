@@ -96,6 +96,7 @@ export const clientValidationSchema = z.object({
   cep: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   number: z.string().optional().or(z.literal("")),
+  complement: z.string().optional().or(z.literal("")),
   neighborhood: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),

@@ -85,6 +85,7 @@ export const clients = pgTable("clients", {
   cep: text("cep"),
   address: text("address"),
   number: text("number"),
+  complement: text("complement"),
   neighborhood: text("neighborhood"),
   city: text("city"),
   state: text("state"),
@@ -103,6 +104,8 @@ export const clients = pgTable("clients", {
   nomeFantasia: text("nome_fantasia"),
   inscricaoEstadual: text("inscricao_estadual"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  wineProfile: jsonb("wine_profile"),
+  wineProfileGeneratedAt: timestamp("wine_profile_generated_at"),
 });
 
 export const sectors = pgTable("sectors", {
@@ -1932,6 +1935,8 @@ export const products = pgTable("products", {
   blingProductId: text("bling_product_id"),
   imageUrl: text("image_url"),
   deletedAt: timestamp("deleted_at"),
+  aiProfile: jsonb("ai_profile"),
+  aiProfileGeneratedAt: timestamp("ai_profile_generated_at"),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({

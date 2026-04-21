@@ -15,6 +15,7 @@ import { getClientPurchaseInsightsController } from "../controllers/clients/get-
 import { checkDuplicateController } from "../controllers/clients/check-duplicate.controller";
 import { getDuplicatesController } from "../controllers/clients/get-duplicates.controller";
 import { mergeClientsController } from "../controllers/clients/merge-clients.controller";
+import { generateWineProfileController } from "../controllers/clients/generate-wine-profile.controller";
 import multer from "multer";
 
 /**
@@ -192,6 +193,7 @@ clientsRouter.put("/:id", putClientController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.post("/:id/confirm", confirmClientController);
+clientsRouter.post("/:clientId/generate-wine-profile", generateWineProfileController);
 
 /**
  * @route DELETE /api/clients/:id

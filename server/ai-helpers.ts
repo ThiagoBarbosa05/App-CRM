@@ -1,6 +1,34 @@
 // Funções auxiliares para integração com IA
 import OpenAI from 'openai';
 
+export interface WineAIProfile {
+  corpo: string;
+  docura: string;
+  acidez: string;
+  tanino: string | null;
+  mundo: string;
+  regiao: string;
+  produtor: string;
+  uvas: string[];
+  estilo: string;
+  harmonizacao: string[];
+  descricao: string;
+}
+
+export interface ClientWineProfile {
+  resumo: string;
+  tipos_preferidos: string[];
+  perfil_sensorial: {
+    corpo: string;
+    docura: string;
+    tanino: string | null;
+  };
+  regioes_favoritas: string[];
+  uvas_favoritas: string[];
+  faixa_de_preco: { min: number; max: number };
+  sugestao_abordagem: string;
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
@@ -148,4 +176,107 @@ function getSystemPrompt(context: string, aiConfig?: any): string {
   }
 
   return basePrompt;
+}
+
+export async function generateWineProductProfile(product: {
+  name: string;
+  type?: string | null;
+  country?: string | null;
+  volume?: string | null;
+  category?: string;
+}): Promise<WineAIProfile> {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OpenAI API key not configured');
+
+  const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  const prompt = `Você é um sommelier especialista. Analise o vinho abaixo e retorne um JSON com o perfil completo.
+
+Vinho: "${product.name}"
+Tipo: ${product.type ?? 'não informado'}
+País: ${product.country ?? 'não informado'}
+Volume: ${product.volume ?? 'não informado'}
+Categoria: ${product.category ?? 'não informado'}
+
+Retorne APENAS um JSON válido com exatamente estas chaves:
+{
+  "corpo": "leve" | "médio" | "encorpado",
+  "docura": "seco" | "meio-seco" | "meio-doce" | "doce",
+  "acidez": "baixa" | "média" | "alta",
+  "tanino": "baixo" | "médio" | "alto" | null (null se não for tinto),
+  "mundo": "Velho Mundo" | "Novo Mundo",
+  "regiao": "nome da região produtora específica",
+  "produtor": "nome da vinícola/produtor se puder inferir do nome, senão string vazia",
+  "uvas": ["array com as uvas principais"],
+  "estilo": "clássico" | "moderno" | "natural" | "orgânico" | "biodinâmico",
+  "harmonizacao": ["array com 3-4 sugestões de harmonização em português"],
+  "descricao": "2-3 frases em português descrevendo o vinho, seu perfil e características marcantes"
+}`;
+
+  const completion = await openaiClient.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    temperature: 0.3,
+    max_tokens: 600,
+  });
+
+  const content = completion.choices[0]?.message?.content ?? '{}';
+  return JSON.parse(content) as WineAIProfile;
+}
+
+export async function generateClientWineProfile(
+  clientName: string,
+  topProducts: Array<{
+    name: string;
+    type?: string | null;
+    country?: string | null;
+    quantity: number;
+    totalValue: number;
+    aiProfile?: WineAIProfile | null;
+  }>,
+): Promise<ClientWineProfile> {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OpenAI API key not configured');
+
+  const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  const productsDesc = topProducts
+    .map((p, i) => {
+      const profile = p.aiProfile
+        ? ` | corpo: ${p.aiProfile.corpo}, uvas: ${p.aiProfile.uvas.join(', ')}, região: ${p.aiProfile.regiao}`
+        : '';
+      return `${i + 1}. ${p.name} (${p.type ?? ''}, ${p.country ?? ''}) — ${p.quantity} compras, R$${p.totalValue.toFixed(2)}${profile}`;
+    })
+    .join('\n');
+
+  const prompt = `Você é um sommelier especialista em CRM de vinhos. Analise o histórico de compras do cliente abaixo e gere um perfil de gosto detalhado em JSON.
+
+Cliente: ${clientName}
+Histórico de compras (top produtos):
+${productsDesc}
+
+Retorne APENAS um JSON válido com exatamente estas chaves:
+{
+  "resumo": "2-3 frases em português descrevendo o perfil de gosto do cliente de forma natural e comercialmente útil para um vendedor",
+  "tipos_preferidos": ["array dos tipos preferidos em ordem, ex: TINTO, ESPUMANTE"],
+  "perfil_sensorial": {
+    "corpo": "leve" | "médio" | "encorpado",
+    "docura": "seco" | "meio-seco" | "meio-doce" | "doce",
+    "tanino": "baixo" | "médio" | "alto" | null
+  },
+  "regioes_favoritas": ["regiões mais compradas, máx 3"],
+  "uvas_favoritas": ["uvas mais frequentes, máx 4"],
+  "faixa_de_preco": { "min": numero, "max": numero },
+  "sugestao_abordagem": "1-2 frases práticas para o vendedor usar na próxima abordagem com este cliente"
+}`;
+
+  const completion = await openaiClient.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    temperature: 0.4,
+    max_tokens: 700,
+  });
+
+  const content = completion.choices[0]?.message?.content ?? '{}';
+  return JSON.parse(content) as ClientWineProfile;
 }

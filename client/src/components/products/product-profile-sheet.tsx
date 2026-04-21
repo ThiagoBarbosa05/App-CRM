@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,7 +35,25 @@ import {
   Calendar,
   User,
   Building2,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+interface WineAIProfile {
+  corpo: string;
+  docura: string;
+  acidez: string;
+  tanino: string | null;
+  mundo: string;
+  regiao: string;
+  produtor: string;
+  uvas: string[];
+  estilo: string;
+  harmonizacao: string[];
+  descricao: string;
+}
 
 interface Product {
   id: string;
@@ -49,6 +68,8 @@ interface Product {
   clientCount: number;
   imageUrl?: string | null;
   blingProductId?: string | null;
+  aiProfile?: WineAIProfile | null;
+  aiProfileGeneratedAt?: string | null;
 }
 
 interface ProductProfileSheetProps {
@@ -140,6 +161,7 @@ export function ProductProfileSheet({
   getCountryFlag,
   getTypeColor,
 }: ProductProfileSheetProps) {
+  const { toast } = useToast();
   const { data, isLoading } = useQuery<ProfileData>({
     queryKey: ["/api/products", product?.id, "profile"],
     queryFn: async () => {
@@ -149,6 +171,25 @@ export function ProductProfileSheet({
     },
     enabled: !!product?.id && open,
     staleTime: 2 * 60 * 1000,
+  });
+
+  const [aiProfile, setAiProfile] = React.useState<WineAIProfile | null>(product?.aiProfile ?? null);
+
+  React.useEffect(() => {
+    setAiProfile(product?.aiProfile ?? null);
+  }, [product?.id, product?.aiProfile]);
+
+  const generateAIProfileMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/products/${product!.id}/generate-ai-profile`, { method: "POST" });
+      if (!res.ok) throw new Error("Erro ao gerar perfil");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setAiProfile(data.profile);
+      toast({ title: "Perfil gerado", description: "O perfil IA do vinho foi atualizado." });
+    },
+    onError: () => toast({ title: "Erro", description: "Não foi possível gerar o perfil IA.", variant: "destructive" }),
   });
 
   const chartData =
@@ -257,8 +298,12 @@ export function ProductProfileSheet({
 
           {/* Tabs */}
           <Tabs defaultValue="details">
-            <TabsList className="w-full grid grid-cols-3">
+            <TabsList className="w-full grid grid-cols-4">
               <TabsTrigger value="details">Detalhes</TabsTrigger>
+              <TabsTrigger value="ai-profile" className="flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                Perfil IA
+              </TabsTrigger>
               <TabsTrigger value="history">Histórico</TabsTrigger>
               <TabsTrigger value="buyers">Compradores</TabsTrigger>
             </TabsList>
@@ -374,6 +419,108 @@ export function ProductProfileSheet({
                       : "—"}
                   </p>
                 </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab: Perfil IA */}
+            <TabsContent value="ai-profile" className="mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    Perfil gerado por IA
+                  </p>
+                  <button
+                    onClick={() => generateAIProfileMutation.mutate()}
+                    disabled={generateAIProfileMutation.isPending}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${generateAIProfileMutation.isPending ? "animate-spin" : ""}`} />
+                    {generateAIProfileMutation.isPending ? "Gerando..." : "Regenerar"}
+                  </button>
+                </div>
+
+                {!aiProfile ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                    <div className="p-4 bg-violet-50 dark:bg-violet-900/20 rounded-full">
+                      <Sparkles className="h-8 w-8 text-violet-400" />
+                    </div>
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Perfil ainda não gerado</p>
+                    <p className="text-sm text-slate-400">O perfil é gerado automaticamente ao criar o produto, ou clique em Regenerar.</p>
+                    <button
+                      onClick={() => generateAIProfileMutation.mutate()}
+                      disabled={generateAIProfileMutation.isPending}
+                      className="mt-1 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      {generateAIProfileMutation.isPending ? "Gerando..." : "Gerar agora"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Descrição */}
+                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-2xl p-4 border border-violet-100/60 dark:border-violet-800/40">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{aiProfile.descricao}"</p>
+                    </div>
+
+                    {/* Atributos sensoriais */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: "Corpo", value: aiProfile.corpo, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+                        { label: "Doçura", value: aiProfile.docura, color: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300" },
+                        { label: "Acidez", value: aiProfile.acidez, color: "bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300" },
+                        ...(aiProfile.tanino ? [{ label: "Tanino", value: aiProfile.tanino, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" }] : []),
+                        { label: "Estilo", value: aiProfile.estilo, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+                        { label: "Mundo", value: aiProfile.mundo, color: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300" },
+                      ].map((attr) => (
+                        <div key={attr.label} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">{attr.label}</p>
+                          <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-lg capitalize ${attr.color}`}>{attr.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Região e Produtor */}
+                    {(aiProfile.regiao || aiProfile.produtor) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {aiProfile.regiao && (
+                          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Região</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{aiProfile.regiao}</p>
+                          </div>
+                        )}
+                        {aiProfile.produtor && (
+                          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Produtor</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{aiProfile.produtor}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Uvas */}
+                    {aiProfile.uvas?.length > 0 && (
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Uvas</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {aiProfile.uvas.map((uva) => (
+                            <span key={uva} className="text-xs font-semibold px-2.5 py-1 bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 rounded-full">{uva}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Harmonização */}
+                    {aiProfile.harmonizacao?.length > 0 && (
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Harmonização</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {aiProfile.harmonizacao.map((item) => (
+                            <span key={item} className="text-xs font-semibold px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full">{item}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
 

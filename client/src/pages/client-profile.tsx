@@ -14,6 +14,7 @@ import {
   AlertCircle,
   AlertTriangle,
   PartyPopper,
+  Sparkles,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -24,6 +25,7 @@ import { ClientFunnelsTab } from "@/components/clients/client-funnels-tab";
 import { ClientWhatsAppTab } from "@/components/clients/client-whatsapp-tab";
 import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab";
 import { ClientEventsTab } from "@/components/clients/client-events-tab";
+import { ClientWineProfileTab } from "@/components/clients/client-wine-profile-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -217,6 +219,13 @@ export default function ClientProfilePage() {
                 <Wallet className="h-4 w-4" />
                 Cashback
               </TabsTrigger>
+              <TabsTrigger
+                value="gosto"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-violet-500/20 dark:data-[state=active]:bg-violet-600"
+              >
+                <Sparkles className="h-4 w-4" />
+                Perfil de Gosto
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -270,6 +279,10 @@ export default function ClientProfilePage() {
 
                 {activeTab === "cashback" && (
                   <ClientCashbackTab client={client} />
+                )}
+
+                {activeTab === "gosto" && (
+                  <ClientWineProfileTab client={client as any} />
                 )}
               </motion.div>
             </AnimatePresence>

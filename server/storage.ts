@@ -1210,6 +1210,8 @@ export class DatabaseStorage implements IStorage {
           createdAt: products.createdAt,
           createdByName: users.name,
           imageUrl: products.imageUrl,
+          aiProfile: products.aiProfile,
+          aiProfileGeneratedAt: products.aiProfileGeneratedAt,
           clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
         })
         .from(products)
@@ -4748,6 +4750,8 @@ export class DatabaseStorage implements IStorage {
         createdAt: products.createdAt,
         imageUrl: products.imageUrl,
         blingProductId: products.blingProductId,
+        aiProfile: products.aiProfile,
+        aiProfileGeneratedAt: products.aiProfileGeneratedAt,
         createdByName: users.name,
         clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
       })

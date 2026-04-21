@@ -153,6 +153,7 @@ export default function ClientFormModal({
       cep: client?.cep || "",
       address: client?.address || "",
       number: client?.number || "",
+      complement: client?.complement || "",
       neighborhood: client?.neighborhood || "",
       city: client?.city || "",
       state: client?.state || "",
@@ -348,6 +349,7 @@ export default function ClientFormModal({
         cep: data.cep?.trim() || "",
         address: data.address?.trim() || "",
         number: data.number?.trim() || "",
+        complement: data.complement?.trim() || "",
         neighborhood: data.neighborhood?.trim() || "",
         city: data.city?.trim() || "",
         state: data.state?.trim() || "",
@@ -653,6 +655,20 @@ export default function ClientFormModal({
                         <FormLabel className="text-slate-700 dark:text-slate-300">Número</FormLabel>
                         <FormControl>
                           <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="123" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="complement"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">Complemento</FormLabel>
+                        <FormControl>
+                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Apto, Sala, Bloco..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

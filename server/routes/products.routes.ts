@@ -4,6 +4,7 @@ import { fromZodError } from "zod-validation-error";
 
 import { storage } from "../storage";
 import { insertProductSchema } from "@shared/schema";
+import { generateWineProductProfile } from "../ai-helpers";
 
 export const productsRouter = Router();
 export const companyProductsRouter = Router();
@@ -36,6 +37,18 @@ productsRouter.get("/", async (req, res) => {
   }
 });
 
+async function triggerAIProfileGeneration(product: { id: string; name: string; type?: string | null; country?: string | null; volume?: string | null; category?: string }) {
+  try {
+    const profile = await generateWineProductProfile(product);
+    await storage.updateProduct(product.id, {
+      aiProfile: profile,
+      aiProfileGeneratedAt: new Date(),
+    });
+  } catch (err) {
+    console.error(`AI profile generation failed for product ${product.id}:`, err);
+  }
+}
+
 productsRouter.post("/", async (req, res) => {
   try {
     const userId = req.user!.userId;
@@ -47,6 +60,10 @@ productsRouter.post("/", async (req, res) => {
 
     const validatedData = insertProductSchema.parse(productData);
     const product = await storage.createProduct(validatedData);
+
+    // Gerar perfil IA em background
+    triggerAIProfileGeneration(product);
+
     return res.status(201).json(product);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -63,6 +80,13 @@ productsRouter.put("/:id", async (req, res) => {
     const { id } = req.params;
     const validatedData = insertProductSchema.partial().parse(req.body);
     const product = await storage.updateProduct(id, validatedData);
+
+    // Regenerar perfil IA em background se mudou nome, tipo ou país
+    if (validatedData.name || validatedData.type || validatedData.country) {
+      const detail = await storage.getProductById(id);
+      if (detail) triggerAIProfileGeneration(detail);
+    }
+
     return res.json(product);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -71,6 +95,25 @@ productsRouter.put("/:id", async (req, res) => {
     }
     console.error("Error updating product:", error);
     return res.status(500).json({ message: "Erro ao atualizar produto" });
+  }
+});
+
+productsRouter.post("/:productId/generate-ai-profile", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await storage.getProductById(productId);
+    if (!product) return res.status(404).json({ message: "Produto não encontrado" });
+
+    const profile = await generateWineProductProfile(product);
+    await storage.updateProduct(productId, {
+      aiProfile: profile,
+      aiProfileGeneratedAt: new Date(),
+    });
+
+    return res.json({ profile, generatedAt: new Date() });
+  } catch (error) {
+    console.error("Error generating AI profile:", error);
+    return res.status(500).json({ message: "Erro ao gerar perfil IA" });
   }
 });
 
