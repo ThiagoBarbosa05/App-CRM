@@ -119,13 +119,15 @@ export async function mergeClients(keepId: string, mergeId: string) {
       }
     }
 
-    // 3. Atualizar campos em branco do cliente principal
+    // 3. Deletar o cliente duplicado ANTES de atualizar o principal.
+    //    Isso libera os valores únicos (phone, cpf, email) para que possam
+    //    ser copiados para o cliente mantido sem violar a restrição UNIQUE.
+    await tx.delete(clients).where(eq(clients.id, mergeId));
+
+    // 4. Atualizar campos em branco do cliente principal (agora sem conflito de UNIQUE)
     const updateData: Record<string, unknown> = { markers: mergedMarkers };
     Object.assign(updateData, fillFromMerge);
     await tx.update(clients).set(updateData).where(eq(clients.id, keepId));
-
-    // 4. Deletar o cliente duplicado (cascade cuida de interactions, birthday reminders, etc.)
-    await tx.delete(clients).where(eq(clients.id, mergeId));
   });
 
   const [updated] = await db.select().from(clients).where(eq(clients.id, keepId)).limit(1);
