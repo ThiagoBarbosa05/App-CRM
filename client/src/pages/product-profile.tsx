@@ -701,7 +701,7 @@ export default function ProductProfilePage() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = "compradores.csv";
+                  a.download = `compradores_${product?.name ?? "produto"}.csv`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
