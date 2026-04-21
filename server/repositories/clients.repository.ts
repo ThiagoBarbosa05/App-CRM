@@ -123,6 +123,37 @@ export class ClientsRepository {
       }
     }
 
+    if (filters.wineGrape) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'uvas_favoritas') AS uva
+          WHERE uva ILIKE ${"%" + filters.wineGrape + "%"}
+        )`,
+      );
+    }
+
+    if (filters.wineRegion) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'regioes_favoritas') AS regiao
+          WHERE regiao ILIKE ${"%" + filters.wineRegion + "%"}
+        )`,
+      );
+    }
+
+    if (filters.wineType && filters.wineType !== "all") {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'tipos_preferidos') AS tipo
+          WHERE tipo ILIKE ${"%" + filters.wineType + "%"}
+        )`,
+      );
+    }
+
+    if (filters.hasWineProfile) {
+      conditions.push(sql`${clients.wineProfile} IS NOT NULL`);
+    }
+
     return conditions;
   }
 

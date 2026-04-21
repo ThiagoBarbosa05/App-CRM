@@ -156,6 +156,10 @@ export interface ClientFilters {
   markers?: string;
   purchaseStatus?: string;
   purchaseStatusDays?: number;
+  wineGrape?: string;
+  wineRegion?: string;
+  wineType?: string;
+  hasWineProfile?: boolean;
 }
 
 export interface CompanyFilters {
@@ -753,6 +757,35 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters.markers) {
       conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+    }
+
+    // Filtros de perfil de gosto (wine_profile JSONB)
+    if (filters.wineGrape) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'uvas_favoritas') uva
+          WHERE uva ILIKE ${"%" + filters.wineGrape + "%"}
+        )`
+      );
+    }
+    if (filters.wineRegion) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'regioes_favoritas') regiao
+          WHERE regiao ILIKE ${"%" + filters.wineRegion + "%"}
+        )`
+      );
+    }
+    if (filters.wineType) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'tipos_preferidos') tipo
+          WHERE tipo ILIKE ${"%" + filters.wineType + "%"}
+        )`
+      );
+    }
+    if (filters.hasWineProfile) {
+      conditions.push(sql`${clients.wineProfile} IS NOT NULL`);
     }
 
     // Filtro de busca geral (case-insensitive)

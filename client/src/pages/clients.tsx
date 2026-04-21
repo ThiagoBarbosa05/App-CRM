@@ -82,6 +82,9 @@ export default function Clients() {
     origem: "",
     markers: "",
     purchaseStatus: "all",
+    wineGrape: "",
+    wineRegion: "",
+    wineType: "all",
   });
 
   const { data: systemSettings } = useQuery<Record<string, string>>({

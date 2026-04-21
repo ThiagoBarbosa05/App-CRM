@@ -7,6 +7,9 @@ export interface ClientAnalyticsFilters {
   origem?: string;
   markers?: string;
   purchaseStatus?: string;
+  wineGrape?: string;
+  wineRegion?: string;
+  wineType?: string;
 }
 
 interface ClientAnalyticsParamsOptions {

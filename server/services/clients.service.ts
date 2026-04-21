@@ -143,6 +143,18 @@ export class ClientsService {
       const days = parseInt(String(rawFilters.purchaseStatusDays), 10);
       if (!isNaN(days) && days > 0) filters.purchaseStatusDays = days;
     }
+    if (rawFilters.wineGrape && typeof rawFilters.wineGrape === "string") {
+      filters.wineGrape = rawFilters.wineGrape;
+    }
+    if (rawFilters.wineRegion && typeof rawFilters.wineRegion === "string") {
+      filters.wineRegion = rawFilters.wineRegion;
+    }
+    if (rawFilters.wineType && typeof rawFilters.wineType === "string") {
+      filters.wineType = rawFilters.wineType;
+    }
+    if (rawFilters.hasWineProfile === true) {
+      filters.hasWineProfile = true;
+    }
 
     return filters;
   }
@@ -915,6 +927,10 @@ export class ClientsService {
       markers: req.query.markers,
       purchaseStatus: req.query.purchaseStatus,
       purchaseStatusDays: req.query.purchaseStatusDays,
+      wineGrape: req.query.wineGrape,
+      wineRegion: req.query.wineRegion,
+      wineType: req.query.wineType,
+      hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
     });
 
     return {

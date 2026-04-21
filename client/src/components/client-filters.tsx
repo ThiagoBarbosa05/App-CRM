@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, X } from "lucide-react";
+import { Filter, Sparkles, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -37,6 +37,9 @@ export interface ClientFilters {
   origem: string;
   markers: string;
   purchaseStatus: string;
+  wineGrape: string;
+  wineRegion: string;
+  wineType: string;
 }
 
 export default function ClientFilters({
@@ -88,6 +91,9 @@ export default function ClientFilters({
       origem: "all",
       markers: "all",
       purchaseStatus: "all",
+      wineGrape: "",
+      wineRegion: "",
+      wineType: "all",
     };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
@@ -288,6 +294,53 @@ export default function ClientFilters({
               </Select>
             </div>
           </div>
+
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                <span className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Perfil de Gosto</span>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Uva preferida</Label>
+                  <Input
+                    placeholder="Ex: Malbec, Cabernet..."
+                    value={localFilters.wineGrape}
+                    onChange={(e) => handleFilterChange("wineGrape", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Região preferida</Label>
+                  <Input
+                    placeholder="Ex: Mendoza, Bordeaux..."
+                    value={localFilters.wineRegion}
+                    onChange={(e) => handleFilterChange("wineRegion", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Tipo preferido</Label>
+                  <Select
+                    value={localFilters.wineType}
+                    onValueChange={(value) => handleFilterChange("wineType", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      <SelectItem value="TINTO">Tinto</SelectItem>
+                      <SelectItem value="BRANCO">Branco</SelectItem>
+                      <SelectItem value="ESPUMANTE">Espumante</SelectItem>
+                      <SelectItem value="ROSE">Rosé</SelectItem>
+                      <SelectItem value="PÓS-REFEIÇÃO">Pós-refeição</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
 
           <div className="flex gap-2 pt-2">
             <Button onClick={applyFilters} className="flex-1">
