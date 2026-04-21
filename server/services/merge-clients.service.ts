@@ -14,7 +14,7 @@ import {
   connectOrders,
   clientTags,
 } from "../../shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray, and } from "drizzle-orm";
 
 /**
  * Unifica dois clientes: mantém `keepId`, reatribui todos os dados de `mergeId`
@@ -100,7 +100,26 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(clientInteractions).set({ clientId: keepId }).where(eq(clientInteractions.clientId, mergeId));
     await tx.update(eventParticipants).set({ clientId: keepId }).where(eq(eventParticipants.clientId, mergeId));
 
-    // clientTags não tem FK constraint — migrar para evitar referências órfãs
+    // clientTags: buscar quais tags o cliente mantido já tem, deletar as duplicadas
+    // do removido e transferir as restantes (evita violação da constraint única)
+    const keepTagRows = await tx
+      .select({ externalTagId: clientTags.externalTagId })
+      .from(clientTags)
+      .where(eq(clientTags.clientId, keepId));
+    const keepTagIds = keepTagRows
+      .map((r) => r.externalTagId)
+      .filter((id): id is string => !!id);
+
+    if (keepTagIds.length > 0) {
+      // Deletar do duplicado as tags que o mantido já possui
+      await tx.delete(clientTags).where(
+        and(
+          eq(clientTags.clientId, mergeId),
+          inArray(clientTags.externalTagId, keepTagIds),
+        ),
+      );
+    }
+    // Transferir as tags restantes para o cliente mantido
     await tx.update(clientTags).set({ clientId: keepId }).where(eq(clientTags.clientId, mergeId));
 
     // ── 2. Merge de saldo de cashback (somar se ambos tiverem) ──────────────
