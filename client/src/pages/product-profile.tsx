@@ -184,7 +184,9 @@ function getSensoryValue(type: "corpo" | "docura" | "acidez", value?: string) {
 
 function SensoryGauge({ label, value, type }: { label: string; value?: string; type: "corpo" | "docura" | "acidez" }) {
   const score = getSensoryValue(type, value);
-  const rotation = -90 + (score / 100) * 180;
+  const needleAngle = Math.PI - (score / 100) * Math.PI;
+  const needleX = 90 + Math.cos(needleAngle) * 54;
+  const needleY = 88 - Math.sin(needleAngle) * 54;
   const theme = sensoryTheme[type];
   const gradientId = `sensoryGradient-${type}`;
 
@@ -198,6 +200,9 @@ function SensoryGauge({ label, value, type }: { label: string; value?: string; t
             <svg viewBox="0 0 180 100" className="h-full w-full">
               <path d="M 22 88 A 68 68 0 0 1 158 88" fill="none" stroke="currentColor" strokeWidth="16" strokeLinecap="round" className="text-slate-100 dark:text-slate-800" />
               <path d="M 22 88 A 68 68 0 0 1 158 88" fill="none" stroke={`url(#${gradientId})`} strokeWidth="16" strokeLinecap="round" strokeDasharray={`${score * 2.14} 214`} />
+              <line x1="90" y1="88" x2={needleX} y2={needleY} stroke="currentColor" strokeWidth="5" strokeLinecap="round" className="text-slate-900 dark:text-white drop-shadow-sm" />
+              <circle cx="90" cy="88" r="8" className="fill-white dark:fill-slate-900" />
+              <circle cx="90" cy="88" r="4.5" className="fill-slate-900 dark:fill-white" />
               <defs>
                 <linearGradient id={gradientId} x1="0" x2="1" y1="0" y2="0">
                   <stop offset="0%" stopColor={type === "corpo" ? "#f59e0b" : type === "docura" ? "#f9a8d4" : "#86efac"} />
@@ -206,11 +211,6 @@ function SensoryGauge({ label, value, type }: { label: string; value?: string; t
                 </linearGradient>
               </defs>
             </svg>
-            <div
-              className="absolute bottom-[11px] left-1/2 h-1.5 w-16 origin-left rounded-full bg-slate-900 dark:bg-white shadow-lg transition-transform duration-500"
-              style={{ transform: `rotate(${rotation}deg)` }}
-            />
-            <div className="absolute bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white bg-slate-900 shadow-md dark:border-slate-900 dark:bg-white" />
           </div>
         </div>
         <div className="mt-1 text-center">
