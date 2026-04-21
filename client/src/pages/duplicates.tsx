@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   AlertTriangle,
@@ -12,12 +12,15 @@ import {
   Phone,
   SearchIcon,
   SlidersHorizontal,
+  Zap,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 type SearchField = "cpf" | "email" | "phone" | "name";
 
@@ -60,6 +63,14 @@ interface MergeTarget {
   keepName: string;
   mergeId: string;
   mergeName: string;
+}
+
+interface BulkProgress {
+  total: number;
+  done: number;
+  errors: number;
+  running: boolean;
+  finished: boolean;
 }
 
 const FIELD_OPTIONS: { id: SearchField; label: string; icon: React.ReactNode; description: string }[] = [
@@ -107,6 +118,14 @@ const reasonColor = (reason: string) => {
   return "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300";
 };
 
+async function mergeOnePair(keepId: string, mergeId: string): Promise<void> {
+  const res = await fetch(`/api/clients/${keepId}/merge/${mergeId}`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || "Erro ao unificar");
+  }
+}
+
 export default function DuplicatesPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -115,6 +134,9 @@ export default function DuplicatesPage() {
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [activeFields, setActiveFields] = useState<SearchField[]>([]);
   const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulk, setBulk] = useState<BulkProgress>({ total: 0, done: 0, errors: 0, running: false, finished: false });
+  const abortRef = useRef(false);
 
   const fieldsParam = activeFields.join(",");
 
@@ -126,27 +148,6 @@ export default function DuplicatesPage() {
       return res.json();
     },
     enabled: searchTriggered && activeFields.length > 0,
-  });
-
-  const mergeMutation = useMutation({
-    mutationFn: async ({ keepId, mergeId }: { keepId: string; mergeId: string }) => {
-      const res = await fetch(`/api/clients/${keepId}/merge/${mergeId}`, { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || "Erro ao unificar clientes.");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Clientes unificados com sucesso!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      setMergeTarget(null);
-    },
-    onError: (error: Error) => {
-      toast({ title: "Erro ao unificar", description: error.message, variant: "destructive" });
-      setMergeTarget(null);
-    },
   });
 
   const toggleField = (field: SearchField) => {
@@ -162,12 +163,64 @@ export default function DuplicatesPage() {
     }
     setActiveFields([...selectedFields]);
     setSearchTriggered(true);
+    setBulk({ total: 0, done: 0, errors: 0, running: false, finished: false });
     setTimeout(() => refetch(), 0);
   };
 
-  const handleRefetch = () => {
+  // Calcula pares a unificar: para cada grupo, mantém o [0] e mescla todos os demais
+  const buildMergePairs = (gs: DuplicateGroup[]) => {
+    const pairs: { keepId: string; keepName: string; mergeId: string; mergeName: string }[] = [];
+    for (const g of gs) {
+      const keep = g.clients[0];
+      for (let i = 1; i < g.clients.length; i++) {
+        pairs.push({ keepId: keep.id, keepName: keep.name, mergeId: g.clients[i].id, mergeName: g.clients[i].name });
+      }
+    }
+    return pairs;
+  };
+
+  const handleBulkMerge = async () => {
+    setShowBulkConfirm(false);
+    const pairs = buildMergePairs(groups);
+    if (pairs.length === 0) return;
+
+    abortRef.current = false;
+    setBulk({ total: pairs.length, done: 0, errors: 0, running: true, finished: false });
+
+    let done = 0;
+    let errors = 0;
+
+    for (const pair of pairs) {
+      if (abortRef.current) break;
+      try {
+        await mergeOnePair(pair.keepId, pair.mergeId);
+        done++;
+      } catch {
+        errors++;
+        done++;
+      }
+      setBulk((prev) => ({ ...prev, done, errors }));
+    }
+
+    setBulk({ total: pairs.length, done, errors, running: false, finished: true });
+
+    if (errors === 0) {
+      toast({ title: `${done} duplicata${done > 1 ? "s" : ""} unificada${done > 1 ? "s" : ""} com sucesso!` });
+    } else {
+      toast({
+        title: `Concluído com ${errors} erro${errors > 1 ? "s" : ""}`,
+        description: `${done - errors} unificados, ${errors} falharam.`,
+        variant: "destructive",
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
     refetch();
   };
+
+  const totalDuplicatesToRemove = buildMergePairs(groups).length;
+  const totalClientsInvolved = Array.from(new Set(groups.flatMap((g) => g.clients.map((c) => c.id)))).length;
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
@@ -190,8 +243,8 @@ export default function DuplicatesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefetch}
-            disabled={isFetching}
+            onClick={() => refetch()}
+            disabled={isFetching || bulk.running}
             className="shrink-0"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
@@ -222,9 +275,7 @@ export default function DuplicatesPage() {
                 }`}
               >
                 <Checkbox
-                  id={`field-${opt.id}`}
                   checked={checked}
-                  onCheckedChange={() => toggleField(opt.id)}
                   className="mt-0.5 shrink-0 pointer-events-none"
                 />
                 <div className="min-w-0">
@@ -247,7 +298,7 @@ export default function DuplicatesPage() {
           </p>
           <Button
             onClick={handleSearch}
-            disabled={selectedFields.length === 0 || isFetching}
+            disabled={selectedFields.length === 0 || isFetching || bulk.running}
             className="bg-amber-600 hover:bg-amber-700 text-white border-0"
           >
             {isFetching ? (
@@ -259,6 +310,30 @@ export default function DuplicatesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Progresso do bulk merge */}
+      {(bulk.running || bulk.finished) && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {bulk.running ? (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              )}
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                {bulk.running
+                  ? `Unificando… ${bulk.done} de ${bulk.total}`
+                  : `Concluído: ${bulk.done - bulk.errors} unificados${bulk.errors > 0 ? `, ${bulk.errors} com erro` : ""}`}
+              </span>
+            </div>
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {bulk.total > 0 ? Math.round((bulk.done / bulk.total) * 100) : 0}%
+            </span>
+          </div>
+          <Progress value={bulk.total > 0 ? (bulk.done / bulk.total) * 100 : 0} className="h-2" />
+        </div>
+      )}
 
       {/* Resultados */}
       {!searchTriggered ? (
@@ -291,33 +366,52 @@ export default function DuplicatesPage() {
         </div>
       ) : (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              {
-                label: "Grupos encontrados",
-                value: groups.length,
-                color: "text-amber-700 dark:text-amber-400",
-              },
-              {
-                label: "Clientes envolvidos",
-                value: Array.from(new Set(groups.flatMap((g) => g.clients.map((c) => c.id)))).length,
-                color: "text-orange-700 dark:text-orange-400",
-              },
-              {
-                label: "Por CPF/CNPJ",
-                value: groups.filter((g) => g.key.startsWith("cpf:")).length,
-                color: "text-red-700 dark:text-red-400",
-              },
-            ].map(({ label, value, color }) => (
-              <div
-                key={label}
-                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+          {/* Stats + Unificar Todos */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="grid grid-cols-3 gap-4 flex-1">
+              {[
+                {
+                  label: "Grupos encontrados",
+                  value: groups.length,
+                  color: "text-amber-700 dark:text-amber-400",
+                },
+                {
+                  label: "Clientes envolvidos",
+                  value: totalClientsInvolved,
+                  color: "text-orange-700 dark:text-orange-400",
+                },
+                {
+                  label: "Serão removidos",
+                  value: totalDuplicatesToRemove,
+                  color: "text-red-700 dark:text-red-400",
+                },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                >
+                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Botão Unificar Todos */}
+            <div className="flex items-stretch">
+              <button
+                onClick={() => setShowBulkConfirm(true)}
+                disabled={bulk.running || isFetching}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 disabled:opacity-50 disabled:cursor-not-allowed text-red-700 dark:text-red-400 px-5 py-4 transition-all min-w-[140px] cursor-pointer"
               >
-                <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
-              </div>
-            ))}
+                <Zap className="h-6 w-6" />
+                <span className="text-sm font-bold text-center leading-tight">
+                  Unificar<br />Todos
+                </span>
+                <span className="text-[10px] text-red-500 dark:text-red-500 font-medium">
+                  {totalDuplicatesToRemove} remoção{totalDuplicatesToRemove !== 1 ? "ões" : ""}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Grupos */}
@@ -337,6 +431,7 @@ export default function DuplicatesPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={bulk.running}
                       className="h-7 text-[11px] gap-1 border-current text-current bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
                       onClick={() =>
                         setMergeTarget({
@@ -357,13 +452,23 @@ export default function DuplicatesPage() {
                   {group.clients.map((client, idx) => (
                     <div
                       key={client.id}
-                      className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 flex items-start justify-between gap-3"
+                      className={`rounded-lg bg-white dark:bg-slate-900 border p-4 flex items-start justify-between gap-3 ${
+                        idx === 0
+                          ? "border-green-300 dark:border-green-800 ring-1 ring-green-200 dark:ring-green-900"
+                          : "border-slate-200/80 dark:border-slate-800"
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                            #{idx + 1}
-                          </span>
+                          {idx === 0 ? (
+                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100">
+                              MANTER
+                            </Badge>
+                          ) : (
+                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50">
+                              REMOVER
+                            </Badge>
+                          )}
                           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {client.name}
                           </p>
@@ -399,7 +504,7 @@ export default function DuplicatesPage() {
         </>
       )}
 
-      {/* Diálogo de confirmação de merge */}
+      {/* Diálogo: Unificar um par */}
       <AlertDialog open={!!mergeTarget} onOpenChange={(open) => !open && setMergeTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -407,9 +512,8 @@ export default function DuplicatesPage() {
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
                 <p>
-                  O cliente{" "}
                   <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.mergeName}"</strong>{" "}
-                  será removido e todos os seus dados (pedidos, interações, cashback) serão transferidos para{" "}
+                  será removido e todos os seus dados serão transferidos para{" "}
                   <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.keepName}"</strong>.
                 </p>
                 <p className="text-red-600 dark:text-red-400 font-medium">Esta ação é irreversível.</p>
@@ -420,13 +524,65 @@ export default function DuplicatesPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => {
-                if (mergeTarget) {
-                  mergeMutation.mutate({ keepId: mergeTarget.keepId, mergeId: mergeTarget.mergeId });
+              onClick={async () => {
+                if (!mergeTarget) return;
+                try {
+                  await mergeOnePair(mergeTarget.keepId, mergeTarget.mergeId);
+                  toast({ title: "Clientes unificados com sucesso!" });
+                  queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+                  refetch();
+                } catch (e: unknown) {
+                  toast({ title: "Erro ao unificar", description: (e as Error).message, variant: "destructive" });
+                } finally {
+                  setMergeTarget(null);
                 }
               }}
             >
               Confirmar Unificação
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo: Unificar Todos */}
+      <AlertDialog open={showBulkConfirm} onOpenChange={(open) => !open && setShowBulkConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-red-600" />
+              Unificar todos os grupos
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                <p>
+                  Serão realizadas{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">
+                    {totalDuplicatesToRemove} unificaç{totalDuplicatesToRemove !== 1 ? "ões" : "ão"}
+                  </strong>{" "}
+                  em{" "}
+                  <strong className="text-slate-900 dark:text-slate-100">
+                    {groups.length} grupo{groups.length !== 1 ? "s" : ""}
+                  </strong>
+                  .
+                </p>
+                <p>
+                  Em cada grupo, o <span className="font-semibold text-green-700 dark:text-green-400">primeiro cadastrado</span> será mantido e os demais serão removidos, com todos os seus dados transferidos.
+                </p>
+                <p className="text-red-600 dark:text-red-400 font-medium">
+                  Esta ação é irreversível e pode demorar alguns instantes.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleBulkMerge}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Confirmar e Unificar Todos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

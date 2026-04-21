@@ -8,6 +8,7 @@ import {
   clientDebts,
   sales,
   messageJobsLogs,
+  blingOrders,
 } from "../../shared/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -57,6 +58,7 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(clientDebts).set({ clientId: keepId }).where(eq(clientDebts.clientId, mergeId));
     await tx.update(sales).set({ clientId: keepId }).where(eq(sales.clientId, mergeId));
     await tx.update(messageJobsLogs).set({ clientId: keepId }).where(eq(messageJobsLogs.clientId, mergeId));
+    await tx.update(blingOrders).set({ appClientId: keepId }).where(eq(blingOrders.appClientId, mergeId));
 
     // 2. Merge de saldo de cashback (somar se ambos tiverem)
     const [mergeBalance] = await tx
