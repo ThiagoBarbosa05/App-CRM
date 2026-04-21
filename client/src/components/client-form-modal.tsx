@@ -169,6 +169,7 @@ export default function ClientFormModal({
   const watchedName = form.watch("name");
   const watchedPhone = form.watch("phone");
   const watchedEmail = form.watch("email");
+  const watchedCep = form.watch("cep");
 
   const isCnpj = useMemo(() => {
     const digits = (watchedCpf || "").replace(/\D/g, "");
@@ -180,6 +181,37 @@ export default function ClientFormModal({
   if (form.getValues("documentType") !== documentType) {
     form.setValue("documentType", documentType);
   }
+
+  const lookupCep = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        toast({ title: "CEP não encontrado", description: "O CEP informado não foi encontrado.", variant: "destructive" });
+        return;
+      }
+      form.setValue("address", data.logradouro || "");
+      form.setValue("neighborhood", data.bairro || "");
+      form.setValue("city", data.localidade || "");
+      form.setValue("state", data.uf || "");
+      toast({ title: "Endereço encontrado", description: "Os dados do endereço foram preenchidos automaticamente." });
+    } catch {
+      toast({ title: "Erro ao consultar CEP", description: "Não foi possível consultar o CEP. Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
+  // Auto-busca de CEP quando 8 dígitos são preenchidos
+  useEffect(() => {
+    const digits = (watchedCep || "").replace(/\D/g, "");
+    if (digits.length === 8) {
+      lookupCep(digits);
+    }
+  }, [watchedCep]);
 
   // Verificação de duplicatas com debounce
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
@@ -297,53 +329,6 @@ export default function ClientFormModal({
       "markers",
       currentMarkers.filter((marker) => marker !== markerToRemove),
     );
-  };
-
-  const lookupCep = async (cep: string) => {
-    // Remove non-numeric characters
-    const cleanCep = cep.replace(/\D/g, "");
-
-    // Check if CEP has 8 digits
-    if (cleanCep.length !== 8) {
-      return;
-    }
-
-    setIsLoadingCep(true);
-
-    try {
-      const response = await fetch(
-        `https://viacep.com.br/ws/${cleanCep}/json/`,
-      );
-      const data = await response.json();
-
-      if (data.erro) {
-        toast({
-          title: "CEP não encontrado",
-          description: "O CEP informado não foi encontrado.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Fill the address fields
-      form.setValue("address", data.logradouro || "");
-      form.setValue("neighborhood", data.bairro || "");
-      form.setValue("city", data.localidade || "");
-      form.setValue("state", data.uf || "");
-
-      toast({
-        title: "Endereço encontrado",
-        description: "Os dados do endereço foram preenchidos automaticamente.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao consultar CEP",
-        description: "Não foi possível consultar o CEP. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingCep(false);
-    }
   };
 
   const onSubmit = async (data: any) => {
@@ -633,13 +618,6 @@ export default function ClientFormModal({
                               placeholder="00000-000"
                               className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950 focus-visible:ring-amber-500"
                               {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                const cep = e.target.value;
-                                if (cep && cep.length === 9) {
-                                  lookupCep(cep);
-                                }
-                              }}
                             />
                             {isLoadingCep && (
                               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
