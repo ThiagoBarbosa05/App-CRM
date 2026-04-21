@@ -4841,6 +4841,8 @@ export class DatabaseStorage implements IStorage {
         .select({
           companyId: blingOrders.contactId,
           companyName: blingOrders.contactName,
+          celular: sql<string | null>`MAX(COALESCE(${blingOrders.contactCellphone}, ${clients.phone}))`,
+          email: sql<string | null>`MAX(${clients.email})`,
           totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
           totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
           orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
@@ -4849,6 +4851,7 @@ export class DatabaseStorage implements IStorage {
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
         .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .leftJoin(clients, eq(blingOrders.appClientId, clients.id))
         .where(baseConditions)
         .groupBy(blingOrders.contactId, blingOrders.contactName)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);

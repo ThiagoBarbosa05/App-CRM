@@ -35,6 +35,9 @@ import {
   Building2,
   Sparkles,
   RefreshCw,
+  Download,
+  Phone,
+  Mail,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,6 +89,8 @@ interface ProfileData {
   buyers: {
     companyId: string;
     companyName: string | null;
+    celular: string | null;
+    email: string | null;
     totalRevenue: string;
     totalQuantity: string;
     orderCount: number;
@@ -676,6 +681,36 @@ export default function ProductProfilePage() {
 
         {/* Tab: Compradores */}
         <TabsContent value="buyers" className="mt-6">
+          {!isLoadingProfile && (profile?.buyers.length ?? 0) > 0 && (
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const rows = [["Nome", "Celular", "Email"]];
+                  profile!.buyers.forEach((b) => {
+                    rows.push([
+                      b.companyName ?? b.companyId,
+                      b.celular ?? "",
+                      b.email ?? "",
+                    ]);
+                  });
+                  const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+                  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "compradores.csv";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Exportar
+              </Button>
+            </div>
+          )}
           {isLoadingProfile ? (
             <div className="space-y-3">
               {[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -712,6 +747,16 @@ export default function ProductProfilePage() {
                       <span className="text-slate-300 text-xs">·</span>
                       <span className="text-xs text-slate-400">
                         última compra {format(parseISO(buyer.lastPurchase), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        <Phone className="h-3.5 w-3.5 text-slate-400" />
+                        {buyer.celular || "Celular não informado"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        <Mail className="h-3.5 w-3.5 text-slate-400" />
+                        {buyer.email || "E-mail não informado"}
                       </span>
                     </div>
                   </div>

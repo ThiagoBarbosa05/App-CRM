@@ -97,6 +97,8 @@ interface ProfileData {
   buyers: {
     companyId: string;
     companyName: string | null;
+    celular: string | null;
+    email: string | null;
     totalRevenue: string;
     totalQuantity: string;
     orderCount: number;
@@ -671,6 +673,19 @@ export function ProductProfileSheet({
                             {format(parseISO(buyer.lastPurchase), "dd/MM/yy")}
                           </span>
                         </div>
+                        {(buyer.celular || buyer.email) && (
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {buyer.celular && (
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">{buyer.celular}</span>
+                            )}
+                            {buyer.celular && buyer.email && (
+                              <span className="text-[11px] text-slate-300">·</span>
+                            )}
+                            {buyer.email && (
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">{buyer.email}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <span className="text-sm font-black text-violet-700 dark:text-violet-300 shrink-0">
                         {formatCurrency(parseFloat(buyer.totalRevenue))}

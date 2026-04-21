@@ -3,8 +3,22 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 import { storage } from "../storage";
-import { insertProductSchema } from "@shared/schema";
+import { insertProductSchema, systemSettings } from "@shared/schema";
 import { generateWineProductProfile } from "../ai-helpers";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+
+async function getWineAIInstructions(): Promise<string | null> {
+  try {
+    const [row] = await db
+      .select({ value: systemSettings.value })
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "wine_ai_profile_instructions"));
+    return row?.value ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export const productsRouter = Router();
 export const companyProductsRouter = Router();
@@ -39,7 +53,8 @@ productsRouter.get("/", async (req, res) => {
 
 async function triggerAIProfileGeneration(product: { id: string; name: string; type?: string | null; country?: string | null; volume?: string | null; category?: string }) {
   try {
-    const profile = await generateWineProductProfile(product);
+    const instructions = await getWineAIInstructions();
+    const profile = await generateWineProductProfile(product, instructions);
     await storage.updateProduct(product.id, {
       aiProfile: profile,
       aiProfileGeneratedAt: new Date(),
@@ -104,7 +119,8 @@ productsRouter.post("/:productId/generate-ai-profile", async (req, res) => {
     const product = await storage.getProductById(productId);
     if (!product) return res.status(404).json({ message: "Produto não encontrado" });
 
-    const profile = await generateWineProductProfile(product);
+    const instructions = await getWineAIInstructions();
+    const profile = await generateWineProductProfile(product, instructions);
     await storage.updateProduct(productId, {
       aiProfile: profile,
       aiProfileGeneratedAt: new Date(),

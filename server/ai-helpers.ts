@@ -178,18 +178,25 @@ function getSystemPrompt(context: string, aiConfig?: any): string {
   return basePrompt;
 }
 
-export async function generateWineProductProfile(product: {
-  name: string;
-  type?: string | null;
-  country?: string | null;
-  volume?: string | null;
-  category?: string;
-}): Promise<WineAIProfile> {
+export async function generateWineProductProfile(
+  product: {
+    name: string;
+    type?: string | null;
+    country?: string | null;
+    volume?: string | null;
+    category?: string;
+  },
+  customInstructions?: string | null,
+): Promise<WineAIProfile> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OpenAI API key not configured');
 
   const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const prompt = `Você é um sommelier especialista. Analise o vinho abaixo e retorne um JSON com o perfil completo.
+  const extraInstructions = customInstructions?.trim()
+    ? `\n\nOrientações adicionais: ${customInstructions.trim()}`
+    : '';
+
+  const prompt = `Você é um sommelier especialista. Analise o vinho abaixo e retorne um JSON com o perfil completo.${extraInstructions}
 
 Vinho: "${product.name}"
 Tipo: ${product.type ?? 'não informado'}
