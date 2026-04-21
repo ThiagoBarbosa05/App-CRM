@@ -9,6 +9,10 @@ import {
   sales,
   messageJobsLogs,
   blingOrders,
+  clientInteractions,
+  eventParticipants,
+  connectOrders,
+  clientTags,
 } from "../../shared/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -81,7 +85,8 @@ export async function mergeClients(keepId: string, mergeId: string) {
   const mergedMarkers = Array.from(new Set([...keep.markers, ...merge.markers]));
 
   await db.transaction(async (tx) => {
-    // 1. Reatribuir FKs não-cascade para o cliente principal
+    // ── 1. Migrar TODAS as referências ao cliente removido ──────────────────
+    // Tabelas sem cascade (seriam deixadas com FK quebrada se não migrarmos)
     await tx.update(deals).set({ clientId: keepId }).where(eq(deals.clientId, mergeId));
     await tx.update(cashbackTransactions).set({ clientId: keepId }).where(eq(cashbackTransactions.clientId, mergeId));
     await tx.update(cashbackUsage).set({ clientId: keepId }).where(eq(cashbackUsage.clientId, mergeId));
@@ -89,8 +94,16 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(sales).set({ clientId: keepId }).where(eq(sales.clientId, mergeId));
     await tx.update(messageJobsLogs).set({ clientId: keepId }).where(eq(messageJobsLogs.clientId, mergeId));
     await tx.update(blingOrders).set({ appClientId: keepId }).where(eq(blingOrders.appClientId, mergeId));
+    await tx.update(connectOrders).set({ appClientId: keepId }).where(eq(connectOrders.appClientId, mergeId));
 
-    // 2. Merge de saldo de cashback (somar se ambos tiverem)
+    // Tabelas com cascade ou set null — migrar ANTES do delete para preservar histórico
+    await tx.update(clientInteractions).set({ clientId: keepId }).where(eq(clientInteractions.clientId, mergeId));
+    await tx.update(eventParticipants).set({ clientId: keepId }).where(eq(eventParticipants.clientId, mergeId));
+
+    // clientTags não tem FK constraint — migrar para evitar referências órfãs
+    await tx.update(clientTags).set({ clientId: keepId }).where(eq(clientTags.clientId, mergeId));
+
+    // ── 2. Merge de saldo de cashback (somar se ambos tiverem) ──────────────
     const [mergeBalance] = await tx
       .select()
       .from(clientCashbackBalance)
@@ -119,12 +132,14 @@ export async function mergeClients(keepId: string, mergeId: string) {
       }
     }
 
-    // 3. Deletar o cliente duplicado ANTES de atualizar o principal.
-    //    Isso libera os valores únicos (phone, cpf, email) para que possam
-    //    ser copiados para o cliente mantido sem violar a restrição UNIQUE.
+    // ── 3. Deletar o cliente duplicado ──────────────────────────────────────
+    //    Feito APÓS migrar todas as referências acima.
+    //    Também libera os valores únicos (phone, cpf, email) para o passo 4.
     await tx.delete(clients).where(eq(clients.id, mergeId));
 
-    // 4. Atualizar campos em branco do cliente principal (agora sem conflito de UNIQUE)
+    // ── 4. Atualizar campos em branco do cliente principal ──────────────────
+    //    Feito APÓS o delete para evitar violação de restrição UNIQUE
+    //    em phone, cpf e email.
     const updateData: Record<string, unknown> = { markers: mergedMarkers };
     Object.assign(updateData, fillFromMerge);
     await tx.update(clients).set(updateData).where(eq(clients.id, keepId));
