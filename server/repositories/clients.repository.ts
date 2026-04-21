@@ -16,6 +16,7 @@ import {
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { ClientFilters } from "server/storage";
+import { ensureClientInDesvendandoVinhoFunnel } from "../services/desvendando-vinho-funnel.service";
 
 // Tipo para tags otimizado
 export interface ClientTag {
@@ -645,6 +646,10 @@ export class ClientsRepository {
         `[syncClientTags] ✅ Tags sincronizadas com sucesso para o cliente ${clientId}: ${tagsData
           .map((t) => t.name)
           .join(", ")}`
+      );
+
+      void ensureClientInDesvendandoVinhoFunnel(clientId).catch((err) =>
+        console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente por tag externa:", err),
       );
     } catch (error) {
       console.error(

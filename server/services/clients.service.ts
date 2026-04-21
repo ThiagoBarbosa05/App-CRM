@@ -16,6 +16,7 @@ import {
 } from "../integrations/umbler";
 import { formatPhoneToDigits } from "@/lib/format-phone-number";
 import { syncClientToBling } from "./bling-clients-export.service";
+import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
 
 export interface GetClientsParams {
   userId?: string;
@@ -363,6 +364,10 @@ export class ClientsService {
         console.error("[Bling] Erro ao sincronizar cliente criado:", err),
       );
 
+      void ensureClientInDesvendandoVinhoFunnel(client.id).catch((err) =>
+        console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente criado:", err),
+      );
+
       // console.log("Tags recebidas:", externalTagIds);
 
       // ============================================================
@@ -492,6 +497,10 @@ export class ClientsService {
 
       void syncClientToBling(clientId).catch((err) =>
         console.error("[Bling] Erro ao sincronizar cliente atualizado:", err),
+      );
+
+      void ensureClientInDesvendandoVinhoFunnel(clientId).catch((err) =>
+        console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente atualizado:", err),
       );
 
       console.log("Cliente atualizado:", clientId);
