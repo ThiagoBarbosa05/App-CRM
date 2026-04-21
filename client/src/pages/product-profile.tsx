@@ -147,6 +147,84 @@ function CustomBarTooltip({ active, payload, label }: any) {
   );
 }
 
+const sensoryScale: Record<string, Record<string, number>> = {
+  corpo: { leve: 24, médio: 56, medio: 56, encorpado: 88 },
+  docura: { seco: 18, "meio-seco": 42, "meio seco": 42, "meio-doce": 68, "meio doce": 68, doce: 90 },
+  acidez: { baixa: 24, média: 56, media: 56, alta: 88 },
+};
+
+const sensoryTheme: Record<string, { gradient: string; glow: string; accent: string; left: string; right: string }> = {
+  corpo: {
+    gradient: "from-amber-400 via-orange-500 to-red-500",
+    glow: "shadow-amber-500/20",
+    accent: "text-amber-700 dark:text-amber-300",
+    left: "Leve",
+    right: "Encorpado",
+  },
+  docura: {
+    gradient: "from-rose-300 via-pink-500 to-fuchsia-600",
+    glow: "shadow-pink-500/20",
+    accent: "text-pink-700 dark:text-pink-300",
+    left: "Seco",
+    right: "Doce",
+  },
+  acidez: {
+    gradient: "from-emerald-300 via-lime-500 to-yellow-400",
+    glow: "shadow-lime-500/20",
+    accent: "text-lime-700 dark:text-lime-300",
+    left: "Baixa",
+    right: "Alta",
+  },
+};
+
+function getSensoryValue(type: "corpo" | "docura" | "acidez", value?: string) {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return sensoryScale[type][normalized] ?? 50;
+}
+
+function SensoryGauge({ label, value, type }: { label: string; value?: string; type: "corpo" | "docura" | "acidez" }) {
+  const score = getSensoryValue(type, value);
+  const rotation = -90 + (score / 100) * 180;
+  const theme = sensoryTheme[type];
+  const gradientId = `sensoryGradient-${type}`;
+
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white dark:bg-slate-900 p-4 shadow-xl ${theme.glow}`}>
+      <div className={`absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${theme.gradient} opacity-15 blur-2xl`} />
+      <div className="relative">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.22em]">{label}</p>
+        <div className="mt-3 flex justify-center">
+          <div className="relative h-24 w-44">
+            <svg viewBox="0 0 180 100" className="h-full w-full">
+              <path d="M 22 88 A 68 68 0 0 1 158 88" fill="none" stroke="currentColor" strokeWidth="16" strokeLinecap="round" className="text-slate-100 dark:text-slate-800" />
+              <path d="M 22 88 A 68 68 0 0 1 158 88" fill="none" stroke={`url(#${gradientId})`} strokeWidth="16" strokeLinecap="round" strokeDasharray={`${score * 2.14} 214`} />
+              <defs>
+                <linearGradient id={gradientId} x1="0" x2="1" y1="0" y2="0">
+                  <stop offset="0%" stopColor={type === "corpo" ? "#f59e0b" : type === "docura" ? "#f9a8d4" : "#86efac"} />
+                  <stop offset="55%" stopColor={type === "corpo" ? "#f97316" : type === "docura" ? "#ec4899" : "#84cc16"} />
+                  <stop offset="100%" stopColor={type === "corpo" ? "#ef4444" : type === "docura" ? "#c026d3" : "#facc15"} />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div
+              className="absolute bottom-[11px] left-1/2 h-1.5 w-16 origin-left rounded-full bg-slate-900 dark:bg-white shadow-lg transition-transform duration-500"
+              style={{ transform: `rotate(${rotation}deg)` }}
+            />
+            <div className="absolute bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-4 border-white bg-slate-900 shadow-md dark:border-slate-900 dark:bg-white" />
+          </div>
+        </div>
+        <div className="mt-1 text-center">
+          <p className={`text-lg font-black capitalize ${theme.accent}`}>{value ?? "—"}</p>
+          <div className="mt-2 flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span>{theme.left}</span>
+            <span>{theme.right}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -464,12 +542,14 @@ export default function ProductProfilePage() {
                   <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{aiProfile.descricao}"</p>
                 </div>
 
-                {/* Atributos sensoriais */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <SensoryGauge label="Corpo" value={aiProfile.corpo} type="corpo" />
+                  <SensoryGauge label="Doçura" value={aiProfile.docura} type="docura" />
+                  <SensoryGauge label="Acidez" value={aiProfile.acidez} type="acidez" />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { label: "Corpo", value: aiProfile.corpo, color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
-                    { label: "Doçura", value: aiProfile.docura, color: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300" },
-                    { label: "Acidez", value: aiProfile.acidez, color: "bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300" },
                     ...(aiProfile.tanino ? [{ label: "Tanino", value: aiProfile.tanino, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" }] : []),
                     { label: "Estilo", value: aiProfile.estilo, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
                     { label: "Mundo", value: aiProfile.mundo, color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
