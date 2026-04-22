@@ -4,6 +4,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertCircle,
   CheckCircle2,
+  Download,
   KeyRound,
   Link2,
   Loader2,
@@ -36,6 +37,12 @@ import {
   useCancelExport,
   type ExportProgress,
 } from "@/hooks/use-bling-export";
+import {
+  useImportStatus,
+  useStartImport,
+  useCancelImport,
+  type ImportProgress,
+} from "@/hooks/use-bling-import";
 import { queryClient } from "@/lib/queryClient";
 
 function getExportStatusBadge(status: ExportProgress["status"]) {
@@ -209,6 +216,232 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
                   {showAllErrors
                     ? "Mostrar menos"
                     : `Ver todos (${exportStatus.errors.length})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getImportStatusBadge(status: ImportProgress["status"]) {
+  switch (status) {
+    case "running":
+      return { label: "Importando...", className: "bg-blue-100 text-blue-700 border-blue-200" };
+    case "completed":
+      return { label: "Concluída", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+    case "cancelled":
+      return { label: "Cancelada", className: "bg-slate-100 text-slate-700 border-slate-200" };
+    case "failed":
+      return { label: "Falhou", className: "bg-red-100 text-red-700 border-red-200" };
+    default:
+      return null;
+  }
+}
+
+function OrderImportSection({ connectionId }: { connectionId: string }) {
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [forceUpdate, setForceUpdate] = useState(true);
+  const [showAllErrors, setShowAllErrors] = useState(false);
+  const { toast } = useToast();
+
+  const { data: importStatus } = useImportStatus(connectionId);
+  const startImportMutation = useStartImport();
+  const cancelImportMutation = useCancelImport();
+
+  const isRunning = importStatus?.status === "running";
+  const hasActivity = importStatus && importStatus.status !== "idle";
+  const isDateRangeValid = startDate && endDate && startDate <= endDate;
+
+  const handleStart = async () => {
+    try {
+      await startImportMutation.mutateAsync({
+        connectionId,
+        startDate,
+        endDate,
+        forceUpdate,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao iniciar importação",
+        description: error instanceof Error ? error.message : "Não foi possível iniciar a importação",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      await cancelImportMutation.mutateAsync(connectionId);
+    } catch (error) {
+      toast({
+        title: "Erro ao cancelar importação",
+        description: error instanceof Error ? error.message : "Não foi possível cancelar",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const importBadge = importStatus ? getImportStatusBadge(importStatus.status) : null;
+  const visibleErrors = showAllErrors
+    ? (importStatus?.errors ?? [])
+    : (importStatus?.errors ?? []).slice(0, 5);
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 space-y-3">
+      <div className="flex items-center gap-2">
+        <Download className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+          Importar Pedidos do Bling
+        </span>
+        {importBadge && (
+          <Badge className={`ml-auto text-xs ${importBadge.className}`}>
+            {isRunning && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+            {importBadge.label}
+          </Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label htmlFor={`import-start-${connectionId}`} className="text-xs">
+            Data inicial
+          </Label>
+          <Input
+            id={`import-start-${connectionId}`}
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            disabled={isRunning}
+            className="text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`import-end-${connectionId}`} className="text-xs">
+            Data final
+          </Label>
+          <Input
+            id={`import-end-${connectionId}`}
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            disabled={isRunning}
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`force-update-${connectionId}`}
+          checked={forceUpdate}
+          onCheckedChange={(checked) => setForceUpdate(checked === true)}
+          disabled={isRunning}
+        />
+        <Label
+          htmlFor={`force-update-${connectionId}`}
+          className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
+        >
+          Atualizar pedidos já importados
+        </Label>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleStart}
+          disabled={isRunning || startImportMutation.isPending || !isDateRangeValid}
+        >
+          {startImportMutation.isPending ? (
+            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-3.5 w-3.5" />
+          )}
+          Iniciar importação
+        </Button>
+
+        {isRunning && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCancel}
+            disabled={cancelImportMutation.isPending}
+          >
+            Cancelar
+          </Button>
+        )}
+      </div>
+
+      {hasActivity && importStatus && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-900 sm:grid-cols-6">
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Buscados</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {importStatus.totalFetched}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Processados</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {importStatus.processed}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Criados</p>
+              <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                {importStatus.created}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Atualizados</p>
+              <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                {importStatus.updated}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Ignorados</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                {importStatus.skipped}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Falhas</p>
+              <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                {importStatus.failed}
+              </p>
+            </div>
+          </div>
+
+          {importStatus.errors.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                Erros ({importStatus.errors.length}):
+              </p>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {visibleErrors.map((err, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                  >
+                    <span className="font-medium">Pedido {err.orderId}:</span>{" "}
+                    {err.error}
+                  </div>
+                ))}
+              </div>
+              {importStatus.errors.length > 5 && (
+                <button
+                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                  onClick={() => setShowAllErrors((prev) => !prev)}
+                >
+                  {showAllErrors
+                    ? "Mostrar menos"
+                    : `Ver todos (${importStatus.errors.length})`}
                 </button>
               )}
             </div>
@@ -684,7 +917,10 @@ export default function BlingAccountsManagement() {
                     </div>
 
                     {connection.status === "connected" && (
-                      <ClientExportSection connectionId={connection.id} />
+                      <>
+                        <OrderImportSection connectionId={connection.id} />
+                        <ClientExportSection connectionId={connection.id} />
+                      </>
                     )}
                   </CardContent>
                 </Card>
