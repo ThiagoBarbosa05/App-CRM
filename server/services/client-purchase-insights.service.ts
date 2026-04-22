@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
-import { blingOrderItems, blingOrders, clients, connectOrders } from "../../shared/schema";
+import { blingOrderItems, blingOrders, clients, connectOrderItems, connectOrders } from "../../shared/schema";
 
 type HistorySource = "all" | "bling" | "connect";
 
@@ -247,33 +247,67 @@ async function listPurchaseHistory(params: Required<Pick<ClientPurchaseInsightsP
     .map((row) => (typeof row.bling_row_id === "string" ? row.bling_row_id : null))
     .filter((value): value is string => value !== null);
 
+  const connectOrderIds = rows
+    .filter((row) => row.source === "connect")
+    .map((row) => parseInt(String(row.id ?? ""), 10))
+    .filter((id) => !isNaN(id));
+
   const itemsByOrderId = new Map<string, ClientPurchaseInsightsResponse["purchaseHistory"]["data"][number]["items"]>();
 
-  if (blingRowIds.length > 0) {
-    const itemRows = await db
-      .select({
-        orderId: blingOrderItems.orderId,
-        productId: blingOrderItems.productId,
-        productCode: blingOrderItems.productCode,
-        description: blingOrderItems.description,
-        quantity: blingOrderItems.quantity,
-        value: blingOrderItems.value,
-      })
-      .from(blingOrderItems)
-      .where(inArray(blingOrderItems.orderId, blingRowIds));
-
-    for (const itemRow of itemRows as BlingOrderItemRow[]) {
-      const currentItems = itemsByOrderId.get(itemRow.orderId) ?? [];
-      currentItems.push({
-        productId: itemRow.productId,
-        productCode: itemRow.productCode,
-        description: itemRow.description ?? "Item sem descrição",
-        quantity: Number(itemRow.quantity ?? 0),
-        unitValue: Number(itemRow.value ?? 0),
-      });
-      itemsByOrderId.set(itemRow.orderId, currentItems);
-    }
-  }
+  await Promise.all([
+    blingRowIds.length > 0
+      ? db
+          .select({
+            orderId: blingOrderItems.orderId,
+            productId: blingOrderItems.productId,
+            productCode: blingOrderItems.productCode,
+            description: blingOrderItems.description,
+            quantity: blingOrderItems.quantity,
+            value: blingOrderItems.value,
+          })
+          .from(blingOrderItems)
+          .where(inArray(blingOrderItems.orderId, blingRowIds))
+          .then((itemRows) => {
+            for (const itemRow of itemRows as BlingOrderItemRow[]) {
+              const currentItems = itemsByOrderId.get(itemRow.orderId) ?? [];
+              currentItems.push({
+                productId: itemRow.productId,
+                productCode: itemRow.productCode,
+                description: itemRow.description ?? "Item sem descrição",
+                quantity: Number(itemRow.quantity ?? 0),
+                unitValue: Number(itemRow.value ?? 0),
+              });
+              itemsByOrderId.set(itemRow.orderId, currentItems);
+            }
+          })
+      : Promise.resolve(),
+    connectOrderIds.length > 0
+      ? db
+          .select({
+            orderId: connectOrderItems.orderId,
+            productCode: connectOrderItems.productCode,
+            productName: connectOrderItems.productName,
+            quantity: connectOrderItems.quantity,
+            unitValue: connectOrderItems.unitValue,
+          })
+          .from(connectOrderItems)
+          .where(inArray(connectOrderItems.orderId, connectOrderIds))
+          .then((itemRows) => {
+            for (const itemRow of itemRows) {
+              const key = String(itemRow.orderId);
+              const currentItems = itemsByOrderId.get(key) ?? [];
+              currentItems.push({
+                productId: null,
+                productCode: itemRow.productCode,
+                description: itemRow.productName ?? "Item sem descrição",
+                quantity: Number(itemRow.quantity ?? 0),
+                unitValue: Number(itemRow.unitValue ?? 0),
+              });
+              itemsByOrderId.set(key, currentItems);
+            }
+          })
+      : Promise.resolve(),
+  ]);
 
   return {
     data: rows.map((row) => ({
@@ -288,7 +322,9 @@ async function listPurchaseHistory(params: Required<Pick<ClientPurchaseInsightsP
       orderNumber: (row.order_number as string | null) ?? null,
       blingOrderId: (row.bling_order_id as string | null) ?? null,
       situationValue: (row.situation_value as string | null) ?? null,
-      items: itemsByOrderId.get(String(row.bling_row_id ?? "")) ?? [],
+      items: row.source === "bling"
+        ? itemsByOrderId.get(String(row.bling_row_id ?? "")) ?? []
+        : itemsByOrderId.get(String(row.id ?? "")) ?? [],
     })),
     total,
     hasMore: params.historyOffset + rows.length < total,
@@ -320,22 +356,47 @@ async function listAllOrderMetrics(clientId: string) {
 
 async function listProductMix(clientId: string) {
   const result = await db.execute(sql`
+    WITH all_items AS (
+      SELECT
+        boi.product_id::text AS product_id,
+        boi.product_code AS product_code,
+        boi.description AS description,
+        boi.order_id::text AS order_id,
+        boi.quantity::numeric AS quantity,
+        (boi.quantity * boi.value)::numeric AS total_value,
+        bo.sale_date::text AS sale_date
+      FROM bling_order_items boi
+      INNER JOIN bling_orders bo ON boi.order_id = bo.id
+      WHERE bo.deleted_at IS NULL
+        AND bo.app_client_id = ${clientId}
+
+      UNION ALL
+
+      SELECT
+        NULL::text AS product_id,
+        coi.product_code AS product_code,
+        coi.product_name AS description,
+        coi.order_id::text AS order_id,
+        coi.quantity::numeric AS quantity,
+        (coi.quantity * coi.unit_value)::numeric AS total_value,
+        to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date
+      FROM connect_order_items coi
+      INNER JOIN connect_orders co ON coi.order_id = co.id
+      WHERE co.app_client_id = ${clientId}
+    )
     SELECT
-      boi.product_id AS "productId",
-      boi.product_code AS "productCode",
-      boi.description AS description,
-      COUNT(DISTINCT boi.order_id)::int AS "orderCount",
-      COALESCE(SUM(boi.quantity), 0)::text AS "totalQuantity",
-      COALESCE(SUM(boi.quantity * boi.value), 0)::text AS "totalValue",
-      MIN(bo.sale_date) AS "firstPurchaseDate",
-      MAX(bo.sale_date) AS "lastPurchaseDate",
-      ARRAY_AGG(DISTINCT bo.sale_date ORDER BY bo.sale_date) AS "purchaseDates"
-    FROM bling_order_items boi
-    INNER JOIN bling_orders bo ON boi.order_id = bo.id
-    WHERE bo.deleted_at IS NULL
-      AND bo.app_client_id = ${clientId}
-    GROUP BY boi.product_id, boi.product_code, boi.description
-    ORDER BY COALESCE(SUM(boi.quantity * boi.value), 0) DESC, COALESCE(SUM(boi.quantity), 0) DESC
+      MAX(product_id) AS "productId",
+      MAX(product_code) AS "productCode",
+      MAX(description) AS description,
+      COUNT(DISTINCT order_id)::int AS "orderCount",
+      COALESCE(SUM(quantity), 0)::text AS "totalQuantity",
+      COALESCE(SUM(total_value), 0)::text AS "totalValue",
+      MIN(sale_date) AS "firstPurchaseDate",
+      MAX(sale_date) AS "lastPurchaseDate",
+      ARRAY_AGG(DISTINCT sale_date ORDER BY sale_date) AS "purchaseDates"
+    FROM all_items
+    GROUP BY COALESCE(product_code, description)
+    ORDER BY COALESCE(SUM(total_value), 0) DESC, COALESCE(SUM(quantity), 0) DESC
   `);
 
   return result.rows as unknown as ProductMixRow[];

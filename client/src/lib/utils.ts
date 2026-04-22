@@ -46,7 +46,8 @@ export function formatDate(dateString: string): string {
   });
 }
 
-export function formatCurrency(value: number | string): string {
+export function formatCurrency(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return "R$ 0,00";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "R$ 0,00";
   return num.toLocaleString("pt-BR", {

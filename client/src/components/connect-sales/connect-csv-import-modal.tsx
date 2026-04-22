@@ -87,7 +87,7 @@ type Step = "upload" | "preview" | "sellers" | "result";
 
 interface ImportResult {
   inserted: number;
-  skipped: number;
+  updated: number;
   errors: { row: number; message: string }[];
   clientsFound: number;
   clientsCreated: number;
@@ -625,8 +625,8 @@ export function ConnectCsvImportModal({
                   <p className="text-xs text-emerald-600 mt-1">Importados</p>
                 </div>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-center">
-                  <p className="text-2xl font-bold text-amber-700">{result.skipped}</p>
-                  <p className="text-xs text-amber-600 mt-1">Duplicatas ignoradas</p>
+                  <p className="text-2xl font-bold text-amber-700">{result.updated}</p>
+                  <p className="text-xs text-amber-600 mt-1">Atualizados</p>
                 </div>
                 <div className="rounded-lg bg-rose-50 border border-rose-200 p-4 text-center">
                   <p className="text-2xl font-bold text-rose-700">{result.errors.length}</p>

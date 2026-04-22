@@ -2497,8 +2497,8 @@ export const connectOrders = pgTable(
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
-    // Hash único para deduplicação de importações
-    importHash: text("import_hash").notNull().unique(),
+    // Hash de deduplicação (SHA256 do saleCode)
+    importHash: text("import_hash").notNull(),
 
     // Dados da venda
     saleCode: text("sale_code"),
@@ -2545,7 +2545,7 @@ export const connectOrders = pgTable(
     index("connect_orders_seller_id_idx").on(table.sellerId),
     index("connect_orders_imported_by_idx").on(table.importedBy),
     index("connect_orders_contact_name_idx").on(table.contactName),
-    index("connect_orders_sale_code_idx").on(table.saleCode),
+    uniqueIndex("connect_orders_sale_code_uidx").on(table.saleCode),
     index("connect_orders_import_hash_idx").on(table.importHash),
     index("connect_orders_app_client_id_idx").on(table.appClientId),
   ],

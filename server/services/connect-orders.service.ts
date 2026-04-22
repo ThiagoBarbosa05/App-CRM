@@ -72,14 +72,14 @@ function parseBrazilianDate(str: string): Date {
   return new Date(`${year}-${month}-${day}T12:00:00`);
 }
 
-/** Converte "85,00" ou "1.809,31" → number */
+/** Converte "85,00" ou "1.809,31" ou "R$ 219,90" → number */
 function parseBrazilianCurrency(str: string): number {
-  return parseFloat(str.replace(/\./g, "").replace(",", "."));
+  return parseFloat(str.replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", "."));
 }
 
-/** Gera hash único para deduplicação baseado no código da venda */
-function buildImportHash(saleCode: string, sourceFile: string): string {
-  return crypto.createHash("sha256").update(`${saleCode}|${sourceFile}`).digest("hex");
+/** Gera hash de deduplicação baseado apenas no código da venda */
+function buildImportHash(saleCode: string): string {
+  return crypto.createHash("sha256").update(saleCode).digest("hex");
 }
 
 /** Normaliza telefone — apenas dígitos */
@@ -213,7 +213,7 @@ export const connectOrdersService = {
    */
   async importOrders(params: ImportConnectOrdersParams): Promise<{
     inserted: number;
-    skipped: number;
+    updated: number;
     errors: { row: number; message: string }[];
     clientsFound: number;
     clientsCreated: number;
@@ -227,7 +227,7 @@ export const connectOrdersService = {
     }
 
     let inserted = 0;
-    let skipped = 0;
+    let updated = 0;
     let clientsFound = 0;
     let clientsCreated = 0;
     let clientsWithoutContact = 0;
@@ -236,7 +236,7 @@ export const connectOrdersService = {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
-        const importHash = buildImportHash(row.saleCode, sourceFile);
+        const importHash = buildImportHash(row.saleCode);
 
         const totalValue = parseBrazilianCurrency(row.totalValue);
         if (isNaN(totalValue)) {
@@ -253,18 +253,6 @@ export const connectOrdersService = {
         const sellerInfo = sellerMap.get(row.sellerNameRaw);
         const sellerId = sellerInfo?.userId ?? null;
         const sellerMatchScore = sellerInfo?.score ?? null;
-
-        // ── Verificar duplicata antes de processar cliente ──────────────────
-        const existing = await db
-          .select({ id: connectOrders.id })
-          .from(connectOrders)
-          .where(eq(connectOrders.importHash, importHash))
-          .limit(1);
-
-        if (existing.length > 0) {
-          skipped++;
-          continue;
-        }
 
         // ── Matching / criação de cliente ───────────────────────────────────
         let appClientId: string | null = null;
@@ -298,8 +286,7 @@ export const connectOrdersService = {
           clientsWithoutContact++;
         }
 
-        // ── Inserir pedido ───────────────────────────────────────────────────
-        const [insertedOrder] = await db.insert(connectOrders).values({
+        const orderValues = {
           importHash,
           saleCode: row.saleCode || null,
           saleDate,
@@ -321,29 +308,73 @@ export const connectOrdersService = {
           appClientStatus,
           sourceFile,
           importedBy,
-        }).returning({ id: connectOrders.id });
+        };
 
-        // ── Inserir itens do pedido ──────────────────────────────────────────
-        if (row.items?.length) {
-          await db.insert(connectOrderItems).values(
-            row.items.map((item) => ({
-              orderId: insertedOrder.id,
-              productCode: item.productCode || null,
-              productName: item.productName || null,
-              quantity: parseBrazilianCurrency(item.quantity).toFixed(3),
-              unitValue: parseBrazilianCurrency(item.unitValue).toFixed(2),
-            })),
-          );
-        }
+        await db.transaction(async (tx) => {
+          // ── Upsert pedido (insert ou update se saleCode já existe) ─────────
+          const [upsertedOrder] = await tx
+            .insert(connectOrders)
+            .values(orderValues)
+            .onConflictDoUpdate({
+              target: connectOrders.saleCode,
+              set: {
+                importHash: orderValues.importHash,
+                saleDate: orderValues.saleDate,
+                totalValue: orderValues.totalValue,
+                contactName: orderValues.contactName,
+                contactCpf: orderValues.contactCpf,
+                contactCep: orderValues.contactCep,
+                contactStreet: orderValues.contactStreet,
+                contactNumber: orderValues.contactNumber,
+                contactNeighborhood: orderValues.contactNeighborhood,
+                contactComplement: orderValues.contactComplement,
+                contactCity: orderValues.contactCity,
+                contactPhone: orderValues.contactPhone,
+                contactCellphone: orderValues.contactCellphone,
+                sellerNameRaw: orderValues.sellerNameRaw,
+                sellerId: orderValues.sellerId,
+                sellerMatchScore: orderValues.sellerMatchScore,
+                appClientId: orderValues.appClientId,
+                appClientStatus: orderValues.appClientStatus,
+                sourceFile: orderValues.sourceFile,
+                importedBy: orderValues.importedBy,
+              },
+            })
+            .returning({
+              id: connectOrders.id,
+              isNew: sql<boolean>`(xmax = 0)`,
+            });
 
-        inserted++;
+          if (upsertedOrder.isNew) {
+            inserted++;
+          } else {
+            updated++;
+          }
+
+          // ── Substituir itens (delete + reinsert garante idempotência) ──────
+          await tx
+            .delete(connectOrderItems)
+            .where(eq(connectOrderItems.orderId, upsertedOrder.id));
+
+          if (row.items?.length) {
+            await tx.insert(connectOrderItems).values(
+              row.items.map((item) => ({
+                orderId: upsertedOrder.id,
+                productCode: item.productCode || null,
+                productName: item.productName || null,
+                quantity: parseBrazilianCurrency(item.quantity).toFixed(3),
+                unitValue: parseBrazilianCurrency(item.unitValue).toFixed(2),
+              })),
+            );
+          }
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         errors.push({ row: i + 1, message });
       }
     }
 
-    return { inserted, skipped, errors, clientsFound, clientsCreated, clientsWithoutContact };
+    return { inserted, updated, errors, clientsFound, clientsCreated, clientsWithoutContact };
   },
 
   /** Lista pedidos com filtros e paginação */
