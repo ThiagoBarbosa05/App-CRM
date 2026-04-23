@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import {
   Trophy,
   BarChart2,
@@ -133,11 +133,13 @@ function EmptyState({ message }: { message: string }) {
 function SectionCard({
   icon,
   title,
+  subtitle,
   badge,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
+  subtitle?: string;
   badge?: number;
   children: React.ReactNode;
 }) {
@@ -150,9 +152,14 @@ function SectionCard({
         onClick={() => setOpen((v) => !v)}
       >
         {icon}
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex-1">
-          {title}
-        </h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+          )}
+        </div>
         {badge !== undefined && badge > 0 && (
           <Badge variant="secondary" className="text-xs shrink-0">
             {badge}
@@ -192,6 +199,8 @@ export function ClientCommercialGrid({
     queryKey: [queryKey],
   });
 
+  const periodLabel = `${format(parse(startDate, "yyyy-MM-dd", new Date()), "dd/MM/yy")} — ${format(parse(endDate, "yyyy-MM-dd", new Date()), "dd/MM/yy")}`;
+
   const topClients = data?.topClients ?? [];
   const highestAvgTicket = data?.highestAvgTicket ?? [];
   const highestAvgItemValue = data?.highestAvgItemValue ?? [];
@@ -225,7 +234,8 @@ export function ClientCommercialGrid({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <SectionCard
         icon={<div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20"><Trophy className="h-4 w-4 text-amber-600 dark:text-amber-400" /></div>}
-        title="Top Clientes por Valor"
+        title="Top Clientes"
+        subtitle={periodLabel}
       >
         {isLoading ? <EmptyState message="Carregando..." /> : !topClients.length ? (
           <EmptyState message="Nenhuma venda no período." />
