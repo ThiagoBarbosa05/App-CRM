@@ -918,6 +918,8 @@ function NotesView() {
   const [showAddSection, setShowAddSection] = useState(false);
   const [createNoteOpen, setCreateNoteOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionName, setEditingSectionName] = useState("");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
@@ -1000,6 +1002,23 @@ function NotesView() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const renameSectionMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiFetch(`/api/note-sections/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["note-sections"] }),
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const saveRenameSection = (id: string) => {
+    const trimmed = editingSectionName.trim();
+    if (trimmed) renameSectionMutation.mutate({ id, name: trimmed });
+    setEditingSectionId(null);
+  };
+
   const addNoteMutation = useMutation({
     mutationFn: ({ title, sectionId }: { title: string; sectionId: string }) =>
       apiFetch("/api/notes", {
@@ -1046,19 +1065,35 @@ function NotesView() {
             {sectionsLoading && <p className="text-xs text-slate-400 px-3 py-2">Carregando...</p>}
             {sections.map((section) => (
               <div key={section.id}>
-                <button
-                  onClick={() => { setSelectedSectionId(section.id); setSelectedNoteId(null); }}
+                <div
+                  onClick={() => { if (editingSectionId !== section.id) { setSelectedSectionId(section.id); setSelectedNoteId(null); } }}
+                  onDoubleClick={() => { setEditingSectionId(section.id); setEditingSectionName(section.name); }}
                   className={cn(
-                    "w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors group",
+                    "w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors cursor-pointer select-none",
                     selectedSectionId === section.id
                       ? "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium"
                       : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
                   )}>
                   <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", BOARD_COLOR_DOT[section.color] ?? "bg-slate-400")} />
                   <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
-                  <span className="flex-1 truncate">{section.name}</span>
+                  {editingSectionId === section.id ? (
+                    <input
+                      autoFocus
+                      value={editingSectionName}
+                      onChange={(e) => setEditingSectionName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveRenameSection(section.id);
+                        if (e.key === "Escape") setEditingSectionId(null);
+                      }}
+                      onBlur={() => saveRenameSection(section.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 min-w-0 bg-transparent outline-none border-b border-purple-400 text-sm font-medium"
+                    />
+                  ) : (
+                    <span className="flex-1 truncate">{section.name}</span>
+                  )}
                   <span className="text-xs text-slate-400 flex-shrink-0">{section.noteCount}</span>
-                </button>
+                </div>
                 {selectedSectionId === section.id && (
                   <div className="ml-5 border-l border-slate-200 dark:border-slate-700">
                     {sectionNotes.map((note) => (

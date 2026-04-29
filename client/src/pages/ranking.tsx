@@ -44,6 +44,7 @@ interface WeeklyResult {
 interface GoalResult {
   id: string;
   userId: string;
+  userName: string;
   salesGoal: string | number;
   weeklyResults: WeeklyResult[];
 }
@@ -516,28 +517,36 @@ export default function RankingPage() {
 
   const sellers: TopSeller[] = topSellersRaw?.data ?? [];
 
+  // Igual à página de metas: indexa metas por nome normalizado do vendedor
   const goalMap = useMemo(() => {
-    const map: Record<string, { achievement: number; monthlyGoal: number }> = {};
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const map: Record<string, number> = {}; // normalizedName → salesGoal
     goalsRaw.forEach((g) => {
-      const salesGoal = Number(g.salesGoal ?? 0);
-      const totalSales = (g.weeklyResults ?? []).reduce(
-        (sum, w) => sum + Number(w.salesAchieved ?? 0),
-        0,
-      );
-      const achievement = salesGoal > 0 ? Math.round((totalSales / salesGoal) * 1000) / 10 : null;
-      if (achievement !== null) {
-        map[g.userId] = { achievement, monthlyGoal: salesGoal };
-      }
+      const name = normalize(g.userName ?? "");
+      const goal = Number(g.salesGoal ?? 0);
+      if (name && goal > 0) map[name] = goal;
     });
     return map;
   }, [goalsRaw]);
 
+  const findGoal = (sellerName: string) => {
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const norm = normalize(sellerName);
+    const entry = Object.entries(goalMap).find(
+      ([k]) => k === norm || k.startsWith(norm) || norm.startsWith(k),
+    );
+    return entry ? entry[1] : null;
+  };
+
   const ranked: RankedSeller[] = useMemo(() => {
     // Calcular achievement antes de ordenar
     const enriched = sellers.map((s) => {
-      const goal = goalMap[s.sellerId];
-      const achievement = goal?.achievement ?? null;
-      const monthlyGoal = goal?.monthlyGoal ?? null;
+      // Mesma lógica da página de metas: totalValue real / salesGoal
+      const salesGoal = findGoal(s.sellerName);
+      const achievement = salesGoal ? Math.round((s.totalValue / salesGoal) * 1000) / 10 : null;
+      const monthlyGoal = salesGoal;
       const avgTicket = s.totalOrders > 0 ? s.totalValue / s.totalOrders : 0;
       return { ...s, achievement, monthlyGoal, avgTicket, rank: 0, badges: [] as Badge[] } as RankedSeller;
     });
