@@ -156,28 +156,24 @@ const SHIELD_CFG: Record<number, {
   border: string; borderInner: string;
   trophy: boolean; stars: number;
   shieldW: number; shieldH: number;
-  pedestalH: number; pedestalColor: string;
 }> = {
   1: {
     color: "#F59E0B", colorDim: "#92400E", glow: "rgba(245,158,11,0.8)",
     border: "#F59E0B", borderInner: "#78350F",
     trophy: true, stars: 5,
     shieldW: 180, shieldH: 210,
-    pedestalH: 88, pedestalColor: "linear-gradient(180deg,#92400E,#451a03)",
   },
   2: {
     color: "#CBD5E1", colorDim: "#475569", glow: "rgba(148,163,184,0.5)",
     border: "#94A3B8", borderInner: "#334155",
     trophy: false, stars: 3,
     shieldW: 140, shieldH: 165,
-    pedestalH: 56, pedestalColor: "linear-gradient(180deg,#475569,#1e293b)",
   },
   3: {
     color: "#CD7F32", colorDim: "#7c2d12", glow: "rgba(180,83,9,0.5)",
     border: "#B45309", borderInner: "#431407",
     trophy: false, stars: 3,
     shieldW: 140, shieldH: 165,
-    pedestalH: 40, pedestalColor: "linear-gradient(180deg,#7c2d12,#2d0d00)",
   },
 };
 
@@ -321,16 +317,6 @@ function ShieldBadge({ seller, rank }: { seller: RankedSeller | undefined; rank:
         )}
       </div>
 
-      {/* Pedestal */}
-      <div
-        className="mt-3 rounded-full"
-        style={{
-          width: cfg.shieldW * 0.75,
-          height: cfg.pedestalH,
-          background: cfg.pedestalColor,
-          boxShadow: `0 8px 24px rgba(0,0,0,0.6), 0 0 12px ${cfg.glow}`,
-        }}
-      />
     </div>
   );
 }
