@@ -139,126 +139,248 @@ function fmtPct(v: number) {
   return `${v.toFixed(0)}%`;
 }
 
-// ─── Podium card ──────────────────────────────────────────────────────────────
+// ─── Stadium Podium ──────────────────────────────────────────────────────────
 
-const PODIUM = [
-  { rank: 1, height: "h-36", label: "1º", icon: Crown, gradient: "from-amber-400 to-yellow-500", ring: "ring-amber-400", text: "text-amber-600", pillar: "bg-amber-400", pillarH: "h-24" },
-  { rank: 2, height: "h-28", label: "2º", icon: Medal, gradient: "from-slate-300 to-slate-400", ring: "ring-slate-400", text: "text-slate-500", pillar: "bg-slate-300", pillarH: "h-16" },
-  { rank: 3, height: "h-24", label: "3º", icon: Medal, gradient: "from-orange-400 to-amber-600", ring: "ring-orange-400", text: "text-orange-600", pillar: "bg-orange-400", pillarH: "h-12" },
-];
+const CONFETTI_PIECES = Array.from({ length: 22 }, (_, i) => ({
+  left: `${4 + i * 4.3}%`,
+  delay: `${(i * 0.27) % 3}s`,
+  dur: `${2.2 + (i % 5) * 0.4}s`,
+  color: ["#F59E0B","#FCD34D","#FBBF24","#FDE68A","#F97316","#ffffff"][i % 6],
+  size: i % 3 === 0 ? 8 : 5,
+  rotate: i % 2 === 0 ? "rotate(45deg)" : "rotate(0deg)",
+}));
 
-const SPARKLE_POSITIONS = [
-  { top: "8%",  left: "0%",   delay: "0s",    dur: "2.4s" },
-  { top: "15%", left: "88%",  delay: "0.6s",  dur: "2.8s" },
-  { top: "40%", left: "-8%",  delay: "1.2s",  dur: "2.2s" },
-  { top: "50%", left: "96%",  delay: "0.3s",  dur: "3.1s" },
-  { top: "70%", left: "5%",   delay: "1.8s",  dur: "2.6s" },
-  { top: "75%", left: "82%",  delay: "0.9s",  dur: "2.0s" },
-];
+const SHIELD_CFG: Record<number, {
+  color: string; colorDim: string; glow: string;
+  border: string; borderInner: string;
+  trophy: boolean; stars: number;
+  shieldW: number; shieldH: number;
+  pedestalH: number; pedestalColor: string;
+}> = {
+  1: {
+    color: "#F59E0B", colorDim: "#92400E", glow: "rgba(245,158,11,0.8)",
+    border: "#F59E0B", borderInner: "#78350F",
+    trophy: true, stars: 5,
+    shieldW: 180, shieldH: 210,
+    pedestalH: 88, pedestalColor: "linear-gradient(180deg,#92400E,#451a03)",
+  },
+  2: {
+    color: "#CBD5E1", colorDim: "#475569", glow: "rgba(148,163,184,0.5)",
+    border: "#94A3B8", borderInner: "#334155",
+    trophy: false, stars: 3,
+    shieldW: 140, shieldH: 165,
+    pedestalH: 56, pedestalColor: "linear-gradient(180deg,#475569,#1e293b)",
+  },
+  3: {
+    color: "#CD7F32", colorDim: "#7c2d12", glow: "rgba(180,83,9,0.5)",
+    border: "#B45309", borderInner: "#431407",
+    trophy: false, stars: 3,
+    shieldW: 140, shieldH: 165,
+    pedestalH: 40, pedestalColor: "linear-gradient(180deg,#7c2d12,#2d0d00)",
+  },
+};
 
-function PodiumCard({ seller, podium }: { seller: RankedSeller | undefined; podium: (typeof PODIUM)[0] }) {
-  const Icon = podium.icon;
-  const isFirst = podium.rank === 1;
-  const orderClass = podium.rank === 1 ? "order-2" : podium.rank === 2 ? "order-1" : "order-3";
+function Laurel({ color, side }: { color: string; side: "left" | "right" }) {
+  const leaves = [0, 1, 2, 3, 4];
+  return (
+    <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.85 }}>
+      {leaves.map((i) => {
+        const angle = side === "left"
+          ? -30 + i * 18
+          : 210 - i * 18;
+        const r = 52 + i * 3;
+        const x = 50 + r * Math.cos((angle * Math.PI) / 180);
+        const y = 62 + r * Math.sin((angle * Math.PI) / 180);
+        return (
+          <div
+            key={i}
+            className="absolute"
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              transform: `translate(-50%,-50%) rotate(${angle + (side === "left" ? 90 : -90)}deg)`,
+              width: 14 + i * 1.5,
+              height: 7,
+              background: color,
+              borderRadius: "50% 0 50% 0",
+              opacity: 0.75 - i * 0.06,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
-  if (!seller) {
-    return (
-      <div className={cn("flex flex-col items-center gap-2", orderClass)}>
-        <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center border-4 border-dashed border-slate-200 dark:border-slate-600">
-          <span className="text-slate-300 text-xs">—</span>
-        </div>
-        <div className={cn("w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg", podium.pillar, podium.pillarH)}>
-          {podium.label}
-        </div>
-      </div>
-    );
-  }
-
-  const initials = seller.sellerName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+function ShieldBadge({ seller, rank }: { seller: RankedSeller | undefined; rank: number }) {
+  const cfg = SHIELD_CFG[rank];
+  const isFirst = rank === 1;
+  const label = rank === 1 ? "1" : rank === 2 ? "2" : "3";
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", orderClass)}>
-      {/* Avatar + sparkles */}
-      <div className="relative">
-        {/* Halo pulsante (só 1º lugar) */}
-        {isFirst && (
-          <>
-            <div className="absolute inset-0 rounded-full bg-amber-400/30 scale-125"
-              style={{ animation: "halo-outer 2s ease-in-out infinite" }} />
-            <div className="absolute inset-0 rounded-full bg-amber-300/20 scale-150"
-              style={{ animation: "halo-outer 2s ease-in-out infinite 0.4s" }} />
-          </>
-        )}
+    <div className="flex flex-col items-center gap-0" style={{ order: rank === 1 ? 2 : rank === 2 ? 1 : 3 }}>
+      {/* Shield */}
+      <div
+        className="relative flex flex-col items-center justify-start pt-4 pb-6 px-3"
+        style={{
+          width: cfg.shieldW,
+          height: cfg.shieldH,
+          clipPath: "polygon(15% 0%, 85% 0%, 100% 18%, 100% 65%, 50% 100%, 0% 65%, 0% 18%)",
+          background: `linear-gradient(170deg, #1a1a2e 0%, #0d0d1a 100%)`,
+          boxShadow: `0 0 ${isFirst ? 32 : 16}px ${cfg.glow}, inset 0 0 20px rgba(0,0,0,0.6)`,
+          border: `3px solid ${cfg.border}`,
+          outline: `6px solid ${cfg.borderInner}`,
+          animation: isFirst ? "shield-glow 2.5s ease-in-out infinite" : undefined,
+        }}
+      >
+        {/* Laurel wreaths */}
+        <Laurel color={cfg.color} side="left" />
+        <Laurel color={cfg.color} side="right" />
 
-        {/* Sparkles flutuantes */}
-        {isFirst && SPARKLE_POSITIONS.map((pos, i) => (
-          <span
-            key={i}
-            className="absolute text-xs pointer-events-none select-none"
+        {/* Shimmer for 1st */}
+        {isFirst && (
+          <div
+            className="absolute inset-0 pointer-events-none"
             style={{
-              top: pos.top,
-              left: pos.left,
-              animation: `sparkle-float ${pos.dur} ease-in-out infinite`,
-              animationDelay: pos.delay,
+              background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.12) 50%, transparent 70%)",
+              animation: "shimmer 3s ease-in-out infinite",
             }}
-          >
-            {i % 2 === 0 ? "✨" : "⭐"}
-          </span>
-        ))}
-
-        {/* Avatar */}
-        <div className={cn(
-          "relative w-20 h-20 rounded-full flex items-center justify-center border-4 text-white font-bold text-xl shadow-lg bg-gradient-to-br",
-          podium.gradient, podium.ring, "ring-2",
-          isFirst && "shadow-amber-400/60 shadow-xl",
-        )}>
-          {initials}
-
-          {/* Coroa animada */}
-          <div
-            className="absolute -top-4 left-1/2 -translate-x-1/2"
-            style={isFirst ? { animation: "crown-bounce 1.6s ease-in-out infinite" } : undefined}
-          >
-            <Icon className={cn("h-6 w-6 drop-shadow-md", podium.text)} />
-          </div>
-        </div>
-      </div>
-
-      {/* Nome + percentual */}
-      <div className="text-center mt-1">
-        <p className={cn(
-          "text-sm font-bold max-w-[110px] truncate leading-tight",
-          isFirst ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100",
-        )}>
-          {seller.sellerName.split(" ")[0]}
-        </p>
-        {seller.achievement !== null ? (
-          <p className={cn(
-            "font-black leading-tight",
-            isFirst ? "text-lg text-amber-600 dark:text-amber-400" :
-            seller.achievement >= 100 ? "text-base text-green-600" : "text-base text-slate-700 dark:text-slate-200",
-          )}
-            style={isFirst ? { animation: "achievement-pop 2s ease-in-out infinite" } : undefined}
-          >
-            {fmtPct(seller.achievement)}
-          </p>
-        ) : (
-          <p className="text-base font-black text-slate-400">—</p>
-        )}
-      </div>
-
-      {/* Pilar */}
-      <div className={cn(
-        "relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg shadow-inner overflow-hidden",
-        podium.pillar, podium.pillarH,
-      )}>
-        {podium.label}
-        {isFirst && (
-          <div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
-            style={{ animation: "shimmer 2.5s ease-in-out infinite" }}
           />
         )}
+
+        {/* Stars */}
+        <div className="flex gap-0.5 mt-1 z-10 relative">
+          {Array.from({ length: cfg.stars }).map((_, i) => (
+            <span key={i} style={{ color: cfg.color, fontSize: isFirst ? 13 : 10 }}>★</span>
+          ))}
+        </div>
+
+        {/* Rank number */}
+        <div
+          className="z-10 relative font-black leading-none select-none"
+          style={{
+            fontSize: isFirst ? 80 : 58,
+            color: cfg.color,
+            textShadow: `0 0 20px ${cfg.glow}, 0 2px 0 ${cfg.colorDim}`,
+            lineHeight: 1,
+            marginTop: isFirst ? -4 : -2,
+            fontFamily: "Georgia, serif",
+          }}
+        >
+          {label}
+        </div>
+
+        {/* LUGAR */}
+        <div
+          className="z-10 relative font-bold tracking-[0.3em] uppercase"
+          style={{ color: cfg.color, fontSize: isFirst ? 14 : 11, marginTop: -4 }}
+        >
+          LUGAR
+        </div>
+
+        {/* Trophy for 1st */}
+        {isFirst && (
+          <div
+            className="z-10 relative mt-1"
+            style={{ animation: "crown-bounce 2s ease-in-out infinite", color: cfg.color }}
+          >
+            <Trophy style={{ width: 36, height: 36, color: cfg.color, filter: `drop-shadow(0 0 8px ${cfg.glow})` }} />
+          </div>
+        )}
+      </div>
+
+      {/* Seller info */}
+      <div className="flex flex-col items-center gap-0.5 mt-2 px-2 text-center" style={{ width: cfg.shieldW }}>
+        {seller ? (
+          <>
+            <p
+              className="font-bold truncate max-w-full"
+              style={{ color: cfg.color, fontSize: isFirst ? 15 : 12 }}
+            >
+              {seller.sellerName.split(" ").slice(0, 2).join(" ")}
+            </p>
+            {seller.achievement !== null ? (
+              <p
+                className="font-black"
+                style={{
+                  color: isFirst ? "#FCD34D" : cfg.color,
+                  fontSize: isFirst ? 22 : 17,
+                  textShadow: `0 0 10px ${cfg.glow}`,
+                  animation: isFirst ? "achievement-pop 2s ease-in-out infinite" : undefined,
+                }}
+              >
+                {fmtPct(seller.achievement)}
+              </p>
+            ) : (
+              <p className="text-xs" style={{ color: cfg.colorDim }}>sem meta</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs" style={{ color: cfg.colorDim }}>—</p>
+        )}
+      </div>
+
+      {/* Pedestal */}
+      <div
+        className="mt-3 rounded-full"
+        style={{
+          width: cfg.shieldW * 0.75,
+          height: cfg.pedestalH,
+          background: cfg.pedestalColor,
+          boxShadow: `0 8px 24px rgba(0,0,0,0.6), 0 0 12px ${cfg.glow}`,
+        }}
+      />
+    </div>
+  );
+}
+
+function StadiumPodium({ ranked }: { ranked: RankedSeller[] }) {
+  return (
+    <div
+      className="rounded-xl overflow-hidden relative"
+      style={{ background: "linear-gradient(180deg, #050510 0%, #0b0b18 55%, #061008 100%)", minHeight: 380 }}
+    >
+      {/* Stadium lights — top left */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 55% 45% at 8% 0%, rgba(255,250,220,0.18) 0%, transparent 70%)",
+      }} />
+      {/* Stadium lights — top right */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 55% 45% at 92% 0%, rgba(255,250,220,0.18) 0%, transparent 70%)",
+      }} />
+      {/* Center golden glow for 1st */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 45% 60% at 50% 20%, rgba(245,158,11,0.22) 0%, transparent 70%)",
+      }} />
+      {/* Ground green gradient */}
+      <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none" style={{
+        background: "linear-gradient(180deg, transparent 0%, rgba(0,30,0,0.5) 100%)",
+      }} />
+
+      {/* Confetti */}
+      {CONFETTI_PIECES.map((p, i) => (
+        <div
+          key={i}
+          className="absolute pointer-events-none"
+          style={{
+            left: p.left,
+            top: "-8px",
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            transform: p.rotate,
+            animation: `confetti-fall ${p.dur} ease-in infinite`,
+            animationDelay: p.delay,
+            borderRadius: i % 4 === 0 ? "50%" : 2,
+          }}
+        />
+      ))}
+
+      {/* Shields */}
+      <div className="relative z-10 flex items-end justify-center gap-6 px-6 pt-8 pb-6">
+        {[2, 1, 3].map((rank) => (
+          <ShieldBadge key={rank} seller={ranked[rank - 1]} rank={rank} />
+        ))}
       </div>
     </div>
   );
@@ -443,29 +565,28 @@ export default function RankingPage() {
   return (
     <div className="flex flex-col gap-6">
       <style>{`
-        @keyframes halo-outer {
-          0%, 100% { opacity: 0.7; transform: scale(1.25); }
-          50%       { opacity: 0.2; transform: scale(1.45); }
-        }
         @keyframes crown-bounce {
-          0%, 100% { transform: translateX(-50%) translateY(0px) rotate(-5deg); }
-          30%       { transform: translateX(-50%) translateY(-6px) rotate(5deg); }
-          60%       { transform: translateX(-50%) translateY(-3px) rotate(-2deg); }
-        }
-        @keyframes sparkle-float {
-          0%   { opacity: 0;   transform: translateY(0px)   scale(0.6); }
-          30%  { opacity: 1;   transform: translateY(-10px) scale(1); }
-          70%  { opacity: 0.8; transform: translateY(-20px) scale(0.9); }
-          100% { opacity: 0;   transform: translateY(-32px) scale(0.5); }
+          0%, 100% { transform: translateY(0px) rotate(-4deg); }
+          40%       { transform: translateY(-7px) rotate(4deg); }
+          70%       { transform: translateY(-3px) rotate(-1deg); }
         }
         @keyframes shimmer {
-          0%   { transform: translateX(-120%) skewX(-12deg); }
-          60%  { transform: translateX(220%)  skewX(-12deg); }
-          100% { transform: translateX(220%)  skewX(-12deg); }
+          0%   { transform: translateX(-140%); }
+          60%  { transform: translateX(240%); }
+          100% { transform: translateX(240%); }
         }
         @keyframes achievement-pop {
           0%, 100% { transform: scale(1); }
-          50%       { transform: scale(1.08); }
+          50%       { transform: scale(1.1); }
+        }
+        @keyframes shield-glow {
+          0%, 100% { box-shadow: 0 0 32px rgba(245,158,11,0.8), inset 0 0 20px rgba(0,0,0,0.6); }
+          50%       { box-shadow: 0 0 56px rgba(245,158,11,1),   inset 0 0 20px rgba(0,0,0,0.6); }
+        }
+        @keyframes confetti-fall {
+          0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
+          80%  { opacity: 1; }
+          100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
         }
       `}</style>
 
@@ -517,29 +638,21 @@ export default function RankingPage() {
         </div>
       ) : (
         <>
-          {/* Podium display */}
-          <div className="rounded-xl border bg-gradient-to-b from-purple-50 to-white dark:from-purple-900/20 dark:to-slate-800 p-6 shadow-sm">
-            <div className="flex items-end justify-center gap-4 h-64">
-              {PODIUM.map((p) => (
-                <div key={p.rank} className={cn("flex-1 max-w-[140px]", "flex flex-col items-center justify-end")}>
-                  <PodiumCard seller={ranked[p.rank - 1]} podium={p} />
-                </div>
-              ))}
-            </div>
-            {/* Legend badges */}
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {[
-                { icon: "👑", label: "Campeão", color: "text-amber-700 bg-amber-100 border-amber-300" },
-                { icon: "🔥", label: "Meta Batida (≥100%)", color: "text-red-700 bg-red-100 border-red-300" },
-                { icon: "📈", label: "Quase Lá (≥80%)", color: "text-blue-700 bg-blue-100 border-blue-300" },
-                { icon: "⚡", label: "Top Ticket Médio", color: "text-purple-700 bg-purple-100 border-purple-300" },
-                { icon: "🌟", label: "Maior Base de Clientes", color: "text-green-700 bg-green-100 border-green-300" },
-              ].map((b) => (
-                <span key={b.label} className={cn("text-xs px-2.5 py-1 rounded-full border font-medium flex items-center gap-1", b.color)}>
-                  {b.icon} {b.label}
-                </span>
-              ))}
-            </div>
+          {/* Stadium Podium */}
+          <StadiumPodium ranked={ranked} />
+
+          {/* Legend badges */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { icon: "🔥", label: "Meta Batida (≥100%)", color: "text-red-700 bg-red-100 border-red-300" },
+              { icon: "📈", label: "Quase Lá (≥80%)", color: "text-blue-700 bg-blue-100 border-blue-300" },
+              { icon: "⚡", label: "Top Ticket Médio", color: "text-purple-700 bg-purple-100 border-purple-300" },
+              { icon: "🌟", label: "Maior Base de Clientes", color: "text-green-700 bg-green-100 border-green-300" },
+            ].map((b) => (
+              <span key={b.label} className={cn("text-xs px-2.5 py-1 rounded-full border font-medium flex items-center gap-1", b.color)}>
+                {b.icon} {b.label}
+              </span>
+            ))}
           </div>
 
           {/* Full ranking table */}
