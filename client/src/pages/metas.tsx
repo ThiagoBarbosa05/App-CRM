@@ -230,7 +230,7 @@ export default function Metas() {
 
   const calculatePercentage = (achieved: number, goal: number) => {
     if (goal === 0) return 0;
-    return Math.min((achieved / goal) * 100, 100);
+    return (achieved / goal) * 100;
   };
 
   const getTotalAchieved = (
