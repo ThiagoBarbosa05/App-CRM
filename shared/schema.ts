@@ -2917,6 +2917,33 @@ export const systemSettings = pgTable("system_settings", {
   description: text("description"),
 });
 
+// Tabela de boards (quadros) do kanban de tarefas
+export const taskBoards = pgTable("task_boards", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("slate"),
+  description: text("description"),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tabela de etapas do kanban de tarefas (dinâmicas, por board)
+export const taskStages = pgTable("task_stages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").references(() => taskBoards.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: varchar("slug").notNull().unique(),
+  color: text("color").notNull().default("slate"),
+  order: integer("order").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tabela de tarefas internas
 export const tasks = pgTable("tasks", {
   id: varchar("id")
@@ -2941,11 +2968,8 @@ export const tasks = pgTable("tasks", {
   })
     .notNull()
     .default("media"),
-  status: text("status", {
-    enum: ["a_fazer", "em_andamento", "aguardando_aprovacao", "concluido"],
-  })
-    .notNull()
-    .default("a_fazer"),
+  status: varchar("status").notNull().default("a_fazer"),
+  boardId: varchar("board_id").references(() => taskBoards.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -3004,3 +3028,43 @@ export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskComment = typeof taskComments.$inferSelect;
+
+// ─── Anotações (estilo OneNote) ──────────────────────────────────────────────
+
+export const noteSections = pgTable("note_sections", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("slate"),
+  order: integer("order").notNull().default(0),
+  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notes = pgTable("notes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  sectionId: varchar("section_id")
+    .references(() => noteSections.id, { onDelete: "cascade" })
+    .notNull(),
+  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const noteSectionsRelations = relations(noteSections, ({ many }) => ({
+  notes: many(notes),
+}));
+
+export const notesRelations = relations(notes, ({ one }) => ({
+  section: one(noteSections, { fields: [notes.sectionId], references: [noteSections.id] }),
+  createdBy: one(users, { fields: [notes.createdById], references: [users.id] }),
+}));
+
+export type TaskBoard = typeof taskBoards.$inferSelect;
+export type NoteSection = typeof noteSections.$inferSelect;
+export type Note = typeof notes.$inferSelect;

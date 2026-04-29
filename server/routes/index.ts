@@ -53,6 +53,10 @@ import { birthdayAutomationRouter } from "./birthday-automation.routes";
 import { healthRouter } from "./health.routes";
 import { adminRouter } from "./admin.routes";
 import { tasksRouter } from "./tasks.routes";
+import { taskStagesRouter } from "./task-stages.routes";
+import { taskBoardsRouter } from "./task-boards.routes";
+import { noteSectionsRouter } from "./note-sections.routes";
+import { notesRouter } from "./notes.routes";
 import { messageAutomationSettingsRouter } from "./message-automation-settings.routes";
 import {
   clientRegistrationGoalsRouter,
@@ -136,3 +140,7 @@ apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
 apiRouter.use("/tasks", tasksRouter);
+apiRouter.use("/task-stages", taskStagesRouter);
+apiRouter.use("/task-boards", taskBoardsRouter);
+apiRouter.use("/note-sections", noteSectionsRouter);
+apiRouter.use("/notes", notesRouter);

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { eq, desc, and, or } from "drizzle-orm";
+
 import { db } from "../db";
 import {
   tasks,
@@ -18,6 +19,15 @@ tasksRouter.get("/", async (req, res) => {
   try {
     const { userId, role } = req.user!;
 
+    const { boardId } = req.query;
+
+    const whereClause = (() => {
+      const conditions = [];
+      if (role === "vendedor") conditions.push(eq(tasks.assigneeId, userId));
+      if (boardId) conditions.push(eq(tasks.boardId, boardId as string));
+      return conditions.length === 1 ? conditions[0] : conditions.length > 1 ? and(...conditions) : undefined;
+    })();
+
     const rows = await db
       .select({
         task: tasks,
@@ -30,9 +40,7 @@ tasksRouter.get("/", async (req, res) => {
       })
       .from(tasks)
       .leftJoin(users, eq(tasks.assigneeId, users.id))
-      .where(
-        role === "vendedor" ? eq(tasks.assigneeId, userId) : undefined,
-      )
+      .where(whereClause)
       .orderBy(desc(tasks.createdAt));
 
     // Busca criadores em batch
@@ -154,7 +162,7 @@ tasksRouter.patch("/:id", async (req, res) => {
       }
       // Vendedor só pode alterar o status
       const { status } = z
-        .object({ status: z.enum(["a_fazer", "em_andamento", "aguardando_aprovacao", "concluido"]) })
+        .object({ status: z.string().min(1) })
         .parse(req.body);
       const [updated] = await db
         .update(tasks)

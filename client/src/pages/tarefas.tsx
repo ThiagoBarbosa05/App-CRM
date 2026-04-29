@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,13 @@ import {
   ClipboardList,
   LayoutGrid,
   List,
+  Pencil,
+  ChevronLeft,
+  FileText,
+  FolderOpen,
+  NotebookPen,
+  Check,
+  Loader2,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -22,8 +29,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -52,9 +57,29 @@ import { Separator } from "@/components/ui/separator";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TaskStatus = "a_fazer" | "em_andamento" | "aguardando_aprovacao" | "concluido";
 type TaskPriority = "baixa" | "media" | "alta" | "urgente";
 type TaskCategory = "marketing" | "operacao" | "financeiro" | "comercial" | "outro";
+
+interface TaskBoard {
+  id: string;
+  name: string;
+  color: string;
+  description: string | null;
+  isDefault: boolean;
+  createdById: string;
+  createdAt: string;
+  taskCount: number;
+}
+
+interface TaskStage {
+  id: string;
+  boardId: string | null;
+  name: string;
+  slug: string;
+  color: string;
+  order: number;
+  isDefault: boolean;
+}
 
 interface TaskUser {
   id: string;
@@ -72,7 +97,8 @@ interface Task {
   dueDate: string | null;
   category: TaskCategory;
   priority: TaskPriority;
-  status: TaskStatus;
+  status: string;
+  boardId: string | null;
   assignee: TaskUser | null;
   createdBy: { id: string; name: string } | null;
   createdAt: string;
@@ -90,61 +116,105 @@ interface TaskWithComments extends Task {
   }>;
 }
 
+interface NoteSection {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  createdById: string;
+  createdAt: string;
+  noteCount: number;
+}
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  sectionId: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: { id: string; name: string } | null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; bg: string }> = {
-  a_fazer: { label: "A Fazer", color: "text-slate-700", bg: "bg-slate-100 border-slate-300" },
-  em_andamento: { label: "Em Andamento", color: "text-blue-700", bg: "bg-blue-50 border-blue-300" },
-  aguardando_aprovacao: { label: "Aguardando Aprovação", color: "text-amber-700", bg: "bg-amber-50 border-amber-300" },
-  concluido: { label: "Concluído", color: "text-green-700", bg: "bg-green-50 border-green-300" },
+const STAGE_COLORS: Record<string, { color: string; bg: string }> = {
+  slate:  { color: "text-slate-700 dark:text-slate-200",   bg: "bg-slate-100 border-slate-300 dark:bg-slate-700/40 dark:border-slate-600" },
+  blue:   { color: "text-blue-700 dark:text-blue-300",     bg: "bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700" },
+  amber:  { color: "text-amber-700 dark:text-amber-300",   bg: "bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-700" },
+  green:  { color: "text-green-700 dark:text-green-300",   bg: "bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700" },
+  purple: { color: "text-purple-700 dark:text-purple-300", bg: "bg-purple-50 border-purple-300 dark:bg-purple-900/20 dark:border-purple-700" },
+  orange: { color: "text-orange-700 dark:text-orange-300", bg: "bg-orange-50 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700" },
+  red:    { color: "text-red-700 dark:text-red-300",       bg: "bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700" },
+  teal:   { color: "text-teal-700 dark:text-teal-300",     bg: "bg-teal-50 border-teal-300 dark:bg-teal-900/20 dark:border-teal-700" },
+  indigo: { color: "text-indigo-700 dark:text-indigo-300", bg: "bg-indigo-50 border-indigo-300 dark:bg-indigo-900/20 dark:border-indigo-700" },
+  pink:   { color: "text-pink-700 dark:text-pink-300",     bg: "bg-pink-50 border-pink-300 dark:bg-pink-900/20 dark:border-pink-700" },
 };
 
+const COLOR_CYCLE = ["slate", "blue", "amber", "green", "purple", "orange", "red", "teal", "indigo", "pink"];
+
+const BOARD_COLOR_DOT: Record<string, string> = {
+  slate:  "bg-slate-400",
+  blue:   "bg-blue-500",
+  amber:  "bg-amber-500",
+  green:  "bg-green-500",
+  purple: "bg-purple-500",
+  orange: "bg-orange-500",
+  red:    "bg-red-500",
+  teal:   "bg-teal-500",
+  indigo: "bg-indigo-500",
+  pink:   "bg-pink-500",
+};
+
+const BOARD_COLOR_HEADER: Record<string, string> = {
+  slate:  "from-slate-500 to-slate-600",
+  blue:   "from-blue-500 to-blue-600",
+  amber:  "from-amber-500 to-amber-600",
+  green:  "from-green-500 to-green-600",
+  purple: "from-purple-500 to-purple-600",
+  orange: "from-orange-500 to-orange-600",
+  red:    "from-red-500 to-red-600",
+  teal:   "from-teal-500 to-teal-600",
+  indigo: "from-indigo-500 to-indigo-600",
+  pink:   "from-pink-500 to-pink-600",
+};
+
+function stageStyle(color: string) {
+  return STAGE_COLORS[color] ?? STAGE_COLORS.slate;
+}
+
 const PRIORITY_CONFIG: Record<TaskPriority, { label: string; badge: string }> = {
-  baixa: { label: "Baixa", badge: "bg-slate-100 text-slate-600 border-slate-300" },
-  media: { label: "Média", badge: "bg-blue-100 text-blue-700 border-blue-300" },
-  alta: { label: "Alta", badge: "bg-orange-100 text-orange-700 border-orange-300" },
+  baixa:   { label: "Baixa",   badge: "bg-slate-100 text-slate-600 border-slate-300" },
+  media:   { label: "Média",   badge: "bg-blue-100 text-blue-700 border-blue-300" },
+  alta:    { label: "Alta",    badge: "bg-orange-100 text-orange-700 border-orange-300" },
   urgente: { label: "Urgente", badge: "bg-red-100 text-red-700 border-red-300" },
 };
 
 const CATEGORY_LABELS: Record<TaskCategory, string> = {
-  marketing: "Marketing",
-  operacao: "Operação",
+  marketing:  "Marketing",
+  operacao:   "Operação",
   financeiro: "Financeiro",
-  comercial: "Comercial",
-  outro: "Outro",
+  comercial:  "Comercial",
+  outro:      "Outro",
 };
 
-const STATUS_ORDER: TaskStatus[] = [
-  "a_fazer",
-  "em_andamento",
-  "aguardando_aprovacao",
-  "concluido",
-];
+// ─── API helper ───────────────────────────────────────────────────────────────
 
-// ─── API helpers ─────────────────────────────────────────────────────────────
-
-async function apiFetch(path: string, options?: RequestInit) {
+async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: "include", ...options });
   const text = await res.text();
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    const preview = text.slice(0, 120).replace(/\s+/g, " ");
-    throw new Error(
-      res.ok
-        ? `Resposta inválida do servidor (${res.status}): ${preview}`
-        : `Erro ${res.status}: resposta não-JSON do servidor`
-    );
+  try { parsed = JSON.parse(text); } catch {
+    throw new Error(res.ok
+      ? `Resposta inválida do servidor (${res.status}): ${text.slice(0, 120)}`
+      : `Erro ${res.status}: resposta não-JSON`);
   }
-  if (!res.ok) {
-    const body = parsed as Record<string, unknown>;
-    throw new Error((body?.message as string) ?? `Erro ${res.status}`);
-  }
-  return parsed;
+  if (!res.ok) throw new Error(((parsed as Record<string, unknown>)?.message as string) ?? `Erro ${res.status}`);
+  return parsed as T;
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Shared sub-components ───────────────────────────────────────────────────
 
 function DueDateBadge({ dueDate }: { dueDate: string | null }) {
   if (!dueDate) return null;
@@ -152,18 +222,13 @@ function DueDateBadge({ dueDate }: { dueDate: string | null }) {
   const overdue = isPast(date) && !isToday(date);
   const dueToday = isToday(date);
   return (
-    <span
-      className={cn(
-        "text-xs flex items-center gap-1",
-        overdue && "text-red-600 font-semibold",
-        dueToday && "text-amber-600 font-semibold",
-        !overdue && !dueToday && "text-slate-500",
-      )}
-    >
+    <span className={cn("text-xs flex items-center gap-1",
+      overdue && "text-red-600 font-semibold",
+      dueToday && "text-amber-600 font-semibold",
+      !overdue && !dueToday && "text-slate-500")}>
       <Calendar className="h-3 w-3" />
       {format(date, "dd/MM/yy", { locale: ptBR })}
-      {overdue && " · vencida"}
-      {dueToday && " · hoje"}
+      {overdue && " · vencida"}{dueToday && " · hoje"}
     </span>
   );
 }
@@ -177,31 +242,19 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
   );
 }
 
-// ─── Task card (Kanban) ───────────────────────────────────────────────────────
+// ─── Task card ────────────────────────────────────────────────────────────────
 
-function TaskCard({
-  task,
-  onOpen,
-  onDragStart,
-  isDragging,
-}: {
-  task: Task;
-  onOpen: (t: Task) => void;
-  onDragStart: (id: string) => void;
-  isDragging: boolean;
+function TaskCard({ task, onOpen, onDragStart, isDragging }: {
+  task: Task; onOpen: (t: Task) => void;
+  onDragStart: (id: string) => void; isDragging: boolean;
 }) {
   const dueDate = task.dueDate ? parseISO(task.dueDate) : null;
   const overdue = dueDate && isPast(dueDate) && !isToday(dueDate);
   const dueToday = dueDate && isToday(dueDate);
-
   return (
     <div
       draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("taskId", task.id);
-        onDragStart(task.id);
-      }}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("taskId", task.id); onDragStart(task.id); }}
       onClick={() => onOpen(task)}
       className={cn(
         "rounded-lg border p-3 bg-white dark:bg-slate-800 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all select-none",
@@ -210,9 +263,7 @@ function TaskCard({
         isDragging && "opacity-40 scale-95",
       )}
     >
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug mb-2">
-        {task.title}
-      </p>
+      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug mb-2">{task.title}</p>
       <div className="flex flex-wrap gap-1.5 mb-2">
         <PriorityBadge priority={task.priority} />
         <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300">
@@ -222,8 +273,7 @@ function TaskCard({
       <div className="flex flex-col gap-0.5 mt-1">
         {task.assignee && (
           <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-            <User className="h-3 w-3" />
-            {task.assignee.name.split(" ")[0]}
+            <User className="h-3 w-3" />{task.assignee.name.split(" ")[0]}
           </span>
         )}
         <DueDateBadge dueDate={task.dueDate} />
@@ -232,143 +282,232 @@ function TaskCard({
   );
 }
 
-// ─── Kanban view ─────────────────────────────────────────────────────────────
+// ─── Quick add ────────────────────────────────────────────────────────────────
 
-function KanbanView({
-  tasks,
-  onOpen,
-  onDropToStatus,
-}: {
-  tasks: Task[];
-  onOpen: (t: Task) => void;
-  onDropToStatus: (taskId: string, status: TaskStatus) => void;
+function QuickAddCard({ onConfirm, onCancel }: { onConfirm: (title: string) => void; onCancel: () => void }) {
+  const [title, setTitle] = useState("");
+  const submit = () => { const t = title.trim(); if (t) onConfirm(t); };
+  return (
+    <div className="rounded-lg border border-purple-300 bg-white dark:bg-slate-800 p-2 shadow-sm flex flex-col gap-2">
+      <textarea
+        autoFocus rows={2}
+        placeholder="Título da tarefa..."
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+          if (e.key === "Escape") onCancel();
+        }}
+        className="w-full resize-none text-sm bg-transparent outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+      />
+      <div className="flex gap-1.5">
+        <button onClick={submit} disabled={!title.trim()}
+          className="text-xs px-3 py-1 rounded bg-purple-600 text-white font-medium hover:bg-purple-700 disabled:opacity-40 transition-colors">
+          Adicionar
+        </button>
+        <button onClick={onCancel}
+          className="text-xs px-3 py-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Kanban view ──────────────────────────────────────────────────────────────
+
+function KanbanView({ tasks, stages, onOpen, onDropToStatus, onQuickCreate, onRenameStage, onAddStage, canManageStages, boardId }: {
+  tasks: Task[]; stages: TaskStage[]; onOpen: (t: Task) => void;
+  onDropToStatus: (taskId: string, slug: string) => void;
+  onQuickCreate?: (title: string, slug: string) => void;
+  onRenameStage?: (id: string, name: string) => void;
+  onAddStage?: (name: string) => void;
+  canManageStages?: boolean;
+  boardId?: string;
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
+  const [overSlug, setOverSlug] = useState<string | null>(null);
+  const [addingIn, setAddingIn] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [addingStage, setAddingStage] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDrop = (e: React.DragEvent, status: TaskStatus) => {
+  const saveRename = (id: string) => {
+    const trimmed = editingName.trim();
+    if (trimmed && onRenameStage) onRenameStage(id, trimmed);
+    setEditingId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, slug: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     const task = tasks.find((t) => t.id === taskId);
-    if (taskId && task && task.status !== status) {
-      onDropToStatus(taskId, status);
-    }
+    if (taskId && task && task.status !== slug) onDropToStatus(taskId, slug);
     setDraggedId(null);
-    setOverStatus(null);
+    setOverSlug(null);
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 h-full">
-      {STATUS_ORDER.map((status) => {
-        const cfg = STATUS_CONFIG[status];
-        const col = tasks.filter((t) => t.status === status);
-        const isOver = overStatus === status;
-        const draggedTask = tasks.find((t) => t.id === draggedId);
-        const isSameCol = draggedTask?.status === status;
-
+    <div className="flex gap-4 overflow-x-auto pb-4">
+      {stages.map((stage) => {
+        const cfg = stageStyle(stage.color);
+        const col = tasks.filter((t) => t.status === stage.slug);
+        const isOver = overSlug === stage.slug;
+        const isSameCol = tasks.find((t) => t.id === draggedId)?.status === stage.slug;
         return (
-          <div
-            key={status}
-            className="flex flex-col gap-3"
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              setOverStatus(status);
-            }}
-            onDragLeave={(e) => {
-              // só limpa se saiu da coluna inteira (não de um filho)
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setOverStatus(null);
-              }
-            }}
-            onDrop={(e) => handleDrop(e, status)}
-          >
-            <div className={cn("rounded-lg border px-3 py-2 flex items-center justify-between transition-colors", cfg.bg)}>
-              <span className={cn("text-sm font-semibold", cfg.color)}>{cfg.label}</span>
-              <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full bg-white/70", cfg.color)}>
-                {col.length}
-              </span>
-            </div>
-            <div
-              className={cn(
-                "flex flex-col gap-2 min-h-[120px] rounded-lg transition-all p-1 -m-1",
-                isOver && !isSameCol && "bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-400 ring-dashed",
+          <div key={stage.id}
+            className="flex flex-col gap-3 min-w-[260px] w-[260px] flex-shrink-0"
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverSlug(stage.slug); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverSlug(null); }}
+            onDrop={(e) => handleDrop(e, stage.slug)}>
+            <div className={cn("rounded-lg border px-3 py-2 flex items-center justify-between gap-2 transition-colors group", cfg.bg)}>
+              {editingId === stage.id ? (
+                <input ref={editInputRef} autoFocus value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveRename(stage.id); if (e.key === "Escape") setEditingId(null); }}
+                  onBlur={() => saveRename(stage.id)}
+                  className={cn("text-sm font-semibold bg-transparent outline-none border-b border-current flex-1 min-w-0", cfg.color)} />
+              ) : (
+                <span className={cn("text-sm font-semibold flex-1 min-w-0 truncate", cfg.color)}>{stage.name}</span>
               )}
-            >
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {canManageStages && editingId !== stage.id && (
+                  <button onClick={() => { setEditingId(stage.id); setEditingName(stage.name); }}
+                    className={cn("opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/50", cfg.color)} title="Renomear">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+                <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full bg-white/70", cfg.color)}>{col.length}</span>
+              </div>
+            </div>
+            <div className={cn("flex flex-col gap-2 min-h-[120px] rounded-lg transition-all p-1 -m-1",
+              isOver && !isSameCol && "bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-400 ring-dashed")}>
               {col.map((t) => (
-                <TaskCard
-                  key={t.id}
-                  task={t}
-                  onOpen={onOpen}
-                  onDragStart={setDraggedId}
-                  isDragging={draggedId === t.id}
-                />
+                <TaskCard key={t.id} task={t} onOpen={onOpen} onDragStart={setDraggedId} isDragging={draggedId === t.id} />
               ))}
-              {col.length === 0 && (
-                <div className={cn(
-                  "text-xs text-slate-400 dark:text-slate-500 text-center mt-4 transition-opacity",
-                  isOver && "opacity-0",
-                )}>
-                  Nenhuma tarefa
-                </div>
+              {col.length === 0 && addingIn !== stage.slug && (
+                <div className={cn("text-xs text-slate-400 dark:text-slate-500 text-center mt-4", isOver && "opacity-0")}>Nenhuma tarefa</div>
+              )}
+              {onQuickCreate && (
+                addingIn === stage.slug ? (
+                  <QuickAddCard
+                    onConfirm={(title) => { onQuickCreate(title, stage.slug); setAddingIn(null); }}
+                    onCancel={() => setAddingIn(null)} />
+                ) : (
+                  <button onClick={() => setAddingIn(stage.slug)}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg px-2 py-1.5 transition-colors mt-1">
+                    <Plus className="h-3.5 w-3.5" />Adicionar tarefa
+                  </button>
+                )
               )}
             </div>
           </div>
         );
       })}
+      {canManageStages && onAddStage && (
+        <div className="flex flex-col gap-3 min-w-[200px] w-[200px] flex-shrink-0">
+          {addingStage ? (
+            <div className="rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-700 px-3 py-2 flex flex-col gap-2">
+              <input autoFocus value={newStageName} onChange={(e) => setNewStageName(e.target.value)}
+                placeholder="Nome da etapa..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newStageName.trim()) { onAddStage(newStageName.trim()); setNewStageName(""); setAddingStage(false); }
+                  if (e.key === "Escape") { setNewStageName(""); setAddingStage(false); }
+                }}
+                onBlur={() => { if (!newStageName.trim()) setAddingStage(false); }}
+                className="text-sm font-semibold bg-transparent outline-none text-slate-700 dark:text-slate-200 w-full" />
+              <div className="flex gap-1.5">
+                <button onClick={() => { if (newStageName.trim()) { onAddStage(newStageName.trim()); setNewStageName(""); setAddingStage(false); } }}
+                  disabled={!newStageName.trim()}
+                  className="text-xs px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-40">Criar</button>
+                <button onClick={() => { setNewStageName(""); setAddingStage(false); }}
+                  className="text-xs px-2 py-0.5 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setAddingStage(true)}
+              className="rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-600 px-3 py-2 flex items-center gap-1.5 text-sm text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+              <Plus className="h-4 w-4" />Nova etapa
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── List view ───────────────────────────────────────────────────────────────
+// ─── My tasks list view ───────────────────────────────────────────────────────
 
-function ListView({
-  tasks,
-  onOpen,
-}: {
-  tasks: Task[];
-  onOpen: (t: Task) => void;
+function MyTasksListView({ tasks, allStages, boards, onOpen }: {
+  tasks: Task[]; allStages: TaskStage[]; boards: TaskBoard[]; onOpen: (t: Task) => void;
 }) {
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+
+  const stageMap = Object.fromEntries(allStages.map((s) => [s.slug, s]));
+  const boardMap = Object.fromEntries(boards.map((b) => [b.id, b]));
 
   const filtered = tasks.filter((t) => {
-    if (filterStatus !== "all" && t.status !== filterStatus) return false;
-    if (filterCategory !== "all" && t.category !== filterCategory) return false;
     if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+    if (filterCategory !== "all" && t.category !== filterCategory) return false;
     return true;
   });
+
+  const pending = filtered.filter((t) => {
+    const stage = stageMap[t.status];
+    return !stage || stage.slug !== "concluido" && !stage.name.toLowerCase().includes("conclu");
+  });
+  const done = filtered.filter((t) => {
+    const stage = stageMap[t.status];
+    return stage && (stage.slug === "concluido" || stage.name.toLowerCase().includes("conclu"));
+  });
+
+  const renderRow = (t: Task) => {
+    const dueDate = t.dueDate ? parseISO(t.dueDate) : null;
+    const overdue = dueDate && isPast(dueDate) && !isToday(dueDate);
+    const dueToday = dueDate && isToday(dueDate);
+    const stage = stageMap[t.status];
+    const scfg = stage ? stageStyle(stage.color) : stageStyle("slate");
+    const board = t.boardId ? boardMap[t.boardId] : null;
+    return (
+      <div key={t.id} onClick={() => onOpen(t)}
+        className={cn(
+          "grid grid-cols-[1fr_120px_120px_100px_110px] px-4 py-3 border-b last:border-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 items-center text-sm",
+          overdue && "bg-red-50/40 dark:bg-red-900/10",
+          dueToday && !overdue && "bg-amber-50/40 dark:bg-amber-900/10",
+        )}>
+        <div>
+          <p className="font-medium text-slate-800 dark:text-slate-100 truncate">{t.title}</p>
+          {board && (
+            <span className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+              <span className={cn("w-2 h-2 rounded-full inline-block", BOARD_COLOR_DOT[board.color] ?? "bg-slate-400")} />
+              {board.name}
+            </span>
+          )}
+        </div>
+        <span className={cn("text-xs font-medium px-2 py-1 rounded-full border w-fit", scfg.bg, scfg.color)}>
+          {stage?.name ?? t.status}
+        </span>
+        <PriorityBadge priority={t.priority} />
+        <span className="text-xs text-slate-500">{CATEGORY_LABELS[t.category]}</span>
+        <span className={cn("text-xs",
+          overdue && "text-red-600 font-semibold",
+          dueToday && "text-amber-600 font-semibold",
+          !overdue && !dueToday && "text-slate-500")}>
+          {dueDate ? format(dueDate, "dd/MM/yy", { locale: ptBR }) : "—"}
+          {overdue && " ⚠"}{dueToday && " · hoje"}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48 h-8 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {STATUS_ORDER.map((s) => (
-              <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-44 h-8 text-xs">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {(Object.keys(CATEGORY_LABELS) as TaskCategory[]).map((c) => (
-              <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-40 h-8 text-xs">
-            <SelectValue placeholder="Prioridade" />
-          </SelectTrigger>
+          <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Prioridade" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as prioridades</SelectItem>
             {(Object.keys(PRIORITY_CONFIG) as TaskPriority[]).map((p) => (
@@ -376,66 +515,148 @@ function ListView({
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {(Object.keys(CATEGORY_LABELS) as TaskCategory[]).map((c) => (
+              <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="rounded-lg border bg-white dark:bg-slate-800 overflow-hidden">
-        <div className="grid grid-cols-[1fr_140px_120px_110px_130px] gap-0 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide border-b bg-slate-50 dark:bg-slate-900 px-4 py-2">
-          <span>Tarefa</span>
-          <span>Responsável</span>
-          <span>Status</span>
-          <span>Prioridade</span>
-          <span>Prazo</span>
+      {filtered.length === 0 ? (
+        <div className="text-center text-slate-400 dark:text-slate-500 py-16">
+          <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p>Nenhuma tarefa atribuída a você.</p>
         </div>
-        {filtered.length === 0 && (
-          <div className="text-sm text-slate-400 text-center py-10">
-            Nenhuma tarefa encontrada
+      ) : (
+        <div className="rounded-lg border bg-white dark:bg-slate-800 overflow-hidden">
+          <div className="grid grid-cols-[1fr_120px_120px_100px_110px] text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide border-b bg-slate-50 dark:bg-slate-900 px-4 py-2">
+            <span>Tarefa</span><span>Status</span><span>Prioridade</span><span>Categoria</span><span>Prazo</span>
           </div>
-        )}
-        {filtered.map((t) => {
-          const dueDate = t.dueDate ? parseISO(t.dueDate) : null;
-          const overdue = dueDate && isPast(dueDate) && !isToday(dueDate);
-          const dueToday = dueDate && isToday(dueDate);
-          const scfg = STATUS_CONFIG[t.status];
-          return (
-            <div
-              key={t.id}
-              onClick={() => onOpen(t)}
-              className={cn(
-                "grid grid-cols-[1fr_140px_120px_110px_130px] gap-0 px-4 py-3 border-b last:border-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 items-center text-sm",
-                overdue && "bg-red-50/40 dark:bg-red-900/10",
-                dueToday && !overdue && "bg-amber-50/40 dark:bg-amber-900/10",
-              )}
-            >
-              <div>
-                <p className="font-medium text-slate-800 dark:text-slate-100 truncate">{t.title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{CATEGORY_LABELS[t.category]}</p>
+          {pending.length > 0 && (
+            <>
+              {pending.map(renderRow)}
+            </>
+          )}
+          {done.length > 0 && (
+            <>
+              <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide bg-slate-50/50 dark:bg-slate-900/50 border-t">
+                Concluídas ({done.length})
               </div>
-              <span className="text-slate-600 dark:text-slate-300 text-xs">
-                {t.assignee?.name.split(" ").slice(0, 2).join(" ") ?? "—"}
-              </span>
-              <span className={cn("text-xs font-medium px-2 py-1 rounded-full border w-fit", scfg.bg, scfg.color)}>
-                {scfg.label}
-              </span>
-              <PriorityBadge priority={t.priority} />
-              <span className={cn(
-                "text-xs",
-                overdue && "text-red-600 font-semibold",
-                dueToday && "text-amber-600 font-semibold",
-                !overdue && !dueToday && "text-slate-500",
-              )}>
-                {dueDate ? format(dueDate, "dd/MM/yyyy", { locale: ptBR }) : "—"}
-                {overdue && " ⚠"}
-                {dueToday && " ·hoje"}
-              </span>
-            </div>
-          );
-        })}
+              {done.map(renderRow)}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Board card ───────────────────────────────────────────────────────────────
+
+function BoardCard({ board, onClick, onDelete, canDelete }: {
+  board: TaskBoard; onClick: () => void;
+  onDelete?: () => void; canDelete?: boolean;
+}) {
+  const headerGrad = BOARD_COLOR_HEADER[board.color] ?? BOARD_COLOR_HEADER.slate;
+  return (
+    <div onClick={onClick}
+      className="rounded-xl border bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden group">
+      <div className={cn("h-16 bg-gradient-to-r", headerGrad)} />
+      <div className="p-4 pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-base">{board.name}</h3>
+            {board.description && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{board.description}</p>
+            )}
+          </div>
+          {canDelete && onDelete && !board.isDefault && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 p-1 rounded"
+              title="Excluir board">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {board.taskCount} tarefa{board.taskCount !== 1 ? "s" : ""}
+          </span>
+          {board.isDefault && (
+            <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">Padrão</span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Create task form ─────────────────────────────────────────────────────────
+// ─── Add board dialog ─────────────────────────────────────────────────────────
+
+function AddBoardDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("blue");
+  const [description, setDescription] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () => apiFetch("/api/task-boards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), color, description: description.trim() || undefined }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Board criado com sucesso" });
+      setName(""); setColor("blue"); setDescription("");
+      onClose();
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Novo Board</DialogTitle></DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome *</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Marketing" className="mt-1" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional..." className="mt-1" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">Cor</label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_CYCLE.map((c) => (
+                <button key={c} onClick={() => setColor(c)}
+                  className={cn("w-7 h-7 rounded-full transition-all", BOARD_COLOR_DOT[c] ?? "bg-slate-400",
+                    color === c && "ring-2 ring-offset-2 ring-purple-500 scale-110")}>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button disabled={!name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+              {mutation.isPending ? "Criando..." : "Criar Board"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Create task dialog ───────────────────────────────────────────────────────
 
 const createTaskSchema = z.object({
   title: z.string().min(3, "Título deve ter ao menos 3 caracteres"),
@@ -444,48 +665,34 @@ const createTaskSchema = z.object({
   dueDate: z.string().optional(),
   category: z.enum(["marketing", "operacao", "financeiro", "comercial", "outro"]),
   priority: z.enum(["baixa", "media", "alta", "urgente"]),
-  status: z.enum(["a_fazer", "em_andamento", "aguardando_aprovacao", "concluido"]),
+  status: z.string().min(1),
 });
-
 type CreateTaskForm = z.infer<typeof createTaskSchema>;
 
-function CreateTaskDialog({
-  open,
-  onClose,
-  platformUsers,
-}: {
-  open: boolean;
-  onClose: () => void;
-  platformUsers: TaskUser[];
+function CreateTaskDialog({ open, onClose, platformUsers, stages, boardId }: {
+  open: boolean; onClose: () => void; platformUsers: TaskUser[]; stages: TaskStage[]; boardId: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const form = useForm<CreateTaskForm>({
     resolver: zodResolver(createTaskSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      assigneeId: "",
-      dueDate: "",
-      category: "outro",
-      priority: "media",
-      status: "a_fazer",
-    },
+    defaultValues: { title: "", description: "", assigneeId: "", dueDate: "", category: "outro", priority: "media", status: stages[0]?.slug ?? "" },
   });
+
+  const firstSlug = stages[0]?.slug;
+  if (firstSlug && !form.getValues("status")) form.setValue("status", firstSlug);
 
   const mutation = useMutation({
     mutationFn: (data: CreateTaskForm) =>
       apiFetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-        }),
+        body: JSON.stringify({ ...data, boardId, dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
       toast({ title: "Tarefa criada com sucesso" });
       form.reset();
       onClose();
@@ -496,113 +703,66 @@ function CreateTaskDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="flex flex-col gap-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Título *</FormLabel>
-                  <FormControl><Input placeholder="Ex: Preparar campanha de páscoa" {...field} /></FormControl>
+            <FormField control={form.control} name="title" render={({ field }) => (
+              <FormItem><FormLabel>Título *</FormLabel>
+                <FormControl><Input placeholder="Ex: Preparar campanha" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem><FormLabel>Descrição</FormLabel>
+                <FormControl><Textarea rows={3} placeholder="Descreva a tarefa..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="assigneeId" render={({ field }) => (
+                <FormItem><FormLabel>Responsável *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger></FormControl>
+                    <SelectContent>{platformUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="dueDate" render={({ field }) => (
+                <FormItem><FormLabel>Prazo</FormLabel>
+                  <FormControl><Input type="date" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição</FormLabel>
-                  <FormControl><Textarea rows={3} placeholder="Descreva a tarefa..." {...field} /></FormControl>
-                  <FormMessage />
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem><FormLabel>Categoria</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>{(Object.keys(CATEGORY_LABELS) as TaskCategory[]).map((c) => <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
                 </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="assigneeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Responsável *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {platformUsers.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prazo</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              )} />
+              <FormField control={form.control} name="priority" render={({ field }) => (
+                <FormItem><FormLabel>Prioridade</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>{(Object.keys(PRIORITY_CONFIG) as TaskPriority[]).map((p) => <SelectItem key={p} value={p}>{PRIORITY_CONFIG[p].label}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(Object.keys(CATEGORY_LABELS) as TaskCategory[]).map((c) => (
-                          <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prioridade</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(Object.keys(PRIORITY_CONFIG) as TaskPriority[]).map((p) => (
-                          <SelectItem key={p} value={p}>{PRIORITY_CONFIG[p].label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField control={form.control} name="status" render={({ field }) => (
+              <FormItem><FormLabel>Etapa inicial</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{stages.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}</SelectContent>
+                </Select><FormMessage />
+              </FormItem>
+            )} />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Criando..." : "Criar Tarefa"}
-              </Button>
+              <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Criando..." : "Criar Tarefa"}</Button>
             </div>
           </form>
         </Form>
@@ -613,50 +773,38 @@ function CreateTaskDialog({
 
 // ─── Task detail dialog ───────────────────────────────────────────────────────
 
-function TaskDetailDialog({
-  taskId,
-  onClose,
-  canEdit,
-  canDelete,
-  platformUsers,
-}: {
-  taskId: string | null;
-  onClose: () => void;
-  canEdit: boolean;
-  canDelete: boolean;
-  platformUsers: TaskUser[];
+function TaskDetailDialog({ taskId, onClose, canEdit, canDelete, platformUsers, stages, boardId }: {
+  taskId: string | null; onClose: () => void; canEdit: boolean; canDelete: boolean;
+  platformUsers: TaskUser[]; stages: TaskStage[]; boardId: string;
 }) {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [comment, setComment] = useState("");
-  const [editStatus, setEditStatus] = useState<TaskStatus | "">("");
 
   const { data: task, isLoading } = useQuery<TaskWithComments>({
-    queryKey: ["tasks", taskId],
-    queryFn: () => apiFetch(`/api/tasks/${taskId}`),
+    queryKey: ["tasks", "detail", taskId],
+    queryFn: () => apiFetch<TaskWithComments>(`/api/tasks/${taskId}`),
     enabled: !!taskId,
   });
 
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      apiFetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }),
+      apiFetch(`/api/tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", "detail", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
       toast({ title: "Tarefa atualizada" });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" }),
+    mutationFn: () => apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
       toast({ title: "Tarefa excluída" });
       onClose();
     },
@@ -665,22 +813,10 @@ function TaskDetailDialog({
 
   const commentMutation = useMutation({
     mutationFn: (content: string) =>
-      apiFetch(`/api/tasks/${taskId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", taskId] });
-      setComment("");
-    },
+      apiFetch(`/api/tasks/${taskId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", "detail", taskId] }); setComment(""); },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
-
-  const handleStatusChange = (newStatus: TaskStatus) => {
-    patchMutation.mutate({ status: newStatus });
-    setEditStatus("");
-  };
 
   if (!taskId) return null;
 
@@ -695,20 +831,14 @@ function TaskDetailDialog({
               <div className="flex items-start justify-between gap-2">
                 <DialogTitle className="text-lg leading-snug pr-8">{task.title}</DialogTitle>
                 {canDelete && (
-                  <button
-                    onClick={() => deleteMutation.mutate()}
-                    className="text-red-500 hover:text-red-700 p-1 rounded"
-                    title="Excluir tarefa"
-                  >
+                  <button onClick={() => deleteMutation.mutate()} className="text-red-500 hover:text-red-700 p-1 rounded" title="Excluir tarefa">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
               </div>
             </DialogHeader>
-
             <ScrollArea className="flex-1 pr-2">
               <div className="flex flex-col gap-4">
-                {/* Meta info */}
                 <div className="flex flex-wrap gap-2 items-center">
                   <PriorityBadge priority={task.priority} />
                   <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
@@ -716,109 +846,55 @@ function TaskDetailDialog({
                   </span>
                   <DueDateBadge dueDate={task.dueDate} />
                 </div>
-
-                {/* Status selector */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500">Status:</span>
-                  <Select
-                    value={task.status}
-                    onValueChange={(v) => handleStatusChange(v as TaskStatus)}
-                  >
-                    <SelectTrigger className="h-7 text-xs w-52">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_ORDER.map((s) => (
-                        <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
-                      ))}
-                    </SelectContent>
+                  <Select value={task.status} onValueChange={(v) => patchMutation.mutate({ status: v })}>
+                    <SelectTrigger className="h-7 text-xs w-56"><SelectValue /></SelectTrigger>
+                    <SelectContent>{stages.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-
-                {/* Assignee */}
                 {canEdit ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500">Responsável:</span>
-                    <Select
-                      value={task.assigneeId}
-                      onValueChange={(v) => patchMutation.mutate({ assigneeId: v })}
-                    >
-                      <SelectTrigger className="h-7 text-xs w-52">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {platformUsers.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
-                      </SelectContent>
+                    <Select value={task.assigneeId} onValueChange={(v) => patchMutation.mutate({ assigneeId: v })}>
+                      <SelectTrigger className="h-7 text-xs w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent>{platformUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
-                    <User className="h-4 w-4" />
-                    <span>{task.assignee?.name ?? "—"}</span>
+                    <User className="h-4 w-4" /><span>{task.assignee?.name ?? "—"}</span>
                   </div>
                 )}
-
-                {/* Description */}
                 {task.description && (
                   <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/40 rounded-lg p-3">
                     {task.description}
                   </div>
                 )}
-
                 <Separator />
-
-                {/* Comments */}
                 <div className="flex flex-col gap-3">
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <MessageSquare className="h-4 w-4" />
-                    Comentários ({task.comments.length})
+                    <MessageSquare className="h-4 w-4" /> Comentários ({task.comments.length})
                   </span>
-
-                  {task.comments.length === 0 && (
-                    <p className="text-xs text-slate-400">Nenhum comentário ainda.</p>
-                  )}
-
+                  {task.comments.length === 0 && <p className="text-xs text-slate-400">Nenhum comentário ainda.</p>}
                   {task.comments.map((c) => (
                     <div key={c.id} className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          {c.user?.name ?? "Usuário"}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {format(parseISO(c.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}
-                        </span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{c.user?.name ?? "Usuário"}</span>
+                        <span className="text-xs text-slate-400">{format(parseISO(c.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}</span>
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/40 rounded px-3 py-2">
-                        {c.content}
-                      </p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/40 rounded px-3 py-2">{c.content}</p>
                     </div>
                   ))}
-
-                  {/* Add comment */}
                   <div className="flex gap-2 mt-1">
-                    <Textarea
-                      rows={2}
-                      placeholder="Adicionar comentário..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="text-sm"
-                    />
-                    <Button
-                      size="icon"
-                      disabled={!comment.trim() || commentMutation.isPending}
-                      onClick={() => commentMutation.mutate(comment.trim())}
-                    >
+                    <Textarea rows={2} placeholder="Adicionar comentário..." value={comment} onChange={(e) => setComment(e.target.value)} className="text-sm" />
+                    <Button size="icon" disabled={!comment.trim() || commentMutation.isPending} onClick={() => commentMutation.mutate(comment.trim())}>
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-
-                {/* Footer meta */}
                 <div className="text-xs text-slate-400 dark:text-slate-500">
-                  Criada por {task.createdBy?.name ?? "—"} em{" "}
-                  {format(parseISO(task.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                  Criada por {task.createdBy?.name ?? "—"} em {format(parseISO(task.createdAt), "dd/MM/yyyy", { locale: ptBR })}
                 </div>
               </div>
             </ScrollArea>
@@ -829,54 +905,477 @@ function TaskDetailDialog({
   );
 }
 
+// ─── Notes view ───────────────────────────────────────────────────────────────
+
+function NotesView() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [addingSectionName, setAddingSectionName] = useState("");
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [createNoteOpen, setCreateNoteOpen] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteContent, setNoteContent] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery<NoteSection[]>({
+    queryKey: ["note-sections"],
+    queryFn: () => apiFetch<NoteSection[]>("/api/note-sections"),
+  });
+
+  const { data: sectionNotes = [] } = useQuery<Note[]>({
+    queryKey: ["notes", selectedSectionId],
+    queryFn: () => apiFetch<Note[]>(`/api/notes?sectionId=${selectedSectionId}`),
+    enabled: !!selectedSectionId,
+  });
+
+  const selectedNote = sectionNotes.find((n) => n.id === selectedNoteId) ?? null;
+
+  // Sync editor state when note changes
+  useEffect(() => {
+    if (selectedNote) {
+      setNoteTitle(selectedNote.title);
+      setNoteContent(selectedNote.content);
+      setSaveStatus("idle");
+    }
+  }, [selectedNote?.id]);
+
+  const patchNoteMutation = useMutation({
+    mutationFn: ({ id, title, content }: { id: string; title?: string; content?: string }) =>
+      apiFetch(`/api/notes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes", selectedSectionId] });
+      setSaveStatus("saved");
+    },
+    onError: () => setSaveStatus("idle"),
+  });
+
+  const triggerSave = useCallback((id: string, title: string, content: string) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    saveTimerRef.current = setTimeout(() => {
+      patchNoteMutation.mutate({ id, title, content });
+    }, 800);
+  }, []);
+
+  const handleTitleChange = (val: string) => {
+    setNoteTitle(val);
+    if (selectedNoteId) triggerSave(selectedNoteId, val, noteContent);
+  };
+
+  const handleContentChange = (val: string) => {
+    setNoteContent(val);
+    if (selectedNoteId) triggerSave(selectedNoteId, noteTitle, val);
+  };
+
+  const addSectionMutation = useMutation({
+    mutationFn: (name: string) => apiFetch("/api/note-sections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color: COLOR_CYCLE[sections.length % COLOR_CYCLE.length] }),
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["note-sections"] });
+      setSelectedSectionId((data as NoteSection).id);
+      setAddingSectionName(""); setShowAddSection(false);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/note-sections/${id}`, { method: "DELETE" }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["note-sections"] });
+      if (selectedSectionId === id) { setSelectedSectionId(null); setSelectedNoteId(null); }
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: ({ title, sectionId }: { title: string; sectionId: string }) =>
+      apiFetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, sectionId }),
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["notes", selectedSectionId] });
+      queryClient.invalidateQueries({ queryKey: ["note-sections"] });
+      setSelectedNoteId((data as Note).id);
+      setNewNoteTitle("");
+      setCreateNoteOpen(false);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/notes/${id}`, { method: "DELETE" }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["notes", selectedSectionId] });
+      queryClient.invalidateQueries({ queryKey: ["note-sections"] });
+      if (selectedNoteId === id) setSelectedNoteId(null);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const selectedSection = sections.find((s) => s.id === selectedSectionId);
+
+  return (
+    <div className="flex gap-0 rounded-xl border bg-white dark:bg-slate-800 overflow-hidden" style={{ minHeight: 520 }}>
+      {/* Sidebar */}
+      <div className="w-56 flex-shrink-0 border-r bg-slate-50 dark:bg-slate-900 flex flex-col">
+        <div className="px-3 py-3 border-b flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Seções</span>
+          <button onClick={() => setShowAddSection(true)}
+            className="text-slate-400 hover:text-purple-600 transition-colors" title="Nova seção">
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="py-1">
+            {sectionsLoading && <p className="text-xs text-slate-400 px-3 py-2">Carregando...</p>}
+            {sections.map((section) => (
+              <div key={section.id}>
+                <button
+                  onClick={() => { setSelectedSectionId(section.id); setSelectedNoteId(null); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors group",
+                    selectedSectionId === section.id
+                      ? "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
+                  )}>
+                  <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", BOARD_COLOR_DOT[section.color] ?? "bg-slate-400")} />
+                  <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+                  <span className="flex-1 truncate">{section.name}</span>
+                  <span className="text-xs text-slate-400 flex-shrink-0">{section.noteCount}</span>
+                </button>
+                {selectedSectionId === section.id && (
+                  <div className="ml-5 border-l border-slate-200 dark:border-slate-700">
+                    {sectionNotes.map((note) => (
+                      <button key={note.id}
+                        onClick={() => setSelectedNoteId(note.id)}
+                        className={cn(
+                          "w-full text-left px-3 py-1.5 flex items-center gap-1.5 text-xs transition-colors",
+                          selectedNoteId === note.id
+                            ? "text-purple-700 dark:text-purple-300 font-medium bg-purple-50 dark:bg-purple-900/10"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200",
+                        )}>
+                        <FileText className="h-3 w-3 flex-shrink-0 opacity-60" />
+                        <span className="flex-1 truncate">{note.title}</span>
+                      </button>
+                    ))}
+                    <button onClick={() => setCreateNoteOpen(true)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:text-purple-600 flex items-center gap-1 transition-colors">
+                      <Plus className="h-3 w-3" />Nova nota
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {showAddSection ? (
+              <div className="px-2 py-2">
+                <input autoFocus
+                  value={addingSectionName}
+                  onChange={(e) => setAddingSectionName(e.target.value)}
+                  placeholder="Nome da seção..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && addingSectionName.trim()) addSectionMutation.mutate(addingSectionName.trim());
+                    if (e.key === "Escape") { setAddingSectionName(""); setShowAddSection(false); }
+                  }}
+                  onBlur={() => { if (!addingSectionName.trim()) setShowAddSection(false); }}
+                  className="w-full text-sm bg-white dark:bg-slate-800 border rounded px-2 py-1 outline-none focus:border-purple-400" />
+              </div>
+            ) : (
+              sections.length === 0 && !sectionsLoading && (
+                <p className="text-xs text-slate-400 px-3 py-3 text-center">Nenhuma seção ainda.<br />Clique em + para criar.</p>
+              )
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {!selectedSectionId ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-3">
+            <NotebookPen className="h-12 w-12 opacity-20" />
+            <p className="text-sm">Selecione uma seção para ver as anotações</p>
+            <button onClick={() => setShowAddSection(true)}
+              className="text-xs text-purple-600 hover:underline">
+              Ou crie uma nova seção
+            </button>
+          </div>
+        ) : !selectedNoteId ? (
+          <div className="flex-1 flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={cn("w-3 h-3 rounded-full", BOARD_COLOR_DOT[selectedSection?.color ?? "slate"] ?? "bg-slate-400")} />
+                <h2 className="font-semibold text-slate-800 dark:text-slate-100">{selectedSection?.name}</h2>
+                <span className="text-xs text-slate-400">{sectionNotes.length} nota{sectionNotes.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setCreateNoteOpen(true)}
+                  className="text-xs h-7 gap-1"><Plus className="h-3.5 w-3.5" />Nova nota</Button>
+                <button onClick={() => deleteSectionMutation.mutate(selectedSectionId)}
+                  className="text-red-400 hover:text-red-600 p-1 rounded transition-colors" title="Excluir seção">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 p-4">
+              {sectionNotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
+                  <FileText className="h-10 w-10 opacity-20" />
+                  <p className="text-sm">Nenhuma nota nesta seção ainda.</p>
+                  <button onClick={() => setCreateNoteOpen(true)}
+                    className="text-xs text-purple-600 hover:underline">Criar primeira nota</button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {sectionNotes.map((note) => (
+                    <div key={note.id}
+                      onClick={() => setSelectedNoteId(note.id)}
+                      className="rounded-lg border bg-white dark:bg-slate-700 p-3 cursor-pointer hover:shadow-md transition-all group relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate pr-6">{note.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-3">{note.content || "Sem conteúdo"}</p>
+                      <p className="text-xs text-slate-400 mt-2">
+                        {format(parseISO(note.updatedAt), "dd/MM/yy HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col">
+            <div className="px-6 py-3 border-b flex items-center gap-3">
+              <button onClick={() => setSelectedNoteId(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs text-slate-400">
+                <span className={cn("inline-block w-2 h-2 rounded-full mr-1", BOARD_COLOR_DOT[selectedSection?.color ?? "slate"] ?? "bg-slate-400")} />
+                {selectedSection?.name}
+              </span>
+              <div className="ml-auto flex items-center gap-1.5 text-xs">
+                {saveStatus === "saving" && <><Loader2 className="h-3 w-3 animate-spin text-slate-400" /><span className="text-slate-400">Salvando...</span></>}
+                {saveStatus === "saved" && <><Check className="h-3 w-3 text-green-500" /><span className="text-green-600">Salvo</span></>}
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col p-6 gap-3 overflow-auto">
+              <input
+                value={noteTitle}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                className="text-xl font-bold text-slate-800 dark:text-slate-100 bg-transparent outline-none border-b border-transparent focus:border-slate-200 dark:focus:border-slate-700 pb-1 transition-colors"
+                placeholder="Título da nota"
+              />
+              <textarea
+                value={noteContent}
+                onChange={(e) => handleContentChange(e.target.value)}
+                placeholder="Escreva sua anotação aqui..."
+                className="flex-1 bg-transparent outline-none text-sm text-slate-700 dark:text-slate-300 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 leading-relaxed"
+                style={{ minHeight: 300 }}
+              />
+              <div className="text-xs text-slate-400 flex items-center justify-between pt-2 border-t">
+                <span>
+                  {selectedNote?.createdBy?.name && `Criada por ${selectedNote.createdBy.name} · `}
+                  {selectedNote && format(parseISO(selectedNote.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+                <button onClick={() => deleteNoteMutation.mutate(selectedNoteId)}
+                  className="text-red-400 hover:text-red-600 transition-colors flex items-center gap-1">
+                  <Trash2 className="h-3 w-3" />Excluir nota
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Dialog: criar nota */}
+      <Dialog open={createNoteOpen} onOpenChange={(v) => { if (!v) { setCreateNoteOpen(false); setNewNoteTitle(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nova Anotação</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {selectedSection && (
+              <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                <span className={cn("w-2 h-2 rounded-full inline-block", BOARD_COLOR_DOT[selectedSection.color] ?? "bg-slate-400")} />
+                Em: <span className="font-medium">{selectedSection.name}</span>
+              </p>
+            )}
+            <div>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Título *</label>
+              <Input
+                autoFocus
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+                placeholder="Ex: Reunião com cliente"
+                className="mt-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newNoteTitle.trim() && selectedSectionId) {
+                    addNoteMutation.mutate({ title: newNoteTitle.trim(), sectionId: selectedSectionId });
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setCreateNoteOpen(false); setNewNoteTitle(""); }}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={!newNoteTitle.trim() || addNoteMutation.isPending}
+                onClick={() => {
+                  if (newNoteTitle.trim() && selectedSectionId) {
+                    addNoteMutation.mutate({ title: newNoteTitle.trim(), sectionId: selectedSectionId });
+                  }
+                }}
+              >
+                {addNoteMutation.isPending ? "Criando..." : "Criar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TarefasPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [createOpen, setCreateOpen] = useState(false);
+
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [addBoardOpen, setAddBoardOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin";
   const isGerente = user?.role === "gerente";
   const canManage = isAdmin || isGerente;
 
-  const { data: tasks = [], isLoading } = useQuery<Task[]>({
-    queryKey: ["tasks"],
-    queryFn: () => apiFetch("/api/tasks"),
+  // Boards
+  const { data: boards = [], isLoading: boardsLoading } = useQuery<TaskBoard[]>({
+    queryKey: ["task-boards"],
+    queryFn: () => apiFetch<TaskBoard[]>("/api/task-boards"),
+    enabled: canManage,
   });
 
+  // Board-specific stages and tasks
+  const { data: boardStages = [], isLoading: stagesLoading } = useQuery<TaskStage[]>({
+    queryKey: ["task-stages", selectedBoardId],
+    queryFn: () => apiFetch<TaskStage[]>(`/api/task-stages?boardId=${selectedBoardId}`),
+    enabled: !!selectedBoardId,
+  });
+
+  const { data: boardTasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
+    queryKey: ["tasks", selectedBoardId],
+    queryFn: () => apiFetch<Task[]>(`/api/tasks?boardId=${selectedBoardId}`),
+    enabled: !!selectedBoardId,
+  });
+
+  // All tasks + all stages for "Minhas Tarefas" list
+  const { data: allTasks = [] } = useQuery<Task[]>({
+    queryKey: ["tasks", "all"],
+    queryFn: () => apiFetch<Task[]>("/api/tasks"),
+  });
+
+  const { data: allStages = [] } = useQuery<TaskStage[]>({
+    queryKey: ["task-stages", "all"],
+    queryFn: () => apiFetch<TaskStage[]>("/api/task-stages"),
+  });
+
+  // Platform users (admin/gerente only)
   const { data: platformUsers = [] } = useQuery<TaskUser[]>({
     queryKey: ["users"],
-    queryFn: () => apiFetch("/api/users"),
+    queryFn: () => apiFetch<TaskUser[]>("/api/users"),
     enabled: canManage,
   });
 
   const moveMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
-      apiFetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiFetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", selectedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+    },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const handleDropToStatus = (taskId: string, status: TaskStatus) => {
-    moveMutation.mutate({ id: taskId, status });
-  };
+  const quickCreateMutation = useMutation({
+    mutationFn: ({ title, status }: { title: string; status: string }) =>
+      apiFetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, status, boardId: selectedBoardId, assigneeId: user!.id, category: "outro", priority: "media" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", selectedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  const myTasks = tasks.filter((t) => t.assigneeId === user?.id);
+  const renameStageMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiFetch(`/api/task-stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-stages", selectedBoardId] }),
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  const overdueCt = tasks.filter((t) => {
-    if (!t.dueDate || t.status === "concluido") return false;
-    return isPast(parseISO(t.dueDate)) && !isToday(parseISO(t.dueDate));
+  const addStageMutation = useMutation({
+    mutationFn: (name: string) => {
+      const color = COLOR_CYCLE[boardStages.length % COLOR_CYCLE.length];
+      return apiFetch("/api/task-stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, color, boardId: selectedBoardId }),
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-stages", selectedBoardId] }),
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteBoardMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/task-boards/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Board excluído" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const myTasks = allTasks.filter((t) => t.assigneeId === user?.id);
+  const selectedBoard = boards.find((b) => b.id === selectedBoardId);
+
+  const overdueCt = myTasks.filter((t) => {
+    if (!t.dueDate) return false;
+    const d = parseISO(t.dueDate);
+    return isPast(d) && !isToday(d);
   }).length;
 
-  const dueTodayCt = tasks.filter((t) => {
-    if (!t.dueDate || t.status === "concluido") return false;
+  const dueTodayCt = myTasks.filter((t) => {
+    if (!t.dueDate) return false;
     return isToday(parseISO(t.dueDate));
   }).length;
 
@@ -887,107 +1386,168 @@ export default function TarefasPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-purple-600" />
-            Tarefas
+            {selectedBoard ? (
+              <span className="flex items-center gap-2">
+                <button onClick={() => { setSelectedBoardId(null); setSelectedTaskId(null); }}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                {selectedBoard.name}
+              </span>
+            ) : "Tarefas"}
           </h1>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {tasks.length} tarefa{tasks.length !== 1 ? "s" : ""}
-            </span>
-            {overdueCt > 0 && (
-              <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                {overdueCt} vencida{overdueCt !== 1 ? "s" : ""}
+            {selectedBoard ? (
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {boardTasks.length} tarefa{boardTasks.length !== 1 ? "s" : ""}
               </span>
-            )}
-            {dueTodayCt > 0 && (
-              <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                {dueTodayCt} vencem hoje
-              </span>
+            ) : (
+              <>
+                <span className="text-sm text-slate-500 dark:text-slate-400">{myTasks.length} tarefa{myTasks.length !== 1 ? "s" : ""} atribuídas a mim</span>
+                {overdueCt > 0 && (
+                  <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                    {overdueCt} vencida{overdueCt !== 1 ? "s" : ""}
+                  </span>
+                )}
+                {dueTodayCt > 0 && (
+                  <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    {dueTodayCt} vencem hoje
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
-        {canManage && (
-          <Button onClick={() => setCreateOpen(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Tarefa
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedBoard && canManage && (
+            <Button onClick={() => setCreateTaskOpen(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />Nova Tarefa
+            </Button>
+          )}
+          {!selectedBoard && canManage && (
+            <Button variant="outline" onClick={() => setAddBoardOpen(true)} className="flex items-center gap-2 text-sm">
+              <Plus className="h-4 w-4" />Novo Board
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Views */}
-      <Tabs defaultValue={canManage ? "kanban" : "minhas"} className="flex-1 flex flex-col">
-        <TabsList className="w-fit">
-          {canManage && (
-            <>
-              <TabsTrigger value="kanban" className="flex items-center gap-1.5 text-xs">
-                <LayoutGrid className="h-3.5 w-3.5" /> Kanban
-              </TabsTrigger>
-              <TabsTrigger value="lista" className="flex items-center gap-1.5 text-xs">
-                <List className="h-3.5 w-3.5" /> Lista
-              </TabsTrigger>
-            </>
+      {/* Board kanban drill-down */}
+      {selectedBoard ? (
+        <div className="flex-1">
+          {stagesLoading || tasksLoading ? (
+            <div className="flex-1 flex items-center justify-center text-slate-400">Carregando...</div>
+          ) : (
+            <KanbanView
+              tasks={boardTasks}
+              stages={boardStages}
+              boardId={selectedBoardId!}
+              onOpen={(t) => setSelectedTaskId(t.id)}
+              onDropToStatus={(id, slug) => moveMutation.mutate({ id, status: slug })}
+              onQuickCreate={(title, slug) => quickCreateMutation.mutate({ title, status: slug })}
+              onRenameStage={(id, name) => renameStageMutation.mutate({ id, name })}
+              onAddStage={(name) => addStageMutation.mutate(name)}
+              canManageStages={canManage}
+            />
           )}
-          <TabsTrigger value="minhas" className="flex items-center gap-1.5 text-xs">
-            <User className="h-3.5 w-3.5" /> Minhas Tarefas
-            {myTasks.filter((t) => t.status !== "concluido").length > 0 && (
-              <span className="ml-1 bg-purple-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
-                {myTasks.filter((t) => t.status !== "concluido").length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            Carregando tarefas...
-          </div>
-        ) : (
-          <>
+        </div>
+      ) : (
+        /* Tabs: Boards | Minhas Tarefas | Anotações */
+        <Tabs defaultValue={canManage ? "boards" : "minhas"} className="flex-1 flex flex-col">
+          <TabsList className="w-fit">
             {canManage && (
-              <>
-                <TabsContent value="kanban" className="flex-1 mt-4">
-                  <KanbanView
-                    tasks={tasks}
-                    onOpen={(t) => setSelectedTaskId(t.id)}
-                    onDropToStatus={handleDropToStatus}
-                  />
-                </TabsContent>
-                <TabsContent value="lista" className="flex-1 mt-4">
-                  <ListView tasks={tasks} onOpen={(t) => setSelectedTaskId(t.id)} />
-                </TabsContent>
-              </>
+              <TabsTrigger value="boards" className="flex items-center gap-1.5 text-xs">
+                <LayoutGrid className="h-3.5 w-3.5" />Boards
+              </TabsTrigger>
             )}
-            <TabsContent value="minhas" className="flex-1 mt-4">
-              {myTasks.length === 0 ? (
-                <div className="text-center text-slate-400 dark:text-slate-500 py-16">
-                  <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhuma tarefa atribuída a você.</p>
+            <TabsTrigger value="minhas" className="flex items-center gap-1.5 text-xs">
+              <List className="h-3.5 w-3.5" />Minhas Tarefas
+              {myTasks.filter((t) => {
+                const stage = allStages.find((s) => s.slug === t.status);
+                return !stage || !stage.name.toLowerCase().includes("conclu");
+              }).length > 0 && (
+                <span className="ml-1 bg-purple-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                  {myTasks.filter((t) => {
+                    const stage = allStages.find((s) => s.slug === t.status);
+                    return !stage || !stage.name.toLowerCase().includes("conclu");
+                  }).length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="anotacoes" className="flex items-center gap-1.5 text-xs">
+              <NotebookPen className="h-3.5 w-3.5" />Anotações
+            </TabsTrigger>
+          </TabsList>
+
+          {canManage && (
+            <TabsContent value="boards" className="flex-1 mt-4">
+              {boardsLoading ? (
+                <div className="text-slate-400 text-sm">Carregando boards...</div>
+              ) : boards.length === 0 ? (
+                <div className="text-center text-slate-400 py-16">
+                  <LayoutGrid className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum board ainda.</p>
+                  <button onClick={() => setAddBoardOpen(true)} className="text-purple-600 text-sm hover:underline mt-1">
+                    Criar primeiro board
+                  </button>
                 </div>
               ) : (
-                <KanbanView
-                  tasks={myTasks}
-                  onOpen={(t) => setSelectedTaskId(t.id)}
-                  onDropToStatus={handleDropToStatus}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {boards.map((board) => (
+                    <BoardCard
+                      key={board.id}
+                      board={board}
+                      onClick={() => setSelectedBoardId(board.id)}
+                      onDelete={() => deleteBoardMutation.mutate(board.id)}
+                      canDelete={isAdmin}
+                    />
+                  ))}
+                  <button onClick={() => setAddBoardOpen(true)}
+                    className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-600 flex flex-col items-center justify-center gap-2 py-10 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                    <Plus className="h-8 w-8" />
+                    <span className="text-sm font-medium">Novo Board</span>
+                  </button>
+                </div>
               )}
             </TabsContent>
-          </>
-        )}
-      </Tabs>
+          )}
+
+          <TabsContent value="minhas" className="flex-1 mt-4">
+            <MyTasksListView
+              tasks={myTasks}
+              allStages={allStages}
+              boards={boards}
+              onOpen={(t) => setSelectedTaskId(t.id)}
+            />
+          </TabsContent>
+
+          <TabsContent value="anotacoes" className="flex-1 mt-4">
+            <NotesView />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Dialogs */}
-      {canManage && (
+      <AddBoardDialog open={addBoardOpen} onClose={() => setAddBoardOpen(false)} />
+
+      {selectedBoard && canManage && (
         <CreateTaskDialog
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
+          open={createTaskOpen}
+          onClose={() => setCreateTaskOpen(false)}
           platformUsers={platformUsers}
+          stages={boardStages}
+          boardId={selectedBoardId!}
         />
       )}
+
       <TaskDetailDialog
         taskId={selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
         canEdit={canManage}
         canDelete={isAdmin}
         platformUsers={platformUsers}
+        stages={selectedBoard ? boardStages : allStages}
+        boardId={selectedBoardId ?? ""}
       />
     </div>
   );
