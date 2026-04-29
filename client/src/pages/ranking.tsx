@@ -382,20 +382,20 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
 
   return (
     <div className={cn(
-      "grid grid-cols-[40px_1fr_130px_90px_70px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
+      "grid grid-cols-[36px_1fr_auto] sm:grid-cols-[40px_1fr_130px_90px_70px] items-center gap-2 px-3 sm:px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
       index === 0 && "bg-amber-50/80 dark:bg-amber-900/20 border-l-4 border-l-amber-400",
       index === 1 && "bg-slate-50/60 dark:bg-slate-800/30",
       index === 2 && "bg-orange-50/60 dark:bg-orange-900/10",
     )}>
       {/* Rank */}
-      <div className={cn("text-center font-bold text-lg", isMedal ? medalColors[index] : "text-slate-400 text-sm")}>
+      <div className={cn("text-center font-bold text-base sm:text-lg", isMedal ? medalColors[index] : "text-slate-400 text-sm")}>
         {isMedal ? (["🥇", "🥈", "🥉"][index]) : `${index + 1}º`}
       </div>
 
       {/* Seller */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <div className={cn(
-          "w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm",
+          "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold flex-shrink-0 shadow-sm",
           index === 0 ? "bg-gradient-to-br from-amber-400 to-yellow-500" :
           index === 1 ? "bg-gradient-to-br from-slate-300 to-slate-500" :
           index === 2 ? "bg-gradient-to-br from-orange-400 to-amber-600" :
@@ -404,19 +404,41 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{seller.sellerName}</p>
+          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{seller.sellerName}</p>
           <div className="flex flex-wrap gap-1 mt-0.5">
-            {seller.badges.slice(0, 3).map((b, i) => (
-              <span key={i} className={cn("text-[10px] px-1.5 py-0.5 rounded-full border font-medium flex items-center gap-0.5", b.bg, b.color)}>
-                {b.icon} {b.label}
+            {seller.badges.slice(0, 2).map((b, i) => (
+              <span key={i} className={cn("text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full border font-medium flex items-center gap-0.5", b.bg, b.color)}>
+                {b.icon} <span className="hidden sm:inline">{b.label}</span>
               </span>
             ))}
+          </div>
+          {/* % meta inline no mobile */}
+          <div className="sm:hidden mt-0.5">
+            {seller.achievement !== null ? (
+              <div className="flex items-center gap-1.5">
+                <span className={cn("text-xs font-black",
+                  seller.achievement >= 100 ? "text-green-600" :
+                  seller.achievement >= 80 ? "text-blue-600" : "text-amber-600")}>
+                  {fmtPct(seller.achievement)}
+                </span>
+                <div className="flex-1 h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden max-w-[60px]">
+                  <div
+                    className={cn("h-full rounded-full",
+                      seller.achievement >= 100 ? "bg-green-500" :
+                      seller.achievement >= 80 ? "bg-blue-500" : "bg-amber-400")}
+                    style={{ width: `${Math.min(seller.achievement, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <span className="text-[10px] text-slate-400">sem meta</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* % Meta — coluna principal */}
-      <div className="text-right">
+      {/* % Meta — coluna desktop */}
+      <div className="hidden sm:block text-right">
         {seller.achievement !== null ? (
           <div className="flex flex-col items-end gap-1">
             <span className={cn("text-sm font-black",
@@ -441,14 +463,14 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
         )}
       </div>
 
-      {/* Ticket médio */}
-      <div className="text-right">
+      {/* Ticket médio — só desktop */}
+      <div className="hidden sm:block text-right">
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{fmtBRL(seller.avgTicket)}</p>
         <p className="text-xs text-slate-400">ticket</p>
       </div>
 
-      {/* Clientes */}
-      <div className="text-right">
+      {/* Clientes — só desktop */}
+      <div className="hidden sm:block text-right">
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{seller.uniqueClients}</p>
         <p className="text-xs text-slate-400">clientes</p>
       </div>
@@ -583,21 +605,31 @@ export default function RankingPage() {
           80%  { opacity: 1; }
           100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
         }
+        @media (max-width: 639px) {
+          .podium-scale-wrapper {
+            height: 255px;
+            overflow: hidden;
+          }
+          .podium-scale-wrapper > * {
+            transform: scale(0.65);
+            transform-origin: top center;
+          }
+        }
       `}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-amber-500" />
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />
             Ranking de Vendas
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Ordenado por % de atingimento da meta — {periodLabel.toLowerCase()}
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            % de atingimento da meta — {periodLabel.toLowerCase()}
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-44 h-9 text-sm">
+          <SelectTrigger className="w-full sm:w-44 h-9 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -633,8 +665,10 @@ export default function RankingPage() {
         </div>
       ) : (
         <>
-          {/* Stadium Podium */}
-          <StadiumPodium ranked={ranked} />
+          {/* Stadium Podium — escala no mobile */}
+          <div className="podium-scale-wrapper">
+            <StadiumPodium ranked={ranked} />
+          </div>
 
           {/* Legend badges */}
           <div className="flex flex-wrap justify-center gap-2">
@@ -652,12 +686,12 @@ export default function RankingPage() {
 
           {/* Full ranking table */}
           <div className="rounded-xl border bg-white dark:bg-slate-800 overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b bg-slate-50 dark:bg-slate-700/50 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <div className="px-3 sm:px-4 py-3 border-b bg-slate-50 dark:bg-slate-700/50 flex items-center justify-between gap-3">
+              <h2 className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 flex-shrink-0">
                 <Medal className="h-4 w-4 text-purple-500" />
-                Ranking Completo — {ranked.length} vendedor{ranked.length !== 1 ? "es" : ""}
+                <span className="hidden xs:inline">Ranking Completo —</span> {ranked.length} vendedor{ranked.length !== 1 ? "es" : ""}
               </h2>
-              <div className="hidden md:grid grid-cols-[40px_1fr_130px_90px_70px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full ml-4">
+              <div className="hidden sm:grid grid-cols-[40px_1fr_130px_90px_70px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full">
                 <span></span>
                 <span>Vendedor</span>
                 <span className="text-right">% Meta</span>
@@ -676,14 +710,16 @@ export default function RankingPage() {
             if (myPos === -1) return null;
             const me = ranked[myPos];
             return (
-              <div className="rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-4 flex items-center gap-4">
-                <div className="text-2xl font-black text-purple-600">#{me.rank}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">Sua posição no ranking</p>
-                  <p className="text-xs text-purple-600 dark:text-purple-400">
-                    {me.totalOrders} pedidos
-                    {me.achievement !== null && ` · ${fmtPct(me.achievement)} da meta`}
-                  </p>
+              <div className="rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl font-black text-purple-600">#{me.rank}</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">Sua posição no ranking</p>
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      {me.totalOrders} pedidos
+                      {me.achievement !== null && ` · ${fmtPct(me.achievement)} da meta`}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {me.badges.map((b, i) => (
