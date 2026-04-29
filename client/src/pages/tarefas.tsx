@@ -626,9 +626,10 @@ function MyTasksListView({ tasks, allStages, boards, onOpen }: {
 
 // ─── Board card ───────────────────────────────────────────────────────────────
 
-function BoardCard({ board, onClick, onDelete, canDelete }: {
+function BoardCard({ board, onClick, onEdit, onDelete, canManage, canDelete }: {
   board: TaskBoard; onClick: () => void;
-  onDelete?: () => void; canDelete?: boolean;
+  onEdit?: () => void; onDelete?: () => void;
+  canManage?: boolean; canDelete?: boolean;
 }) {
   const headerGrad = BOARD_COLOR_HEADER[board.color] ?? BOARD_COLOR_HEADER.slate;
   return (
@@ -637,20 +638,30 @@ function BoardCard({ board, onClick, onDelete, canDelete }: {
       <div className={cn("h-16 bg-gradient-to-r", headerGrad)} />
       <div className="p-4 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-base">{board.name}</h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-base truncate">{board.name}</h3>
             {board.description && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{board.description}</p>
             )}
           </div>
-          {canDelete && onDelete && !board.isDefault && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 p-1 rounded"
-              title="Excluir board">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {canManage && onEdit && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                className="text-slate-400 hover:text-purple-600 p-1 rounded"
+                title="Editar board">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {canDelete && onDelete && !board.isDefault && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-red-400 hover:text-red-600 p-1 rounded"
+                title="Excluir board">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 mt-3">
           <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -717,6 +728,73 @@ function AddBoardDialog({ open, onClose }: { open: boolean; onClose: () => void 
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button disabled={!name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
               {mutation.isPending ? "Criando..." : "Criar Board"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Edit board dialog ────────────────────────────────────────────────────────
+
+function EditBoardDialog({ board, onClose }: { board: TaskBoard | null; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("blue");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (board) {
+      setName(board.name);
+      setColor(board.color);
+      setDescription(board.description ?? "");
+    }
+  }, [board]);
+
+  const mutation = useMutation({
+    mutationFn: () => apiFetch(`/api/task-boards/${board!.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), color, description: description.trim() || undefined }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-boards"] });
+      toast({ title: "Board atualizado" });
+      onClose();
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={!!board} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Editar Board</DialogTitle></DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Nome *</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Marketing" className="mt-1" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional..." className="mt-1" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">Cor</label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_CYCLE.map((c) => (
+                <button key={c} onClick={() => setColor(c)}
+                  className={cn("w-7 h-7 rounded-full transition-all", BOARD_COLOR_DOT[c] ?? "bg-slate-400",
+                    color === c && "ring-2 ring-offset-2 ring-purple-500 scale-110")}>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button disabled={!name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+              {mutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>
@@ -1723,6 +1801,7 @@ export default function TarefasPage() {
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [addBoardOpen, setAddBoardOpen] = useState(false);
+  const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin";
@@ -1967,7 +2046,9 @@ export default function TarefasPage() {
                       key={board.id}
                       board={board}
                       onClick={() => setSelectedBoardId(board.id)}
+                      onEdit={() => setEditingBoard(board)}
                       onDelete={() => deleteBoardMutation.mutate(board.id)}
+                      canManage={canManage}
                       canDelete={isAdmin}
                     />
                   ))}
@@ -2002,6 +2083,7 @@ export default function TarefasPage() {
 
       {/* Dialogs */}
       <AddBoardDialog open={addBoardOpen} onClose={() => setAddBoardOpen(false)} />
+      <EditBoardDialog board={editingBoard} onClose={() => setEditingBoard(null)} />
 
       {selectedBoard && canManage && (
         <CreateTaskDialog
