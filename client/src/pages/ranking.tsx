@@ -147,12 +147,24 @@ const PODIUM = [
   { rank: 3, height: "h-24", label: "3º", icon: Medal, gradient: "from-orange-400 to-amber-600", ring: "ring-orange-400", text: "text-orange-600", pillar: "bg-orange-400", pillarH: "h-12" },
 ];
 
+const SPARKLE_POSITIONS = [
+  { top: "8%",  left: "0%",   delay: "0s",    dur: "2.4s" },
+  { top: "15%", left: "88%",  delay: "0.6s",  dur: "2.8s" },
+  { top: "40%", left: "-8%",  delay: "1.2s",  dur: "2.2s" },
+  { top: "50%", left: "96%",  delay: "0.3s",  dur: "3.1s" },
+  { top: "70%", left: "5%",   delay: "1.8s",  dur: "2.6s" },
+  { top: "75%", left: "82%",  delay: "0.9s",  dur: "2.0s" },
+];
+
 function PodiumCard({ seller, podium }: { seller: RankedSeller | undefined; podium: (typeof PODIUM)[0] }) {
   const Icon = podium.icon;
+  const isFirst = podium.rank === 1;
+  const orderClass = podium.rank === 1 ? "order-2" : podium.rank === 2 ? "order-1" : "order-3";
+
   if (!seller) {
     return (
-      <div className={cn("flex flex-col items-center gap-2", podium.rank === 1 ? "order-2" : podium.rank === 2 ? "order-1" : "order-3")}>
-        <div className={cn("w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center border-4 border-dashed border-slate-200 dark:border-slate-600")}>
+      <div className={cn("flex flex-col items-center gap-2", orderClass)}>
+        <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center border-4 border-dashed border-slate-200 dark:border-slate-600">
           <span className="text-slate-300 text-xs">—</span>
         </div>
         <div className={cn("w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg", podium.pillar, podium.pillarH)}>
@@ -165,28 +177,88 @@ function PodiumCard({ seller, podium }: { seller: RankedSeller | undefined; podi
   const initials = seller.sellerName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", podium.rank === 1 ? "order-2" : podium.rank === 2 ? "order-1" : "order-3")}>
-      <div className={cn("relative w-20 h-20 rounded-full flex items-center justify-center border-4 text-white font-bold text-xl shadow-lg bg-gradient-to-br", podium.gradient, podium.ring, "ring-2")}>
-        {initials}
-        <div className="absolute -top-2 -right-1">
-          <Icon className={cn("h-5 w-5", podium.text)} />
+    <div className={cn("flex flex-col items-center gap-2", orderClass)}>
+      {/* Avatar + sparkles */}
+      <div className="relative">
+        {/* Halo pulsante (só 1º lugar) */}
+        {isFirst && (
+          <>
+            <div className="absolute inset-0 rounded-full bg-amber-400/30 scale-125"
+              style={{ animation: "halo-outer 2s ease-in-out infinite" }} />
+            <div className="absolute inset-0 rounded-full bg-amber-300/20 scale-150"
+              style={{ animation: "halo-outer 2s ease-in-out infinite 0.4s" }} />
+          </>
+        )}
+
+        {/* Sparkles flutuantes */}
+        {isFirst && SPARKLE_POSITIONS.map((pos, i) => (
+          <span
+            key={i}
+            className="absolute text-xs pointer-events-none select-none"
+            style={{
+              top: pos.top,
+              left: pos.left,
+              animation: `sparkle-float ${pos.dur} ease-in-out infinite`,
+              animationDelay: pos.delay,
+            }}
+          >
+            {i % 2 === 0 ? "✨" : "⭐"}
+          </span>
+        ))}
+
+        {/* Avatar */}
+        <div className={cn(
+          "relative w-20 h-20 rounded-full flex items-center justify-center border-4 text-white font-bold text-xl shadow-lg bg-gradient-to-br",
+          podium.gradient, podium.ring, "ring-2",
+          isFirst && "shadow-amber-400/60 shadow-xl",
+        )}>
+          {initials}
+
+          {/* Coroa animada */}
+          <div
+            className="absolute -top-4 left-1/2 -translate-x-1/2"
+            style={isFirst ? { animation: "crown-bounce 1.6s ease-in-out infinite" } : undefined}
+          >
+            <Icon className={cn("h-6 w-6 drop-shadow-md", podium.text)} />
+          </div>
         </div>
       </div>
-      <div className="text-center">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 max-w-[100px] truncate leading-tight">
+
+      {/* Nome + percentual */}
+      <div className="text-center mt-1">
+        <p className={cn(
+          "text-sm font-bold max-w-[110px] truncate leading-tight",
+          isFirst ? "text-amber-800 dark:text-amber-200" : "text-slate-800 dark:text-slate-100",
+        )}>
           {seller.sellerName.split(" ")[0]}
         </p>
         {seller.achievement !== null ? (
-          <p className={cn("text-base font-black leading-tight",
-            seller.achievement >= 100 ? "text-green-600" : "text-slate-700 dark:text-slate-200")}>
+          <p className={cn(
+            "font-black leading-tight",
+            isFirst ? "text-lg text-amber-600 dark:text-amber-400" :
+            seller.achievement >= 100 ? "text-base text-green-600" : "text-base text-slate-700 dark:text-slate-200",
+          )}
+            style={isFirst ? { animation: "achievement-pop 2s ease-in-out infinite" } : undefined}
+          >
             {fmtPct(seller.achievement)}
           </p>
         ) : (
           <p className="text-base font-black text-slate-400">—</p>
         )}
       </div>
-      <div className={cn("w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg shadow-inner", podium.pillar, podium.pillarH)}>
+
+      {/* Pilar */}
+      <div className={cn(
+        "relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg shadow-inner overflow-hidden",
+        podium.pillar, podium.pillarH,
+      )}>
         {podium.label}
+        {isFirst && (
+          <div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
+            style={{ animation: "shimmer 2.5s ease-in-out infinite" }}
+          />
+        )}
       </div>
     </div>
   );
@@ -202,7 +274,7 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
   return (
     <div className={cn(
       "grid grid-cols-[40px_1fr_130px_90px_70px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
-      index === 0 && "bg-amber-50/60 dark:bg-amber-900/10",
+      index === 0 && "bg-amber-50/80 dark:bg-amber-900/20 border-l-4 border-l-amber-400",
       index === 1 && "bg-slate-50/60 dark:bg-slate-800/30",
       index === 2 && "bg-orange-50/60 dark:bg-orange-900/10",
     )}>
@@ -370,6 +442,33 @@ export default function RankingPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <style>{`
+        @keyframes halo-outer {
+          0%, 100% { opacity: 0.7; transform: scale(1.25); }
+          50%       { opacity: 0.2; transform: scale(1.45); }
+        }
+        @keyframes crown-bounce {
+          0%, 100% { transform: translateX(-50%) translateY(0px) rotate(-5deg); }
+          30%       { transform: translateX(-50%) translateY(-6px) rotate(5deg); }
+          60%       { transform: translateX(-50%) translateY(-3px) rotate(-2deg); }
+        }
+        @keyframes sparkle-float {
+          0%   { opacity: 0;   transform: translateY(0px)   scale(0.6); }
+          30%  { opacity: 1;   transform: translateY(-10px) scale(1); }
+          70%  { opacity: 0.8; transform: translateY(-20px) scale(0.9); }
+          100% { opacity: 0;   transform: translateY(-32px) scale(0.5); }
+        }
+        @keyframes shimmer {
+          0%   { transform: translateX(-120%) skewX(-12deg); }
+          60%  { transform: translateX(220%)  skewX(-12deg); }
+          100% { transform: translateX(220%)  skewX(-12deg); }
+        }
+        @keyframes achievement-pop {
+          0%, 100% { transform: scale(1); }
+          50%       { transform: scale(1.08); }
+        }
+      `}</style>
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
