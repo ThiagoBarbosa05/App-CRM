@@ -37,14 +37,15 @@ interface TopSeller {
   uniqueClients: number;
 }
 
+interface WeeklyResult {
+  salesAchieved: string | number;
+}
+
 interface GoalResult {
   id: string;
   userId: string;
-  monthlyGoal: number;
-  results: {
-    totalSales: number;
-    achievement: number;
-  };
+  salesGoal: string | number;
+  weeklyResults: WeeklyResult[];
 }
 
 interface Badge {
@@ -322,8 +323,18 @@ export default function RankingPage() {
   const sellers: TopSeller[] = topSellersRaw?.data ?? [];
 
   const goalMap = useMemo(() => {
-    const map: Record<string, GoalResult> = {};
-    goalsRaw.forEach((g) => { map[g.userId] = g; });
+    const map: Record<string, { achievement: number; monthlyGoal: number }> = {};
+    goalsRaw.forEach((g) => {
+      const salesGoal = Number(g.salesGoal ?? 0);
+      const totalSales = (g.weeklyResults ?? []).reduce(
+        (sum, w) => sum + Number(w.salesAchieved ?? 0),
+        0,
+      );
+      const achievement = salesGoal > 0 ? Math.round((totalSales / salesGoal) * 1000) / 10 : null;
+      if (achievement !== null) {
+        map[g.userId] = { achievement, monthlyGoal: salesGoal };
+      }
+    });
     return map;
   }, [goalsRaw]);
 
@@ -331,7 +342,7 @@ export default function RankingPage() {
     // Calcular achievement antes de ordenar
     const enriched = sellers.map((s) => {
       const goal = goalMap[s.sellerId];
-      const achievement = goal?.results?.achievement ?? null;
+      const achievement = goal?.achievement ?? null;
       const monthlyGoal = goal?.monthlyGoal ?? null;
       const avgTicket = s.totalOrders > 0 ? s.totalValue / s.totalOrders : 0;
       return { ...s, achievement, monthlyGoal, avgTicket, rank: 0, badges: [] as Badge[] } as RankedSeller;
