@@ -175,13 +175,15 @@ function PodiumCard({ seller, podium }: { seller: RankedSeller | undefined; podi
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100 max-w-[100px] truncate leading-tight">
           {seller.sellerName.split(" ")[0]}
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{fmtBRL(seller.totalValue)}</p>
-        {seller.achievement !== null && (
-          <span className={cn("text-xs font-semibold px-1.5 py-0.5 rounded-full",
-            seller.achievement >= 100 ? "text-green-700 bg-green-100" : "text-slate-600 bg-slate-100")}>
-            {fmtPct(seller.achievement)} da meta
-          </span>
+        {seller.achievement !== null ? (
+          <p className={cn("text-base font-black leading-tight",
+            seller.achievement >= 100 ? "text-green-600" : "text-slate-700 dark:text-slate-200")}>
+            {fmtPct(seller.achievement)}
+          </p>
+        ) : (
+          <p className="text-base font-black text-slate-400">—</p>
         )}
+        <p className="text-xs text-slate-500 dark:text-slate-400">{fmtBRL(seller.totalValue)}</p>
       </div>
       <div className={cn("w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg shadow-inner", podium.pillar, podium.pillarH)}>
         {podium.label}
@@ -199,7 +201,7 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
 
   return (
     <div className={cn(
-      "grid grid-cols-[40px_1fr_120px_100px_100px_80px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
+      "grid grid-cols-[40px_1fr_110px_120px_90px_70px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
       index === 0 && "bg-amber-50/60 dark:bg-amber-900/10",
       index === 1 && "bg-slate-50/60 dark:bg-slate-800/30",
       index === 2 && "bg-orange-50/60 dark:bg-orange-900/10",
@@ -232,7 +234,33 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
         </div>
       </div>
 
-      {/* Total */}
+      {/* % Meta — coluna principal */}
+      <div className="text-right">
+        {seller.achievement !== null ? (
+          <div className="flex flex-col items-end gap-1">
+            <span className={cn("text-sm font-black",
+              seller.achievement >= 100 ? "text-green-600" :
+              seller.achievement >= 80 ? "text-blue-600" : "text-amber-600")}>
+              {fmtPct(seller.achievement)}
+            </span>
+            <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all",
+                  seller.achievement >= 100 ? "bg-green-500" :
+                  seller.achievement >= 80 ? "bg-blue-500" : "bg-amber-400")}
+                style={{ width: `${Math.min(seller.achievement, 100)}%` }}
+              />
+            </div>
+            {seller.monthlyGoal !== null && (
+              <p className="text-[10px] text-slate-400">meta {fmtBRL(seller.monthlyGoal)}</p>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-300">sem meta</span>
+        )}
+      </div>
+
+      {/* Faturamento */}
       <div className="text-right">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{fmtBRL(seller.totalValue)}</p>
         <p className="text-xs text-slate-400">{seller.totalOrders} pedidos</p>
@@ -241,36 +269,13 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
       {/* Ticket médio */}
       <div className="text-right">
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{fmtBRL(seller.avgTicket)}</p>
-        <p className="text-xs text-slate-400">ticket médio</p>
+        <p className="text-xs text-slate-400">ticket</p>
       </div>
 
       {/* Clientes */}
       <div className="text-right">
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{seller.uniqueClients}</p>
         <p className="text-xs text-slate-400">clientes</p>
-      </div>
-
-      {/* Meta */}
-      <div className="text-right">
-        {seller.achievement !== null ? (
-          <div className="flex flex-col items-end gap-0.5">
-            <span className={cn("text-xs font-bold",
-              seller.achievement >= 100 ? "text-green-600" :
-              seller.achievement >= 80 ? "text-blue-600" : "text-slate-500")}>
-              {fmtPct(seller.achievement)}
-            </span>
-            <div className="w-14 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all",
-                  seller.achievement >= 100 ? "bg-green-500" :
-                  seller.achievement >= 80 ? "bg-blue-500" : "bg-amber-400")}
-                style={{ width: `${Math.min(seller.achievement, 100)}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <span className="text-xs text-slate-300">—</span>
-        )}
       </div>
     </div>
   );
@@ -330,21 +335,25 @@ export default function RankingPage() {
   }, [goalsRaw]);
 
   const ranked: RankedSeller[] = useMemo(() => {
-    const sorted = [...sellers].sort((a, b) => b.totalValue - a.totalValue);
-    const withRank = sorted.map((s, i) => {
+    // Calcular achievement antes de ordenar
+    const enriched = sellers.map((s) => {
       const goal = goalMap[s.sellerId];
       const achievement = goal?.results?.achievement ?? null;
       const monthlyGoal = goal?.monthlyGoal ?? null;
       const avgTicket = s.totalOrders > 0 ? s.totalValue / s.totalOrders : 0;
-      return {
-        ...s,
-        rank: i + 1,
-        achievement,
-        monthlyGoal,
-        avgTicket,
-        badges: [] as Badge[],
-      } as RankedSeller;
+      return { ...s, achievement, monthlyGoal, avgTicket, rank: 0, badges: [] as Badge[] } as RankedSeller;
     });
+
+    // Ordenar por % atingimento (desc), depois por valor total (desc), nulls no final
+    const sorted = [...enriched].sort((a, b) => {
+      if (a.achievement === null && b.achievement === null) return b.totalValue - a.totalValue;
+      if (a.achievement === null) return 1;
+      if (b.achievement === null) return -1;
+      if (b.achievement !== a.achievement) return b.achievement - a.achievement;
+      return b.totalValue - a.totalValue;
+    });
+
+    const withRank = sorted.map((s, i) => ({ ...s, rank: i + 1, badges: [] as Badge[] }));
     return withRank.map((s) => ({ ...s, badges: computeBadges(s, withRank) }));
   }, [sellers, goalMap]);
 
@@ -365,7 +374,7 @@ export default function RankingPage() {
             Ranking de Vendas
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Desempenho da equipe — {periodLabel.toLowerCase()}
+            Ordenado por % de atingimento da meta — {periodLabel.toLowerCase()}
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
@@ -437,13 +446,13 @@ export default function RankingPage() {
                 <Medal className="h-4 w-4 text-purple-500" />
                 Ranking Completo — {ranked.length} vendedor{ranked.length !== 1 ? "es" : ""}
               </h2>
-              <div className="hidden md:grid grid-cols-[40px_1fr_120px_100px_100px_80px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full ml-4">
+              <div className="hidden md:grid grid-cols-[40px_1fr_110px_120px_90px_70px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full ml-4">
                 <span></span>
                 <span>Vendedor</span>
+                <span className="text-right">% Meta</span>
                 <span className="text-right">Faturamento</span>
                 <span className="text-right">Ticket</span>
                 <span className="text-right">Clientes</span>
-                <span className="text-right">Meta</span>
               </div>
             </div>
             {ranked.map((s, i) => (
