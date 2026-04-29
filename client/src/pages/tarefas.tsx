@@ -1066,7 +1066,7 @@ function NotesView() {
             {sections.map((section) => (
               <div key={section.id}>
                 <div
-                  onClick={() => { if (editingSectionId !== section.id) { setSelectedSectionId(section.id); setSelectedNoteId(null); } }}
+                  onClick={() => { if (editingSectionId !== section.id) { setSelectedSectionId(selectedSectionId === section.id ? null : section.id); setSelectedNoteId(null); } }}
                   onDoubleClick={() => { setEditingSectionId(section.id); setEditingSectionName(section.name); }}
                   className={cn(
                     "w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors cursor-pointer select-none",
