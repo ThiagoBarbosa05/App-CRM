@@ -108,6 +108,7 @@ interface Task {
   priority: TaskPriority;
   status: string;
   boardId: string | null;
+  order: number | null;
   assignee: TaskUser | null;
   createdBy: { id: string; name: string } | null;
   createdAt: string;
@@ -323,11 +324,25 @@ function QuickAddCard({ onConfirm, onCancel }: { onConfirm: (title: string) => v
   );
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function sortedCol(tasks: Task[], slug: string): Task[] {
+  return tasks
+    .filter((t) => t.status === slug)
+    .sort((a, b) => {
+      if (a.order == null && b.order == null) return 0;
+      if (a.order == null) return 1;
+      if (b.order == null) return -1;
+      return a.order - b.order;
+    });
+}
+
 // ─── Kanban view ──────────────────────────────────────────────────────────────
 
-function KanbanView({ tasks, stages, onOpen, onDropToStatus, onQuickCreate, onRenameStage, onAddStage, canManageStages, boardId }: {
+function KanbanView({ tasks, stages, onOpen, onDropToStatus, onReorder, onQuickCreate, onRenameStage, onAddStage, canManageStages, boardId }: {
   tasks: Task[]; stages: TaskStage[]; onOpen: (t: Task) => void;
   onDropToStatus: (taskId: string, slug: string) => void;
+  onReorder?: (orderedIds: string[]) => void;
   onQuickCreate?: (title: string, slug: string) => void;
   onRenameStage?: (id: string, name: string) => void;
   onAddStage?: (name: string) => void;
@@ -336,12 +351,16 @@ function KanbanView({ tasks, stages, onOpen, onDropToStatus, onQuickCreate, onRe
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overSlug, setOverSlug] = useState<string | null>(null);
+  // For intra-column reordering: which card are we hovering over and which half
+  const [dropTarget, setDropTarget] = useState<{ cardId: string; before: boolean } | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
   const [newStageName, setNewStageName] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  const draggedTask = tasks.find((t) => t.id === draggedId);
 
   const saveRename = (id: string) => {
     const trimmed = editingName.trim();
@@ -353,23 +372,52 @@ function KanbanView({ tasks, stages, onOpen, onDropToStatus, onQuickCreate, onRe
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     const task = tasks.find((t) => t.id === taskId);
-    if (taskId && task && task.status !== slug) onDropToStatus(taskId, slug);
+    if (!taskId || !task) { setDraggedId(null); setOverSlug(null); setDropTarget(null); return; }
+
+    if (task.status !== slug) {
+      // Moving to a different column — simple status change
+      onDropToStatus(taskId, slug);
+    } else if (onReorder && dropTarget) {
+      // Same column — reorder
+      const col = sortedCol(tasks, slug);
+      const filtered = col.filter((t) => t.id !== taskId);
+      const targetIdx = filtered.findIndex((t) => t.id === dropTarget.cardId);
+      if (targetIdx === -1) {
+        // dropped on empty area — move to end
+        filtered.push(task);
+      } else if (dropTarget.before) {
+        filtered.splice(targetIdx, 0, task);
+      } else {
+        filtered.splice(targetIdx + 1, 0, task);
+      }
+      onReorder(filtered.map((t) => t.id));
+    }
+
     setDraggedId(null);
     setOverSlug(null);
+    setDropTarget(null);
+  };
+
+  const handleCardDragOver = (e: React.DragEvent, cardId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    setDropTarget((prev) => (prev?.cardId === cardId && prev?.before === before ? prev : { cardId, before }));
   };
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((stage) => {
         const cfg = stageStyle(stage.color);
-        const col = tasks.filter((t) => t.status === stage.slug);
+        const col = sortedCol(tasks, stage.slug);
         const isOver = overSlug === stage.slug;
-        const isSameCol = tasks.find((t) => t.id === draggedId)?.status === stage.slug;
+        const isSameCol = draggedTask?.status === stage.slug;
         return (
           <div key={stage.id}
             className="flex flex-col gap-3 min-w-[260px] w-[260px] flex-shrink-0"
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverSlug(stage.slug); }}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverSlug(null); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setOverSlug(null); setDropTarget(null); } }}
             onDrop={(e) => handleDrop(e, stage.slug)}>
             <div className={cn("rounded-lg border px-3 py-2 flex items-center justify-between gap-2 transition-colors group", cfg.bg)}>
               {editingId === stage.id ? (
@@ -393,9 +441,21 @@ function KanbanView({ tasks, stages, onOpen, onDropToStatus, onQuickCreate, onRe
             </div>
             <div className={cn("flex flex-col gap-2 min-h-[120px] rounded-lg transition-all p-1 -m-1",
               isOver && !isSameCol && "bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-400 ring-dashed")}>
-              {col.map((t) => (
-                <TaskCard key={t.id} task={t} onOpen={onOpen} onDragStart={setDraggedId} isDragging={draggedId === t.id} />
-              ))}
+              {col.map((t) => {
+                const isDropBefore = isSameCol && dropTarget?.cardId === t.id && dropTarget?.before;
+                const isDropAfter  = isSameCol && dropTarget?.cardId === t.id && !dropTarget?.before;
+                return (
+                  <div key={t.id}
+                    onDragOver={(e) => handleCardDragOver(e, t.id)}
+                    className={cn(
+                      "rounded-lg transition-all",
+                      isDropBefore && "border-t-2 border-purple-500 pt-0.5",
+                      isDropAfter  && "border-b-2 border-purple-500 pb-0.5",
+                    )}>
+                    <TaskCard task={t} onOpen={onOpen} onDragStart={setDraggedId} isDragging={draggedId === t.id} />
+                  </div>
+                );
+              })}
               {col.length === 0 && addingIn !== stage.slug && (
                 <div className={cn("text-xs text-slate-400 dark:text-slate-500 text-center mt-4", isOver && "opacity-0")}>Nenhuma tarefa</div>
               )}
@@ -789,6 +849,8 @@ function TaskDetailDialog({ taskId, onClose, canEdit, canDelete, platformUsers, 
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [comment, setComment] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   const { data: task, isLoading } = useQuery<TaskWithComments>({
     queryKey: ["tasks", "detail", taskId],
@@ -838,9 +900,37 @@ function TaskDetailDialog({ taskId, onClose, canEdit, canDelete, platformUsers, 
           <>
             <DialogHeader>
               <div className="flex items-start justify-between gap-2">
-                <DialogTitle className="text-lg leading-snug pr-8">{task.title}</DialogTitle>
+                {canEdit && editingTitle ? (
+                  <input
+                    autoFocus
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && titleDraft.trim()) {
+                        patchMutation.mutate({ title: titleDraft.trim() });
+                        setEditingTitle(false);
+                      }
+                      if (e.key === "Escape") setEditingTitle(false);
+                    }}
+                    onBlur={() => {
+                      if (titleDraft.trim() && titleDraft.trim() !== task.title) {
+                        patchMutation.mutate({ title: titleDraft.trim() });
+                      }
+                      setEditingTitle(false);
+                    }}
+                    className="flex-1 text-lg font-semibold bg-transparent outline-none border-b-2 border-purple-400 text-slate-900 dark:text-slate-100 leading-snug pr-2"
+                  />
+                ) : (
+                  <DialogTitle
+                    className={cn("text-lg leading-snug pr-8", canEdit && "cursor-text hover:text-purple-700 dark:hover:text-purple-300 transition-colors")}
+                    title={canEdit ? "Clique para editar o título" : undefined}
+                    onClick={() => { if (canEdit) { setTitleDraft(task.title); setEditingTitle(true); } }}
+                  >
+                    {task.title}
+                  </DialogTitle>
+                )}
                 {canDelete && (
-                  <button onClick={() => deleteMutation.mutate()} className="text-red-500 hover:text-red-700 p-1 rounded" title="Excluir tarefa">
+                  <button onClick={() => deleteMutation.mutate()} className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0" title="Excluir tarefa">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
@@ -1721,6 +1811,16 @@ export default function TarefasPage() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      apiFetch("/api/tasks/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedIds }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", selectedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteBoardMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/task-boards/${id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -1809,6 +1909,7 @@ export default function TarefasPage() {
               boardId={selectedBoardId!}
               onOpen={(t) => setSelectedTaskId(t.id)}
               onDropToStatus={(id, slug) => moveMutation.mutate({ id, status: slug })}
+              onReorder={(orderedIds) => reorderMutation.mutate(orderedIds)}
               onQuickCreate={(title, slug) => quickCreateMutation.mutate({ title, status: slug })}
               onRenameStage={(id, name) => renameStageMutation.mutate({ id, name })}
               onAddStage={(name) => addStageMutation.mutate(name)}

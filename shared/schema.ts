@@ -2969,6 +2969,7 @@ export const tasks = pgTable("tasks", {
     .notNull()
     .default("media"),
   status: varchar("status").notNull().default("a_fazer"),
+  order: integer("order"),
   boardId: varchar("board_id").references(() => taskBoards.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
