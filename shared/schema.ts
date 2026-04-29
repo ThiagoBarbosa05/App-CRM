@@ -3100,3 +3100,172 @@ export const taskFiles = pgTable("task_files", {
 
 export type TaskFileFolder = typeof taskFileFolders.$inferSelect;
 export type TaskFile = typeof taskFiles.$inferSelect;
+
+// ─── Telephony: Campanhas, Chamadas, Triggers e Notificações ─────────────────
+
+export const campaigns = pgTable("campaigns", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status", {
+    enum: ["rascunho", "ativa", "pausada", "encerrada"],
+  })
+    .notNull()
+    .default("rascunho"),
+  type: text("type", { enum: ["humano", "ia"] }).notNull(),
+  elevenLabsAgentId: text("eleven_labs_agent_id"),
+  elevenLabsVoiceId: text("eleven_labs_voice_id"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const calls = pgTable("calls", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id),
+  operatorId: varchar("operator_id")
+    .notNull()
+    .references(() => users.id),
+  campaignId: varchar("campaign_id").references(() => campaigns.id),
+  twilioCallSid: text("twilio_call_sid"),
+  elevenLabsConversationId: text("eleven_labs_conversation_id"),
+  status: text("status", {
+    enum: [
+      "iniciando",
+      "em_andamento",
+      "encerrada",
+      "nao_atendeu",
+      "ocupado",
+      "falhou",
+      "caixa_postal",
+    ],
+  })
+    .notNull()
+    .default("iniciando"),
+  outcome: text("outcome", {
+    enum: [
+      "atendeu",
+      "nao_atendeu",
+      "ocupado",
+      "caixa_postal",
+      "numero_invalido",
+      "convertido",
+      "reagendado",
+    ],
+  }),
+  duration: integer("duration"),
+  notes: text("notes"),
+  recordingUrl: text("recording_url"),
+  recordingSid: text("recording_sid"),
+  transcription: text("transcription"),
+  twilioTranscription: text("twilio_transcription"),
+  summary: text("summary"),
+  sentiment: text("sentiment", {
+    enum: ["positivo", "neutro", "negativo"],
+  }),
+  aiDecision: text("ai_decision", {
+    enum: ["sim", "nao", "sem_resposta"],
+  }),
+  nextStep: text("next_step"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const campaignTriggers = pgTable("campaign_triggers", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  keyword: text("keyword").notNull(),
+  instruction: text("instruction"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const callNotifications = pgTable("call_notifications", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  callId: varchar("call_id").references(() => calls.id),
+  clientId: varchar("client_id").references(() => clients.id),
+  triggerId: varchar("trigger_id").references(() => campaignTriggers.id),
+  message: text("message"),
+  excerpt: text("excerpt"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertCallSchema = createInsertSchema(calls).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCampaignTriggerSchema = createInsertSchema(
+  campaignTriggers
+).omit({ id: true, createdAt: true });
+export const insertCallNotificationSchema = createInsertSchema(
+  callNotifications
+).omit({ id: true, createdAt: true });
+
+export const campaignClients = pgTable(
+  "campaign_clients",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    campaignId: varchar("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    clientId: varchar("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    status: text("status", {
+      enum: [
+        "novo",
+        "contactado",
+        "nao_atendeu",
+        "ocupado",
+        "caixa_postal",
+        "convite_aceito",
+        "convite_recusado",
+        "convertido",
+        "desqualificado",
+      ],
+    })
+      .notNull()
+      .default("novo"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.campaignId, t.clientId)]
+);
+
+export const insertCampaignClientSchema = createInsertSchema(
+  campaignClients
+).omit({ id: true, createdAt: true });
+
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type Call = typeof calls.$inferSelect;
+export type InsertCall = z.infer<typeof insertCallSchema>;
+export type CampaignTrigger = typeof campaignTriggers.$inferSelect;
+export type InsertCampaignTrigger = z.infer<typeof insertCampaignTriggerSchema>;
+export type CallNotification = typeof callNotifications.$inferSelect;
+export type InsertCallNotification = z.infer<
+  typeof insertCallNotificationSchema
+>;
+export type CampaignClient = typeof campaignClients.$inferSelect;
+export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;

@@ -37,6 +37,11 @@ import connectOrdersRouter from "./connect-orders.routes";
 import unifiedOrdersRouter from "./unified-orders.routes";
 import blingWebhookRouter from "./bling-webhook.routes";
 import systemSettingsRouter from "./system-settings.routes";
+import telephonySettingsRouter from "./telephony-settings.routes";
+import twilioRouter from "./twilio.routes";
+import callsRouter from "./calls.routes";
+import campaignsRouter from "./campaigns.routes";
+import elevenLabsRouter from "./elevenlabs.routes";
 import { authRouter } from "./auth.routes";
 import { filesRouter } from "./files.routes";
 import { acompanhamentoRouter } from "./acompanhamento.routes";
@@ -83,6 +88,11 @@ apiRouter.use("/health", healthRouter);
 // Webhook do Bling — sem autenticação de usuário (usa HMAC próprio)
 apiRouter.use("/bling", blingWebhookRouter);
 apiRouter.use("/bling-accounts", blingAccountsRouter);
+// Webhooks Twilio/ElevenLabs — chamados pelos serviços externos sem JWT
+// Os handlers protegidos nesses routers verificam req.user manualmente
+apiRouter.use("/twilio", twilioRouter);
+apiRouter.use("/calls", callsRouter);
+apiRouter.use("/elevenlabs", elevenLabsRouter);
 
 // === AUTENTICAÇÃO GLOBAL ===
 // Todas as rotas registradas abaixo exigem JWT válido no cookie auth_token
@@ -141,6 +151,8 @@ apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
+apiRouter.use("/telephony-settings", telephonySettingsRouter);
+apiRouter.use("/campaigns", campaignsRouter);
 apiRouter.use("/tasks", tasksRouter);
 apiRouter.use("/task-stages", taskStagesRouter);
 apiRouter.use("/task-boards", taskBoardsRouter);

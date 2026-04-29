@@ -33,6 +33,7 @@ import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
 import RankingPage from "./pages/ranking";
+import TelemarketingPage from "./pages/telemarketing";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -235,6 +236,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <CalculadoraVinho />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/telemarketing"
+        component={() => (
+          <MainLayout>
+            <TelemarketingPage />
           </MainLayout>
         )}
       />

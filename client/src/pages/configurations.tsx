@@ -29,6 +29,7 @@ import {
   RefreshCcw,
   DollarSignIcon,
   Sparkles,
+  Phone,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
@@ -49,6 +50,7 @@ import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { WinePriceTierSettings } from "@/components/settings-management";
 import ProductCategoriesManagement from "@/components/product-categories-management";
 import { WineAIProfileSettings } from "@/components/wine-ai-profile-settings";
+import { TelephonyAISettings } from "@/components/telephony-ai-settings";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -297,6 +299,18 @@ export default function Configurations() {
                 <Sparkles className="size-4" />
                 <span className="text-xs font-medium">Perfil IA</span>
               </TabsTrigger>
+
+              <TabsTrigger
+                value="telephony"
+                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
+                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
+                title="Configurações de Telefonia e IA"
+              >
+                <Phone className="size-4" />
+                <span className="text-xs font-medium">Telefonia & IA</span>
+              </TabsTrigger>
             </div>
           </TabsList>
         </div>
@@ -374,6 +388,10 @@ export default function Configurations() {
 
             <TabsContent value="ai-profile">
               <WineAIProfileSettings />
+            </TabsContent>
+
+            <TabsContent value="telephony">
+              <TelephonyAISettings />
             </TabsContent>
           </motion.div>
         </AnimatePresence>

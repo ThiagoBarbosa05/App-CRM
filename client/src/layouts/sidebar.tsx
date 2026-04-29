@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PhoneCall,
   Settings,
   Shield,
   ShoppingCart,
@@ -73,6 +74,12 @@ const navItems: NavItem[] = [
     label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
+  {
+    href: "/telemarketing",
+    icon: PhoneCall,
+    label: "Telemarketing",
+    roles: ["admin", "gerente"],
+  },
   {
     href: "/configuracoes",
     icon: Settings,

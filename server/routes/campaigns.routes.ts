@@ -1,0 +1,397 @@
+import { Router, Request, Response } from "express";
+import { db } from "server/db";
+import {
+  campaigns,
+  campaignClients,
+  campaignTriggers,
+  calls,
+  clients,
+} from "@shared/schema";
+import { eq, and, inArray } from "drizzle-orm";
+import twilio from "twilio";
+import {
+  getTwilioConfig,
+  getTwilioChannels,
+  getServerBaseUrl,
+  toE164Brazil,
+} from "../lib/twilio-config";
+
+const router = Router();
+
+// ─── Listar campanhas ─────────────────────────────────────────────────────────
+
+router.get("/", async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(campaigns).orderBy(campaigns.createdAt);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar campanhas" });
+  }
+});
+
+// ─── Criar campanha ───────────────────────────────────────────────────────────
+
+router.post("/", async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      description,
+      type,
+      elevenLabsAgentId,
+      elevenLabsVoiceId,
+      startDate,
+      endDate,
+    } = req.body as {
+      name: string;
+      description?: string;
+      type: "humano" | "ia";
+      elevenLabsAgentId?: string;
+      elevenLabsVoiceId?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+
+    if (!name || !type) {
+      return res.status(400).json({ message: "Nome e tipo são obrigatórios" });
+    }
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({
+        name,
+        description,
+        type,
+        elevenLabsAgentId,
+        elevenLabsVoiceId,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+      })
+      .returning();
+
+    res.status(201).json(campaign);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao criar campanha" });
+  }
+});
+
+// ─── Buscar campanha ──────────────────────────────────────────────────────────
+
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, req.params.id));
+    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+    res.json(campaign);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar campanha" });
+  }
+});
+
+// ─── Atualizar campanha ───────────────────────────────────────────────────────
+
+router.put("/:id", async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      description,
+      status,
+      type,
+      elevenLabsAgentId,
+      elevenLabsVoiceId,
+      startDate,
+      endDate,
+    } = req.body as {
+      name?: string;
+      description?: string;
+      status?: "rascunho" | "ativa" | "pausada" | "encerrada";
+      type?: "humano" | "ia";
+      elevenLabsAgentId?: string;
+      elevenLabsVoiceId?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+
+    const [campaign] = await db
+      .update(campaigns)
+      .set({
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(status !== undefined && { status }),
+        ...(type !== undefined && { type }),
+        ...(elevenLabsAgentId !== undefined && { elevenLabsAgentId }),
+        ...(elevenLabsVoiceId !== undefined && { elevenLabsVoiceId }),
+        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
+        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        updatedAt: new Date(),
+      })
+      .where(eq(campaigns.id, req.params.id))
+      .returning();
+
+    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+    res.json(campaign);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao atualizar campanha" });
+  }
+});
+
+// ─── Excluir campanha ─────────────────────────────────────────────────────────
+
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    await db.delete(campaigns).where(eq(campaigns.id, req.params.id));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao excluir campanha" });
+  }
+});
+
+// ─── Clientes da campanha ─────────────────────────────────────────────────────
+
+router.get("/:id/clients", async (req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select({
+        id: campaignClients.id,
+        campaignId: campaignClients.campaignId,
+        clientId: campaignClients.clientId,
+        status: campaignClients.status,
+        createdAt: campaignClients.createdAt,
+        clientName: clients.name,
+        clientPhone: clients.phone,
+      })
+      .from(campaignClients)
+      .leftJoin(clients, eq(campaignClients.clientId, clients.id))
+      .where(eq(campaignClients.campaignId, req.params.id));
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar clientes da campanha" });
+  }
+});
+
+router.post("/:id/clients", async (req: Request, res: Response) => {
+  try {
+    const { clientIds } = req.body as { clientIds: string[] };
+    if (!clientIds?.length) {
+      return res.status(400).json({ message: "clientIds é obrigatório" });
+    }
+
+    const values = clientIds.map((clientId) => ({
+      campaignId: req.params.id,
+      clientId,
+      status: "novo" as const,
+    }));
+
+    await db.insert(campaignClients).values(values).onConflictDoNothing();
+    res.status(201).json({ added: values.length });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao adicionar clientes" });
+  }
+});
+
+router.delete("/:id/clients/:clientId", async (req: Request, res: Response) => {
+  try {
+    await db
+      .delete(campaignClients)
+      .where(
+        and(
+          eq(campaignClients.campaignId, req.params.id),
+          eq(campaignClients.clientId, req.params.clientId)
+        )
+      );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao remover cliente" });
+  }
+});
+
+// ─── Triggers ─────────────────────────────────────────────────────────────────
+
+router.get("/:id/triggers", async (req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select()
+      .from(campaignTriggers)
+      .where(eq(campaignTriggers.campaignId, req.params.id));
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar triggers" });
+  }
+});
+
+router.post("/:id/triggers", async (req: Request, res: Response) => {
+  try {
+    const { keyword, instruction } = req.body as {
+      keyword: string;
+      instruction?: string;
+    };
+    if (!keyword) return res.status(400).json({ message: "keyword é obrigatório" });
+
+    const [trigger] = await db
+      .insert(campaignTriggers)
+      .values({ campaignId: req.params.id, keyword, instruction })
+      .returning();
+    res.status(201).json(trigger);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao criar trigger" });
+  }
+});
+
+router.delete("/:id/triggers/:triggerId", async (req: Request, res: Response) => {
+  try {
+    await db
+      .delete(campaignTriggers)
+      .where(
+        and(
+          eq(campaignTriggers.campaignId, req.params.id),
+          eq(campaignTriggers.id, req.params.triggerId)
+        )
+      );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao remover trigger" });
+  }
+});
+
+// ─── Disparar campanha ────────────────────────────────────────────────────────
+
+router.post("/:id/dispatch", async (req: Request, res: Response) => {
+  try {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, req.params.id));
+
+    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+
+    const { fromNumber: callerIdOverride } = req.body as { fromNumber?: string };
+    const from = callerIdOverride || config.fromNumber;
+    if (!from) return res.status(400).json({ message: "Número de origem não configurado" });
+
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const novos = await db
+      .select({
+        ccId: campaignClients.id,
+        clientId: campaignClients.clientId,
+        clientName: clients.name,
+        clientPhone: clients.phone,
+      })
+      .from(campaignClients)
+      .leftJoin(clients, eq(campaignClients.clientId, clients.id))
+      .where(
+        and(
+          eq(campaignClients.campaignId, req.params.id),
+          eq(campaignClients.status, "novo")
+        )
+      );
+
+    if (novos.length === 0) {
+      return res.json({ dispatched: 0, total: 0, calls: [] });
+    }
+
+    const baseUrl = await getServerBaseUrl();
+    const twilioClient = twilio(config.accountSid, config.authToken);
+    const dispatchResults: Array<{
+      clientId: string;
+      clientName: string | null;
+      callSid: string | null;
+      callRecordId: string;
+      status: string;
+    }> = [];
+
+    for (const cc of novos) {
+      if (!cc.clientPhone) {
+        dispatchResults.push({
+          clientId: cc.clientId,
+          clientName: cc.clientName,
+          callSid: null,
+          callRecordId: "",
+          status: "sem_telefone",
+        });
+        continue;
+      }
+
+      const [callRecord] = await db
+        .insert(calls)
+        .values({
+          clientId: cc.clientId,
+          operatorId: userId,
+          campaignId: req.params.id,
+          status: "iniciando",
+          startedAt: new Date(),
+        })
+        .returning();
+
+      const urlParams = new URLSearchParams({
+        callRecordId: callRecord.id,
+        campaignType: campaign.type,
+        ...(campaign.elevenLabsAgentId && { agentId: campaign.elevenLabsAgentId }),
+        ...(campaign.elevenLabsVoiceId && { voiceId: campaign.elevenLabsVoiceId }),
+      });
+
+      try {
+        const e164 = toE164Brazil(cc.clientPhone);
+        const call = await twilioClient.calls.create({
+          to: e164,
+          from,
+          url: `${baseUrl}/api/twilio/voice?${urlParams.toString()}`,
+          statusCallback: `${baseUrl}/api/calls/twilio-status`,
+          statusCallbackMethod: "POST",
+        });
+
+        await db
+          .update(calls)
+          .set({ twilioCallSid: call.sid })
+          .where(eq(calls.id, callRecord.id));
+
+        await db
+          .update(campaignClients)
+          .set({ status: "contactado" })
+          .where(eq(campaignClients.id, cc.ccId));
+
+        dispatchResults.push({
+          clientId: cc.clientId,
+          clientName: cc.clientName,
+          callSid: call.sid,
+          callRecordId: callRecord.id,
+          status: call.status,
+        });
+      } catch (err) {
+        console.error(`[campaigns] dispatch error for ${cc.clientId}:`, err);
+        await db
+          .update(calls)
+          .set({ status: "falhou" })
+          .where(eq(calls.id, callRecord.id));
+
+        dispatchResults.push({
+          clientId: cc.clientId,
+          clientName: cc.clientName,
+          callSid: null,
+          callRecordId: callRecord.id,
+          status: "falhou",
+        });
+      }
+
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    res.json({
+      dispatched: dispatchResults.filter((r) => r.callSid).length,
+      total: novos.length,
+      calls: dispatchResults,
+    });
+  } catch (e) {
+    console.error("[campaigns] dispatch error:", e);
+    res.status(500).json({ message: "Erro ao disparar campanha" });
+  }
+});
+
+export default router;
