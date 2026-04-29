@@ -32,6 +32,7 @@ import DuplicatesPage from "./pages/duplicates";
 import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
+import RankingPage from "./pages/ranking";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -185,6 +186,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <TarefasPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/ranking"
+        component={() => (
+          <MainLayout>
+            <RankingPage />
           </MainLayout>
         )}
       />

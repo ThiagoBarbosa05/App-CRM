@@ -17,6 +17,7 @@ import {
   Gift,
   Receipt,
   AlertTriangle,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -155,6 +156,21 @@ export default function Sidebar() {
                 >
                   <Target className="mr-3 h-4 w-4" />
                   <span className="mobile-text">Metas</span>
+                </button>
+              </Link>
+
+              <Link href="/ranking">
+                <button
+                  onClick={closeMobileMenu}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                    isActive("/ranking")
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <Trophy className="mr-3 h-4 w-4" />
+                  <span className="mobile-text">Ranking</span>
                 </button>
               </Link>
 
