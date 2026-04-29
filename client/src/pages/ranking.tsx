@@ -183,7 +183,6 @@ function PodiumCard({ seller, podium }: { seller: RankedSeller | undefined; podi
         ) : (
           <p className="text-base font-black text-slate-400">—</p>
         )}
-        <p className="text-xs text-slate-500 dark:text-slate-400">{fmtBRL(seller.totalValue)}</p>
       </div>
       <div className={cn("w-full rounded-t-lg flex items-center justify-center text-white font-bold text-lg shadow-inner", podium.pillar, podium.pillarH)}>
         {podium.label}
@@ -201,7 +200,7 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
 
   return (
     <div className={cn(
-      "grid grid-cols-[40px_1fr_110px_120px_90px_70px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
+      "grid grid-cols-[40px_1fr_130px_90px_70px] items-center gap-2 px-4 py-3 border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors",
       index === 0 && "bg-amber-50/60 dark:bg-amber-900/10",
       index === 1 && "bg-slate-50/60 dark:bg-slate-800/30",
       index === 2 && "bg-orange-50/60 dark:bg-orange-900/10",
@@ -258,12 +257,6 @@ function RankRow({ seller, index }: { seller: RankedSeller; index: number }) {
         ) : (
           <span className="text-xs text-slate-300">sem meta</span>
         )}
-      </div>
-
-      {/* Faturamento */}
-      <div className="text-right">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{fmtBRL(seller.totalValue)}</p>
-        <p className="text-xs text-slate-400">{seller.totalOrders} pedidos</p>
       </div>
 
       {/* Ticket médio */}
@@ -446,11 +439,10 @@ export default function RankingPage() {
                 <Medal className="h-4 w-4 text-purple-500" />
                 Ranking Completo — {ranked.length} vendedor{ranked.length !== 1 ? "es" : ""}
               </h2>
-              <div className="hidden md:grid grid-cols-[40px_1fr_110px_120px_90px_70px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full ml-4">
+              <div className="hidden md:grid grid-cols-[40px_1fr_130px_90px_70px] gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium w-full ml-4">
                 <span></span>
                 <span>Vendedor</span>
                 <span className="text-right">% Meta</span>
-                <span className="text-right">Faturamento</span>
                 <span className="text-right">Ticket</span>
                 <span className="text-right">Clientes</span>
               </div>
@@ -471,7 +463,7 @@ export default function RankingPage() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">Sua posição no ranking</p>
                   <p className="text-xs text-purple-600 dark:text-purple-400">
-                    {fmtBRL(me.totalValue)} em vendas · {me.totalOrders} pedidos
+                    {me.totalOrders} pedidos
                     {me.achievement !== null && ` · ${fmtPct(me.achievement)} da meta`}
                   </p>
                 </div>
