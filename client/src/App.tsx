@@ -31,6 +31,7 @@ import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
 import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
+import TarefasPage from "./pages/tarefas";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -176,6 +177,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <EventsPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/tarefas"
+        component={() => (
+          <MainLayout>
+            <TarefasPage />
           </MainLayout>
         )}
       />

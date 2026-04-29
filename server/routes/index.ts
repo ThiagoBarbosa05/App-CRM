@@ -52,6 +52,7 @@ import { templatesRouter } from "./templates.routes";
 import { birthdayAutomationRouter } from "./birthday-automation.routes";
 import { healthRouter } from "./health.routes";
 import { adminRouter } from "./admin.routes";
+import { tasksRouter } from "./tasks.routes";
 import { messageAutomationSettingsRouter } from "./message-automation-settings.routes";
 import {
   clientRegistrationGoalsRouter,
@@ -134,3 +135,4 @@ apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
+apiRouter.use("/tasks", tasksRouter);

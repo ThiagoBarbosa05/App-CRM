@@ -42,6 +42,18 @@ export async function setupVite(app: Express, server: Server) {
 
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
+    // Rotas da API que não foram tratadas devem retornar 404 JSON,
+    // não o HTML do SPA — isso evita que métodos POST/PATCH/DELETE
+    // recebam uma página HTML em vez de um erro JSON.
+    if (req.originalUrl.startsWith("/api/")) {
+      return res.status(404).json({ message: "Rota não encontrada" });
+    }
+
+    // Para POST/PATCH/PUT/DELETE sem rota na API, também retorna JSON
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      return res.status(404).json({ message: "Rota não encontrada" });
+    }
+
     const url = req.originalUrl;
 
     try {
@@ -78,8 +90,11 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // fall through to index.html if the file doesn't exist (apenas para GET/HEAD)
+  app.use("*", (req, res) => {
+    if (req.originalUrl.startsWith("/api/") || (req.method !== "GET" && req.method !== "HEAD")) {
+      return res.status(404).json({ message: "Rota não encontrada" });
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

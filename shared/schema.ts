@@ -2916,3 +2916,91 @@ export const systemSettings = pgTable("system_settings", {
   value: text("value").notNull(),
   description: text("description"),
 });
+
+// Tabela de tarefas internas
+export const tasks = pgTable("tasks", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  assigneeId: varchar("assignee_id")
+    .references(() => users.id)
+    .notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id)
+    .notNull(),
+  dueDate: timestamp("due_date"),
+  category: text("category", {
+    enum: ["marketing", "operacao", "financeiro", "comercial", "outro"],
+  })
+    .notNull()
+    .default("outro"),
+  priority: text("priority", {
+    enum: ["baixa", "media", "alta", "urgente"],
+  })
+    .notNull()
+    .default("media"),
+  status: text("status", {
+    enum: ["a_fazer", "em_andamento", "aguardando_aprovacao", "concluido"],
+  })
+    .notNull()
+    .default("a_fazer"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tabela de comentários de tarefas
+export const taskComments = pgTable("task_comments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id")
+    .references(() => tasks.id, { onDelete: "cascade" })
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  assignee: one(users, {
+    fields: [tasks.assigneeId],
+    references: [users.id],
+    relationName: "taskAssignee",
+  }),
+  createdBy: one(users, {
+    fields: [tasks.createdById],
+    references: [users.id],
+    relationName: "taskCreator",
+  }),
+  comments: many(taskComments),
+}));
+
+export const taskCommentsRelations = relations(taskComments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskComments.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskComments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type TaskComment = typeof taskComments.$inferSelect;

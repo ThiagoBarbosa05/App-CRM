@@ -9,6 +9,7 @@ import {
   Building2,
   Calculator,
   CalendarDays,
+  CheckSquare,
   ClipboardList,
   Gift,
   GitBranch,
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
   // { href: "/empresas", icon: Building2, label: "Empresas" },
   { href: "/products", icon: Wine, label: "Produtos" },
   { href: "/eventos", icon: CalendarDays, label: "Eventos" },
+  { href: "/tarefas", icon: CheckSquare, label: "Tarefas" },
   {
     href: "/funil",
     icon: GitBranch,
