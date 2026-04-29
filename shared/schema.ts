@@ -3068,3 +3068,34 @@ export const notesRelations = relations(notes, ({ one }) => ({
 export type TaskBoard = typeof taskBoards.$inferSelect;
 export type NoteSection = typeof noteSections.$inferSelect;
 export type Note = typeof notes.$inferSelect;
+
+// ─── Arquivos de tarefas ──────────────────────────────────────────────────────
+
+export const taskFileFolders = pgTable("task_file_folders", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("slate"),
+  order: integer("order").notNull().default(0),
+  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const taskFiles = pgTable("task_files", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  size: integer("size").notNull().default(0),
+  mimeType: text("mime_type").notNull().default("application/octet-stream"),
+  folderId: varchar("folder_id")
+    .references(() => taskFileFolders.id, { onDelete: "cascade" })
+    .notNull(),
+  uploadedById: varchar("uploaded_by_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type TaskFileFolder = typeof taskFileFolders.$inferSelect;
+export type TaskFile = typeof taskFiles.$inferSelect;

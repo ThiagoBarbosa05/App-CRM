@@ -612,6 +612,17 @@ export interface IStorage {
   ): Promise<EventAttachment>;
   deleteEventAttachment(attachmentId: string): Promise<boolean>;
   deleteEventAttachmentsByEventId(eventId: string): Promise<boolean>;
+
+  // Task File Folders
+  getTaskFileFolders(): Promise<(TaskFileFolder & { fileCount: number })[]>;
+  createTaskFileFolder(data: { name: string; color: string; createdById: string }): Promise<TaskFileFolder>;
+  updateTaskFileFolder(id: string, data: { name: string }): Promise<TaskFileFolder | null>;
+  deleteTaskFileFolder(id: string): Promise<boolean>;
+
+  // Task Files
+  getTaskFiles(folderId: string): Promise<(TaskFile & { uploadedBy: { id: string; name: string } | null })[]>;
+  createTaskFile(data: { name: string; url: string; size: number; mimeType: string; folderId: string; uploadedById: string }): Promise<TaskFile>;
+  deleteTaskFile(id: string): Promise<TaskFile | null>;
 }
 
 export class DatabaseStorage implements IStorage {

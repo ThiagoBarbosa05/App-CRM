@@ -57,6 +57,8 @@ import { taskStagesRouter } from "./task-stages.routes";
 import { taskBoardsRouter } from "./task-boards.routes";
 import { noteSectionsRouter } from "./note-sections.routes";
 import { notesRouter } from "./notes.routes";
+import { taskFileFoldersRouter } from "./task-file-folders.routes";
+import { taskFilesRouter } from "./task-files.routes";
 import { messageAutomationSettingsRouter } from "./message-automation-settings.routes";
 import {
   clientRegistrationGoalsRouter,
@@ -144,3 +146,5 @@ apiRouter.use("/task-stages", taskStagesRouter);
 apiRouter.use("/task-boards", taskBoardsRouter);
 apiRouter.use("/note-sections", noteSectionsRouter);
 apiRouter.use("/notes", notesRouter);
+apiRouter.use("/task-file-folders", taskFileFoldersRouter);
+apiRouter.use("/task-files", taskFilesRouter);
