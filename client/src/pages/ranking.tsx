@@ -333,8 +333,8 @@ export default function RankingPage() {
     const sorted = [...sellers].sort((a, b) => b.totalValue - a.totalValue);
     const withRank = sorted.map((s, i) => {
       const goal = goalMap[s.sellerId];
-      const achievement = goal ? goal.results.achievement : null;
-      const monthlyGoal = goal ? goal.monthlyGoal : null;
+      const achievement = goal?.results?.achievement ?? null;
+      const monthlyGoal = goal?.monthlyGoal ?? null;
       const avgTicket = s.totalOrders > 0 ? s.totalValue / s.totalOrders : 0;
       return {
         ...s,
