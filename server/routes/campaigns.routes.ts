@@ -343,7 +343,7 @@ router.post("/:id/dispatch", async (req: Request, res: Response) => {
           to: e164,
           from,
           url: `${baseUrl}/api/twilio/voice?${urlParams.toString()}`,
-          statusCallback: `${baseUrl}/api/calls/twilio-status`,
+          statusCallback: config.statusCallbackUrl ?? `${baseUrl}/api/calls/twilio-status`,
           statusCallbackMethod: "POST",
         });
 

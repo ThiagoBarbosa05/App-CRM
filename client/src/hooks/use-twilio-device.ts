@@ -12,10 +12,11 @@ type CallStatus =
 interface UseTwilioDeviceReturn {
   deviceStatus: DeviceStatus;
   callStatus: CallStatus;
+  callSid: string | null;
   isMuted: boolean;
   errorMessage: string | null;
   isConfigured: boolean;
-  connect: (to: string, callerId: string) => Promise<void>;
+  connect: (to: string, callerId: string, extraParams?: Record<string, string>) => Promise<void>;
   disconnect: () => void;
   toggleMute: () => void;
 }
@@ -26,6 +27,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
 
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>("offline");
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
+  const [callSid, setCallSid] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -76,7 +78,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     };
   }, []);
 
-  const connect = useCallback(async (to: string, callerId: string) => {
+  const connect = useCallback(async (to: string, callerId: string, extraParams?: Record<string, string>) => {
     if (!deviceRef.current) {
       setErrorMessage("Device não inicializado");
       return;
@@ -86,15 +88,21 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
 
     try {
       const call = await deviceRef.current.connect({
-        params: { To: to, callerId },
+        params: { To: to, callerId, ...extraParams },
       });
       callRef.current = call;
 
       call.on("ringing", () => setCallStatus("ringing"));
-      call.on("accept", () => setCallStatus("in-progress"));
+      call.on("accept", (acceptedCall: Call) => {
+        setCallStatus("in-progress");
+        const sid = acceptedCall.parameters?.CallSid ?? null;
+        console.log("[twilio-device] accept | parameters:", JSON.stringify(acceptedCall.parameters));
+        setCallSid(sid);
+      });
       call.on("disconnect", () => {
         setCallStatus("disconnected");
         setIsMuted(false);
+        setCallSid(null);
         callRef.current = null;
       });
       call.on("error", (err) => {
@@ -110,7 +118,9 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   const disconnect = useCallback(() => {
     callRef.current?.disconnect();
     deviceRef.current?.disconnectAll();
-    setCallStatus("idle");
+    // Não forçamos "idle" aqui — o evento call.on("disconnect") cuida do estado.
+    // Forçar "idle" causava race condition com o evento disparando depois e
+    // sobrescrevendo o estado antes que o componente pai pudesse reagir ao desligamento.
     setIsMuted(false);
   }, []);
 
@@ -124,6 +134,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   return {
     deviceStatus,
     callStatus,
+    callSid,
     isMuted,
     errorMessage,
     isConfigured,

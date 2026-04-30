@@ -19,6 +19,7 @@ export async function getTwilioConfig() {
     "twilio_account_sid",
     "twilio_auth_token",
     "twilio_from_number",
+    "twilio_status_callback_url",
   ]);
   return {
     accountSid:
@@ -26,20 +27,30 @@ export async function getTwilioConfig() {
     authToken: s["twilio_auth_token"] || process.env.TWILIO_AUTH_TOKEN || "",
     fromNumber:
       s["twilio_from_number"] || process.env.TWILIO_FROM_NUMBER || "",
+    statusCallbackUrl:
+      s["twilio_status_callback_url"] ||
+      process.env.TWILIO_STATUS_CALLBACK_URL ||
+      null,
   };
 }
 
 export async function getTwilioVoiceSdkConfig() {
   const s = await getSettings([
+    "twilio_account_sid",
     "twilio_api_key",
     "twilio_api_secret",
     "twilio_twiml_app_sid",
+    "twilio_from_number",
   ]);
   return {
+    accountSid:
+      s["twilio_account_sid"] || process.env.TWILIO_ACCOUNT_SID || "",
     apiKey: s["twilio_api_key"] || process.env.TWILIO_API_KEY || "",
     apiSecret: s["twilio_api_secret"] || process.env.TWILIO_API_SECRET || "",
     twimlAppSid:
       s["twilio_twiml_app_sid"] || process.env.TWILIO_TWIML_APP_SID || "",
+    fromNumber:
+      s["twilio_from_number"] || process.env.TWILIO_FROM_NUMBER || "",
   };
 }
 
@@ -48,13 +59,22 @@ export async function getTwilioChannels(): Promise<Channel[]> {
   const json = s["twilio_from_numbers"] || process.env.TWILIO_FROM_NUMBERS;
   if (json) {
     try {
-      return JSON.parse(json) as Channel[];
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) {
+        const channels: Channel[] = [];
+        for (const item of parsed) {
+          const label = typeof item?.label === "string" ? item.label.trim() : "";
+          const number = typeof item?.number === "string" ? item.number.trim() : "";
+          if (label && number) channels.push({ label, number: toE164Brazil(number) });
+        }
+        if (channels.length > 0) return channels;
+      }
     } catch {
       // fall through to single number
     }
   }
   const single = s["twilio_from_number"] || process.env.TWILIO_FROM_NUMBER;
-  if (single) return [{ label: "Principal", number: single }];
+  if (single) return [{ label: "Padrão", number: toE164Brazil(single) }];
   return [];
 }
 
@@ -71,7 +91,7 @@ export async function getElevenLabsVoiceId(): Promise<string | null> {
 export async function isRecordCallsEnabled(): Promise<boolean> {
   const s = await getSettings(["twilio_record_calls"]);
   const val = s["twilio_record_calls"] || process.env.TWILIO_RECORD_CALLS;
-  return val === "true";
+  return val === "true" || val === "1";
 }
 
 export async function getServerBaseUrl(): Promise<string> {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -32,9 +32,12 @@ import {
   Delete,
   ExternalLink,
   Radio,
+  Users,
+  Search,
 } from "lucide-react";
 
 type Channel = { label: string; number: string };
+type Client = { id: string; name: string; phone: string | null };
 
 const noteSchema = z.object({
   notes: z.string().optional(),
@@ -76,6 +79,7 @@ export function Dialer() {
   const {
     deviceStatus,
     callStatus,
+    callSid,
     isMuted,
     errorMessage,
     isConfigured,
@@ -87,7 +91,10 @@ export function Dialer() {
   const [number, setNumber] = useState("");
   const [callerId, setCallerId] = useState("");
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showNote, setShowNote] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [showClients, setShowClients] = useState(false);
 
   const { data: channels = [] } = useQuery<Channel[]>({
     queryKey: ["/api/twilio/channels"],
@@ -97,6 +104,39 @@ export function Dialer() {
       return res.json();
     },
   });
+
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClientSearchChange = (value: string) => {
+    setClientSearch(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(value), 300);
+  };
+
+  const { data: myClients = [], isFetching: clientsFetching } = useQuery<Client[]>({
+    queryKey: ["/api/clients", "dialer", debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ pageSize: "50" });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const res = await fetch(`/api/clients?${params}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json() as { data?: Client[] } | Client[];
+      const list = Array.isArray(data) ? data : (data.data ?? []);
+      return list.filter((c) => c.phone);
+    },
+    enabled: showClients,
+  });
+
+  useEffect(() => {
+    if (!callSid || !activeCallId) return;
+    fetch(`/api/calls/${activeCallId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ twilioCallSid: callSid }),
+    }).catch((e) => console.warn("[dialer] Falha ao atualizar twilioCallSid:", e));
+  }, [callSid, activeCallId]);
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<NoteForm>({
     resolver: zodResolver(noteSchema),
@@ -109,16 +149,22 @@ export function Dialer() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ notes: data.notes, outcome: data.outcome }),
+        // Inclui status "encerrada" para garantir que a ligação apareça
+        // corretamente no histórico mesmo que os webhooks Twilio (dial-action /
+        // twilio-status) não tenham chegado a tempo ou falhado.
+        body: JSON.stringify({ notes: data.notes, outcome: data.outcome, status: "encerrada" }),
       });
       if (!res.ok) throw new Error("Erro ao salvar anotação");
       return res.json();
     },
     onSuccess: () => {
       toast({ title: "Anotação salva" });
-      queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      // Invalida todas as queries que começam com /api/calls (inclui o histórico
+      // que usa queryKey: ["/api/calls", statusFilter, page])
+      queryClient.invalidateQueries({ queryKey: ["/api/calls"], exact: false });
       setShowNote(false);
       setActiveCallId(null);
+      setSelectedClientId(null);
       reset();
     },
   });
@@ -139,27 +185,57 @@ export function Dialer() {
       return;
     }
 
-    // Criar registro da chamada primeiro
     const res = await fetch("/api/calls", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ twilioCallSid: null }),
+      body: JSON.stringify({
+        twilioCallSid: null,
+        ...(selectedClientId && { clientId: selectedClientId }),
+      }),
     });
+
+    let callRecordId: string | undefined;
     if (res.ok) {
       const call = await res.json() as { id: string };
+      callRecordId = call.id;
       setActiveCallId(call.id);
+      console.log("[dialer] POST /api/calls OK — callRecordId:", callRecordId);
+    } else {
+      const errText = await res.text().catch(() => "(sem corpo)");
+      console.error("[dialer] POST /api/calls FALHOU:", res.status, errText);
     }
 
-    await connect(number, from);
+    console.log("[dialer] connect() params — callRecordId:", callRecordId ?? "(ausente)");
+    await connect(number, from, callRecordId ? { callRecordId } : undefined);
   };
 
-  const handleHangup = () => {
+  const handleCallClient = (client: Client) => {
+    if (!client.phone) return;
+    setNumber(client.phone);
+    setSelectedClientId(client.id);
+    setShowClients(false);
+  };
+
+  const handleHangup = async () => {
     disconnect();
+    // Marca a ligação como encerrada no banco imediatamente, sem depender
+    // dos webhooks Twilio (dial-action / twilio-status) para isso.
+    if (activeCallId) {
+      try {
+        await fetch(`/api/calls/${activeCallId}/end`, {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (e) {
+        console.warn("[dialer] Falha ao encerrar chamada via /end:", e);
+      }
+    }
     setShowNote(true);
   };
 
   const inCall = callStatus === "in-progress" || callStatus === "ringing" || callStatus === "connecting";
+
 
   const deviceBadgeVariant =
     deviceStatus === "registered"
@@ -375,7 +451,11 @@ export function Dialer() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowNote(false)}
+                  onClick={() => {
+                    // Mesmo ao pular, invalida o histórico para exibir a chamada encerrada
+                    queryClient.invalidateQueries({ queryKey: ["/api/calls"], exact: false });
+                    setShowNote(false);
+                  }}
                 >
                   Pular
                 </Button>
@@ -384,6 +464,66 @@ export function Dialer() {
           </CardContent>
         </Card>
       )}
+
+      {/* Lista de clientes para ligar */}
+      <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+        <CardHeader className="pb-2">
+          <button
+            type="button"
+            className="flex items-center justify-between w-full text-left"
+            onClick={() => setShowClients((v) => !v)}
+          >
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Users className="size-4" />
+              Ligar para cliente
+            </CardTitle>
+            <span className="text-xs text-slate-400">{showClients ? "Fechar" : "Abrir"}</span>
+          </button>
+        </CardHeader>
+        {showClients && (
+          <CardContent className="space-y-3">
+            <div className="relative">
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={clientSearch}
+                onChange={(e) => handleClientSearchChange(e.target.value)}
+                placeholder="Buscar cliente..."
+                className="pl-8 text-sm rounded-xl"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {clientsFetching ? (
+                <p className="text-xs text-slate-400 text-center py-4">Buscando...</p>
+              ) : myClients.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-4">Nenhum cliente com telefone.</p>
+              ) : (
+                myClients.map((client) => (
+                  <div
+                    key={client.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{client.name}</p>
+                      <p className="text-xs text-slate-400">{client.phone}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 rounded-xl gap-1.5"
+                      disabled={inCall || deviceStatus !== "registered"}
+                      onClick={() => handleCallClient(client)}
+                    >
+                      <Phone className="size-3" />
+                      Ligar
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 }

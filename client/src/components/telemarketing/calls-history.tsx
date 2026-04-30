@@ -27,11 +27,15 @@ type Call = {
   status: string;
   outcome: string | null;
   duration: number | null;
+  recordingUrl: string | null;
+  twilioTranscription: string | null;
   transcription: string | null;
   summary: string | null;
   aiDecision: string | null;
   sentiment: string | null;
   notes: string | null;
+  clientName: string | null;
+  clientPhone: string | null;
   createdAt: string;
 };
 
@@ -146,11 +150,12 @@ export function CallsHistory() {
                 <Phone className="size-4 text-slate-400 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {call.twilioCallSid ?? call.id.slice(0, 8)}
+                    {call.clientName ?? call.twilioCallSid?.slice(0, 16) ?? call.id.slice(0, 8)}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <Clock className="size-3" />
                     {formatDuration(call.duration)}
+                    <span>· {new Date(call.createdAt).toLocaleString("pt-BR")}</span>
                     {call.outcome && (
                       <span>· {OUTCOME_LABELS[call.outcome] ?? call.outcome}</span>
                     )}
@@ -211,7 +216,7 @@ export function CallsHistory() {
           <DialogContent className="max-w-lg rounded-3xl max-h-[85vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center justify-between">
-                <span>Chamada — {selectedCall.twilioCallSid?.slice(0, 16) ?? selectedCall.id.slice(0, 8)}</span>
+                <span>Chamada — {selectedCall.clientName ?? selectedCall.twilioCallSid?.slice(0, 16) ?? selectedCall.id.slice(0, 8)}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -235,6 +240,22 @@ export function CallsHistory() {
                   <p className="text-xs text-slate-400">Duração</p>
                   <p className="font-medium">{formatDuration(selectedCall.duration)}</p>
                 </div>
+                {selectedCall.clientName && (
+                  <div>
+                    <p className="text-xs text-slate-400">Cliente</p>
+                    <p className="font-medium">{selectedCall.clientName}</p>
+                  </div>
+                )}
+                {selectedCall.clientPhone && (
+                  <div>
+                    <p className="text-xs text-slate-400">Telefone</p>
+                    <p className="font-medium">{selectedCall.clientPhone}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-slate-400">Data</p>
+                  <p className="font-medium">{new Date(selectedCall.createdAt).toLocaleString("pt-BR")}</p>
+                </div>
                 {selectedCall.outcome && (
                   <div>
                     <p className="text-xs text-slate-400">Outcome</p>
@@ -255,6 +276,17 @@ export function CallsHistory() {
                 )}
               </div>
 
+              {selectedCall.recordingUrl && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Gravação</p>
+                  <audio
+                    controls
+                    src={`/api/twilio/recording/${selectedCall.id}`}
+                    className="w-full rounded-xl"
+                  />
+                </div>
+              )}
+
               {selectedCall.summary && (
                 <div>
                   <p className="text-xs font-semibold text-slate-500 mb-1">Resumo</p>
@@ -273,21 +305,30 @@ export function CallsHistory() {
                 </div>
               )}
 
+              {selectedCall.twilioTranscription && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Transcrição (Voice Intelligence)</p>
+                  <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                    {selectedCall.twilioTranscription}
+                  </div>
+                </div>
+              )}
+
               {selectedCall.transcription ? (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-1">Transcrição</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Transcrição (ElevenLabs)</p>
                   <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-64 overflow-y-auto">
                     {selectedCall.transcription}
                   </div>
                 </div>
-              ) : (
+              ) : !selectedCall.twilioTranscription ? (
                 <div className="text-center py-6 text-slate-400">
                   <p className="text-sm">Sem transcrição disponível.</p>
                   <p className="text-xs mt-1">
                     Clique em <RefreshCw className="size-3 inline" /> para buscar do ElevenLabs.
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </DialogContent>
         </Dialog>
