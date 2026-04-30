@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -26,6 +27,11 @@ import {
   Save,
   Loader2,
   ShieldAlert,
+  Radio,
+  Copy,
+  Trash2,
+  Plus,
+  Info,
 } from "lucide-react";
 
 const telephonySchema = z.object({
@@ -53,6 +59,8 @@ type StatusResponse = {
 };
 
 type SettingsResponse = Record<string, string>;
+
+type Channel = { label: string; number: string };
 
 function StatusBadge({ active, label }: { active: boolean; label: string }) {
   return (
@@ -96,6 +104,39 @@ function FieldGroup({
   );
 }
 
+function ReadOnlyWithCopy({ value, label }: { value: string; label: string }) {
+  function copy() {
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      toast({ title: "Copiado!", description: value });
+    });
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        {label}
+      </Label>
+      <div className="flex gap-2">
+        <Input
+          readOnly
+          value={value}
+          className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 truncate"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={copy}
+          className="shrink-0"
+        >
+          <Copy className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function TelephonyAISettings() {
   const { data: status, isLoading: statusLoading } = useQuery<StatusResponse>({
     queryKey: ["/api/telephony-settings/status"],
@@ -125,7 +166,6 @@ export function TelephonyAISettings() {
     handleSubmit,
     watch,
     setValue,
-    reset,
     formState: { isSubmitting },
   } = useForm<TelephonyForm>({
     resolver: zodResolver(telephonySchema),
@@ -150,6 +190,36 @@ export function TelephonyAISettings() {
       : undefined,
   });
 
+  // Channels state (replaces raw JSON input)
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [newChannelLabel, setNewChannelLabel] = useState("");
+  const [newChannelNumber, setNewChannelNumber] = useState("");
+
+  useEffect(() => {
+    if (!settings?.twilio_from_numbers) return;
+    try {
+      const parsed = JSON.parse(settings.twilio_from_numbers);
+      if (Array.isArray(parsed)) setChannels(parsed);
+    } catch {
+      // ignore malformed JSON
+    }
+  }, [settings?.twilio_from_numbers]);
+
+  function addChannel() {
+    if (!newChannelLabel.trim() || !newChannelNumber.trim()) return;
+    const updated = [
+      ...channels,
+      { label: newChannelLabel.trim(), number: newChannelNumber.trim() },
+    ];
+    setChannels(updated);
+    setNewChannelLabel("");
+    setNewChannelNumber("");
+  }
+
+  function removeChannel(index: number) {
+    setChannels(channels.filter((_, i) => i !== index));
+  }
+
   const saveMutation = useMutation({
     mutationFn: async (data: TelephonyForm) => {
       const body: Record<string, string> = {
@@ -161,7 +231,7 @@ export function TelephonyAISettings() {
         twilio_twiml_app_sid: data.twilio_twiml_app_sid ?? "",
         twilio_status_callback_url: data.twilio_status_callback_url ?? "",
         twilio_record_calls: data.twilio_record_calls ? "true" : "false",
-        twilio_from_numbers: data.twilio_from_numbers ?? "",
+        twilio_from_numbers: JSON.stringify(channels),
         twilio_intelligence_service_sid:
           data.twilio_intelligence_service_sid ?? "",
         elevenlabs_api_key: data.elevenlabs_api_key ?? "",
@@ -202,8 +272,40 @@ export function TelephonyAISettings() {
     },
   });
 
+  const configureVoiceUrlMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/telephony-settings/configure-voice-url", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Erro ao configurar Voice URL");
+      }
+      return res.json() as Promise<{ success: boolean; voiceUrl: string }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Voice URL configurada",
+        description: `TwiML App atualizado com: ${data.voiceUrl}`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro ao configurar Voice URL",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const isLoading = settingsLoading || statusLoading;
   const recordCalls = watch("twilio_record_calls");
+  const serverBaseUrl = watch("server_base_url") ?? "";
+  const voiceUrl = serverBaseUrl ? `${serverBaseUrl}/api/twilio/voice` : "";
+  const transcriptionWebhookUrl = serverBaseUrl
+    ? `${serverBaseUrl}/api/elevenlabs/webhook`
+    : "";
 
   if (isLoading) {
     return (
@@ -269,15 +371,336 @@ export function TelephonyAISettings() {
           </CardContent>
         </Card>
 
-        {/* Twilio */}
+        {/* Voice SDK */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Radio className="size-4 text-slate-500" />
+                Voice SDK (Áudio no Navegador)
+              </CardTitle>
+              <StatusBadge
+                active={status?.voiceSdk ?? false}
+                label={status?.voiceSdk ? "Configurado" : "Não configurado"}
+              />
+            </div>
+            <CardDescription>
+              Credenciais para o SDK de voz do Twilio no browser.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <FieldGroup
+              label="API Key SID"
+              hint="Criada em console.twilio.com > Account > API keys & tokens"
+            >
+              <Input
+                {...register("twilio_api_key")}
+                placeholder="SKxxxxxxxxxxxxxxxx"
+              />
+            </FieldGroup>
+
+            <FieldGroup label="API Secret">
+              <div className="relative">
+                <Input
+                  {...register("twilio_api_secret")}
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Exibido apenas uma vez ao criar a API Key
+              </p>
+            </FieldGroup>
+
+            <FieldGroup
+              label="TwiML App SID"
+              hint="Criado em console.twilio.com > Voice > TwiML Apps"
+            >
+              <Input
+                {...register("twilio_twiml_app_sid")}
+                placeholder="APxxxxxxxxxxxxxxxx"
+              />
+            </FieldGroup>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                URL Pública do Servidor
+              </Label>
+              <Input
+                readOnly
+                value={voiceUrl}
+                placeholder="Preencha o Server Base URL acima"
+                className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 truncate"
+              />
+              {voiceUrl && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Voice URL: {voiceUrl}
+                </p>
+              )}
+            </div>
+
+            <div className="sm:col-span-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2 rounded-2xl"
+                disabled={
+                  configureVoiceUrlMutation.isPending || !status?.voiceSdk
+                }
+                onClick={() => configureVoiceUrlMutation.mutate()}
+              >
+                {configureVoiceUrlMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Radio className="size-4" />
+                )}
+                Configurar Voice URL no Twilio
+              </Button>
+              {!status?.voiceSdk && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 text-center">
+                  Salve as credenciais do Voice SDK antes de configurar.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Voice Intelligence */}
         <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Phone className="size-4 text-slate-500" />
-              Twilio
+              <Radio className="size-4 text-slate-500" />
+              Voice Intelligence (Transcrição Nativa)
             </CardTitle>
             <CardDescription>
-              Credenciais de acesso à API e ao Voice SDK do Twilio.
+              Serviço do Twilio para transcrição de chamadas humanas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <FieldGroup
+              label="Intelligence Service SID"
+              hint="Console Twilio → Voice Intelligence → Services. Começa com GA. Configure o idioma como pt-BR."
+            >
+              <Input
+                {...register("twilio_intelligence_service_sid")}
+                placeholder="GAxxxxxxxxxxxxxxxx"
+              />
+            </FieldGroup>
+
+            <ReadOnlyWithCopy
+              label="URL do Webhook de Transcrição"
+              value={transcriptionWebhookUrl}
+            />
+            {transcriptionWebhookUrl && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2 -mt-3">
+                Cole esta URL no campo webhook URL do seu Intelligence Service no Console Twilio.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ElevenLabs */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Bot className="size-4 text-slate-500" />
+                ElevenLabs
+              </CardTitle>
+              <StatusBadge
+                active={status?.elevenlabs ?? false}
+                label={status?.elevenlabs ? "Configurado" : "Não configurado"}
+              />
+            </div>
+            <CardDescription>
+              Agente de IA para discagem automática.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <FieldGroup
+              label="API Key"
+              hint="Gerada em elevenlabs.io/app/account"
+            >
+              <div className="relative">
+                <Input
+                  {...register("elevenlabs_api_key")}
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+              </div>
+            </FieldGroup>
+
+            <FieldGroup
+              label="Voice ID (Voz Clonada — Padrão Global)"
+              hint="Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha."
+            >
+              <Input
+                {...register("elevenlabs_voice_id")}
+                placeholder="Ex: 21m00Tcm4TlvDq8ikWAM"
+              />
+            </FieldGroup>
+
+            <div className="sm:col-span-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 flex gap-2">
+              <Info className="size-4 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                O Agent ID é configurado por campanha. Esta chave é necessária
+                para autenticar o webhook de pós-chamada e receber transcrições.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gravação de Chamadas */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Phone className="size-4 text-slate-500" />
+                Gravação de Chamadas
+              </CardTitle>
+              <Badge
+                variant="outline"
+                className={
+                  recordCalls
+                    ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5"
+                    : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
+                }
+              >
+                {recordCalls ? (
+                  <CheckCircle2 className="size-3.5" />
+                ) : (
+                  <XCircle className="size-3.5" />
+                )}
+                {recordCalls ? "Ativo" : "Inativo"}
+              </Badge>
+            </div>
+            <CardDescription>
+              Gravar automaticamente as ligações via Twilio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="twilio_record_calls"
+                checked={recordCalls ?? false}
+                onCheckedChange={(v) => setValue("twilio_record_calls", v)}
+              />
+              <div>
+                <Label
+                  htmlFor="twilio_record_calls"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Gravar chamadas automaticamente
+                </Label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Quando ativado, todas as chamadas feitas via Twilio serão gravadas.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Aviso legal
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                A gravação de chamadas pode estar sujeita a regulamentações locais. Em muitas
+                jurisdições brasileiras, é necessário informar ao interlocutor que a ligação está
+                sendo gravada. Certifique-se de estar em conformidade com a LGPD e demais
+                legislações aplicáveis.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Canais de Saída */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Phone className="size-4 text-slate-500" />
+                Canais de Saída
+              </CardTitle>
+              <Badge
+                variant="outline"
+                className="border-slate-300/60 bg-slate-100/60 text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-300 gap-1"
+              >
+                {channels.length} canal{channels.length !== 1 ? "is" : ""}
+              </Badge>
+            </div>
+            <CardDescription>
+              Números disponíveis para o operador escolher no discador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {channels.map((ch, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {ch.label}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {ch.number}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400 hover:text-red-500"
+                  onClick={() => removeChannel(i)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+
+            <div className="flex gap-2 pt-1">
+              <Input
+                placeholder="Nome (ex: Vendas)"
+                value={newChannelLabel}
+                onChange={(e) => setNewChannelLabel(e.target.value)}
+                className="flex-1"
+              />
+              <Input
+                placeholder="+5511999999999"
+                value={newChannelNumber}
+                onChange={(e) => setNewChannelNumber(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 gap-1.5"
+                onClick={addChannel}
+              >
+                <Plus className="size-4" />
+                Adicionar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Twilio Core */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Phone className="size-4 text-slate-500" />
+                Twilio
+              </CardTitle>
+              <StatusBadge
+                active={status?.twilio ?? false}
+                label={status?.twilio ? "Configurado" : "Não configurado"}
+              />
+            </div>
+            <CardDescription>
+              Credenciais principais de acesso à API do Twilio.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -313,116 +736,13 @@ export function TelephonyAISettings() {
               />
             </FieldGroup>
 
-            <FieldGroup label="Status Callback URL" hint="Para receber eventos de chamada">
+            <FieldGroup
+              label="Status Callback URL"
+              hint="Para receber eventos de chamada"
+            >
               <Input
                 {...register("twilio_status_callback_url")}
                 placeholder="https://meucrm.com.br/api/calls/twilio-status"
-              />
-            </FieldGroup>
-
-            <FieldGroup
-              label="API Key SID"
-              hint="Console → API Keys → Standard"
-            >
-              <Input
-                {...register("twilio_api_key")}
-                placeholder="SKxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
-
-            <FieldGroup label="API Secret">
-              <div className="relative">
-                <Input
-                  {...register("twilio_api_secret")}
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                />
-                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-              </div>
-            </FieldGroup>
-
-            <FieldGroup
-              label="TwiML App SID"
-              hint="Console → Voice → TwiML Apps"
-            >
-              <Input
-                {...register("twilio_twiml_app_sid")}
-                placeholder="APxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
-
-            <FieldGroup
-              label="Intelligence Service SID"
-              hint="Opcional — apenas para transcrição de chamadas humanas"
-            >
-              <Input
-                {...register("twilio_intelligence_service_sid")}
-                placeholder="GAxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
-
-            <FieldGroup
-              label="From Numbers (JSON)"
-              hint='Array de canais: [{"label":"Principal","number":"+5511..."}]'
-            >
-              <Input
-                {...register("twilio_from_numbers")}
-                placeholder='[{"label":"Principal","number":"+5511999999999"}]'
-              />
-            </FieldGroup>
-
-            <div className="flex items-center gap-3 pt-1">
-              <Switch
-                id="twilio_record_calls"
-                checked={recordCalls ?? false}
-                onCheckedChange={(v) => setValue("twilio_record_calls", v)}
-              />
-              <Label
-                htmlFor="twilio_record_calls"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-              >
-                Gravar chamadas
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* ElevenLabs */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Bot className="size-4 text-slate-500" />
-              ElevenLabs
-            </CardTitle>
-            <CardDescription>
-              Credenciais para o agente de IA conversacional. O Voice ID global
-              pode ser sobrescrito por campanha.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="API Key"
-              hint="elevenlabs.io → Profile → API Keys"
-            >
-              <div className="relative">
-                <Input
-                  {...register("elevenlabs_api_key")}
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                />
-                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-              </div>
-            </FieldGroup>
-
-            <FieldGroup
-              label="Voice ID (global)"
-              hint="Opcional — elevenlabs.io → Voices → Voice Lab"
-            >
-              <Input
-                {...register("elevenlabs_voice_id")}
-                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
               />
             </FieldGroup>
           </CardContent>

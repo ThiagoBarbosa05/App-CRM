@@ -10,5 +10,5 @@ server/index.ts
 *.sql
 .worktrees/
 .claude/
-image.png
+*.png
 *.csv
