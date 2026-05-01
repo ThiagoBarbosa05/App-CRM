@@ -549,8 +549,41 @@ export default function RankingPage() {
   };
 
   const ranked: RankedSeller[] = useMemo(() => {
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+    // Vendedores já presentes nos dados do Bling
+    const blingNames = new Set(sellers.map((s) => normalize(s.sellerName)));
+
+    // Vendedores com resultado manual que não estão no Bling
+    const manualSellers: TopSeller[] = goalsRaw
+      .filter((g) => {
+        if (!g.userName) return false;
+        const hasManual = g.weeklyResults?.some(
+          (r) => Number(r.salesAchieved) > 0
+        );
+        if (!hasManual) return false;
+        // Só incluir se não está no Bling (fuzzy match)
+        const normName = normalize(g.userName);
+        return !Array.from(blingNames).some(
+          (b) => b === normName || b.startsWith(normName) || normName.startsWith(b)
+        );
+      })
+      .map((g) => {
+        const totalValue = g.weeklyResults.reduce(
+          (sum, r) => sum + Number(r.salesAchieved || 0), 0
+        );
+        return {
+          sellerName: g.userName,
+          totalValue,
+          totalOrders: 0,
+          totalItems: 0,
+          uniqueClients: 0,
+        } as TopSeller;
+      });
+
     // Calcular achievement antes de ordenar
-    const enriched = sellers.map((s) => {
+    const enriched = [...sellers, ...manualSellers].map((s) => {
       // Mesma lógica da página de metas: totalValue real / salesGoal
       const salesGoal = findGoal(s.sellerName);
       const achievement = salesGoal ? Math.round((s.totalValue / salesGoal) * 1000) / 10 : null;
@@ -570,7 +603,7 @@ export default function RankingPage() {
 
     const withRank = sorted.map((s, i) => ({ ...s, rank: i + 1, badges: [] as Badge[] }));
     return withRank.map((s) => ({ ...s, badges: computeBadges(s, withRank) }));
-  }, [sellers, goalMap]);
+  }, [sellers, goalMap, goalsRaw]);
 
   const totalRevenue = ranked.reduce((a, s) => a + s.totalValue, 0);
   const totalOrders = ranked.reduce((a, s) => a + s.totalOrders, 0);
