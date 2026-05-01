@@ -720,6 +720,8 @@ export const weeklyResults = pgTable("weekly_results", {
     .notNull()
     .default("0.00"), // Ticket médio alcançado
   itemsAchieved: integer("items_achieved").notNull().default(0), // Itens vendidos
+  totalGrfsMonth: integer("total_grfs_month").notNull().default(0), // Total de GRFs no mês
+  avgGrfValue: decimal("avg_grf_value", { precision: 12, scale: 2 }).notNull().default("0.00"), // Valor médio de GRFs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1290,6 +1292,11 @@ export const insertWeeklyResultSchema = createInsertSchema(weeklyResults)
       .default("0.00"),
     week: z.coerce.number(),
     itemsAchieved: z.coerce.number().default(0),
+    totalGrfsMonth: z.coerce.number().default(0),
+    avgGrfValue: z
+      .union([z.string(), z.number()])
+      .transform((val) => val.toString())
+      .default("0.00"),
   });
 
 export const insertTelemarketingGoalSchema = createInsertSchema(

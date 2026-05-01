@@ -30,6 +30,8 @@ interface WeeklyResult {
   salesAchieved: string;
   ticketAchieved: string;
   itemsAchieved: number;
+  totalGrfsMonth: number;
+  avgGrfValue: string;
 }
 
 interface UserGoal {
@@ -218,15 +220,18 @@ function SalesGoalCard({
   );
 
   const ordersGoalValue = goal.ordersGoal ?? 0;
+  const manualTotalGrfs = hasManualData ? (monthlyResult?.totalGrfsMonth ?? 0) : 0;
+  const manualAvgGrfValue = hasManualData ? Number(monthlyResult?.avgGrfValue ?? 0) : 0;
   const totalItemsSold = hasManualData
-    ? manualItemsValue
+    ? (manualTotalGrfs > 0 ? manualTotalGrfs : manualItemsValue)
     : (sellerData?.totalItems ?? 0);
   const bottleGoalProgress = getBottleGoalProgress(
     { totalItems: totalItemsSold, totalOrders: realSalesOrders },
     ordersGoalValue,
   );
-  const avgBottleValue =
-    totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
+  const avgBottleValue = hasManualData && manualAvgGrfValue > 0
+    ? manualAvgGrfValue
+    : (totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0);
   const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
   const avgBottlePercentage = calculatePercentage(
     avgBottleValue,

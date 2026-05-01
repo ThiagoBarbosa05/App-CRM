@@ -36,6 +36,15 @@ const monthlyResultSchema = z.object({
   itemsAchieved: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
     .min(0, "Mínimo 0"),
+  totalGrfsMonth: z.coerce
+    .number({ invalid_type_error: "Deve ser um número" })
+    .min(0, "Mínimo 0"),
+  avgGrfValue: z
+    .string()
+    .refine(
+      (val) => !isNaN(Number(parseCurrency(val))) && Number(parseCurrency(val)) >= 0,
+      "Deve ser um valor positivo"
+    ),
 });
 
 type MonthlyResultFormData = z.infer<typeof monthlyResultSchema>;
@@ -47,6 +56,8 @@ interface WeeklyResult {
   salesAchieved: string;
   ticketAchieved: string;
   itemsAchieved: number;
+  totalGrfsMonth: number;
+  avgGrfValue: string;
 }
 
 interface WeeklyResultModalProps {
@@ -93,6 +104,8 @@ export function WeeklyResultModal({
         salesAchieved: formatVal(existingResult.salesAchieved),
         ticketAchieved: formatVal(existingResult.ticketAchieved),
         itemsAchieved: existingResult.itemsAchieved,
+        totalGrfsMonth: existingResult.totalGrfsMonth ?? 0,
+        avgGrfValue: formatVal(existingResult.avgGrfValue ?? "0"),
       });
     } else if (selectedGoal) {
       reset({
@@ -101,6 +114,8 @@ export function WeeklyResultModal({
         salesAchieved: "0,00",
         ticketAchieved: "0,00",
         itemsAchieved: 0,
+        totalGrfsMonth: 0,
+        avgGrfValue: "0,00",
       });
     }
   }, [selectedGoal, existingResult, open, reset, isEditing]);
@@ -112,6 +127,7 @@ export function WeeklyResultModal({
         week: 1,
         salesAchieved: parseCurrency(data.salesAchieved),
         ticketAchieved: parseCurrency(data.ticketAchieved),
+        avgGrfValue: parseCurrency(data.avgGrfValue),
       };
       if (isEditing && existingResult) {
         return apiRequest("PUT", `/api/weekly-results/${existingResult.id}`, payload);
@@ -217,6 +233,45 @@ export function WeeklyResultModal({
               {errors.itemsAchieved && (
                 <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
                   {errors.itemsAchieved.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Total de GRFs no Mês
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="0"
+                {...register("totalGrfsMonth")}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              />
+              {errors.totalGrfsMonth && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.totalGrfsMonth.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Valor Médio de GRFs (R$)
+              </Label>
+              <Input
+                placeholder="0,00"
+                {...register("avgGrfValue")}
+                onChange={(e) => {
+                  const formatted = formatCurrencyInput(e.target.value);
+                  setValue("avgGrfValue", formatted, { shouldValidate: true });
+                }}
+                className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
+              />
+              {errors.avgGrfValue && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.avgGrfValue.message}
                 </p>
               )}
             </div>
