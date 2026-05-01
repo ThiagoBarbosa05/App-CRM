@@ -3179,6 +3179,8 @@ export const calls = pgTable("calls", {
     enum: ["sim", "nao", "sem_resposta"],
   }),
   nextStep: text("next_step"),
+  toPhone: text("to_phone"),
+  contactName: text("contact_name"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

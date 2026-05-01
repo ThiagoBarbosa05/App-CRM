@@ -184,11 +184,14 @@ export function CampaignsList() {
   const type = watch("type");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-          Campanhas ({campaigns.length})
-        </h2>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Campanhas
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} cadastrada{campaigns.length !== 1 ? "s" : ""}</p>
+        </div>
         <Button size="sm" className="gap-2 rounded-2xl" onClick={openCreate}>
           <Plus className="size-4" />
           Nova campanha
@@ -197,32 +200,49 @@ export function CampaignsList() {
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-3xl" />)}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-3xl" />)}
         </div>
       ) : campaigns.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <Radio className="size-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Nenhuma campanha criada ainda.</p>
-          <p className="text-xs mt-1">Clique em "Nova campanha" para começar.</p>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <Radio className="size-7 opacity-40" />
+          </div>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Nenhuma campanha criada ainda</p>
+          <p className="text-xs mt-1 mb-4">Configure campanhas de discagem manual ou com IA</p>
+          <Button size="sm" variant="outline" className="gap-2 rounded-2xl" onClick={openCreate}>
+            <Plus className="size-3.5" />
+            Criar primeira campanha
+          </Button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {campaigns.map((campaign) => (
             <Card
               key={campaign.id}
-              className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl"
+              className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden group hover:shadow-md transition-shadow"
             >
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {campaign.type === "ia" ? (
-                      <Bot className="size-4 text-violet-500 shrink-0" />
-                    ) : (
-                      <User className="size-4 text-blue-500 shrink-0" />
-                    )}
-                    <CardTitle className="text-sm font-semibold truncate">
-                      {campaign.name}
-                    </CardTitle>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      campaign.type === "ia"
+                        ? "bg-violet-100 dark:bg-violet-900/30"
+                        : "bg-blue-100 dark:bg-blue-900/30"
+                    }`}>
+                      {campaign.type === "ia" ? (
+                        <Bot className="size-4 text-violet-600 dark:text-violet-400" />
+                      ) : (
+                        <User className="size-4 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-semibold truncate leading-tight">
+                        {campaign.name}
+                      </CardTitle>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {campaign.type === "ia" ? "IA (ElevenLabs)" : "Discagem humana"}
+                      </p>
+                    </div>
                   </div>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[campaign.status]}`}
@@ -231,13 +251,22 @@ export function CampaignsList() {
                   </span>
                 </div>
                 {campaign.description && (
-                  <CardDescription className="text-xs line-clamp-2">
+                  <CardDescription className="text-xs line-clamp-2 mt-1">
                     {campaign.description}
                   </CardDescription>
                 )}
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
+              <CardContent className="pt-0">
+                <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 h-8 gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setDispatchDialog(campaign)}
+                  >
+                    <Zap className="size-3.5" />
+                    Disparar
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -250,26 +279,19 @@ export function CampaignsList() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 text-xs rounded-xl"
+                    className="h-8 w-8 p-0 rounded-xl"
                     onClick={() => openEdit(campaign)}
+                    title="Editar"
                   >
                     <Edit className="size-3.5" />
-                    Editar
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => setDispatchDialog(campaign)}
-                  >
-                    <Zap className="size-3.5" />
-                    Disparar
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="h-8 w-8 p-0 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                     onClick={() => deleteMutation.mutate(campaign.id)}
                     disabled={deleteMutation.isPending}
+                    title="Excluir"
                   >
                     <Trash2 className="size-3.5" />
                   </Button>

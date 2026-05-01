@@ -13,9 +13,11 @@ interface UseTwilioDeviceReturn {
   deviceStatus: DeviceStatus;
   callStatus: CallStatus;
   callSid: string | null;
+  connectedAt: Date | null;
   isMuted: boolean;
   errorMessage: string | null;
   isConfigured: boolean;
+  isCheckingConfig: boolean;
   connect: (to: string, callerId: string, extraParams?: Record<string, string>) => Promise<void>;
   disconnect: () => void;
   toggleMute: () => void;
@@ -28,9 +30,11 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>("offline");
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [callSid, setCallSid] = useState<string | null>(null);
+  const [connectedAt, setConnectedAt] = useState<Date | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [isCheckingConfig, setIsCheckingConfig] = useState(true);
 
   useEffect(() => {
     async function init() {
@@ -38,10 +42,10 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         const statusRes = await fetch("/api/twilio/voice-sdk-status", {
           credentials: "include",
         });
-        if (!statusRes.ok) return;
+        if (!statusRes.ok) { setIsCheckingConfig(false); return; }
         const { configured } = await statusRes.json() as { configured: boolean };
         setIsConfigured(configured);
-        if (!configured) return;
+        if (!configured) { setIsCheckingConfig(false); return; }
 
         const tokenRes = await fetch("/api/twilio/token", {
           credentials: "include",
@@ -67,6 +71,8 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         setDeviceStatus("registering");
       } catch (err) {
         setErrorMessage("Erro ao inicializar Twilio Device");
+      } finally {
+        setIsCheckingConfig(false);
       }
     }
 
@@ -95,12 +101,14 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
       call.on("ringing", () => setCallStatus("ringing"));
       call.on("accept", (acceptedCall: Call) => {
         setCallStatus("in-progress");
+        setConnectedAt(new Date());
         const sid = acceptedCall.parameters?.CallSid ?? null;
         console.log("[twilio-device] accept | parameters:", JSON.stringify(acceptedCall.parameters));
         setCallSid(sid);
       });
       call.on("disconnect", () => {
         setCallStatus("disconnected");
+        setConnectedAt(null);
         setIsMuted(false);
         setCallSid(null);
         callRef.current = null;
@@ -135,9 +143,11 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     deviceStatus,
     callStatus,
     callSid,
+    connectedAt,
     isMuted,
     errorMessage,
     isConfigured,
+    isCheckingConfig,
     connect,
     disconnect,
     toggleMute,

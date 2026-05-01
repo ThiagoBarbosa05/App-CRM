@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import { db } from "server/db";
 import { calls, campaignClients, callNotifications, campaignTriggers, clients } from "@shared/schema";
-import { eq, and, desc, inArray, isNull, gt } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, gt, sql } from "drizzle-orm";
 import { getElevenLabsKey, getTwilioConfig, getTwilioIntelligenceServiceSid, getServerBaseUrl } from "../lib/twilio-config";
+import { requireAuth } from "../middleware/validation";
 import twilio from "twilio";
 
 const router = Router();
@@ -288,7 +289,7 @@ router.post("/twilio-transcription", async (req: Request, res: Response) => {
 
 // ─── Listar chamadas ──────────────────────────────────────────────────────────
 
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const { campaignId, clientId, status, page = "1", pageSize = "20" } = req.query as Record<string, string>;
     const limit = Math.min(parseInt(pageSize) || 20, 100);
@@ -303,40 +304,58 @@ router.get("/", async (req: Request, res: Response) => {
       conditions.push(eq(calls.operatorId, req.user.userId));
     }
 
-    const rows = await db
-      .select({
-        id: calls.id,
-        clientId: calls.clientId,
-        operatorId: calls.operatorId,
-        campaignId: calls.campaignId,
-        twilioCallSid: calls.twilioCallSid,
-        elevenLabsConversationId: calls.elevenLabsConversationId,
-        status: calls.status,
-        outcome: calls.outcome,
-        duration: calls.duration,
-        recordingUrl: calls.recordingUrl,
-        recordingSid: calls.recordingSid,
-        twilioTranscription: calls.twilioTranscription,
-        transcription: calls.transcription,
-        summary: calls.summary,
-        aiDecision: calls.aiDecision,
-        sentiment: calls.sentiment,
-        notes: calls.notes,
-        nextStep: calls.nextStep,
-        startedAt: calls.startedAt,
-        endedAt: calls.endedAt,
-        createdAt: calls.createdAt,
-        clientName: clients.name,
-        clientPhone: clients.phone,
-      })
-      .from(calls)
-      .leftJoin(clients, eq(calls.clientId, clients.id))
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(calls.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const whereClause = conditions.length ? and(...conditions) : undefined;
 
-    res.json({ data: rows, page: parseInt(page), pageSize: limit });
+    const [rows, countResult] = await Promise.all([
+      db
+        .select({
+          id: calls.id,
+          clientId: calls.clientId,
+          operatorId: calls.operatorId,
+          campaignId: calls.campaignId,
+          twilioCallSid: calls.twilioCallSid,
+          elevenLabsConversationId: calls.elevenLabsConversationId,
+          status: calls.status,
+          outcome: calls.outcome,
+          duration: calls.duration,
+          recordingUrl: calls.recordingUrl,
+          recordingSid: calls.recordingSid,
+          twilioTranscription: calls.twilioTranscription,
+          transcription: calls.transcription,
+          summary: calls.summary,
+          aiDecision: calls.aiDecision,
+          sentiment: calls.sentiment,
+          notes: calls.notes,
+          nextStep: calls.nextStep,
+          toPhone: calls.toPhone,
+          contactName: calls.contactName,
+          startedAt: calls.startedAt,
+          endedAt: calls.endedAt,
+          createdAt: calls.createdAt,
+          clientName: clients.name,
+          clientPhone: clients.phone,
+        })
+        .from(calls)
+        .leftJoin(clients, eq(calls.clientId, clients.id))
+        .where(whereClause)
+        .orderBy(desc(calls.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(calls)
+        .where(whereClause),
+    ]);
+
+    const total = countResult[0]?.count ?? 0;
+
+    res.json({
+      data: rows,
+      page: parseInt(page),
+      pageSize: limit,
+      total,
+      hasMore: rows.length === limit,
+    });
   } catch (e) {
     console.error("[calls] GET / error:", e);
     res.status(500).json({ message: "Erro ao buscar chamadas" });
@@ -345,15 +364,16 @@ router.get("/", async (req: Request, res: Response) => {
 
 // ─── Criar chamada ────────────────────────────────────────────────────────────
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ message: "Não autenticado" });
+    const userId = req.user!.userId;
 
-    const { clientId, campaignId, twilioCallSid } = req.body as {
+    const { clientId, campaignId, twilioCallSid, toPhone, contactName } = req.body as {
       clientId?: string;
       campaignId?: string;
       twilioCallSid?: string;
+      toPhone?: string;
+      contactName?: string;
     };
 
     const [call] = await db
@@ -363,6 +383,8 @@ router.post("/", async (req: Request, res: Response) => {
         clientId,
         campaignId,
         twilioCallSid,
+        toPhone,
+        contactName,
         status: "iniciando",
         startedAt: new Date(),
       })
@@ -377,7 +399,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 // ─── Buscar chamada ───────────────────────────────────────────────────────────
 
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const [call] = await db
       .select()
@@ -392,7 +414,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 // ─── Atualizar chamada ────────────────────────────────────────────────────────
 
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { notes, outcome, nextStep, twilioCallSid, status } = req.body as {
       notes?: string;
@@ -426,7 +448,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 
 // ─── Encerrar chamada manualmente ────────────────────────────────────────────
 
-router.post("/:id/end", async (req: Request, res: Response) => {
+router.post("/:id/end", requireAuth, async (req: Request, res: Response) => {
   try {
     const [call] = await db
       .update(calls)
@@ -442,7 +464,7 @@ router.post("/:id/end", async (req: Request, res: Response) => {
 
 // ─── Sincronizar transcrição via ElevenLabs ────────────────────────────────────
 
-router.post("/:id/sync-transcript", async (req: Request, res: Response) => {
+router.post("/:id/sync-transcript", requireAuth, async (req: Request, res: Response) => {
   try {
     const [call] = await db
       .select()
@@ -498,6 +520,69 @@ router.post("/:id/sync-transcript", async (req: Request, res: Response) => {
   } catch (e) {
     console.error("[calls] sync-transcript error:", e);
     res.status(500).json({ message: "Erro ao sincronizar transcrição" });
+  }
+});
+
+// ─── Sincronizar gravação via Twilio API ──────────────────────────────────────
+
+router.post("/:id/sync-recording", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const [call] = await db.select().from(calls).where(eq(calls.id, req.params.id));
+    if (!call) return res.status(404).json({ message: "Chamada não encontrada" });
+    if (!call.twilioCallSid) {
+      return res.status(400).json({ message: "Chamada sem Twilio Call SID" });
+    }
+
+    const twilioConfig = await getTwilioConfig();
+    if (!twilioConfig?.accountSid || !twilioConfig?.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+
+    const client = twilio(twilioConfig.accountSid, twilioConfig.authToken);
+    const recordings = await client.recordings.list({ callSid: call.twilioCallSid, limit: 1 });
+
+    if (recordings.length === 0) {
+      return res.status(404).json({ message: "Nenhuma gravação encontrada no Twilio para esta chamada" });
+    }
+
+    const rec = recordings[0];
+    const recordingUrl = `https://api.twilio.com${rec.uri.replace(".json", "")}`;
+
+    const [updated] = await db
+      .update(calls)
+      .set({ recordingSid: rec.sid, recordingUrl })
+      .where(eq(calls.id, req.params.id))
+      .returning();
+
+    // Acionar Voice Intelligence se ainda não houver transcrição
+    if (!call.twilioTranscription) {
+      triggerTwilioIntelligence(call.id, rec.sid).catch((e) =>
+        console.warn("[sync-recording] Falha ao acionar Voice Intelligence:", e)
+      );
+    }
+
+    res.json(updated);
+  } catch (e) {
+    console.error("[calls] sync-recording error:", e);
+    res.status(500).json({ message: "Erro ao sincronizar gravação" });
+  }
+});
+
+// ─── Sincronizar transcrição Twilio Voice Intelligence ────────────────────────
+
+router.post("/:id/sync-twilio-transcript", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const [call] = await db.select().from(calls).where(eq(calls.id, req.params.id));
+    if (!call) return res.status(404).json({ message: "Chamada não encontrada" });
+    if (!call.recordingSid) {
+      return res.status(400).json({ message: "Chamada sem Recording SID — sincronize a gravação primeiro" });
+    }
+
+    await triggerTwilioIntelligence(call.id, call.recordingSid);
+    res.json({ message: "Transcrição solicitada ao Twilio Voice Intelligence. Aguarde o webhook de retorno." });
+  } catch (e) {
+    console.error("[calls] sync-twilio-transcript error:", e);
+    res.status(500).json({ message: "Erro ao solicitar transcrição" });
   }
 });
 
