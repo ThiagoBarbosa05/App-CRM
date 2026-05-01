@@ -679,7 +679,7 @@ export const userGoals = pgTable(
     averageTicket: decimal("average_ticket", { precision: 12, scale: 2 })
       .notNull()
       .default("0.00"), // Ticket médio em reais
-    itemsPerSale: integer("items_per_sale").notNull().default(1), // Itens por venda
+    itemsPerSale: decimal("items_per_sale", { precision: 5, scale: 2 }).notNull().default("1.00"), // Itens por venda
     ordersGoal: integer("orders_goal").notNull().default(0), // Meta: total de GRFs no mês
     avgBottleValueGoal: decimal("avg_bottle_value_goal", {
       precision: 12,
