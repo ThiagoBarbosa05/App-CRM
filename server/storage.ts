@@ -3470,6 +3470,17 @@ export class DatabaseStorage implements IStorage {
     const [goal] = await this.db
       .insert(clientRegistrationGoals)
       .values(insertGoal)
+      .onConflictDoUpdate({
+        target: [
+          clientRegistrationGoals.userId,
+          clientRegistrationGoals.month,
+          clientRegistrationGoals.year,
+        ],
+        set: {
+          targetQuantity: insertGoal.targetQuantity,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
     return goal;
   }
