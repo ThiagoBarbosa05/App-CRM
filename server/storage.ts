@@ -3539,6 +3539,15 @@ export class DatabaseStorage implements IStorage {
           gte(clients.createdAt, startDate),
           lt(clients.createdAt, endDate),
           isNotNull(clients.responsavelId),
+          // Somente cadastros com nome, CPF, celular e data de aniversário preenchidos
+          isNotNull(clients.name),
+          sql`${clients.name} <> ''`,
+          isNotNull(clients.cpf),
+          sql`${clients.cpf} <> ''`,
+          isNotNull(clients.phone),
+          sql`${clients.phone} <> ''`,
+          isNotNull(clients.birthday),
+          sql`${clients.birthday} <> ''`,
         ),
       )
       .groupBy(clients.responsavelId, users.name, users.email);
