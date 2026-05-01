@@ -32,9 +32,13 @@ const goalSchema = z.object({
   ordersGoal: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
     .min(0, "Mínimo 0"),
-  itemsPerSale: z.coerce
-    .number({ invalid_type_error: "Deve ser um número" })
-    .min(0, "Mínimo 0"),
+  itemsPerSale: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      const num = typeof val === "number" ? val : Number(String(val).replace(",", "."));
+      return isNaN(num) ? 0 : num;
+    })
+    .pipe(z.number().min(0, "Mínimo 0")),
   positivityGoal: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
     .min(0, "Mínimo 0")
@@ -275,9 +279,8 @@ export function SalesGoalModal({
                 Itens por Venda
               </Label>
               <Input
-                type="number"
-                min="0"
-                step="0.1"
+                type="text"
+                inputMode="decimal"
                 placeholder="0"
                 {...register("itemsPerSale")}
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold"
