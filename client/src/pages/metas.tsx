@@ -116,6 +116,7 @@ export default function Metas() {
     queryKey: [
       `/api/client-registration-stats/${selectedMonth}/${selectedYear}`,
     ],
+    staleTime: 0,
   });
 
   const { data: markerGoals = [] } = useQuery<any[]>({
