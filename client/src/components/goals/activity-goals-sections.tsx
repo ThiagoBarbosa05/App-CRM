@@ -1,4 +1,4 @@
-import { Users, Tag, MessageSquare, ArrowUpRight } from "lucide-react";
+import { Users, Tag, MessageSquare, ArrowUpRight, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -49,6 +49,7 @@ export function ActivityGoalsSections({
                   (s) => s.userId === goal.userId,
                 );
                 const achieved = stats?.totalRegistrations || 0;
+                const incomplete = stats?.incompleteRegistrations || 0;
                 return (
                   <ActivityGoalCard
                     key={goal.id}
@@ -60,6 +61,7 @@ export function ActivityGoalsSections({
                       achieved,
                       goal.targetQuantity,
                     )}
+                    incompleteCount={incomplete}
                     index={index}
                     color="emerald"
                   />
@@ -197,6 +199,7 @@ function ActivityGoalCard({
   achieved,
   goal,
   percentage,
+  incompleteCount = 0,
   index,
   color,
 }: {
@@ -205,6 +208,7 @@ function ActivityGoalCard({
   achieved: number;
   goal: number;
   percentage: number;
+  incompleteCount?: number;
   index: number;
   color: string;
 }) {
@@ -268,6 +272,15 @@ function ActivityGoalCard({
               META: {goal}
             </Badge>
           </div>
+
+          {incompleteCount > 0 && (
+            <div className="flex items-start gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400 leading-snug">
+                {incompleteCount} cadastro{incompleteCount !== 1 ? "s" : ""} incompleto{incompleteCount !== 1 ? "s" : ""} não contabilizado{incompleteCount !== 1 ? "s" : ""} na meta
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

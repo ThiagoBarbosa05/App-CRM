@@ -3530,7 +3530,12 @@ export class DatabaseStorage implements IStorage {
         userId: clients.responsavelId,
         userName: users.name,
         userEmail: users.email,
-        count: sql<number>`count(*)::int`,
+        totalCount: sql<number>`count(*)::int`,
+        completeCount: sql<number>`count(case when
+          ${clients.cpf} is not null and ${clients.cpf} <> '' and
+          ${clients.phone} is not null and ${clients.phone} <> '' and
+          ${clients.birthday} is not null and ${clients.birthday} <> ''
+        then 1 end)::int`,
       })
       .from(clients)
       .leftJoin(users, eq(clients.responsavelId, users.id))
@@ -3539,15 +3544,8 @@ export class DatabaseStorage implements IStorage {
           gte(clients.createdAt, startDate),
           lt(clients.createdAt, endDate),
           isNotNull(clients.responsavelId),
-          // Somente cadastros com nome, CPF, celular e data de aniversário preenchidos
           isNotNull(clients.name),
           sql`${clients.name} <> ''`,
-          isNotNull(clients.cpf),
-          sql`${clients.cpf} <> ''`,
-          isNotNull(clients.phone),
-          sql`${clients.phone} <> ''`,
-          isNotNull(clients.birthday),
-          sql`${clients.birthday} <> ''`,
         ),
       )
       .groupBy(clients.responsavelId, users.name, users.email);
@@ -3562,7 +3560,8 @@ export class DatabaseStorage implements IStorage {
           userId,
           userName: registration.userName,
           userEmail: registration.userEmail,
-          totalRegistrations: registration.count,
+          totalRegistrations: registration.completeCount,
+          incompleteRegistrations: registration.totalCount - registration.completeCount,
         };
       }
     });
