@@ -9,6 +9,7 @@ import {
   Users,
   Edit,
   Trash2,
+  Package,
 } from "lucide-react";
 import {
   Card,
@@ -233,6 +234,11 @@ function SalesGoalCard({
     ? manualAvgGrfValue
     : (totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0);
   const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
+
+  // ITENS POR VENDA = total GRFs / total pedidos
+  const itensPorVenda = totalItemsSold > 0 && realSalesOrders > 0
+    ? totalItemsSold / realSalesOrders
+    : 0;
   const avgBottlePercentage = calculatePercentage(
     avgBottleValue,
     avgBottleGoalValue,
@@ -392,6 +398,28 @@ function SalesGoalCard({
             bgClass="bg-indigo-50 dark:bg-indigo-900/20"
             textClass="text-indigo-600 dark:text-indigo-400"
           />
+
+          {/* Itens por Venda */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400">
+                  <Package className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  Itens por Venda
+                </span>
+              </div>
+              <span className="text-sm font-black text-teal-600 dark:text-teal-400">
+                {itensPorVenda > 0 ? itensPorVenda.toFixed(1) : "—"}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 pl-7">
+              {totalItemsSold > 0 && realSalesOrders > 0
+                ? `${totalItemsSold} GRF${totalItemsSold !== 1 ? "s" : ""} ÷ ${realSalesOrders} pedido${realSalesOrders !== 1 ? "s" : ""}`
+                : "Sem dados suficientes"}
+            </p>
+          </div>
 
           {/* Ticket Médio */}
           <MetricProgress
