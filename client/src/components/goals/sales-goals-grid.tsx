@@ -184,10 +184,30 @@ function SalesGoalCard({
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
 
-  const realSalesValue = sellerData ? Number(sellerData.totalValue) : 0;
-  const realSalesOrders = sellerData ? Number(sellerData.totalOrders) : 0;
-  const avgTicketAchieved =
-    realSalesOrders > 0 ? realSalesValue / realSalesOrders : 0;
+  // Dados manuais (resultado registrado pelo admin)
+  const manualSalesValue = getTotalAchieved(weeklyResults, "salesAchieved");
+  const manualTicketValue = getTotalAchieved(weeklyResults, "ticketAchieved");
+  const manualItemsValue = getTotalAchieved(weeklyResults, "itemsAchieved");
+  const hasManualData = manualSalesValue > 0;
+
+  // Se há resultado manual registrado, usa ele; caso contrário, usa dados do Bling
+  const realSalesValue = hasManualData
+    ? manualSalesValue
+    : sellerData
+      ? Number(sellerData.totalValue)
+      : 0;
+  const realSalesOrders = hasManualData
+    ? manualTicketValue > 0
+      ? Math.round(manualSalesValue / manualTicketValue)
+      : 0
+    : sellerData
+      ? Number(sellerData.totalOrders)
+      : 0;
+  const avgTicketAchieved = hasManualData
+    ? manualTicketValue
+    : realSalesOrders > 0
+      ? realSalesValue / realSalesOrders
+      : 0;
   const ticketPercentage = calculatePercentage(
     avgTicketAchieved,
     Number(goal.averageTicket),
@@ -198,7 +218,9 @@ function SalesGoalCard({
   );
 
   const ordersGoalValue = goal.ordersGoal ?? 0;
-  const totalItemsSold = sellerData?.totalItems ?? 0;
+  const totalItemsSold = hasManualData
+    ? manualItemsValue
+    : (sellerData?.totalItems ?? 0);
   const bottleGoalProgress = getBottleGoalProgress(
     { totalItems: totalItemsSold, totalOrders: realSalesOrders },
     ordersGoalValue,
