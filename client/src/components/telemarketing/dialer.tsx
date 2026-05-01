@@ -173,6 +173,9 @@ export function Dialer() {
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const normalizedClientSearch = clientSearch.trim();
+  const normalizedDebouncedSearch = debouncedSearch.trim();
+  const hasClientSearch = normalizedClientSearch.length > 0;
 
   const handleClientSearchChange = (value: string) => {
     setClientSearch(value);
@@ -183,10 +186,10 @@ export function Dialer() {
   const { data: myClients = [], isFetching: clientsFetching } = useQuery<
     Client[]
   >({
-    queryKey: ["/api/clients", "dialer", debouncedSearch],
+    queryKey: ["/api/clients", "dialer", normalizedDebouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ pageSize: "50" });
-      if (debouncedSearch) params.set("search", debouncedSearch);
+      params.set("search", normalizedDebouncedSearch);
       const res = await fetch(`/api/clients?${params}`, {
         credentials: "include",
       });
@@ -195,7 +198,7 @@ export function Dialer() {
       const list = Array.isArray(data) ? data : (data.data ?? []);
       return list.filter((c) => c.phone);
     },
-    enabled: showClients,
+    enabled: showClients && normalizedDebouncedSearch.length > 0,
   });
 
   useEffect(() => {
@@ -706,7 +709,11 @@ export function Dialer() {
                 Clientes disponiveis
               </p>
               <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                {clientsFetching ? "..." : myClients.length}
+                {!hasClientSearch
+                  ? "--"
+                  : clientsFetching
+                    ? "..."
+                    : myClients.length}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
@@ -733,7 +740,17 @@ export function Dialer() {
 
             <div className="flex min-h-0 flex-1 rounded-2xl border border-slate-100 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-950/50">
               <div className="flex-1 space-y-2 overflow-y-auto pr-2 -mr-2 custom-scrollbar">
-                {clientsFetching ? (
+                {!hasClientSearch ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400 dark:border-slate-800">
+                    <Search className="mx-auto mb-3 size-8 opacity-30" />
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                      Pesquise por nome ou telefone para localizar clientes.
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      A lista permanece oculta ate que uma busca seja informada.
+                    </p>
+                  </div>
+                ) : clientsFetching ? (
                   <div className="space-y-2 py-2">
                     {[1, 2, 3].map((i) => (
                       <Skeleton key={i} className="h-20 rounded-2xl" />
@@ -743,12 +760,10 @@ export function Dialer() {
                   <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400 dark:border-slate-800">
                     <Users className="mx-auto mb-3 size-8 opacity-30" />
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {clientSearch
-                        ? "Nenhum cliente encontrado para esta busca."
-                        : "Nenhum cliente com telefone disponivel."}
+                      Nenhum cliente encontrado para esta busca.
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      Ajuste o filtro ou revise os contatos cadastrados.
+                      Ajuste o nome, telefone ou tente outro termo.
                     </p>
                   </div>
                 ) : (
