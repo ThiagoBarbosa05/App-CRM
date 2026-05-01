@@ -397,9 +397,7 @@ function SalesGoalCard({
             achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
             goal={`${ordersGoalValue} GRF${ordersGoalValue !== 1 ? "s" : ""}`}
             percentage={bottleGoalProgress.percentage}
-            colorClass="bg-indigo-500"
-            bgClass="bg-indigo-50 dark:bg-indigo-900/20"
-            textClass="text-indigo-600 dark:text-indigo-400"
+            hasGoal={ordersGoalValue > 0}
           />
 
           {/* Itens por Venda */}
@@ -410,10 +408,8 @@ function SalesGoalCard({
               ? `${itensPorVenda.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} itens/venda`
               : "—"}
             goal={itemsPerSaleGoal > 0 ? `${itemsPerSaleGoal} itens/venda` : "Sem meta"}
-            percentage={itemsPerSaleGoal > 0 ? itensPorVendaPercentage : 0}
-            colorClass="bg-teal-500"
-            bgClass="bg-teal-50 dark:bg-teal-900/20"
-            textClass="text-teal-600 dark:text-teal-400"
+            percentage={itensPorVendaPercentage}
+            hasGoal={itemsPerSaleGoal > 0}
           />
 
           {/* Ticket Médio */}
@@ -423,9 +419,7 @@ function SalesGoalCard({
             achieved={formatCurrency(avgTicketAchieved)}
             goal={formatCurrency(goal.averageTicket)}
             percentage={ticketPercentage}
-            colorClass="bg-blue-500"
-            bgClass="bg-blue-50 dark:bg-blue-900/20"
-            textClass="text-blue-600 dark:text-blue-400"
+            hasGoal={Number(goal.averageTicket) > 0}
           />
 
           {/* Valor Médio por Garrafa */}
@@ -434,10 +428,8 @@ function SalesGoalCard({
             icon={<Wine className="h-3.5 w-3.5" />}
             achieved={totalItemsSold > 0 ? formatCurrency(avgBottleValue) : "—"}
             goal={formatCurrency(goal.avgBottleValueGoal ?? "0")}
-            percentage={avgBottleGoalValue > 0 ? avgBottlePercentage : 0}
-            colorClass="bg-rose-500"
-            bgClass="bg-rose-50 dark:bg-rose-900/20"
-            textClass="text-rose-600 dark:text-rose-400"
+            percentage={avgBottlePercentage}
+            hasGoal={avgBottleGoalValue > 0}
           />
 
           {/* Positivação */}
@@ -446,10 +438,8 @@ function SalesGoalCard({
             icon={<Users className="h-3.5 w-3.5" />}
             achieved={`${positivacaoAchieved.toFixed(1)}%`}
             goal={`${goal.positivityGoal}%`}
-            percentage={goal.positivityGoal > 0 ? positivacaoPercentage : 0}
-            colorClass="bg-violet-500"
-            bgClass="bg-violet-50 dark:bg-violet-900/20"
-            textClass="text-violet-600 dark:text-violet-400"
+            percentage={positivacaoPercentage}
+            hasGoal={goal.positivityGoal > 0}
           />
 
           {/* Resultado do Mês — admin */}
@@ -504,19 +494,35 @@ function MetricProgress({
   achieved,
   goal,
   percentage,
-  colorClass,
-  bgClass,
-  textClass,
+  hasGoal = true,
 }: {
   label: string;
   icon: React.ReactNode;
   achieved: string;
   goal: string;
   percentage: number;
-  colorClass: string;
-  bgClass: string;
-  textClass: string;
+  hasGoal?: boolean;
 }) {
+  const met = hasGoal && percentage >= 100;
+
+  const barClass = !hasGoal
+    ? "bg-slate-400"
+    : met
+      ? "bg-emerald-500"
+      : "bg-rose-500";
+
+  const bgClass = !hasGoal
+    ? "bg-slate-100 dark:bg-slate-800"
+    : met
+      ? "bg-emerald-50 dark:bg-emerald-900/20"
+      : "bg-rose-50 dark:bg-rose-900/20";
+
+  const textClass = !hasGoal
+    ? "text-slate-500 dark:text-slate-400"
+    : met
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-rose-600 dark:text-rose-400";
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-end mb-1">
@@ -526,9 +532,11 @@ function MetricProgress({
             {label}
           </span>
         </div>
-        <span className={`text-sm font-black ${textClass}`}>
-          {percentage.toFixed(1)}%
-        </span>
+        {hasGoal && (
+          <span className={`text-sm font-black ${textClass}`}>
+            {percentage.toFixed(1)}%
+          </span>
+        )}
       </div>
 
       <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
@@ -536,7 +544,7 @@ function MetricProgress({
           initial={{ width: 0 }}
           animate={{ width: `${Math.min(percentage, 100)}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className={`h-full ${colorClass} rounded-full`}
+          className={`h-full ${barClass} rounded-full`}
         />
       </div>
 
