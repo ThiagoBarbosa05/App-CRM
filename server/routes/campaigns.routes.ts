@@ -254,6 +254,66 @@ router.delete("/:id/triggers/:triggerId", async (req: Request, res: Response) =>
   }
 });
 
+// ─── Progresso da campanha (clientes + última chamada de cada um) ─────────────
+
+router.get("/:id/progress", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+
+    const [clientRows, callRows] = await Promise.all([
+      db
+        .select({
+          id: campaignClients.id,
+          clientId: campaignClients.clientId,
+          status: campaignClients.status,
+          createdAt: campaignClients.createdAt,
+          clientName: clients.name,
+          clientPhone: clients.phone,
+        })
+        .from(campaignClients)
+        .leftJoin(clients, eq(campaignClients.clientId, clients.id))
+        .where(eq(campaignClients.campaignId, id))
+        .orderBy(campaignClients.createdAt),
+      db
+        .select({
+          clientId: calls.clientId,
+          callId: calls.id,
+          callStatus: calls.status,
+          aiDecision: calls.aiDecision,
+          startedAt: calls.startedAt,
+        })
+        .from(calls)
+        .where(eq(calls.campaignId, id))
+        .orderBy(calls.startedAt),
+    ]);
+
+    // Última chamada por cliente (callRows já ordenado por startedAt asc → last wins)
+    const latestCall = new Map<string, (typeof callRows)[0]>();
+    for (const c of callRows) {
+      if (c.clientId) latestCall.set(c.clientId, c);
+    }
+
+    const rows = clientRows.map((cc) => {
+      const lc = cc.clientId ? (latestCall.get(cc.clientId) ?? null) : null;
+      return {
+        id: cc.id,
+        clientId: cc.clientId,
+        clientName: cc.clientName,
+        clientPhone: cc.clientPhone,
+        campaignStatus: cc.status,
+        callId: lc?.callId ?? null,
+        callStatus: lc?.callStatus ?? null,
+        aiDecision: lc?.aiDecision ?? null,
+        startedAt: lc?.startedAt ?? null,
+      };
+    });
+
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar progresso" });
+  }
+});
+
 // ─── Estatísticas da campanha ─────────────────────────────────────────────────
 
 router.get("/:id/stats", async (req: Request, res: Response) => {

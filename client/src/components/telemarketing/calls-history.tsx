@@ -26,6 +26,10 @@ import {
   FileAudio,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  User,
 } from "lucide-react";
 
 type Call = {
@@ -110,16 +114,26 @@ function formatDuration(seconds: number | null): string {
 
 type TranscriptTurn = { role: "agent" | "client"; message: string };
 
+// Prefixos de agente: "Agent: ", "agent: " (formato legado do ElevenLabs)
+const AGENT_PREFIXES = ["agent: ", "agente: "];
+// Prefixos de cliente: "Cliente: ", "user: " (role nativo do ElevenLabs)
+const CLIENT_PREFIXES = ["cliente: ", "user: "];
+
 function parseTranscript(text: string): TranscriptTurn[] {
   return text
     .split("\n")
-    .filter(Boolean)
+    .filter((l) => l.trim())
     .map((line) => {
-      if (line.startsWith("Agent: ")) {
-        return { role: "agent" as const, message: line.slice(7) };
+      const lower = line.toLowerCase();
+      for (const prefix of AGENT_PREFIXES) {
+        if (lower.startsWith(prefix)) {
+          return { role: "agent" as const, message: line.slice(prefix.length) };
+        }
       }
-      if (line.startsWith("Cliente: ")) {
-        return { role: "client" as const, message: line.slice(9) };
+      for (const prefix of CLIENT_PREFIXES) {
+        if (lower.startsWith(prefix)) {
+          return { role: "client" as const, message: line.slice(prefix.length) };
+        }
       }
       return { role: "client" as const, message: line };
     });
@@ -135,13 +149,13 @@ function TranscriptView({ text }: { text: string }) {
           className={`flex ${turn.role === "agent" ? "justify-start" : "justify-end"}`}
         >
           <div
-            className={`max-w-[80%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+            className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
               turn.role === "agent"
-                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-tl-sm"
-                : "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-tr-sm"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-tl-none"
+                : "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-tr-none"
             }`}
           >
-            <span className="block text-[10px] font-semibold mb-0.5 opacity-60">
+            <span className="block text-[10px] font-semibold mb-0.5 opacity-50 uppercase tracking-wide">
               {turn.role === "agent" ? "Agente IA" : "Cliente"}
             </span>
             {turn.message}
@@ -420,6 +434,24 @@ export function CallsHistory() {
                     <FileText className="size-3.5 text-emerald-500" />
                   </span>
                 )}
+                {call.aiDecision === "sim" && (
+                  <span
+                    title="Aceitou o convite"
+                    className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  >
+                    <CheckCircle2 className="size-3" />
+                    SIM
+                  </span>
+                )}
+                {call.aiDecision === "nao" && (
+                  <span
+                    title="Recusou o convite"
+                    className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"
+                  >
+                    <XCircle className="size-3" />
+                    NÃO
+                  </span>
+                )}
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap hidden sm:inline-block ${STATUS_COLORS[call.status] ?? ""}`}
                 >
@@ -465,47 +497,95 @@ export function CallsHistory() {
           onOpenChange={(v) => !v && setSelectedCall(null)}
         >
           <DialogContent className="max-w-lg rounded-3xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-base">
-                {selectedCall.clientName ??
-                  selectedCall.contactName ??
-                  selectedCall.clientPhone ??
-                  selectedCall.toPhone ??
-                  selectedCall.twilioCallSid?.slice(0, 20) ??
-                  selectedCall.id.slice(0, 8)}
-              </DialogTitle>
+            <DialogHeader className="pb-0">
+              <DialogTitle className="sr-only">Detalhes da chamada</DialogTitle>
             </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto space-y-5 pr-1">
-              {/* Detalhes */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {/* Identidade do cliente */}
+              <div className="flex items-center gap-3 pt-1">
+                <div className="size-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <User className="size-5 text-slate-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-base leading-tight truncate">
+                    {selectedCall.clientName ??
+                      selectedCall.contactName ??
+                      "Cliente desconhecido"}
+                  </p>
+                  {(selectedCall.clientPhone ?? selectedCall.toPhone) && (
+                    <p className="text-sm text-slate-400 font-mono mt-0.5">
+                      {selectedCall.clientPhone ?? selectedCall.toPhone}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={`ml-auto text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${STATUS_COLORS[selectedCall.status] ?? ""}`}
+                >
+                  {STATUS_LABELS[selectedCall.status] ?? selectedCall.status}
+                </span>
+              </div>
+
+              {/* Banner de resposta ao convite */}
+              {selectedCall.aiDecision ? (
+                <div
+                  className={`flex items-start gap-3 p-4 rounded-2xl ${
+                    selectedCall.aiDecision === "sim"
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800"
+                      : selectedCall.aiDecision === "nao"
+                        ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                        : "bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  }`}
+                >
+                  {selectedCall.aiDecision === "sim" ? (
+                    <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  ) : selectedCall.aiDecision === "nao" ? (
+                    <XCircle className="size-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <MinusCircle className="size-5 text-slate-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="min-w-0">
+                    <p
+                      className={`text-sm font-semibold ${
+                        selectedCall.aiDecision === "sim"
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : selectedCall.aiDecision === "nao"
+                            ? "text-red-700 dark:text-red-300"
+                            : "text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      {selectedCall.aiDecision === "sim"
+                        ? "Aceitou o convite"
+                        : selectedCall.aiDecision === "nao"
+                          ? "Recusou o convite"
+                          : "Sem resposta ao convite"}
+                    </p>
+                    {selectedCall.notes && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        {selectedCall.notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : selectedCall.notes ? (
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs text-slate-400 mb-1">Observações</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{selectedCall.notes}</p>
+                </div>
+              ) : null}
+
+              {/* Grade de detalhes */}
               <section>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
                   Detalhes
                 </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
-                    <p className="text-xs text-slate-400">Status</p>
-                    <span
-                      className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${STATUS_COLORS[selectedCall.status] ?? ""}`}
-                    >
-                      {STATUS_LABELS[selectedCall.status] ??
-                        selectedCall.status}
-                    </span>
-                  </div>
-                  <div>
                     <p className="text-xs text-slate-400">Duração</p>
                     <p className="font-medium">
                       {formatDuration(selectedCall.duration)}
                     </p>
                   </div>
-                  {(selectedCall.clientPhone ?? selectedCall.toPhone) && (
-                    <div>
-                      <p className="text-xs text-slate-400">Telefone</p>
-                      <p className="font-medium font-mono">
-                        {selectedCall.clientPhone ?? selectedCall.toPhone}
-                      </p>
-                    </div>
-                  )}
                   <div>
                     <p className="text-xs text-slate-400">Início</p>
                     <p className="font-medium">
@@ -528,15 +608,6 @@ export function CallsHistory() {
                       <p className="font-medium">
                         {OUTCOME_LABELS[selectedCall.outcome] ??
                           selectedCall.outcome}
-                      </p>
-                    </div>
-                  )}
-                  {selectedCall.aiDecision && (
-                    <div>
-                      <p className="text-xs text-slate-400">Decisão IA</p>
-                      <p className="font-medium">
-                        {AI_DECISION_LABELS[selectedCall.aiDecision] ??
-                          selectedCall.aiDecision}
                       </p>
                     </div>
                   )}

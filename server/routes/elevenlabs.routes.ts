@@ -16,6 +16,8 @@ router.post("/decision", async (req: Request, res: Response) => {
     const callSid = body.callSid;
     const conversationId = body.conversationId ?? body.conversation_id;
     const decision = body.decision ?? body.decisao;
+    // Motivo/contexto da resposta do cliente (campo opcional nas tools do ElevenLabs)
+    const reason = body.reason ?? body.context ?? body.motivo;
 
     if (!decision || !["sim", "nao", "sem_resposta"].includes(decision)) {
       res.status(400).json({ message: "decision deve ser sim|nao|sem_resposta" });
@@ -57,6 +59,7 @@ router.post("/decision", async (req: Request, res: Response) => {
       .set({
         aiDecision: decision as "sim" | "nao" | "sem_resposta",
         outcome: outcomeMap[decision],
+        ...(reason ? { notes: reason } : {}),
       })
       .where(eq(calls.id, call.id));
 

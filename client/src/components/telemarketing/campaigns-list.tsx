@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -42,6 +42,8 @@ import {
   Bot,
   User,
   Radio,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
@@ -58,16 +60,12 @@ type Campaign = {
   createdAt: string;
 };
 
-type DispatchResult = {
-  dispatched: number;
+type CampaignStats = {
   total: number;
-  calls: Array<{
-    clientId: string;
-    clientName: string | null;
-    callSid: string | null;
-    callRecordId: string;
-    status: string;
-  }>;
+  contacted: number;
+  sim: number;
+  nao: number;
+  failed: number;
 };
 
 const campaignSchema = z.object({
@@ -80,45 +78,6 @@ const campaignSchema = z.object({
 });
 type CampaignForm = z.infer<typeof campaignSchema>;
 
-type CampaignStats = {
-  total: number;
-  contacted: number;
-  sim: number;
-  nao: number;
-};
-
-function CampaignStatsRow({ campaignId }: { campaignId: string }) {
-  const { data } = useQuery<CampaignStats>({
-    queryKey: ["/api/campaigns/stats", campaignId],
-    queryFn: async () => {
-      const res = await fetch(`/api/campaigns/${campaignId}/stats`, {
-        credentials: "include",
-      });
-      if (!res.ok) return { total: 0, contacted: 0, sim: 0, nao: 0, failed: 0 };
-      return res.json();
-    },
-    staleTime: 30_000,
-  });
-
-  if (!data || data.total === 0) return null;
-
-  return (
-    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-      <span>{data.contacted}/{data.total} contactados</span>
-      {data.sim > 0 && (
-        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-          {data.sim} SIM
-        </span>
-      )}
-      {data.nao > 0 && (
-        <span className="text-red-500 dark:text-red-400 font-medium">
-          {data.nao} NÃO
-        </span>
-      )}
-    </div>
-  );
-}
-
 const STATUS_LABELS: Record<Campaign["status"], string> = {
   rascunho: "Rascunho",
   ativa: "Ativa",
@@ -128,23 +87,90 @@ const STATUS_LABELS: Record<Campaign["status"], string> = {
 
 const STATUS_COLORS: Record<Campaign["status"], string> = {
   rascunho: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  ativa:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  pausada:
-    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  encerrada:
-    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
+  ativa: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  pausada: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  encerrada: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
 };
+
+// Sub-component: busca stats da campanha e renderiza progresso no card
+function CampaignProgress({
+  campaign,
+  onMonitor,
+}: {
+  campaign: Campaign;
+  onMonitor: () => void;
+}) {
+  const { data: stats } = useQuery<CampaignStats>({
+    queryKey: ["/api/campaigns/stats", campaign.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/campaigns/${campaign.id}/stats`, {
+        credentials: "include",
+      });
+      if (!res.ok) return { total: 0, contacted: 0, sim: 0, nao: 0, failed: 0 };
+      return res.json();
+    },
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+  });
+
+  const total = stats?.total ?? 0;
+  const contacted = stats?.contacted ?? 0;
+  const sim = stats?.sim ?? 0;
+  const nao = stats?.nao ?? 0;
+  const pct = total > 0 ? Math.round((contacted / total) * 100) : 0;
+
+  if (total === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2">
+      {/* Contadores */}
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-3 text-slate-500">
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            {contacted}
+            <span className="font-normal text-slate-400">/{total}</span>
+          </span>
+          <span>contactados</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {sim > 0 && (
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+              <CheckCircle2 className="size-3" />
+              {sim}
+            </span>
+          )}
+          {nao > 0 && (
+            <span className="flex items-center gap-1 text-red-500 dark:text-red-400 font-medium">
+              <XCircle className="size-3" />
+              {nao}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de progresso */}
+      <Progress value={pct} className="h-1.5" />
+
+      {/* Botão andamento */}
+      {contacted > 0 && (
+        <button
+          onClick={onMonitor}
+          className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5"
+        >
+          <Monitor className="size-3" />
+          Ver andamento por cliente
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function CampaignsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [clientsDialog, setClientsDialog] = useState<Campaign | null>(null);
   const [dispatchDialog, setDispatchDialog] = useState<Campaign | null>(null);
-  const [monitorDialog, setMonitorDialog] = useState<{
-    campaign: Campaign;
-    result: DispatchResult;
-  } | null>(null);
+  const [monitorCampaign, setMonitorCampaign] = useState<Campaign | null>(null);
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
@@ -169,13 +195,7 @@ export function CampaignsList() {
 
   const openCreate = () => {
     setEditing(null);
-    reset({
-      type: "ia",
-      name: "",
-      description: "",
-      elevenLabsAgentId: "",
-      elevenLabsVoiceId: "",
-    });
+    reset({ type: "ia", name: "", description: "", elevenLabsAgentId: "", elevenLabsVoiceId: "" });
     setFormOpen(true);
   };
 
@@ -203,9 +223,7 @@ export function CampaignsList() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err.message ?? "Erro ao salvar");
       }
       return res.json();
@@ -216,11 +234,7 @@ export function CampaignsList() {
       setFormOpen(false);
     },
     onError: (err: Error) =>
-      toast({
-        title: "Erro",
-        description: err.message,
-        variant: "destructive",
-      }),
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -235,8 +249,7 @@ export function CampaignsList() {
       toast({ title: "Campanha excluída" });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
     },
-    onError: () =>
-      toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
+    onError: () => toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
   });
 
   const type = watch("type");
@@ -245,12 +258,10 @@ export function CampaignsList() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Campanhas
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Campanhas</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}{" "}
-            cadastrada{campaigns.length !== 1 ? "s" : ""}
+            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} cadastrada
+            {campaigns.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Button size="sm" className="gap-2 rounded-2xl" onClick={openCreate}>
@@ -262,7 +273,7 @@ export function CampaignsList() {
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-44 rounded-3xl" />
+            <Skeleton key={i} className="h-52 rounded-3xl" />
           ))}
         </div>
       ) : campaigns.length === 0 ? (
@@ -273,15 +284,8 @@ export function CampaignsList() {
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             Nenhuma campanha criada ainda
           </p>
-          <p className="text-xs mt-1 mb-4">
-            Configure campanhas de discagem manual ou com IA
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-2 rounded-2xl"
-            onClick={openCreate}
-          >
+          <p className="text-xs mt-1 mb-4">Configure campanhas de discagem manual ou com IA</p>
+          <Button size="sm" variant="outline" className="gap-2 rounded-2xl" onClick={openCreate}>
             <Plus className="size-3.5" />
             Criar primeira campanha
           </Button>
@@ -291,7 +295,7 @@ export function CampaignsList() {
           {campaigns.map((campaign) => (
             <Card
               key={campaign.id}
-              className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden group hover:shadow-md transition-shadow"
+              className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden hover:shadow-md transition-shadow"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -314,9 +318,7 @@ export function CampaignsList() {
                         {campaign.name}
                       </CardTitle>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {campaign.type === "ia"
-                          ? "IA (ElevenLabs)"
-                          : "Discagem humana"}
+                        {campaign.type === "ia" ? "IA (ElevenLabs)" : "Discagem humana"}
                       </p>
                     </div>
                   </div>
@@ -326,13 +328,20 @@ export function CampaignsList() {
                     {STATUS_LABELS[campaign.status]}
                   </span>
                 </div>
+
                 {campaign.description && (
                   <CardDescription className="text-xs line-clamp-2 mt-1">
                     {campaign.description}
                   </CardDescription>
                 )}
-                <CampaignStatsRow campaignId={campaign.id} />
+
+                {/* Progresso + métricas */}
+                <CampaignProgress
+                  campaign={campaign}
+                  onMonitor={() => setMonitorCampaign(campaign)}
+                />
               </CardHeader>
+
               <CardContent className="pt-0">
                 <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
                 <div className="flex items-center gap-2">
@@ -352,6 +361,15 @@ export function CampaignsList() {
                   >
                     <Users className="size-3.5" />
                     Clientes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-xl"
+                    title="Andamento"
+                    onClick={() => setMonitorCampaign(campaign)}
+                  >
+                    <Monitor className="size-3.5" />
                   </Button>
                   <Button
                     variant="outline"
@@ -387,25 +405,16 @@ export function CampaignsList() {
               {editing ? "Editar campanha" : "Nova campanha"}
             </DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-sm">Nome *</Label>
               <Input {...register("name")} placeholder="Nome da campanha" />
-              {errors.name && (
-                <p className="text-xs text-red-500">{errors.name.message}</p>
-              )}
+              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm">Descrição</Label>
-              <Textarea
-                {...register("description")}
-                placeholder="Opcional"
-                rows={2}
-              />
+              <Textarea {...register("description")} placeholder="Opcional" rows={2} />
             </div>
 
             <div className="space-y-1.5">
@@ -448,9 +457,7 @@ export function CampaignsList() {
                 <Label className="text-sm">Status</Label>
                 <Select
                   value={watch("status") ?? editing.status}
-                  onValueChange={(v) =>
-                    setValue("status", v as Campaign["status"])
-                  }
+                  onValueChange={(v) => setValue("status", v as Campaign["status"])}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -466,17 +473,10 @@ export function CampaignsList() {
             )}
 
             <DialogFooter className="pt-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setFormOpen(false)}
-              >
+              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>
                 Cancelar
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || saveMutation.isPending}
-              >
+              <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
                 {editing ? "Salvar" : "Criar"}
               </Button>
             </DialogFooter>
@@ -501,20 +501,20 @@ export function CampaignsList() {
           campaign={dispatchDialog}
           onDispatched={(result) => {
             setDispatchDialog(null);
+            // Abre o monitor logo após disparar se houve chamadas
             if (result.calls.length > 0) {
-              setMonitorDialog({ campaign: dispatchDialog, result });
+              setMonitorCampaign(dispatchDialog);
             }
           }}
         />
       )}
 
-      {monitorDialog && (
+      {monitorCampaign && (
         <CampaignMonitorDialog
-          open={!!monitorDialog}
-          onClose={() => setMonitorDialog(null)}
-          campaignId={monitorDialog.campaign.id}
-          campaignName={monitorDialog.campaign.name}
-          initialCalls={monitorDialog.result.calls}
+          open={!!monitorCampaign}
+          onClose={() => setMonitorCampaign(null)}
+          campaignId={monitorCampaign.id}
+          campaignName={monitorCampaign.name}
         />
       )}
     </div>
