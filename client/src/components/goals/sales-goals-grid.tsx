@@ -407,7 +407,7 @@ function SalesGoalCard({
             label="Itens por Venda"
             icon={<Package className="h-3.5 w-3.5" />}
             achieved={itensPorVenda > 0
-              ? `${itensPorVenda.toFixed(1)} itens/venda`
+              ? `${itensPorVenda.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} itens/venda`
               : "—"}
             goal={itemsPerSaleGoal > 0 ? `${itemsPerSaleGoal} itens/venda` : "Sem meta"}
             percentage={itemsPerSaleGoal > 0 ? itensPorVendaPercentage : 0}
