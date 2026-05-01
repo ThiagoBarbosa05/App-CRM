@@ -3447,7 +3447,7 @@ export class DatabaseStorage implements IStorage {
     year: number,
     userId?: string,
     userRole?: string,
-  ): Promise<ClientRegistrationGoal[]> {
+  ): Promise<any[]> {
     const conditions: ReturnType<typeof eq>[] = [
       eq(clientRegistrationGoals.month, month),
       eq(clientRegistrationGoals.year, year),
@@ -3459,9 +3459,21 @@ export class DatabaseStorage implements IStorage {
     }
 
     return this.db
-      .select()
+      .select({
+        id: clientRegistrationGoals.id,
+        userId: clientRegistrationGoals.userId,
+        targetQuantity: clientRegistrationGoals.targetQuantity,
+        month: clientRegistrationGoals.month,
+        year: clientRegistrationGoals.year,
+        createdAt: clientRegistrationGoals.createdAt,
+        updatedAt: clientRegistrationGoals.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
       .from(clientRegistrationGoals)
-      .where(and(...conditions));
+      .leftJoin(users, eq(clientRegistrationGoals.userId, users.id))
+      .where(and(...conditions))
+      .orderBy(users.name);
   }
 
   async createClientRegistrationGoal(
