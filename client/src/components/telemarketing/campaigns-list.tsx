@@ -89,9 +89,12 @@ const STATUS_LABELS: Record<Campaign["status"], string> = {
 
 const STATUS_COLORS: Record<Campaign["status"], string> = {
   rascunho: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  ativa: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  pausada: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  encerrada: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
+  ativa:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  pausada:
+    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  encerrada:
+    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
 };
 
 export function CampaignsList() {
@@ -99,7 +102,10 @@ export function CampaignsList() {
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [clientsDialog, setClientsDialog] = useState<Campaign | null>(null);
   const [dispatchDialog, setDispatchDialog] = useState<Campaign | null>(null);
-  const [monitorDialog, setMonitorDialog] = useState<{ campaign: Campaign; result: DispatchResult } | null>(null);
+  const [monitorDialog, setMonitorDialog] = useState<{
+    campaign: Campaign;
+    result: DispatchResult;
+  } | null>(null);
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
@@ -124,7 +130,13 @@ export function CampaignsList() {
 
   const openCreate = () => {
     setEditing(null);
-    reset({ type: "ia", name: "", description: "", elevenLabsAgentId: "", elevenLabsVoiceId: "" });
+    reset({
+      type: "ia",
+      name: "",
+      description: "",
+      elevenLabsAgentId: "",
+      elevenLabsVoiceId: "",
+    });
     setFormOpen(true);
   };
 
@@ -152,7 +164,9 @@ export function CampaignsList() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao salvar");
       }
       return res.json();
@@ -163,7 +177,11 @@ export function CampaignsList() {
       setFormOpen(false);
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -178,7 +196,8 @@ export function CampaignsList() {
       toast({ title: "Campanha excluída" });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
     },
-    onError: () => toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
+    onError: () =>
+      toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
   });
 
   const type = watch("type");
@@ -190,7 +209,10 @@ export function CampaignsList() {
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Campanhas
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} cadastrada{campaigns.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}{" "}
+            cadastrada{campaigns.length !== 1 ? "s" : ""}
+          </p>
         </div>
         <Button size="sm" className="gap-2 rounded-2xl" onClick={openCreate}>
           <Plus className="size-4" />
@@ -200,16 +222,27 @@ export function CampaignsList() {
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-3xl" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-44 rounded-3xl" />
+          ))}
         </div>
       ) : campaigns.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
             <Radio className="size-7 opacity-40" />
           </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Nenhuma campanha criada ainda</p>
-          <p className="text-xs mt-1 mb-4">Configure campanhas de discagem manual ou com IA</p>
-          <Button size="sm" variant="outline" className="gap-2 rounded-2xl" onClick={openCreate}>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Nenhuma campanha criada ainda
+          </p>
+          <p className="text-xs mt-1 mb-4">
+            Configure campanhas de discagem manual ou com IA
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 rounded-2xl"
+            onClick={openCreate}
+          >
             <Plus className="size-3.5" />
             Criar primeira campanha
           </Button>
@@ -224,11 +257,13 @@ export function CampaignsList() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      campaign.type === "ia"
-                        ? "bg-violet-100 dark:bg-violet-900/30"
-                        : "bg-blue-100 dark:bg-blue-900/30"
-                    }`}>
+                    <div
+                      className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        campaign.type === "ia"
+                          ? "bg-violet-100 dark:bg-violet-900/30"
+                          : "bg-blue-100 dark:bg-blue-900/30"
+                      }`}
+                    >
                       {campaign.type === "ia" ? (
                         <Bot className="size-4 text-violet-600 dark:text-violet-400" />
                       ) : (
@@ -240,7 +275,9 @@ export function CampaignsList() {
                         {campaign.name}
                       </CardTitle>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {campaign.type === "ia" ? "IA (ElevenLabs)" : "Discagem humana"}
+                        {campaign.type === "ia"
+                          ? "IA (ElevenLabs)"
+                          : "Discagem humana"}
                       </p>
                     </div>
                   </div>
@@ -310,21 +347,33 @@ export function CampaignsList() {
               {editing ? "Editar campanha" : "Nova campanha"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
+          <form
+            onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
+            className="space-y-4"
+          >
             <div className="space-y-1.5">
               <Label className="text-sm">Nome *</Label>
               <Input {...register("name")} placeholder="Nome da campanha" />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name.message}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm">Descrição</Label>
-              <Textarea {...register("description")} placeholder="Opcional" rows={2} />
+              <Textarea
+                {...register("description")}
+                placeholder="Opcional"
+                rows={2}
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm">Tipo *</Label>
-              <Select value={type} onValueChange={(v) => setValue("type", v as "humano" | "ia")}>
+              <Select
+                value={type}
+                onValueChange={(v) => setValue("type", v as "humano" | "ia")}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -359,7 +408,9 @@ export function CampaignsList() {
                 <Label className="text-sm">Status</Label>
                 <Select
                   value={watch("status") ?? editing.status}
-                  onValueChange={(v) => setValue("status", v as Campaign["status"])}
+                  onValueChange={(v) =>
+                    setValue("status", v as Campaign["status"])
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -375,10 +426,17 @@ export function CampaignsList() {
             )}
 
             <DialogFooter className="pt-2">
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setFormOpen(false)}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || saveMutation.isPending}
+              >
                 {editing ? "Salvar" : "Criar"}
               </Button>
             </DialogFooter>

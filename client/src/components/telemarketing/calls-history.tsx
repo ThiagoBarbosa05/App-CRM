@@ -54,13 +54,19 @@ type Call = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  iniciando: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  em_andamento: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  encerrada: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  nao_atendeu: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
-  ocupado: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  iniciando:
+    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  em_andamento:
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  encerrada:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  nao_atendeu:
+    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+  ocupado:
+    "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   falhou: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  caixa_postal: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  caixa_postal:
+    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -127,9 +133,14 @@ export function CallsHistory() {
   }>({
     queryKey: ["/api/calls", statusFilter, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: "20",
+      });
       if (statusFilter !== "all") params.set("status", statusFilter);
-      const res = await fetch(`/api/calls?${params}`, { credentials: "include" });
+      const res = await fetch(`/api/calls?${params}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao buscar chamadas");
       return res.json();
     },
@@ -143,7 +154,9 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao sincronizar");
       }
       return res.json() as Promise<Call>;
@@ -154,7 +167,11 @@ export function CallsHistory() {
       toast({ title: "Transcrição ElevenLabs sincronizada" });
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   // Sync gravação do Twilio
@@ -165,7 +182,9 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao buscar gravação");
       }
       return res.json() as Promise<Call>;
@@ -176,7 +195,11 @@ export function CallsHistory() {
       toast({ title: "Gravação encontrada e vinculada" });
     },
     onError: (err: Error) =>
-      toast({ title: "Gravação não encontrada", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Gravação não encontrada",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   // Sync transcrição Twilio Voice Intelligence
@@ -187,7 +210,9 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao solicitar transcrição");
       }
       return res.json() as Promise<{ message: string }>;
@@ -195,11 +220,16 @@ export function CallsHistory() {
     onSuccess: () => {
       toast({
         title: "Transcrição solicitada",
-        description: "O Twilio Voice Intelligence processará a transcrição e ela aparecerá automaticamente.",
+        description:
+          "O Twilio Voice Intelligence processará a transcrição e ela aparecerá automaticamente.",
       });
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const calls = data?.data ?? [];
@@ -208,12 +238,23 @@ export function CallsHistory() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Histórico de chamadas</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Histórico de chamadas
+          </h2>
           {data?.total != null && (
-            <p className="text-xs text-slate-400 mt-0.5">{data.total} chamada{data.total !== 1 ? "s" : ""} registrada{data.total !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {data.total} chamada{data.total !== 1 ? "s" : ""} registrada
+              {data.total !== 1 ? "s" : ""}
+            </p>
           )}
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-full sm:w-52 rounded-2xl">
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
@@ -240,7 +281,9 @@ export function CallsHistory() {
           <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
             <Phone className="size-7 opacity-40" />
           </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Nenhuma chamada encontrada</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Nenhuma chamada encontrada
+          </p>
           {statusFilter !== "all" && (
             <button
               className="text-xs text-blue-500 hover:underline mt-1"
@@ -259,38 +302,57 @@ export function CallsHistory() {
               onClick={() => setSelectedCall(call)}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  call.status === "encerrada"
-                    ? "bg-emerald-100 dark:bg-emerald-900/30"
-                    : call.status === "nao_atendeu" || call.status === "falhou"
-                    ? "bg-slate-100 dark:bg-slate-800"
-                    : "bg-blue-100 dark:bg-blue-900/30"
-                }`}>
-                  <Phone className={`size-3.5 ${
+                <div
+                  className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
                     call.status === "encerrada"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : call.status === "nao_atendeu" || call.status === "falhou"
-                      ? "text-slate-400"
-                      : "text-blue-600 dark:text-blue-400"
-                  }`} />
+                      ? "bg-emerald-100 dark:bg-emerald-900/30"
+                      : call.status === "nao_atendeu" ||
+                          call.status === "falhou"
+                        ? "bg-slate-100 dark:bg-slate-800"
+                        : "bg-blue-100 dark:bg-blue-900/30"
+                  }`}
+                >
+                  <Phone
+                    className={`size-3.5 ${
+                      call.status === "encerrada"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : call.status === "nao_atendeu" ||
+                            call.status === "falhou"
+                          ? "text-slate-400"
+                          : "text-blue-600 dark:text-blue-400"
+                    }`}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
-                    {call.clientName ?? call.contactName ?? call.clientPhone ?? call.toPhone ?? call.twilioCallSid?.slice(0, 16) ?? call.id.slice(0, 8)}
+                    {call.clientName ??
+                      call.contactName ??
+                      call.clientPhone ??
+                      call.toPhone ??
+                      call.twilioCallSid?.slice(0, 16) ??
+                      call.id.slice(0, 8)}
                   </p>
                   <div className="flex items-center gap-1.5 text-xs text-slate-400 flex-wrap">
-                    {(call.clientPhone ?? call.toPhone) && (call.clientName ?? call.contactName) && (
-                      <span className="font-mono">{call.clientPhone ?? call.toPhone}</span>
-                    )}
-                    {(call.clientPhone ?? call.toPhone) && (call.clientName ?? call.contactName) && <span>·</span>}
+                    {(call.clientPhone ?? call.toPhone) &&
+                      (call.clientName ?? call.contactName) && (
+                        <span className="font-mono">
+                          {call.clientPhone ?? call.toPhone}
+                        </span>
+                      )}
+                    {(call.clientPhone ?? call.toPhone) &&
+                      (call.clientName ?? call.contactName) && <span>·</span>}
                     <Clock className="size-3 shrink-0" />
                     <span>{formatDuration(call.duration)}</span>
                     <span>·</span>
-                    <span>{formatDateTime(call.startedAt ?? call.createdAt)}</span>
+                    <span>
+                      {formatDateTime(call.startedAt ?? call.createdAt)}
+                    </span>
                     {call.outcome && (
                       <>
                         <span>·</span>
-                        <span>{OUTCOME_LABELS[call.outcome] ?? call.outcome}</span>
+                        <span>
+                          {OUTCOME_LABELS[call.outcome] ?? call.outcome}
+                        </span>
                       </>
                     )}
                   </div>
@@ -299,12 +361,18 @@ export function CallsHistory() {
 
               <div className="flex items-center gap-1.5 shrink-0 ml-2">
                 {call.recordingUrl && (
-                  <span title="Gravação disponível" className="size-6 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <span
+                    title="Gravação disponível"
+                    className="size-6 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                  >
                     <FileAudio className="size-3.5 text-blue-500" />
                   </span>
                 )}
                 {(call.twilioTranscription || call.transcription) && (
-                  <span title="Transcrição disponível" className="size-6 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                  <span
+                    title="Transcrição disponível"
+                    className="size-6 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20"
+                  >
                     <FileText className="size-3.5 text-emerald-500" />
                   </span>
                 )}
@@ -348,61 +416,92 @@ export function CallsHistory() {
 
       {/* Dialog de detalhes */}
       {selectedCall && (
-        <Dialog open={!!selectedCall} onOpenChange={(v) => !v && setSelectedCall(null)}>
+        <Dialog
+          open={!!selectedCall}
+          onOpenChange={(v) => !v && setSelectedCall(null)}
+        >
           <DialogContent className="max-w-lg rounded-3xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-base">
-                {selectedCall.clientName ?? selectedCall.contactName ?? selectedCall.clientPhone ?? selectedCall.toPhone ?? selectedCall.twilioCallSid?.slice(0, 20) ?? selectedCall.id.slice(0, 8)}
+                {selectedCall.clientName ??
+                  selectedCall.contactName ??
+                  selectedCall.clientPhone ??
+                  selectedCall.toPhone ??
+                  selectedCall.twilioCallSid?.slice(0, 20) ??
+                  selectedCall.id.slice(0, 8)}
               </DialogTitle>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto space-y-5 pr-1">
               {/* Detalhes */}
               <section>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Detalhes</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                  Detalhes
+                </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
                     <p className="text-xs text-slate-400">Status</p>
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${STATUS_COLORS[selectedCall.status] ?? ""}`}>
-                      {STATUS_LABELS[selectedCall.status] ?? selectedCall.status}
+                    <span
+                      className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${STATUS_COLORS[selectedCall.status] ?? ""}`}
+                    >
+                      {STATUS_LABELS[selectedCall.status] ??
+                        selectedCall.status}
                     </span>
                   </div>
                   <div>
                     <p className="text-xs text-slate-400">Duração</p>
-                    <p className="font-medium">{formatDuration(selectedCall.duration)}</p>
+                    <p className="font-medium">
+                      {formatDuration(selectedCall.duration)}
+                    </p>
                   </div>
                   {(selectedCall.clientPhone ?? selectedCall.toPhone) && (
                     <div>
                       <p className="text-xs text-slate-400">Telefone</p>
-                      <p className="font-medium font-mono">{selectedCall.clientPhone ?? selectedCall.toPhone}</p>
+                      <p className="font-medium font-mono">
+                        {selectedCall.clientPhone ?? selectedCall.toPhone}
+                      </p>
                     </div>
                   )}
                   <div>
                     <p className="text-xs text-slate-400">Início</p>
-                    <p className="font-medium">{formatDateTime(selectedCall.startedAt ?? selectedCall.createdAt)}</p>
+                    <p className="font-medium">
+                      {formatDateTime(
+                        selectedCall.startedAt ?? selectedCall.createdAt,
+                      )}
+                    </p>
                   </div>
                   {selectedCall.endedAt && (
                     <div>
                       <p className="text-xs text-slate-400">Fim</p>
-                      <p className="font-medium">{formatDateTime(selectedCall.endedAt)}</p>
+                      <p className="font-medium">
+                        {formatDateTime(selectedCall.endedAt)}
+                      </p>
                     </div>
                   )}
                   {selectedCall.outcome && (
                     <div>
                       <p className="text-xs text-slate-400">Resultado</p>
-                      <p className="font-medium">{OUTCOME_LABELS[selectedCall.outcome] ?? selectedCall.outcome}</p>
+                      <p className="font-medium">
+                        {OUTCOME_LABELS[selectedCall.outcome] ??
+                          selectedCall.outcome}
+                      </p>
                     </div>
                   )}
                   {selectedCall.aiDecision && (
                     <div>
                       <p className="text-xs text-slate-400">Decisão IA</p>
-                      <p className="font-medium">{AI_DECISION_LABELS[selectedCall.aiDecision] ?? selectedCall.aiDecision}</p>
+                      <p className="font-medium">
+                        {AI_DECISION_LABELS[selectedCall.aiDecision] ??
+                          selectedCall.aiDecision}
+                      </p>
                     </div>
                   )}
                   {selectedCall.sentiment && (
                     <div>
                       <p className="text-xs text-slate-400">Sentimento</p>
-                      <p className={`font-medium capitalize ${SENTIMENT_COLORS[selectedCall.sentiment] ?? ""}`}>
+                      <p
+                        className={`font-medium capitalize ${SENTIMENT_COLORS[selectedCall.sentiment] ?? ""}`}
+                      >
                         {selectedCall.sentiment}
                       </p>
                     </div>
@@ -413,16 +512,22 @@ export function CallsHistory() {
               {/* Gravação */}
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Gravação</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                    Gravação
+                  </p>
                   {!selectedCall.recordingUrl && selectedCall.twilioCallSid && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs gap-1 rounded-lg"
-                      onClick={() => syncRecordingMutation.mutate(selectedCall.id)}
+                      onClick={() =>
+                        syncRecordingMutation.mutate(selectedCall.id)
+                      }
                       disabled={syncRecordingMutation.isPending}
                     >
-                      <RefreshCw className={`size-3 ${syncRecordingMutation.isPending ? "animate-spin" : ""}`} />
+                      <RefreshCw
+                        className={`size-3 ${syncRecordingMutation.isPending ? "animate-spin" : ""}`}
+                      />
                       Buscar no Twilio
                     </Button>
                   )}
@@ -436,7 +541,7 @@ export function CallsHistory() {
                 ) : (
                   <p className="text-xs text-slate-400 py-2">
                     {selectedCall.twilioCallSid
-                      ? "Gravação não disponível ainda. Clique em \"Buscar no Twilio\" para tentar."
+                      ? 'Gravação não disponível ainda. Clique em "Buscar no Twilio" para tentar.'
                       : "Sem gravação para esta chamada."}
                   </p>
                 )}
@@ -445,7 +550,9 @@ export function CallsHistory() {
               {/* Resumo */}
               {selectedCall.summary && (
                 <section>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Resumo</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                    Resumo
+                  </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
                     {selectedCall.summary}
                   </p>
@@ -455,7 +562,9 @@ export function CallsHistory() {
               {/* Notas do operador */}
               {selectedCall.notes && (
                 <section>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Anotações</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                    Anotações
+                  </p>
                   <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl">
                     {selectedCall.notes}
                   </p>
@@ -474,11 +583,15 @@ export function CallsHistory() {
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs gap-1 rounded-lg"
-                      onClick={() => syncTwilioTranscriptMutation.mutate(selectedCall.id)}
+                      onClick={() =>
+                        syncTwilioTranscriptMutation.mutate(selectedCall.id)
+                      }
                       disabled={syncTwilioTranscriptMutation.isPending}
                       title="Solicitar transcrição ao Twilio Voice Intelligence"
                     >
-                      <RefreshCw className={`size-3 ${syncTwilioTranscriptMutation.isPending ? "animate-spin" : ""}`} />
+                      <RefreshCw
+                        className={`size-3 ${syncTwilioTranscriptMutation.isPending ? "animate-spin" : ""}`}
+                      />
                       Solicitar
                     </Button>
                   )}
@@ -490,7 +603,7 @@ export function CallsHistory() {
                 ) : (
                   <p className="text-xs text-slate-400 py-1">
                     {selectedCall.recordingSid
-                      ? "Transcrição não disponível. Clique em \"Solicitar\" para acionar o Voice Intelligence."
+                      ? 'Transcrição não disponível. Clique em "Solicitar" para acionar o Voice Intelligence.'
                       : "Sem gravação vinculada — transcrição Twilio indisponível."}
                   </p>
                 )}
@@ -507,11 +620,15 @@ export function CallsHistory() {
                     variant="ghost"
                     size="sm"
                     className="h-6 px-2 text-xs gap-1 rounded-lg"
-                    onClick={() => syncElevenLabsMutation.mutate(selectedCall.id)}
+                    onClick={() =>
+                      syncElevenLabsMutation.mutate(selectedCall.id)
+                    }
                     disabled={syncElevenLabsMutation.isPending}
                     title="Sincronizar transcrição do ElevenLabs"
                   >
-                    <RefreshCw className={`size-3 ${syncElevenLabsMutation.isPending ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`size-3 ${syncElevenLabsMutation.isPending ? "animate-spin" : ""}`}
+                    />
                     Sincronizar
                   </Button>
                 </div>
@@ -521,7 +638,8 @@ export function CallsHistory() {
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400 py-1">
-                    Sem transcrição ElevenLabs. Clique em &quot;Sincronizar&quot; para buscar.
+                    Sem transcrição ElevenLabs. Clique em
+                    &quot;Sincronizar&quot; para buscar.
                   </p>
                 )}
               </section>
