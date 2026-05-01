@@ -108,6 +108,50 @@ function formatDuration(seconds: number | null): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+type TranscriptTurn = { role: "agent" | "client"; message: string };
+
+function parseTranscript(text: string): TranscriptTurn[] {
+  return text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("Agent: ")) {
+        return { role: "agent" as const, message: line.slice(7) };
+      }
+      if (line.startsWith("Cliente: ")) {
+        return { role: "client" as const, message: line.slice(9) };
+      }
+      return { role: "client" as const, message: line };
+    });
+}
+
+function TranscriptView({ text }: { text: string }) {
+  const turns = parseTranscript(text);
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+      {turns.map((turn, i) => (
+        <div
+          key={i}
+          className={`flex ${turn.role === "agent" ? "justify-start" : "justify-end"}`}
+        >
+          <div
+            className={`max-w-[80%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+              turn.role === "agent"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-tl-sm"
+                : "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-tr-sm"
+            }`}
+          >
+            <span className="block text-[10px] font-semibold mb-0.5 opacity-60">
+              {turn.role === "agent" ? "Agente IA" : "Cliente"}
+            </span>
+            {turn.message}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", {
@@ -633,9 +677,7 @@ export function CallsHistory() {
                   </Button>
                 </div>
                 {selectedCall.transcription ? (
-                  <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-64 overflow-y-auto">
-                    {selectedCall.transcription}
-                  </div>
+                  <TranscriptView text={selectedCall.transcription} />
                 ) : (
                   <p className="text-xs text-slate-400 py-1">
                     Sem transcrição ElevenLabs. Clique em

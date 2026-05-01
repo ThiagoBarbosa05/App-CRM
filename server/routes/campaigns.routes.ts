@@ -7,7 +7,7 @@ import {
   calls,
   clients,
 } from "@shared/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import twilio from "twilio";
 import {
   getTwilioConfig,
@@ -254,6 +254,71 @@ router.delete("/:id/triggers/:triggerId", async (req: Request, res: Response) =>
   }
 });
 
+// ─── Estatísticas da campanha ─────────────────────────────────────────────────
+
+router.get("/:id/stats", async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const [total, contacted, simCount, naoCount, failedCount] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(campaignClients)
+        .where(eq(campaignClients.campaignId, id)),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(campaignClients)
+        .where(and(eq(campaignClients.campaignId, id), ne(campaignClients.status, "novo"))),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(calls)
+        .where(and(eq(calls.campaignId, id), eq(calls.aiDecision, "sim"))),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(calls)
+        .where(and(eq(calls.campaignId, id), eq(calls.aiDecision, "nao"))),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(calls)
+        .where(and(eq(calls.campaignId, id), eq(calls.status, "falhou"))),
+    ]);
+    res.json({
+      total: Number(total[0]?.count ?? 0),
+      contacted: Number(contacted[0]?.count ?? 0),
+      sim: Number(simCount[0]?.count ?? 0),
+      nao: Number(naoCount[0]?.count ?? 0),
+      failed: Number(failedCount[0]?.count ?? 0),
+    });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar estatísticas" });
+  }
+});
+
+// ─── Chamadas da campanha ─────────────────────────────────────────────────────
+
+router.get("/:id/calls", async (req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select({
+        id: calls.id,
+        status: calls.status,
+        outcome: calls.outcome,
+        aiDecision: calls.aiDecision,
+        duration: calls.duration,
+        startedAt: calls.startedAt,
+        endedAt: calls.endedAt,
+        clientName: clients.name,
+        clientPhone: clients.phone,
+      })
+      .from(calls)
+      .leftJoin(clients, eq(calls.clientId, clients.id))
+      .where(eq(calls.campaignId, req.params.id))
+      .orderBy(calls.startedAt);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar chamadas da campanha" });
+  }
+});
+
 // ─── Disparar campanha ────────────────────────────────────────────────────────
 
 router.post("/:id/dispatch", async (req: Request, res: Response) => {
@@ -264,6 +329,12 @@ router.post("/:id/dispatch", async (req: Request, res: Response) => {
       .where(eq(campaigns.id, req.params.id));
 
     if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+
+    if (campaign.type === "ia" && !campaign.elevenLabsAgentId) {
+      return res
+        .status(400)
+        .json({ message: "Agent ID do ElevenLabs não configurado na campanha" });
+    }
 
     const config = await getTwilioConfig();
     if (!config.accountSid || !config.authToken) {

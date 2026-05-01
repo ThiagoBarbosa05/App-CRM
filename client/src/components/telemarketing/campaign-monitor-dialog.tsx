@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -6,7 +5,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 type CallEntry = {
@@ -17,11 +15,14 @@ type CallEntry = {
   status: string;
 };
 
-type CallRecord = {
+type CampaignCall = {
   id: string;
   status: string;
-  duration: number | null;
   outcome: string | null;
+  aiDecision: string | null;
+  duration: number | null;
+  clientName: string | null;
+  clientPhone: string | null;
 };
 
 const TERMINAL = new Set(["encerrada", "nao_atendeu", "ocupado", "falhou", "caixa_postal"]);
@@ -46,53 +47,55 @@ const STATUS_LABELS: Record<string, string> = {
   caixa_postal: "Caixa postal",
 };
 
+const AI_DECISION_COLORS: Record<string, string> = {
+  sim: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  nao: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  sem_resposta: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+};
+
+const AI_DECISION_LABELS: Record<string, string> = {
+  sim: "SIM",
+  nao: "NÃO",
+  sem_resposta: "S/ resposta",
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
+  campaignId: string;
   campaignName: string;
   initialCalls: CallEntry[];
 }
 
-export function CampaignMonitorDialog({ open, onClose, campaignName, initialCalls }: Props) {
-  const [callStatuses, setCallStatuses] = useState<Record<string, string>>(() => {
-    const m: Record<string, string> = {};
-    for (const c of initialCalls) m[c.callRecordId] = c.status;
-    return m;
-  });
+export function CampaignMonitorDialog({
+  open,
+  onClose,
+  campaignId,
+  campaignName,
+  initialCalls,
+}: Props) {
+  const initialIds = new Set(initialCalls.map((c) => c.callRecordId));
 
-  const nonTerminal = Object.entries(callStatuses)
-    .filter(([, s]) => !TERMINAL.has(s))
-    .map(([id]) => id);
-
-  const done = Object.values(callStatuses).filter((s) => TERMINAL.has(s)).length;
-  const total = initialCalls.length;
-
-  // Poll de chamadas não-terminais a cada 3s
-  const { data: polledCalls } = useQuery<CallRecord[]>({
-    queryKey: ["/api/calls/poll", nonTerminal.join(",")],
+  const { data: campaignCalls = [] } = useQuery<CampaignCall[]>({
+    queryKey: ["/api/campaigns/calls", campaignId],
     queryFn: async () => {
-      if (nonTerminal.length === 0) return [];
-      const results = await Promise.all(
-        nonTerminal.map(async (id) => {
-          const res = await fetch(`/api/calls/${id}`, { credentials: "include" });
-          if (!res.ok) return null;
-          return res.json() as Promise<CallRecord>;
-        })
-      );
-      return results.filter(Boolean) as CallRecord[];
+      const res = await fetch(`/api/campaigns/${campaignId}/calls`, {
+        credentials: "include",
+      });
+      if (!res.ok) return [];
+      return res.json();
     },
-    enabled: open && nonTerminal.length > 0,
+    enabled: open,
     refetchInterval: 3000,
+    select: (rows) => rows.filter((r) => initialIds.has(r.id)),
   });
 
-  useEffect(() => {
-    if (!polledCalls?.length) return;
-    setCallStatuses((prev) => {
-      const next = { ...prev };
-      for (const c of polledCalls) next[c.id] = c.status;
-      return next;
-    });
-  }, [polledCalls]);
+  const callMap = new Map(campaignCalls.map((c) => [c.id, c]));
+
+  const done = campaignCalls.filter((c) => TERMINAL.has(c.status)).length;
+  const total = initialCalls.length;
+  const simCount = campaignCalls.filter((c) => c.aiDecision === "sim").length;
+  const naoCount = campaignCalls.filter((c) => c.aiDecision === "nao").length;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -105,30 +108,53 @@ export function CampaignMonitorDialog({ open, onClose, campaignName, initialCall
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>Progresso</span>
-              <span>{done} / {total}</span>
+              <span>{done} / {total} encerradas</span>
             </div>
             <Progress value={total > 0 ? (done / total) * 100 : 0} className="h-2" />
           </div>
 
-          <div className="space-y-2 overflow-y-auto max-h-[55vh] pr-1">
+          {(simCount > 0 || naoCount > 0) && (
+            <div className="flex gap-3 text-xs">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="size-2 rounded-full bg-emerald-500 inline-block" />
+                {simCount} SIM
+              </span>
+              <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                <span className="size-2 rounded-full bg-red-500 inline-block" />
+                {naoCount} NÃO
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-2 overflow-y-auto max-h-[50vh] pr-1">
             {initialCalls.map((call) => {
-              const status = callStatuses[call.callRecordId] ?? call.status;
+              const live = callMap.get(call.callRecordId);
+              const status = live?.status ?? call.status;
+              const aiDecision = live?.aiDecision ?? null;
               return (
                 <div
                   key={call.callRecordId}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 gap-2"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{call.clientName ?? call.clientId}</p>
-                    {call.callSid && (
-                      <p className="text-xs text-slate-400 font-mono truncate max-w-[180px]">
-                        {call.callSid}
-                      </p>
-                    )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {call.clientName ?? call.clientId}
+                    </p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[status] ?? ""}`}>
-                    {STATUS_LABELS[status] ?? status}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {aiDecision && (
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-semibold ${AI_DECISION_COLORS[aiDecision] ?? ""}`}
+                      >
+                        {AI_DECISION_LABELS[aiDecision] ?? aiDecision}
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[status] ?? ""}`}
+                    >
+                      {STATUS_LABELS[status] ?? status}
+                    </span>
+                  </div>
                 </div>
               );
             })}

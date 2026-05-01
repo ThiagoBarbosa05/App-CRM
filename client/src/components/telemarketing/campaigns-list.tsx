@@ -80,6 +80,45 @@ const campaignSchema = z.object({
 });
 type CampaignForm = z.infer<typeof campaignSchema>;
 
+type CampaignStats = {
+  total: number;
+  contacted: number;
+  sim: number;
+  nao: number;
+};
+
+function CampaignStatsRow({ campaignId }: { campaignId: string }) {
+  const { data } = useQuery<CampaignStats>({
+    queryKey: ["/api/campaigns/stats", campaignId],
+    queryFn: async () => {
+      const res = await fetch(`/api/campaigns/${campaignId}/stats`, {
+        credentials: "include",
+      });
+      if (!res.ok) return { total: 0, contacted: 0, sim: 0, nao: 0, failed: 0 };
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  if (!data || data.total === 0) return null;
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+      <span>{data.contacted}/{data.total} contactados</span>
+      {data.sim > 0 && (
+        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+          {data.sim} SIM
+        </span>
+      )}
+      {data.nao > 0 && (
+        <span className="text-red-500 dark:text-red-400 font-medium">
+          {data.nao} NÃO
+        </span>
+      )}
+    </div>
+  );
+}
+
 const STATUS_LABELS: Record<Campaign["status"], string> = {
   rascunho: "Rascunho",
   ativa: "Ativa",
@@ -292,6 +331,7 @@ export function CampaignsList() {
                     {campaign.description}
                   </CardDescription>
                 )}
+                <CampaignStatsRow campaignId={campaign.id} />
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
@@ -472,6 +512,7 @@ export function CampaignsList() {
         <CampaignMonitorDialog
           open={!!monitorDialog}
           onClose={() => setMonitorDialog(null)}
+          campaignId={monitorDialog.campaign.id}
           campaignName={monitorDialog.campaign.name}
           initialCalls={monitorDialog.result.calls}
         />
