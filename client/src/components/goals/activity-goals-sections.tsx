@@ -54,7 +54,7 @@ export function ActivityGoalsSections({
                   <ActivityGoalCard
                     key={goal.id}
                     title={goal.userName}
-                    subtitle="Novos Cadastros"
+                    subtitle="Novos Cadastros Completos"
                     achieved={achieved}
                     goal={goal.targetQuantity}
                     percentage={calculatePercentage(
