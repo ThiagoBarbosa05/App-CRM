@@ -2461,6 +2461,7 @@ export class DatabaseStorage implements IStorage {
         ordersGoal: userGoals.ordersGoal,
         avgBottleValueGoal: userGoals.avgBottleValueGoal,
         positivityGoal: userGoals.positivityGoal,
+        itemsPerSale: userGoals.itemsPerSale,
         month: userGoals.month,
         year: userGoals.year,
         createdAt: userGoals.createdAt,
