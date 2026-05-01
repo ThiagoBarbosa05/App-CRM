@@ -390,16 +390,6 @@ function SalesGoalCard({
             </div>
           </div>
 
-          {/* Total de GRFs no Mês */}
-          <MetricProgress
-            label="Total de GRFs no Mês"
-            icon={<ShoppingCart className="h-3.5 w-3.5" />}
-            achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
-            goal={`${ordersGoalValue} GRF${ordersGoalValue !== 1 ? "s" : ""}`}
-            percentage={bottleGoalProgress.percentage}
-            hasGoal={ordersGoalValue > 0}
-          />
-
           {/* Itens por Venda */}
           <MetricProgress
             label="Itens por Venda"
@@ -412,16 +402,6 @@ function SalesGoalCard({
             hasGoal={itemsPerSaleGoal > 0}
           />
 
-          {/* Ticket Médio */}
-          <MetricProgress
-            label="Ticket Médio"
-            icon={<BarChart3 className="h-3.5 w-3.5" />}
-            achieved={formatCurrency(avgTicketAchieved)}
-            goal={formatCurrency(goal.averageTicket)}
-            percentage={ticketPercentage}
-            hasGoal={Number(goal.averageTicket) > 0}
-          />
-
           {/* Valor Médio por Garrafa */}
           <MetricProgress
             label="Valor Médio por Garrafa"
@@ -432,6 +412,16 @@ function SalesGoalCard({
             hasGoal={avgBottleGoalValue > 0}
           />
 
+          {/* Ticket Médio */}
+          <MetricProgress
+            label="Ticket Médio"
+            icon={<BarChart3 className="h-3.5 w-3.5" />}
+            achieved={formatCurrency(avgTicketAchieved)}
+            goal={formatCurrency(goal.averageTicket)}
+            percentage={ticketPercentage}
+            hasGoal={Number(goal.averageTicket) > 0}
+          />
+
           {/* Positivação */}
           <MetricProgress
             label="Positivação da Carteira"
@@ -440,6 +430,16 @@ function SalesGoalCard({
             goal={`${goal.positivityGoal}%`}
             percentage={positivacaoPercentage}
             hasGoal={goal.positivityGoal > 0}
+          />
+
+          {/* Total de GRFs no Mês */}
+          <MetricProgress
+            label="Total de GRFs no Mês"
+            icon={<ShoppingCart className="h-3.5 w-3.5" />}
+            achieved={`${bottleGoalProgress.achieved} GRF${bottleGoalProgress.achieved !== 1 ? "s" : ""}`}
+            goal={`${ordersGoalValue} GRF${ordersGoalValue !== 1 ? "s" : ""}`}
+            percentage={bottleGoalProgress.percentage}
+            hasGoal={ordersGoalValue > 0}
           />
 
           {/* Resultado do Mês — admin */}
