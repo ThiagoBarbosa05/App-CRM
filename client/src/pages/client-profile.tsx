@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   PartyPopper,
   Sparkles,
+  Phone,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -26,6 +27,7 @@ import { ClientWhatsAppTab } from "@/components/clients/client-whatsapp-tab";
 import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab";
 import { ClientEventsTab } from "@/components/clients/client-events-tab";
 import { ClientWineProfileTab } from "@/components/clients/client-wine-profile-tab";
+import { ClientTelemarketingTab } from "@/components/clients/client-telemarketing-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -226,6 +228,13 @@ export default function ClientProfilePage() {
                 <Sparkles className="h-4 w-4" />
                 Perfil de Gosto
               </TabsTrigger>
+              <TabsTrigger
+                value="telemarketing"
+                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all dark:text-slate-400 dark:data-[state=active]:text-slate-50 data-[state=active]:bg-fuchsia-50 data-[state=active]:text-fuchsia-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-fuchsia-500/20 dark:data-[state=active]:bg-fuchsia-700"
+              >
+                <Phone className="h-4 w-4" />
+                Telemarketing
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -283,6 +292,10 @@ export default function ClientProfilePage() {
 
                 {activeTab === "gosto" && (
                   <ClientWineProfileTab client={client as any} />
+                )}
+
+                {activeTab === "telemarketing" && (
+                  <ClientTelemarketingTab clientId={client.id} />
                 )}
               </motion.div>
             </AnimatePresence>

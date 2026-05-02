@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "server/db";
-import { calls, campaignClients, callNotifications, campaignTriggers, clients } from "@shared/schema";
-import { eq, and, desc, inArray, isNull, gt, sql } from "drizzle-orm";
+import { calls, campaignClients, callNotifications, campaignTriggers, clients, campaigns } from "@shared/schema";
+import { eq, and, desc, inArray, isNull, gt, gte, sql } from "drizzle-orm";
 import { getElevenLabsKey, getTwilioConfig, getTwilioIntelligenceServiceSid, getServerBaseUrl } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
 import twilio from "twilio";
@@ -37,7 +37,7 @@ function mapTwilioStatus(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function triggerTwilioIntelligence(callId: string, recordingSid: string): Promise<void> {
+async function triggerTwilioIntelligence(callId: string, recordingSid: string, resolvedBaseUrl?: string): Promise<void> {
   const intelligenceServiceSid = await getTwilioIntelligenceServiceSid();
   if (!intelligenceServiceSid) {
     console.warn(`[voice-intelligence] twilio_intelligence_service_sid não configurado — transcrição ignorada para Call ID: ${callId}`);
@@ -50,9 +50,14 @@ async function triggerTwilioIntelligence(callId: string, recordingSid: string): 
     return;
   }
 
-  const baseUrl = await getServerBaseUrl();
+  let baseUrl = resolvedBaseUrl;
   if (!baseUrl) {
-    console.warn("[voice-intelligence] server_base_url não configurado — webhook de transcrição não pode ser registrado");
+    const configured = await getServerBaseUrl();
+    const isLocalhost = !configured || configured.includes("localhost") || configured.includes("127.0.0.1");
+    baseUrl = isLocalhost ? undefined : configured;
+  }
+  if (!baseUrl) {
+    console.warn("[voice-intelligence] server_base_url não configurado (ou é localhost) — webhook de transcrição não pode ser registrado");
     return;
   }
   const webhookUrl = `${baseUrl}/api/calls/twilio-transcription?callId=${encodeURIComponent(callId)}`;
@@ -287,6 +292,119 @@ router.post("/twilio-transcription", async (req: Request, res: Response) => {
   }
 });
 
+// ─── Estatísticas agregadas ───────────────────────────────────────────────────
+
+router.get("/stats", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const days = Math.min(parseInt((req.query as Record<string, string>).days ?? "30", 10) || 30, 365);
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const rows = await db
+      .select({
+        status: calls.status,
+        aiDecision: calls.aiDecision,
+        sentiment: calls.sentiment,
+        duration: calls.duration,
+        campaignId: calls.campaignId,
+        campaignName: campaigns.name,
+        createdAt: calls.createdAt,
+      })
+      .from(calls)
+      .leftJoin(campaigns, eq(calls.campaignId, campaigns.id))
+      .where(gte(calls.createdAt, since));
+
+    const toLocalDate = (d: Date | string) => {
+      const date = typeof d === "string" ? new Date(d) : d;
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date).split("/").reverse().join("-");
+    };
+
+    const todayStr = toLocalDate(new Date());
+
+    // Summary
+    const simCount = rows.filter((r) => r.aiDecision === "sim").length;
+    const naoCount = rows.filter((r) => r.aiDecision === "nao").length;
+    const decisoes = simCount + naoCount;
+    const durations = rows.map((r) => r.duration ?? 0).filter(Boolean);
+    const summary = {
+      total: rows.length,
+      hoje: rows.filter((r) => toLocalDate(r.createdAt) === todayStr).length,
+      taxaConversao: decisoes > 0 ? Math.round((simCount / decisoes) * 100) : 0,
+      duracaoMedia: durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0,
+    };
+
+    // Por dia — gera todos os dias no intervalo com zeros
+    const dayMap: Record<string, { total: number; sim: number; nao: number }> = {};
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dayMap[toLocalDate(d)] = { total: 0, sim: 0, nao: 0 };
+    }
+    for (const r of rows) {
+      const key = toLocalDate(r.createdAt);
+      if (key in dayMap) {
+        dayMap[key].total++;
+        if (r.aiDecision === "sim") dayMap[key].sim++;
+        if (r.aiDecision === "nao") dayMap[key].nao++;
+      }
+    }
+    const porDia = Object.entries(dayMap).map(([date, v]) => ({ date, ...v }));
+
+    // Por status
+    const statusMap: Record<string, number> = {};
+    for (const r of rows) {
+      statusMap[r.status] = (statusMap[r.status] ?? 0) + 1;
+    }
+    const porStatus = Object.entries(statusMap).map(([status, count]) => ({ status, count }));
+
+    // Por decisão
+    const decisaoMap: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.aiDecision) {
+        decisaoMap[r.aiDecision] = (decisaoMap[r.aiDecision] ?? 0) + 1;
+      }
+    }
+    const porDecisao = Object.entries(decisaoMap).map(([decisao, count]) => ({ decisao, count }));
+
+    // Por sentimento
+    const sentMap: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.sentiment) {
+        sentMap[r.sentiment] = (sentMap[r.sentiment] ?? 0) + 1;
+      }
+    }
+    const porSentimento = Object.entries(sentMap).map(([sentimento, count]) => ({ sentimento, count }));
+
+    // Top campanhas
+    const campMap: Record<string, { campaignId: string; campaignName: string; total: number; sim: number }> = {};
+    for (const r of rows) {
+      if (!r.campaignId) continue;
+      if (!campMap[r.campaignId]) {
+        campMap[r.campaignId] = { campaignId: r.campaignId, campaignName: r.campaignName ?? r.campaignId, total: 0, sim: 0 };
+      }
+      campMap[r.campaignId].total++;
+      if (r.aiDecision === "sim") campMap[r.campaignId].sim++;
+    }
+    const topCampanhas = Object.values(campMap)
+      .map((c) => {
+        const d = c.total > 0 ? Math.round((c.sim / c.total) * 100) : 0;
+        return { ...c, taxaConversao: d };
+      })
+      .sort((a, b) => b.taxaConversao - a.taxaConversao)
+      .slice(0, 5);
+
+    res.json({ summary, porDia, porStatus, porDecisao, porSentimento, topCampanhas });
+  } catch (e) {
+    console.error("[calls] GET /stats error:", e);
+    res.status(500).json({ message: "Erro ao buscar estatísticas" });
+  }
+});
+
 // ─── Listar chamadas ──────────────────────────────────────────────────────────
 
 router.get("/", requireAuth, async (req: Request, res: Response) => {
@@ -334,9 +452,11 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
           createdAt: calls.createdAt,
           clientName: clients.name,
           clientPhone: clients.phone,
+          campaignName: campaigns.name,
         })
         .from(calls)
         .leftJoin(clients, eq(calls.clientId, clients.id))
+        .leftJoin(campaigns, eq(calls.campaignId, campaigns.id))
         .where(whereClause)
         .orderBy(desc(calls.createdAt))
         .limit(limit)
@@ -556,7 +676,8 @@ router.post("/:id/sync-recording", requireAuth, async (req: Request, res: Respon
 
     // Acionar Voice Intelligence se ainda não houver transcrição
     if (!call.twilioTranscription) {
-      triggerTwilioIntelligence(call.id, rec.sid).catch((e) =>
+      const syncProto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+      triggerTwilioIntelligence(call.id, rec.sid, `${syncProto}://${req.headers.host}`).catch((e) =>
         console.warn("[sync-recording] Falha ao acionar Voice Intelligence:", e)
       );
     }
@@ -616,6 +737,8 @@ router.post("/recording-status", async (req: Request, res: Response) => {
     const { CallSid, RecordingSid, RecordingUrl } = req.body as Record<string, string>;
     // callRecordId e parentCallSid passados como query params pelo voice webhook
     const { callRecordId: crId, parentCallSid } = req.query as Record<string, string>;
+    const reqProto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+    const reqBaseUrl = `${reqProto}://${req.headers.host}`;
 
     console.log(`[recording-status] Recebido | RecordingSid: ${RecordingSid} | CallSid: ${CallSid} | crId: ${crId ?? "(ausente)"} | parentCallSid: ${parentCallSid ?? "(ausente)"}`);
 
@@ -651,7 +774,7 @@ router.post("/recording-status", async (req: Request, res: Response) => {
     }
 
     if (callRow && RecordingSid) {
-      triggerTwilioIntelligence(callRow.id, RecordingSid).catch((e) =>
+      triggerTwilioIntelligence(callRow.id, RecordingSid, reqBaseUrl).catch((e) =>
         console.warn("[recording-status] Falha ao acionar Voice Intelligence:", e)
       );
     }
@@ -683,7 +806,7 @@ router.post("/recording-status", async (req: Request, res: Response) => {
         if (linked) {
           callRow = linked;
           console.log(`[recording-status] Linked via fallback recente | callId: ${linked.id} ← CallSid: ${CallSid}`);
-          triggerTwilioIntelligence(linked.id, RecordingSid).catch((e) =>
+          triggerTwilioIntelligence(linked.id, RecordingSid, reqBaseUrl).catch((e) =>
             console.warn("[recording-status] Falha ao acionar Voice Intelligence (fallback):", e)
           );
         }

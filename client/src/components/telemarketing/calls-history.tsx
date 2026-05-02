@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -15,10 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import {
-  RefreshCw,
   FileText,
   Clock,
   Phone,
@@ -30,6 +28,7 @@ import {
   XCircle,
   MinusCircle,
   User,
+  Loader2,
 } from "lucide-react";
 
 type Call = {
@@ -37,6 +36,7 @@ type Call = {
   clientId: string | null;
   campaignId: string | null;
   twilioCallSid: string | null;
+  elevenLabsConversationId: string | null;
   status: string;
   outcome: string | null;
   duration: number | null;
@@ -181,6 +181,8 @@ export function CallsHistory() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
+  // Rastreia IDs já auto-sincronizados para não repetir na mesma sessão
+  const autoSyncedRef = useRef<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery<{
     data: Call[];
@@ -212,24 +214,16 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err.message ?? "Erro ao sincronizar");
       }
       return res.json() as Promise<Call>;
     },
     onSuccess: (updated) => {
-      setSelectedCall(updated);
+      setSelectedCall((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
-      toast({ title: "Transcrição ElevenLabs sincronizada" });
     },
-    onError: (err: Error) =>
-      toast({
-        title: "Erro",
-        description: err.message,
-        variant: "destructive",
-      }),
+    onError: () => {},
   });
 
   // Sync gravação do Twilio
@@ -240,24 +234,16 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err.message ?? "Erro ao buscar gravação");
       }
       return res.json() as Promise<Call>;
     },
     onSuccess: (updated) => {
-      setSelectedCall(updated);
+      setSelectedCall((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
-      toast({ title: "Gravação encontrada e vinculada" });
     },
-    onError: (err: Error) =>
-      toast({
-        title: "Gravação não encontrada",
-        description: err.message,
-        variant: "destructive",
-      }),
+    onError: () => {},
   });
 
   // Sync transcrição Twilio Voice Intelligence
@@ -268,27 +254,37 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err.message ?? "Erro ao solicitar transcrição");
       }
       return res.json() as Promise<{ message: string }>;
     },
-    onSuccess: () => {
-      toast({
-        title: "Transcrição solicitada",
-        description:
-          "O Twilio Voice Intelligence processará a transcrição e ela aparecerá automaticamente.",
-      });
-    },
-    onError: (err: Error) =>
-      toast({
-        title: "Erro",
-        description: err.message,
-        variant: "destructive",
-      }),
+    onSuccess: () => {},
+    onError: () => {},
   });
+
+  // Auto-sync ao abrir o dialog
+  useEffect(() => {
+    if (!selectedCall) return;
+    if (autoSyncedRef.current.has(selectedCall.id)) return;
+    autoSyncedRef.current.add(selectedCall.id);
+
+    // ElevenLabs: buscar transcrição se ainda não chegou via webhook
+    if (selectedCall.elevenLabsConversationId && !selectedCall.transcription) {
+      syncElevenLabsMutation.mutate(selectedCall.id);
+    }
+
+    // Twilio: buscar gravação se chamada não é ElevenLabs e ainda sem recordingUrl
+    if (!selectedCall.elevenLabsConversationId && selectedCall.twilioCallSid && !selectedCall.recordingUrl) {
+      syncRecordingMutation.mutate(selectedCall.id);
+    }
+
+    // Twilio: solicitar transcrição Voice Intelligence se gravação existe mas transcript não
+    if (selectedCall.recordingSid && !selectedCall.twilioTranscription) {
+      syncTwilioTranscriptMutation.mutate(selectedCall.id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCall?.id]);
 
   const calls = data?.data ?? [];
 
@@ -418,7 +414,7 @@ export function CallsHistory() {
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {call.recordingUrl && (
+                {(call.recordingUrl || call.elevenLabsConversationId) && (
                   <span
                     title="Gravação disponível"
                     className="size-6 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20"
@@ -626,28 +622,21 @@ export function CallsHistory() {
 
               {/* Gravação */}
               <section>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Gravação
-                  </p>
-                  {!selectedCall.recordingUrl && selectedCall.twilioCallSid && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs gap-1 rounded-lg"
-                      onClick={() =>
-                        syncRecordingMutation.mutate(selectedCall.id)
-                      }
-                      disabled={syncRecordingMutation.isPending}
-                    >
-                      <RefreshCw
-                        className={`size-3 ${syncRecordingMutation.isPending ? "animate-spin" : ""}`}
-                      />
-                      Buscar no Twilio
-                    </Button>
-                  )}
-                </div>
-                {selectedCall.recordingUrl ? (
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                  Gravação
+                </p>
+                {selectedCall.elevenLabsConversationId ? (
+                  <audio
+                    controls
+                    src={`/api/elevenlabs/audio/${selectedCall.id}`}
+                    className="w-full rounded-xl"
+                  />
+                ) : syncRecordingMutation.isPending ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Buscando gravação…
+                  </div>
+                ) : selectedCall.recordingUrl ? (
                   <audio
                     controls
                     src={`/api/twilio/recording/${selectedCall.id}`}
@@ -655,9 +644,7 @@ export function CallsHistory() {
                   />
                 ) : (
                   <p className="text-xs text-slate-400 py-2">
-                    {selectedCall.twilioCallSid
-                      ? 'Gravação não disponível ainda. Clique em "Buscar no Twilio" para tentar.'
-                      : "Sem gravação para esta chamada."}
+                    Sem gravação disponível para esta chamada.
                   </p>
                 )}
               </section>
@@ -686,76 +673,52 @@ export function CallsHistory() {
                 </section>
               )}
 
-              {/* Transcrição Twilio Voice Intelligence */}
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <Mic className="size-3" />
-                    Transcrição Twilio
-                  </p>
-                  {selectedCall.recordingSid && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs gap-1 rounded-lg"
-                      onClick={() =>
-                        syncTwilioTranscriptMutation.mutate(selectedCall.id)
-                      }
-                      disabled={syncTwilioTranscriptMutation.isPending}
-                      title="Solicitar transcrição ao Twilio Voice Intelligence"
-                    >
-                      <RefreshCw
-                        className={`size-3 ${syncTwilioTranscriptMutation.isPending ? "animate-spin" : ""}`}
-                      />
-                      Solicitar
-                    </Button>
-                  )}
-                </div>
-                {selectedCall.twilioTranscription ? (
-                  <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
-                    {selectedCall.twilioTranscription}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 py-1">
-                    {selectedCall.recordingSid
-                      ? 'Transcrição não disponível. Clique em "Solicitar" para acionar o Voice Intelligence.'
-                      : "Sem gravação vinculada — transcrição Twilio indisponível."}
-                  </p>
-                )}
-              </section>
-
               {/* Transcrição ElevenLabs */}
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+              {selectedCall.elevenLabsConversationId && (
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
                     <FileText className="size-3" />
-                    Transcrição ElevenLabs
+                    Transcrição
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs gap-1 rounded-lg"
-                    onClick={() =>
-                      syncElevenLabsMutation.mutate(selectedCall.id)
-                    }
-                    disabled={syncElevenLabsMutation.isPending}
-                    title="Sincronizar transcrição do ElevenLabs"
-                  >
-                    <RefreshCw
-                      className={`size-3 ${syncElevenLabsMutation.isPending ? "animate-spin" : ""}`}
-                    />
-                    Sincronizar
-                  </Button>
-                </div>
-                {selectedCall.transcription ? (
-                  <TranscriptView text={selectedCall.transcription} />
-                ) : (
-                  <p className="text-xs text-slate-400 py-1">
-                    Sem transcrição ElevenLabs. Clique em
-                    &quot;Sincronizar&quot; para buscar.
+                  {syncElevenLabsMutation.isPending ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-10 rounded-xl" />
+                      <Skeleton className="h-10 rounded-xl" />
+                      <Skeleton className="h-10 rounded-xl" />
+                    </div>
+                  ) : selectedCall.transcription ? (
+                    <TranscriptView text={selectedCall.transcription} />
+                  ) : (
+                    <p className="text-xs text-slate-400 py-1">
+                      Transcrição não disponível para esta chamada.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {/* Transcrição Twilio Voice Intelligence */}
+              {!selectedCall.elevenLabsConversationId && (selectedCall.recordingSid || selectedCall.twilioTranscription) && (
+                <section>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+                    <Mic className="size-3" />
+                    Transcrição
                   </p>
-                )}
-              </section>
+                  {syncTwilioTranscriptMutation.isPending ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Solicitando transcrição ao Twilio…
+                    </div>
+                  ) : selectedCall.twilioTranscription ? (
+                    <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                      {selectedCall.twilioTranscription}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 py-1">
+                      Transcrição sendo processada pelo Twilio Voice Intelligence.
+                    </p>
+                  )}
+                </section>
+              )}
             </div>
           </DialogContent>
         </Dialog>

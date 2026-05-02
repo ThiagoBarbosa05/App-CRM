@@ -3,6 +3,7 @@ import { db } from "server/db";
 import { calls, campaignClients, callNotifications, campaignTriggers } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { getElevenLabsKey } from "../lib/twilio-config";
+import { requireAuth } from "../middleware/validation";
 
 const router = Router();
 
@@ -115,10 +116,27 @@ router.post("/webhook", async (req: Request, res: Response) => {
       return;
     }
 
-    const [call] = await db
-      .select()
-      .from(calls)
-      .where(eq(calls.elevenLabsConversationId, conversationId));
+    // Lookup por elevenLabsConversationId primeiro; fallback pelo callSid enviado
+    // como dynamic variable (disponível no payload pós-chamada)
+    let call = (
+      await db.select().from(calls).where(eq(calls.elevenLabsConversationId, conversationId))
+    )[0];
+
+    if (!call) {
+      const dynVars = (data.conversation_initiation_client_data as Record<string, unknown> | undefined)
+        ?.dynamic_variables as Record<string, string> | undefined;
+      const callSid = dynVars?.callSid;
+      if (callSid) {
+        call = (await db.select().from(calls).where(eq(calls.twilioCallSid, callSid)))[0];
+        // Aproveita para gravar o conversationId se ainda não estiver salvo
+        if (call && !call.elevenLabsConversationId) {
+          await db
+            .update(calls)
+            .set({ elevenLabsConversationId: conversationId })
+            .where(eq(calls.id, call.id));
+        }
+      }
+    }
 
     if (!call) {
       res.status(200).json({ ok: true });
@@ -270,6 +288,40 @@ router.get("/conversation/:id", async (req: Request, res: Response) => {
   } catch (e) {
     console.error("[elevenlabs] fetch-conversation error:", e);
     res.status(500).json({ message: "Erro ao buscar conversa" });
+  }
+});
+
+// ─── Proxy de áudio da conversa ElevenLabs ───────────────────────────────────
+// Busca o áudio MP3 da conversa no ElevenLabs e faz stream para o cliente.
+// Necessário pois o frontend não tem a xi-api-key.
+
+router.get("/audio/:callId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const [call] = await db.select().from(calls).where(eq(calls.id, req.params.callId));
+    if (!call) return res.status(404).json({ message: "Chamada não encontrada" });
+    if (!call.elevenLabsConversationId) {
+      return res.status(404).json({ message: "Sem conversa ElevenLabs vinculada" });
+    }
+
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const audioRes = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${encodeURIComponent(call.elevenLabsConversationId)}/audio`,
+      { headers: { "xi-api-key": apiKey } },
+    );
+
+    if (!audioRes.ok) {
+      return res.status(audioRes.status).json({ message: "Áudio não disponível no ElevenLabs" });
+    }
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    const buffer = await audioRes.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    console.error("[elevenlabs] audio proxy error:", e);
+    res.status(500).json({ message: "Erro ao buscar áudio" });
   }
 });
 

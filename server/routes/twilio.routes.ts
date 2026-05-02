@@ -90,7 +90,10 @@ router.post("/voice", async (req: Request, res: Response) => {
     const isValid = await validateTwilioWebhook(req, res);
     if (!isValid) return;
 
-    const baseUrl = await getServerBaseUrl();
+    const configuredBaseUrl = await getServerBaseUrl();
+    const isLocalhost = !configuredBaseUrl || configuredBaseUrl.includes("localhost") || configuredBaseUrl.includes("127.0.0.1");
+    const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+    const baseUrl = isLocalhost ? `${proto}://${req.headers.host}` : configuredBaseUrl;
     const { campaignType, agentId, voiceId, callRecordId } = req.query as Record<string, string>;
     const twiml = new twilio.twiml.VoiceResponse();
 
