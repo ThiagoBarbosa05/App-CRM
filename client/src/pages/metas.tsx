@@ -164,6 +164,21 @@ export default function Metas() {
   // Mutations (admin)
   // -------------------------------------------------------------------------
 
+  const deleteRegistrationGoalMutation = useMutation({
+    mutationFn: async (goalId: string) => {
+      return apiRequest("DELETE", `/api/client-registration-goals/${goalId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+      });
+      toast({ title: "Meta excluída", description: "Meta de cadastros excluída com sucesso." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteSalesGoalMutation = useMutation({
     mutationFn: async (goalId: string) => {
       const response = await fetch(`/api/user-goals/${goalId}`, {
@@ -500,21 +515,7 @@ export default function Metas() {
 
         {/* Cadastros */}
         <TabsContent value="registration" className="m-0 outline-none">
-          {isManager ? (
-            <ClientRegistrationGoalsTab
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              isAdmin={true}
-              onEdit={(goal) => {
-                setEditingRegistrationGoal(goal);
-                setIsRegistrationModalOpen(true);
-              }}
-              onNew={() => {
-                setEditingRegistrationGoal(null);
-                setIsRegistrationModalOpen(true);
-              }}
-            />
-          ) : filterGoals(clientRegistrationGoals).length > 0 ? (
+          {filterGoals(clientRegistrationGoals).length > 0 || isManager ? (
             <ActivityGoalsSections
               registrationGoals={filterGoals(clientRegistrationGoals)}
               registrationStats={clientRegistrationStats}
@@ -524,6 +525,10 @@ export default function Metas() {
               interactionStats={[]}
               calculatePercentage={calculatePercentage}
               getInteractionTypeLabel={getInteractionTypeLabel}
+              isAdmin={isManager}
+              onNewRegistration={isManager ? () => { setEditingRegistrationGoal(null); setIsRegistrationModalOpen(true); } : undefined}
+              onEditRegistration={isManager ? (goal) => { setEditingRegistrationGoal(goal); setIsRegistrationModalOpen(true); } : undefined}
+              onDeleteRegistration={isManager ? (goalId) => deleteRegistrationGoalMutation.mutate(goalId) : undefined}
             />
           ) : (
             <EmptyTabState message="Nenhuma meta de cadastros para este período." />
