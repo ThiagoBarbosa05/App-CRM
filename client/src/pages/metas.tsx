@@ -21,6 +21,7 @@ import { GoalsHeader } from "@/components/goals/goals-header";
 import { SalesGoalsGrid } from "@/components/goals/sales-goals-grid";
 import { TelemarketingGoalsGrid } from "@/components/goals/telemarketing-goals-grid";
 import { ActivityGoalsSections } from "@/components/goals/activity-goals-sections";
+import { ClientRegistrationGoalsTab } from "@/components/admin-goals/tabs/registration-goals-tab";
 
 // Modais de criação/edição (admin)
 import { SalesGoalModal } from "@/components/admin-goals/modals/sales-goal-modal";
@@ -497,9 +498,23 @@ export default function Metas() {
           )}
         </TabsContent>
 
-        {/* Cadastros, Marcadores e Interações — dentro do ActivityGoalsSections */}
+        {/* Cadastros */}
         <TabsContent value="registration" className="m-0 outline-none">
-          {filterGoals(clientRegistrationGoals).length > 0 ? (
+          {isManager ? (
+            <ClientRegistrationGoalsTab
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+              isAdmin={true}
+              onEdit={(goal) => {
+                setEditingRegistrationGoal(goal);
+                setIsRegistrationModalOpen(true);
+              }}
+              onNew={() => {
+                setEditingRegistrationGoal(null);
+                setIsRegistrationModalOpen(true);
+              }}
+            />
+          ) : filterGoals(clientRegistrationGoals).length > 0 ? (
             <ActivityGoalsSections
               registrationGoals={filterGoals(clientRegistrationGoals)}
               registrationStats={clientRegistrationStats}
