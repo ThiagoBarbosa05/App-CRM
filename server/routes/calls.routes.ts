@@ -5,6 +5,7 @@ import { eq, and, desc, inArray, isNull, gt, gte, sql } from "drizzle-orm";
 import { getElevenLabsKey, getTwilioConfig, getTwilioIntelligenceServiceSid, getServerBaseUrl } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
 import twilio from "twilio";
+import OpenAI from "openai";
 
 const router = Router();
 
@@ -37,10 +38,17 @@ function mapTwilioStatus(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function triggerTwilioIntelligence(callId: string, recordingSid: string, resolvedBaseUrl?: string): Promise<void> {
+async function triggerTwilioIntelligence(callId: string, recordingSid: string, resolvedBaseUrl?: string, recordingUrl?: string): Promise<void> {
   const intelligenceServiceSid = await getTwilioIntelligenceServiceSid();
   if (!intelligenceServiceSid) {
-    console.warn(`[voice-intelligence] twilio_intelligence_service_sid não configurado — transcrição ignorada para Call ID: ${callId}`);
+    console.warn(`[voice-intelligence] twilio_intelligence_service_sid não configurado — usando Whisper como fallback para Call ID: ${callId}`);
+    if (recordingUrl) {
+      const twilioConfigFallback = await getTwilioConfig();
+      if (twilioConfigFallback.accountSid && twilioConfigFallback.authToken) {
+        transcribeWithWhisper(callId, recordingUrl, twilioConfigFallback.accountSid, twilioConfigFallback.authToken)
+          .catch((e) => console.warn("[whisper] Erro na transcrição:", e));
+      }
+    }
     return;
   }
 
@@ -85,6 +93,53 @@ async function triggerTwilioIntelligence(callId: string, recordingSid: string, r
   }
   const data = await response.json() as { sid?: string };
   console.log(`[voice-intelligence] Transcrição solicitada — Transcript SID: ${data.sid} | Call ID: ${callId}`);
+}
+
+// ─── Fallback de transcrição via OpenAI Whisper ───────────────────────────────
+
+async function transcribeWithWhisper(
+  callId: string,
+  recordingUrl: string,
+  accountSid: string,
+  authToken: string
+): Promise<void> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("[whisper] OPENAI_API_KEY não configurado — transcrição ignorada");
+    return;
+  }
+
+  const mp3Url = recordingUrl.endsWith(".mp3") ? recordingUrl : `${recordingUrl}.mp3`;
+  console.log(`[whisper] Baixando áudio | Call ID: ${callId} | URL: ${mp3Url}`);
+
+  const audioRes = await fetch(mp3Url, {
+    headers: {
+      Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+    },
+  });
+
+  if (!audioRes.ok) {
+    console.error(`[whisper] Falha ao baixar áudio: ${audioRes.status}`);
+    return;
+  }
+
+  const audioBuffer = await audioRes.arrayBuffer();
+  const audioFile = new File([audioBuffer], "recording.mp3", { type: "audio/mpeg" });
+
+  const openai = new OpenAI({ apiKey });
+  const result = await openai.audio.transcriptions.create({
+    model: "whisper-1",
+    file: audioFile,
+    language: "pt",
+  });
+
+  if (!result.text) {
+    console.warn(`[whisper] Transcrição vazia | Call ID: ${callId}`);
+    return;
+  }
+
+  await db.update(calls).set({ twilioTranscription: result.text }).where(eq(calls.id, callId));
+  console.log(`[whisper] Transcrição salva | Call ID: ${callId} | ${result.text.length} chars`);
 }
 
 // ─── Webhook: transcrição Voice Intelligence (público) ────────────────────────
@@ -699,7 +754,7 @@ router.post("/:id/sync-twilio-transcript", requireAuth, async (req: Request, res
       return res.status(400).json({ message: "Chamada sem Recording SID — sincronize a gravação primeiro" });
     }
 
-    await triggerTwilioIntelligence(call.id, call.recordingSid);
+    await triggerTwilioIntelligence(call.id, call.recordingSid, undefined, call.recordingUrl ?? undefined);
     res.json({ message: "Transcrição solicitada ao Twilio Voice Intelligence. Aguarde o webhook de retorno." });
   } catch (e) {
     console.error("[calls] sync-twilio-transcript error:", e);
@@ -774,7 +829,7 @@ router.post("/recording-status", async (req: Request, res: Response) => {
     }
 
     if (callRow && RecordingSid) {
-      triggerTwilioIntelligence(callRow.id, RecordingSid, reqBaseUrl).catch((e) =>
+      triggerTwilioIntelligence(callRow.id, RecordingSid, reqBaseUrl, RecordingUrl).catch((e) =>
         console.warn("[recording-status] Falha ao acionar Voice Intelligence:", e)
       );
     }
@@ -806,7 +861,7 @@ router.post("/recording-status", async (req: Request, res: Response) => {
         if (linked) {
           callRow = linked;
           console.log(`[recording-status] Linked via fallback recente | callId: ${linked.id} ← CallSid: ${CallSid}`);
-          triggerTwilioIntelligence(linked.id, RecordingSid, reqBaseUrl).catch((e) =>
+          triggerTwilioIntelligence(linked.id, RecordingSid, reqBaseUrl, RecordingUrl).catch((e) =>
             console.warn("[recording-status] Falha ao acionar Voice Intelligence (fallback):", e)
           );
         }

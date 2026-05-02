@@ -52,6 +52,18 @@ router.get("/token", requireAuth, async (req: Request, res: Response) => {
     );
     token.addGrant(voiceGrant);
 
+    // Atualiza a Voice URL do TwiML App para apontar para a URL atual do servidor.
+    // Isso garante que o discador funcione independente da URL (ngrok, Replit, etc).
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+    const requestBaseUrl = `${proto}://${req.headers.host}`;
+    const config = await getTwilioConfig();
+    if (config.accountSid && config.authToken) {
+      const mgmtClient = twilio(config.accountSid, config.authToken);
+      mgmtClient.applications(sdk.twimlAppSid)
+        .update({ voiceUrl: `${requestBaseUrl}/api/twilio/voice`, voiceMethod: "POST" })
+        .catch((e) => console.warn("[twilio] Falha ao atualizar Voice URL do TwiML App:", e));
+    }
+
     res.json({ token: token.toJwt(), identity: `operator_${userId}` });
   } catch (e) {
     console.error("[twilio] token error:", e);
@@ -90,10 +102,11 @@ router.post("/voice", async (req: Request, res: Response) => {
     const isValid = await validateTwilioWebhook(req, res);
     if (!isValid) return;
 
-    const configuredBaseUrl = await getServerBaseUrl();
-    const isLocalhost = !configuredBaseUrl || configuredBaseUrl.includes("localhost") || configuredBaseUrl.includes("127.0.0.1");
+    // Deriva a base URL do próprio host da requisição: como o Twilio está chamando
+    // este endpoint, req.headers.host já é o hostname público correto, independente
+    // do que estiver configurado em server_base_url.
     const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
-    const baseUrl = isLocalhost ? `${proto}://${req.headers.host}` : configuredBaseUrl;
+    const baseUrl = `${proto}://${req.headers.host}`;
     const { campaignType, agentId, voiceId, callRecordId } = req.query as Record<string, string>;
     const twiml = new twilio.twiml.VoiceResponse();
 
