@@ -161,11 +161,15 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
     const analysis = data.analysis as Record<string, unknown> | undefined;
 
+    const TERMINAL_STATUSES = new Set(["encerrada", "nao_atendeu", "ocupado", "falhou", "caixa_postal"]);
+
     const updates: Record<string, unknown> = {};
     if (transcriptText) updates.transcription = transcriptText;
     if (analysis?.transcript_summary) updates.summary = analysis.transcript_summary;
     else if (analysis?.summary) updates.summary = analysis.summary;
-    if (status === "done" || status === "completed") {
+    // Só sobrescreve o status se a chamada ainda não está em um estado terminal
+    // (ex: nao_atendeu gravado pelo Twilio não deve ser sobrescrito por "encerrada")
+    if ((status === "done" || status === "completed") && !TERMINAL_STATUSES.has(call.status)) {
       updates.status = "encerrada";
       updates.endedAt = new Date();
     }

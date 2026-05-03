@@ -1030,7 +1030,34 @@ router.post("/twilio-status", async (req: Request, res: Response) => {
     if (RecordingUrl) update.recordingUrl = RecordingUrl;
     if (TERMINAL_STATUSES.has(status)) update.endedAt = new Date();
 
-    await db.update(calls).set(update).where(eq(calls.twilioCallSid, CallSid));
+    const [updatedCall] = await db
+      .update(calls)
+      .set(update)
+      .where(eq(calls.twilioCallSid, CallSid))
+      .returning();
+
+    // Sincronizar campaign_clients para chamadas de campanha não atendidas/ocupadas/falhas.
+    // Necessário para campanhas ElevenLabs onde o webhook do ElevenLabs nunca é chamado
+    // quando o cliente não atende (conversa nunca inicia).
+    if (updatedCall?.campaignId && updatedCall.clientId) {
+      const ccStatusMap: Partial<Record<typeof status, "nao_atendeu" | "ocupado">> = {
+        nao_atendeu: "nao_atendeu",
+        ocupado: "ocupado",
+        falhou: "nao_atendeu",
+      };
+      const ccStatus = ccStatusMap[status];
+      if (ccStatus) {
+        await db
+          .update(campaignClients)
+          .set({ status: ccStatus })
+          .where(
+            and(
+              eq(campaignClients.campaignId, updatedCall.campaignId),
+              eq(campaignClients.clientId, updatedCall.clientId),
+            ),
+          );
+      }
+    }
 
     res.sendStatus(204);
   } catch (e) {

@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import twilio from "twilio";
 import { db } from "server/db";
 import { calls, systemSettings } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import {
   getTwilioConfig,
   getTwilioVoiceSdkConfig,
@@ -52,15 +52,12 @@ router.get("/token", requireAuth, async (req: Request, res: Response) => {
     );
     token.addGrant(voiceGrant);
 
-    // Atualiza a Voice URL do TwiML App para apontar para a URL atual do servidor.
-    // Isso garante que o discador funcione independente da URL (ngrok, Replit, etc).
-    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
-    const requestBaseUrl = `${proto}://${req.headers.host}`;
-    const config = await getTwilioConfig();
+    // Atualiza a Voice URL do TwiML App usando a URL configurada no banco (ngrok, domínio de produção, etc).
+    const [config, serverBaseUrl] = await Promise.all([getTwilioConfig(), getServerBaseUrl()]);
     if (config.accountSid && config.authToken) {
       const mgmtClient = twilio(config.accountSid, config.authToken);
       mgmtClient.applications(sdk.twimlAppSid)
-        .update({ voiceUrl: `${requestBaseUrl}/api/twilio/voice`, voiceMethod: "POST" })
+        .update({ voiceUrl: `${serverBaseUrl}/api/twilio/voice`, voiceMethod: "POST" })
         .catch((e) => console.warn("[twilio] Falha ao atualizar Voice URL do TwiML App:", e));
     }
 
@@ -162,11 +159,14 @@ router.post("/voice", async (req: Request, res: Response) => {
           .catch((e) => console.error("[twilio/voice] Falha ao salvar conversation_id:", e));
       }
 
-      // Atualizar status do registro de chamada se callRecordId fornecido
+      // Atualizar status do registro de chamada se callRecordId fornecido.
+      // Usa notInArray para não sobrescrever um status terminal já gravado pelo
+      // status callback do Twilio (race condition: no-answer pode chegar antes desta promise resolver).
       if (callRecordId && callSid) {
+        const TERMINAL_STATUSES = ["encerrada", "nao_atendeu", "ocupado", "falhou", "caixa_postal"] as const;
         db.update(calls)
           .set({ twilioCallSid: callSid, status: "em_andamento" })
-          .where(eq(calls.id, callRecordId))
+          .where(and(eq(calls.id, callRecordId), notInArray(calls.status, [...TERMINAL_STATUSES])))
           .catch((e) => console.error("[twilio/voice] Falha ao atualizar callRecord:", e));
       }
 

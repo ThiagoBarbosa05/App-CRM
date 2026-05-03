@@ -21,6 +21,7 @@ interface UseTwilioDeviceReturn {
   connect: (to: string, callerId: string, extraParams?: Record<string, string>) => Promise<void>;
   disconnect: () => void;
   toggleMute: () => void;
+  clearError: () => void;
 }
 
 export function useTwilioDevice(): UseTwilioDeviceReturn {
@@ -52,6 +53,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         });
         if (!tokenRes.ok) {
           setErrorMessage("Falha ao obter token do Voice SDK");
+          setIsCheckingConfig(false);
           return;
         }
         const { token } = await tokenRes.json() as { token: string };
@@ -65,6 +67,19 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         device.on("error", (err) => {
           setDeviceStatus("error");
           setErrorMessage(err.message);
+        });
+
+        // Renova o token antes de expirar (~3min de antecedência pelo SDK)
+        device.on("tokenWillExpire", async () => {
+          try {
+            const res = await fetch("/api/twilio/token", { credentials: "include" });
+            if (res.ok) {
+              const { token: newToken } = await res.json() as { token: string };
+              deviceRef.current?.updateToken(newToken);
+            }
+          } catch {
+            // silencioso — o device continuará funcionando até expirar
+          }
         });
 
         device.register();
@@ -139,6 +154,10 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     setIsMuted(next);
   }, [isMuted]);
 
+  const clearError = useCallback(() => {
+    setErrorMessage(null);
+  }, []);
+
   return {
     deviceStatus,
     callStatus,
@@ -151,5 +170,6 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     connect,
     disconnect,
     toggleMute,
+    clearError,
   };
 }
