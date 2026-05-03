@@ -29,6 +29,7 @@ import {
   MinusCircle,
   User,
   Loader2,
+  Bot,
 } from "lucide-react";
 
 type Call = {
@@ -163,6 +164,41 @@ function TranscriptView({ text }: { text: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function getChannel(call: Call): "elevenlabs" | "twilio" | null {
+  if (call.elevenLabsConversationId) return "elevenlabs";
+  if (call.twilioCallSid) return "twilio";
+  return null;
+}
+
+function ChannelBadge({ call, size = "sm" }: { call: Call; size?: "sm" | "xs" }) {
+  const channel = getChannel(call);
+  if (!channel) return null;
+  if (channel === "elevenlabs") {
+    return (
+      <span
+        title="ElevenLabs IA"
+        className={`inline-flex items-center gap-1 rounded-full font-semibold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 whitespace-nowrap ${
+          size === "xs" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5"
+        }`}
+      >
+        <Bot className={size === "xs" ? "size-2.5" : "size-3"} />
+        ElevenLabs
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Twilio"
+      className={`inline-flex items-center gap-1 rounded-full font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 whitespace-nowrap ${
+        size === "xs" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5"
+      }`}
+    >
+      <Phone className={size === "xs" ? "size-2.5" : "size-3"} />
+      Twilio
+    </span>
   );
 }
 
@@ -430,6 +466,7 @@ export function CallsHistory() {
                     <FileText className="size-3.5 text-emerald-500" />
                   </span>
                 )}
+                <ChannelBadge call={call} size="xs" />
                 {call.aiDecision === "sim" && (
                   <span
                     title="Aceitou o convite"
@@ -576,6 +613,12 @@ export function CallsHistory() {
                   Detalhes
                 </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-400">Canal</p>
+                    <div className="mt-0.5">
+                      <ChannelBadge call={selectedCall} />
+                    </div>
+                  </div>
                   <div>
                     <p className="text-xs text-slate-400">Duração</p>
                     <p className="font-medium">
