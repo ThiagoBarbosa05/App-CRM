@@ -3152,6 +3152,12 @@ export const campaigns = pgTable("campaigns", {
   elevenLabsVoiceId: text("eleven_labs_voice_id"),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  umblerEnabled: boolean("umbler_enabled").default(false).notNull(),
+  umblerChannelId: text("umbler_channel_id"),
+  umblerBotId: text("umbler_bot_id"),
+  umblerBotTriggerName: text("umbler_bot_trigger_name"),
+  umblerMessageText: text("umbler_message_text"),
+  umblerTriggerDecision: text("umbler_trigger_decision"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -3207,6 +3213,9 @@ export const calls = pgTable("calls", {
   nextStep: text("next_step"),
   toPhone: text("to_phone"),
   contactName: text("contact_name"),
+  umblerMessageStatus: text("umbler_message_status", {
+    enum: ["enviado", "falhou"],
+  }),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -4,6 +4,7 @@ import { calls, campaignClients, callNotifications, campaignTriggers } from "@sh
 import { eq, and } from "drizzle-orm";
 import { getElevenLabsKey } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
+import { sendPostCallMessage } from "../services/umbler-post-call.service";
 
 const router = Router();
 
@@ -89,6 +90,15 @@ router.post("/decision", async (req: Request, res: Response) => {
       clientId: call.clientId ?? undefined,
       message: `IA decidiu: ${decisionLabel}`,
     });
+
+    if (call.campaignId) {
+      sendPostCallMessage(
+        call.campaignId,
+        call.clientId ?? null,
+        decision as "sim" | "nao" | "sem_resposta",
+        call.id,
+      ).catch((err) => console.error("[UmblerPostCall] Erro:", err));
+    }
 
     res.status(200).json({ ok: true, decision, callSid });
   } catch (e) {

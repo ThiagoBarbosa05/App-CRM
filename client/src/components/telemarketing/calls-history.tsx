@@ -29,6 +29,7 @@ import {
   User,
   Loader2,
   Bot,
+  MessageSquare,
 } from "lucide-react";
 
 type Call = {
@@ -52,6 +53,7 @@ type Call = {
   clientPhone: string | null;
   toPhone: string | null;
   contactName: string | null;
+  umblerMessageStatus: "enviado" | "falhou" | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -512,6 +514,24 @@ export function CallsHistory() {
                       NÃO
                     </span>
                   )}
+                  {call.umblerMessageStatus === "enviado" && (
+                    <span
+                      title="Mensagem Umbler enviada"
+                      className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                    >
+                      <MessageSquare className="size-3" />
+                      Umbler
+                    </span>
+                  )}
+                  {call.umblerMessageStatus === "falhou" && (
+                    <span
+                      title="Falha ao enviar mensagem Umbler"
+                      className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
+                    >
+                      <MessageSquare className="size-3" />
+                      Umbler falhou
+                    </span>
+                  )}
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap hidden sm:inline-block ${STATUS_COLORS[call.status] ?? ""}`}
                   >
@@ -687,6 +707,23 @@ export function CallsHistory() {
                         className={`font-medium capitalize ${SENTIMENT_COLORS[selectedCall.sentiment] ?? ""}`}
                       >
                         {selectedCall.sentiment}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCall.umblerMessageStatus && (
+                    <div>
+                      <p className="text-xs text-slate-400">Mensagem Umbler</p>
+                      <p
+                        className={`font-medium flex items-center gap-1 ${
+                          selectedCall.umblerMessageStatus === "enviado"
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-orange-600 dark:text-orange-400"
+                        }`}
+                      >
+                        <MessageSquare className="size-3.5 shrink-0" />
+                        {selectedCall.umblerMessageStatus === "enviado"
+                          ? "Enviada com sucesso"
+                          : "Falha ao enviar"}
                       </p>
                     </div>
                   )}

@@ -41,6 +41,12 @@ router.post("/", async (req: Request, res: Response) => {
       elevenLabsVoiceId,
       startDate,
       endDate,
+      umblerEnabled,
+      umblerChannelId,
+      umblerBotId,
+      umblerBotTriggerName,
+      umblerMessageText,
+      umblerTriggerDecision,
     } = req.body as {
       name: string;
       description?: string;
@@ -49,6 +55,12 @@ router.post("/", async (req: Request, res: Response) => {
       elevenLabsVoiceId?: string;
       startDate?: string;
       endDate?: string;
+      umblerEnabled?: boolean;
+      umblerChannelId?: string;
+      umblerBotId?: string;
+      umblerBotTriggerName?: string;
+      umblerMessageText?: string;
+      umblerTriggerDecision?: string;
     };
 
     if (!name || !type) {
@@ -65,6 +77,12 @@ router.post("/", async (req: Request, res: Response) => {
         elevenLabsVoiceId,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        umblerEnabled: umblerEnabled ?? false,
+        umblerChannelId: umblerChannelId ?? null,
+        umblerBotId: umblerBotId ?? null,
+        umblerBotTriggerName: umblerBotTriggerName ?? null,
+        umblerMessageText: umblerMessageText ?? null,
+        umblerTriggerDecision: umblerTriggerDecision ?? null,
       })
       .returning();
 
@@ -102,6 +120,12 @@ router.put("/:id", async (req: Request, res: Response) => {
       elevenLabsVoiceId,
       startDate,
       endDate,
+      umblerEnabled,
+      umblerChannelId,
+      umblerBotId,
+      umblerBotTriggerName,
+      umblerMessageText,
+      umblerTriggerDecision,
     } = req.body as {
       name?: string;
       description?: string;
@@ -111,6 +135,12 @@ router.put("/:id", async (req: Request, res: Response) => {
       elevenLabsVoiceId?: string;
       startDate?: string;
       endDate?: string;
+      umblerEnabled?: boolean;
+      umblerChannelId?: string;
+      umblerBotId?: string;
+      umblerBotTriggerName?: string;
+      umblerMessageText?: string;
+      umblerTriggerDecision?: string;
     };
 
     const [campaign] = await db
@@ -124,6 +154,12 @@ router.put("/:id", async (req: Request, res: Response) => {
         ...(elevenLabsVoiceId !== undefined && { elevenLabsVoiceId }),
         ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        ...(umblerEnabled !== undefined && { umblerEnabled }),
+        ...(umblerChannelId !== undefined && { umblerChannelId: umblerChannelId || null }),
+        ...(umblerBotId !== undefined && { umblerBotId: umblerBotId || null }),
+        ...(umblerBotTriggerName !== undefined && { umblerBotTriggerName: umblerBotTriggerName || null }),
+        ...(umblerMessageText !== undefined && { umblerMessageText: umblerMessageText || null }),
+        ...(umblerTriggerDecision !== undefined && { umblerTriggerDecision: umblerTriggerDecision || null }),
         updatedAt: new Date(),
       })
       .where(eq(campaigns.id, req.params.id))

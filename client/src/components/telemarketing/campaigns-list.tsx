@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -47,10 +48,15 @@ import {
   Pause,
   Link2,
   SlidersHorizontal,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
 import { CampaignMonitorDialog } from "./campaign-monitor-dialog";
+import { useUmblerChannels } from "@/hooks/use-umbler-channels";
+import { useUmblerBots } from "@/hooks/use-umbler-bots";
 
 type Campaign = {
   id: string;
@@ -60,6 +66,12 @@ type Campaign = {
   type: "humano" | "ia";
   elevenLabsAgentId: string | null;
   elevenLabsVoiceId: string | null;
+  umblerEnabled: boolean;
+  umblerChannelId: string | null;
+  umblerBotId: string | null;
+  umblerBotTriggerName: string | null;
+  umblerMessageText: string | null;
+  umblerTriggerDecision: string | null;
   createdAt: string;
 };
 
@@ -78,6 +90,12 @@ const campaignSchema = z.object({
   elevenLabsAgentId: z.string().optional(),
   elevenLabsVoiceId: z.string().optional(),
   status: z.enum(["rascunho", "ativa", "pausada", "encerrada"]).optional(),
+  umblerEnabled: z.boolean().optional(),
+  umblerChannelId: z.string().optional(),
+  umblerBotId: z.string().optional(),
+  umblerBotTriggerName: z.string().optional(),
+  umblerMessageText: z.string().optional(),
+  umblerTriggerDecision: z.string().optional(),
 });
 type CampaignForm = z.infer<typeof campaignSchema>;
 
@@ -219,26 +237,37 @@ export function CampaignsList() {
     reset,
     watch,
     setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CampaignForm>({
     resolver: zodResolver(campaignSchema),
     defaultValues: { type: "ia" },
   });
 
+  const [umblerOpen, setUmblerOpen] = useState(false);
+
   const openCreate = () => {
     setEditing(null);
+    setUmblerOpen(false);
     reset({
       type: "ia",
       name: "",
       description: "",
       elevenLabsAgentId: "",
       elevenLabsVoiceId: "",
+      umblerEnabled: false,
+      umblerChannelId: "",
+      umblerBotId: "",
+      umblerBotTriggerName: "",
+      umblerMessageText: "",
+      umblerTriggerDecision: "qualquer",
     });
     setFormOpen(true);
   };
 
   const openEdit = (c: Campaign) => {
     setEditing(c);
+    setUmblerOpen(c.umblerEnabled);
     reset({
       name: c.name,
       description: c.description ?? "",
@@ -246,6 +275,12 @@ export function CampaignsList() {
       elevenLabsAgentId: c.elevenLabsAgentId ?? "",
       elevenLabsVoiceId: c.elevenLabsVoiceId ?? "",
       status: c.status,
+      umblerEnabled: c.umblerEnabled,
+      umblerChannelId: c.umblerChannelId ?? "",
+      umblerBotId: c.umblerBotId ?? "",
+      umblerBotTriggerName: c.umblerBotTriggerName ?? "",
+      umblerMessageText: c.umblerMessageText ?? "",
+      umblerTriggerDecision: c.umblerTriggerDecision ?? "qualquer",
     });
     setFormOpen(true);
   };
@@ -333,6 +368,10 @@ export function CampaignsList() {
   });
 
   const type = watch("type");
+  const umblerEnabled = watch("umblerEnabled");
+
+  const { data: channels = [] } = useUmblerChannels();
+  const { data: botsData } = useUmblerBots({ take: 50 });
 
   return (
     <div className="space-y-6">
@@ -635,6 +674,142 @@ export function CampaignsList() {
                 </Select>
               </div>
             )}
+
+            {/* ─── Seção Umbler ─── */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300"
+                onClick={() => setUmblerOpen((v) => !v)}
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="size-4 text-green-500" />
+                  Envio automático via Umbler
+                </span>
+                {umblerOpen ? (
+                  <ChevronUp className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </button>
+
+              {umblerOpen && (
+                <div className="space-y-4 border-t border-slate-200 px-4 pb-4 pt-3 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Habilitar</Label>
+                    <Controller
+                      control={control}
+                      name="umblerEnabled"
+                      render={({ field }) => (
+                        <Switch
+                          checked={!!field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  {umblerEnabled && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Disparar quando decisão for</Label>
+                        <Controller
+                          control={control}
+                          name="umblerTriggerDecision"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value ?? "qualquer"}
+                              onValueChange={field.onChange}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="qualquer">Qualquer resposta</SelectItem>
+                                <SelectItem value="sim">Sim (interessado)</SelectItem>
+                                <SelectItem value="nao">Não (sem interesse)</SelectItem>
+                                <SelectItem value="sem_resposta">Sem resposta</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Canal Umbler</Label>
+                        <Controller
+                          control={control}
+                          name="umblerChannelId"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o canal" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(channels as Array<{ id: string; name: string; state: string }>)
+                                  .filter((ch) => ch.state === "Live")
+                                  .map((ch) => (
+                                    <SelectItem key={ch.id} value={ch.id}>
+                                      {ch.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Bot a disparar (opcional)</Label>
+                        <Controller
+                          control={control}
+                          name="umblerBotId"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value || "none"}
+                              onValueChange={(v) => {
+                                const val = v === "none" ? "" : v;
+                                field.onChange(val);
+                                const bot = botsData?.result?.find(
+                                  (b: { botId: string; triggerName: string }) => b.botId === v,
+                                );
+                                setValue("umblerBotTriggerName", bot ? bot.triggerName : "");
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Nenhum bot" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Nenhum</SelectItem>
+                                {botsData?.result?.map(
+                                  (b: { botId: string; botTitle: string }) => (
+                                    <SelectItem key={b.botId} value={b.botId}>
+                                      {b.botTitle}
+                                    </SelectItem>
+                                  ),
+                                )}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Mensagem pré-definida (opcional)</Label>
+                        <Textarea
+                          {...register("umblerMessageText")}
+                          placeholder="Texto a enviar via WhatsApp após a ligação"
+                          rows={3}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             <DialogFooter className="pt-2">
               <Button
