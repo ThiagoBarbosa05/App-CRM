@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -44,6 +43,7 @@ import {
   Radio,
   CheckCircle2,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
@@ -87,9 +87,12 @@ const STATUS_LABELS: Record<Campaign["status"], string> = {
 
 const STATUS_COLORS: Record<Campaign["status"], string> = {
   rascunho: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  ativa: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  pausada: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  encerrada: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
+  ativa:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  pausada:
+    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  encerrada:
+    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
 };
 
 // Sub-component: busca stats da campanha e renderiza progresso no card
@@ -172,7 +175,11 @@ export function CampaignsList() {
   const [dispatchDialog, setDispatchDialog] = useState<Campaign | null>(null);
   const [monitorCampaign, setMonitorCampaign] = useState<Campaign | null>(null);
 
-  const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
+  const {
+    data: campaigns = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
     queryFn: async () => {
       const res = await fetch("/api/campaigns", { credentials: "include" });
@@ -195,7 +202,13 @@ export function CampaignsList() {
 
   const openCreate = () => {
     setEditing(null);
-    reset({ type: "ia", name: "", description: "", elevenLabsAgentId: "", elevenLabsVoiceId: "" });
+    reset({
+      type: "ia",
+      name: "",
+      description: "",
+      elevenLabsAgentId: "",
+      elevenLabsVoiceId: "",
+    });
     setFormOpen(true);
   };
 
@@ -223,7 +236,9 @@ export function CampaignsList() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao salvar");
       }
       return res.json();
@@ -234,7 +249,11 @@ export function CampaignsList() {
       setFormOpen(false);
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -249,7 +268,8 @@ export function CampaignsList() {
       toast({ title: "Campanha excluída" });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
     },
-    onError: () => toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
+    onError: () =>
+      toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
   });
 
   const type = watch("type");
@@ -258,9 +278,12 @@ export function CampaignsList() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Campanhas</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Campanhas
+          </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} cadastrada
+            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}{" "}
+            cadastrada
             {campaigns.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -270,132 +293,147 @@ export function CampaignsList() {
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-52 rounded-3xl" />
-          ))}
-        </div>
-      ) : campaigns.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-            <Radio className="size-7 opacity-40" />
+      <div className="relative min-h-[220px]">
+        {isFetching && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-3xl">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
+              <Loader2 className="size-5 animate-spin text-blue-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Carregando campanhas…
+              </span>
+            </div>
           </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Nenhuma campanha criada ainda
-          </p>
-          <p className="text-xs mt-1 mb-4">Configure campanhas de discagem manual ou com IA</p>
-          <Button size="sm" variant="outline" className="gap-2 rounded-2xl" onClick={openCreate}>
-            <Plus className="size-3.5" />
-            Criar primeira campanha
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((campaign) => (
-            <Card
-              key={campaign.id}
-              className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden hover:shadow-md transition-shadow"
+        )}
+        {!isLoading && campaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+              <Radio className="size-7 opacity-40" />
+            </div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Nenhuma campanha criada ainda
+            </p>
+            <p className="text-xs mt-1 mb-4">
+              Configure campanhas de discagem manual ou com IA
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 rounded-2xl"
+              onClick={openCreate}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
-                        campaign.type === "ia"
-                          ? "bg-violet-100 dark:bg-violet-900/30"
-                          : "bg-blue-100 dark:bg-blue-900/30"
-                      }`}
+              <Plus className="size-3.5" />
+              Criar primeira campanha
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {campaigns.map((campaign) => (
+              <Card
+                key={campaign.id}
+                className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden hover:shadow-md transition-shadow"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          campaign.type === "ia"
+                            ? "bg-violet-100 dark:bg-violet-900/30"
+                            : "bg-blue-100 dark:bg-blue-900/30"
+                        }`}
+                      >
+                        {campaign.type === "ia" ? (
+                          <Bot className="size-4 text-violet-600 dark:text-violet-400" />
+                        ) : (
+                          <User className="size-4 text-blue-600 dark:text-blue-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm font-semibold truncate leading-tight">
+                          {campaign.name}
+                        </CardTitle>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {campaign.type === "ia"
+                            ? "IA (ElevenLabs)"
+                            : "Discagem humana"}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[campaign.status]}`}
                     >
-                      {campaign.type === "ia" ? (
-                        <Bot className="size-4 text-violet-600 dark:text-violet-400" />
-                      ) : (
-                        <User className="size-4 text-blue-600 dark:text-blue-400" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <CardTitle className="text-sm font-semibold truncate leading-tight">
-                        {campaign.name}
-                      </CardTitle>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {campaign.type === "ia" ? "IA (ElevenLabs)" : "Discagem humana"}
-                      </p>
-                    </div>
+                      {STATUS_LABELS[campaign.status]}
+                    </span>
                   </div>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[campaign.status]}`}
-                  >
-                    {STATUS_LABELS[campaign.status]}
-                  </span>
-                </div>
 
-                {campaign.description && (
-                  <CardDescription className="text-xs line-clamp-2 mt-1">
-                    {campaign.description}
-                  </CardDescription>
-                )}
+                  {campaign.description && (
+                    <CardDescription className="text-xs line-clamp-2 mt-1">
+                      {campaign.description}
+                    </CardDescription>
+                  )}
 
-                {/* Progresso + métricas */}
-                <CampaignProgress
-                  campaign={campaign}
-                  onMonitor={() => setMonitorCampaign(campaign)}
-                />
-              </CardHeader>
+                  {/* Progresso + métricas */}
+                  <CampaignProgress
+                    campaign={campaign}
+                    onMonitor={() => setMonitorCampaign(campaign)}
+                  />
+                </CardHeader>
 
-              <CardContent className="pt-0">
-                <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 h-8 gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => setDispatchDialog(campaign)}
-                  >
-                    <Zap className="size-3.5" />
-                    Disparar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs rounded-xl"
-                    onClick={() => setClientsDialog(campaign)}
-                  >
-                    <Users className="size-3.5" />
-                    Clientes
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0 rounded-xl"
-                    title="Andamento"
-                    onClick={() => setMonitorCampaign(campaign)}
-                  >
-                    <Monitor className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0 rounded-xl"
-                    onClick={() => openEdit(campaign)}
-                    title="Editar"
-                  >
-                    <Edit className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    onClick={() => deleteMutation.mutate(campaign.id)}
-                    disabled={deleteMutation.isPending}
-                    title="Excluir"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <CardContent className="pt-0">
+                  <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-8 gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => setDispatchDialog(campaign)}
+                    >
+                      <Zap className="size-3.5" />
+                      Disparar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs rounded-xl"
+                      onClick={() => setClientsDialog(campaign)}
+                    >
+                      <Users className="size-3.5" />
+                      Clientes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-xl"
+                      title="Andamento"
+                      onClick={() => setMonitorCampaign(campaign)}
+                    >
+                      <Monitor className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-xl"
+                      onClick={() => openEdit(campaign)}
+                      title="Editar"
+                    >
+                      <Edit className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={() => deleteMutation.mutate(campaign.id)}
+                      disabled={deleteMutation.isPending}
+                      title="Excluir"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Form Dialog */}
       <Dialog open={formOpen} onOpenChange={(v) => !v && setFormOpen(false)}>
@@ -405,16 +443,25 @@ export function CampaignsList() {
               {editing ? "Editar campanha" : "Nova campanha"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
+          <form
+            onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
+            className="space-y-4"
+          >
             <div className="space-y-1.5">
               <Label className="text-sm">Nome *</Label>
               <Input {...register("name")} placeholder="Nome da campanha" />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name.message}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm">Descrição</Label>
-              <Textarea {...register("description")} placeholder="Opcional" rows={2} />
+              <Textarea
+                {...register("description")}
+                placeholder="Opcional"
+                rows={2}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -457,7 +504,9 @@ export function CampaignsList() {
                 <Label className="text-sm">Status</Label>
                 <Select
                   value={watch("status") ?? editing.status}
-                  onValueChange={(v) => setValue("status", v as Campaign["status"])}
+                  onValueChange={(v) =>
+                    setValue("status", v as Campaign["status"])
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -473,10 +522,17 @@ export function CampaignsList() {
             )}
 
             <DialogFooter className="pt-2">
-              <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setFormOpen(false)}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting || saveMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || saveMutation.isPending}
+              >
                 {editing ? "Salvar" : "Criar"}
               </Button>
             </DialogFooter>

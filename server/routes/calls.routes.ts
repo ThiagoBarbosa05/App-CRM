@@ -106,9 +106,19 @@ async function triggerTwilioIntelligence(
     `[voice-intelligence] Solicitando transcrição | RecordingSid: ${recordingSid} | Call ID: ${callId}`,
   );
 
+  // Para gravações dual-channel (record-from-answer-dual):
+  //   canal 0 (image 0) = agente (browser SDK / operador)
+  //   canal 1 (image 1) = cliente (número discado)
+  // Especificar participants permite ao Voice Intelligence atribuir falas
+  // corretamente a cada participante na transcrição.
+  const channelPayload = {
+    participants: [{ role: "agent" }, { role: "customer" }],
+    media_properties: { source_sid: recordingSid },
+  };
+
   const formParams: Record<string, string> = {
     ServiceSid: intelligenceServiceSid,
-    Channel: JSON.stringify({ media_properties: { source_sid: recordingSid } }),
+    Channel: JSON.stringify(channelPayload),
     CustomerKey: callId,
   };
 
@@ -935,11 +945,9 @@ router.post(
       });
 
       if (recordings.length === 0) {
-        return res
-          .status(404)
-          .json({
-            message: "Nenhuma gravação encontrada no Twilio para esta chamada",
-          });
+        return res.status(404).json({
+          message: "Nenhuma gravação encontrada no Twilio para esta chamada",
+        });
       }
 
       const rec = recordings[0];
@@ -990,12 +998,9 @@ router.post(
       if (!call)
         return res.status(404).json({ message: "Chamada não encontrada" });
       if (!call.recordingSid) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "Chamada sem Recording SID — sincronize a gravação primeiro",
-          });
+        return res.status(400).json({
+          message: "Chamada sem Recording SID — sincronize a gravação primeiro",
+        });
       }
 
       await triggerTwilioIntelligence(
@@ -1040,7 +1045,9 @@ router.post("/twilio-status", async (req: Request, res: Response) => {
     // Necessário para campanhas ElevenLabs onde o webhook do ElevenLabs nunca é chamado
     // quando o cliente não atende (conversa nunca inicia).
     if (updatedCall?.campaignId && updatedCall.clientId) {
-      const ccStatusMap: Partial<Record<typeof status, "nao_atendeu" | "ocupado">> = {
+      const ccStatusMap: Partial<
+        Record<typeof status, "nao_atendeu" | "ocupado">
+      > = {
         nao_atendeu: "nao_atendeu",
         ocupado: "ocupado",
         falhou: "nao_atendeu",

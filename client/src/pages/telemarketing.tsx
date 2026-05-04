@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { BarChart2, History, Phone, Radio } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { TwilioDeviceProvider } from "@/contexts/twilio-device-context";
 import { DashboardTabContent } from "@/components/telemarketing/tabs/dashboard-tab";
 import { DialerTabContent } from "@/components/telemarketing/tabs/dialer-tab";
 import { CampaignsTabContent } from "@/components/telemarketing/tabs/campaigns-tab";
@@ -64,112 +64,105 @@ function TabPanel({ children }: { children: React.ReactNode }) {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function TelemarketingPage() {
-  const [activeTab, setActiveTab] = useState<TelemarketingTabValue>("dashboard");
+  const [activeTab, setActiveTab] =
+    useState<TelemarketingTabValue>("dashboard");
 
   return (
-    <div className="space-y-6 pb-10">
-      {/* Cabeçalho */}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40">
-              <Phone className="size-6 text-blue-600 dark:text-blue-300" />
+    <TwilioDeviceProvider>
+      <div className="space-y-6 pb-10">
+        {/* Cabeçalho */}
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40">
+                <Phone className="size-6 text-blue-600 dark:text-blue-300" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Telemarketing
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                  Discador WebRTC, campanhas de voz e histórico de chamadas em
+                  um único fluxo operacional.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Telemarketing
-              </h1>
-              <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
-                Discador WebRTC, campanhas de voz e histórico de chamadas em um
-                único fluxo operacional.
-              </p>
+
+            <div className="flex flex-wrap items-center gap-2 lg:max-w-[420px] lg:justify-end">
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                WebRTC
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                Campanhas com IA
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                Histórico centralizado
+              </span>
             </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap items-center gap-2 lg:max-w-[420px] lg:justify-end">
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              WebRTC
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              Campanhas com IA
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              Histórico centralizado
-            </span>
-          </div>
-        </div>
-      </section>
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as TelemarketingTabValue)}
+          className="space-y-6"
+        >
+          <div className="overflow-x-auto no-scrollbar">
+            <TabsList className="flex h-auto w-max min-w-full items-center justify-start gap-2 bg-transparent p-0">
+              {TELEMARKETING_TABS.map((tab) => {
+                const Icon = tab.icon;
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as TelemarketingTabValue)}
-        className="space-y-6"
-      >
-        <div className="overflow-x-auto no-scrollbar">
-          <TabsList className="flex h-auto w-max min-w-full items-center justify-start gap-2 bg-transparent p-0">
-            {TELEMARKETING_TABS.map((tab) => {
-              const Icon = tab.icon;
-
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className={cn(
-                    "group relative flex items-center gap-2.5 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-slate-500 transition-all duration-200 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900/70 dark:hover:text-slate-100 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900",
-                    tab.accent,
-                  )}
-                >
-                  <span
+                return (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
                     className={cn(
-                      "relative flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors dark:bg-slate-900 dark:text-slate-400",
-                      tab.iconAccent,
+                      "group relative flex items-center gap-2.5 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-slate-500 transition-all duration-200 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900/70 dark:hover:text-slate-100 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900",
+                      tab.accent,
                     )}
                   >
-                    <Icon className="size-4 shrink-0" />
-                  </span>
+                    <span
+                      className={cn(
+                        "relative flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors dark:bg-slate-900 dark:text-slate-400",
+                        tab.iconAccent,
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                    </span>
 
-                  <span>{tab.label}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </div>
+                    <span>{tab.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <TabsContent value="dashboard" className="m-0 outline-none">
-              <TabPanel>
-                <DashboardTabContent />
-              </TabPanel>
-            </TabsContent>
+          <TabsContent value="dashboard" className="m-0 outline-none">
+            <TabPanel>
+              <DashboardTabContent />
+            </TabPanel>
+          </TabsContent>
 
-            <TabsContent value="dialer" className="m-0 outline-none">
-              <TabPanel>
-                <DialerTabContent />
-              </TabPanel>
-            </TabsContent>
+          <TabsContent value="dialer" className="m-0 outline-none">
+            <TabPanel>
+              <DialerTabContent />
+            </TabPanel>
+          </TabsContent>
 
-            <TabsContent value="campaigns" className="m-0 outline-none">
-              <TabPanel>
-                <CampaignsTabContent />
-              </TabPanel>
-            </TabsContent>
+          <TabsContent value="campaigns" className="m-0 outline-none">
+            <TabPanel>
+              <CampaignsTabContent />
+            </TabPanel>
+          </TabsContent>
 
-            <TabsContent value="history" className="m-0 outline-none">
-              <TabPanel>
-                <HistoryTabContent />
-              </TabPanel>
-            </TabsContent>
-          </motion.div>
-        </AnimatePresence>
-      </Tabs>
-    </div>
+          <TabsContent value="history" className="m-0 outline-none">
+            <TabPanel>
+              <HistoryTabContent />
+            </TabPanel>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </TwilioDeviceProvider>
   );
 }

@@ -7,7 +7,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -133,7 +132,10 @@ function parseTranscript(text: string): TranscriptTurn[] {
       }
       for (const prefix of CLIENT_PREFIXES) {
         if (lower.startsWith(prefix)) {
-          return { role: "client" as const, message: line.slice(prefix.length) };
+          return {
+            role: "client" as const,
+            message: line.slice(prefix.length),
+          };
         }
       }
       return { role: "client" as const, message: line };
@@ -173,7 +175,13 @@ function getChannel(call: Call): "elevenlabs" | "twilio" | null {
   return null;
 }
 
-function ChannelBadge({ call, size = "sm" }: { call: Call; size?: "sm" | "xs" }) {
+function ChannelBadge({
+  call,
+  size = "sm",
+}: {
+  call: Call;
+  size?: "sm" | "xs";
+}) {
   const channel = getChannel(call);
   if (!channel) return null;
   if (channel === "elevenlabs") {
@@ -220,7 +228,7 @@ export function CallsHistory() {
   // Rastreia IDs já auto-sincronizados para não repetir na mesma sessão
   const autoSyncedRef = useRef<Set<string>>(new Set());
 
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, isFetching } = useQuery<{
     data: Call[];
     page: number;
     pageSize: number;
@@ -250,13 +258,17 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao sincronizar");
       }
       return res.json() as Promise<Call>;
     },
     onSuccess: (updated) => {
-      setSelectedCall((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+      setSelectedCall((prev) =>
+        prev?.id === updated.id ? { ...prev, ...updated } : prev,
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
     },
     onError: () => {},
@@ -270,13 +282,17 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao buscar gravação");
       }
       return res.json() as Promise<Call>;
     },
     onSuccess: (updated) => {
-      setSelectedCall((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+      setSelectedCall((prev) =>
+        prev?.id === updated.id ? { ...prev, ...updated } : prev,
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
     },
     onError: () => {},
@@ -290,7 +306,9 @@ export function CallsHistory() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao solicitar transcrição");
       }
       return res.json() as Promise<{ message: string }>;
@@ -311,7 +329,11 @@ export function CallsHistory() {
     }
 
     // Twilio: buscar gravação se chamada não é ElevenLabs e ainda sem recordingUrl
-    if (!selectedCall.elevenLabsConversationId && selectedCall.twilioCallSid && !selectedCall.recordingUrl) {
+    if (
+      !selectedCall.elevenLabsConversationId &&
+      selectedCall.twilioCallSid &&
+      !selectedCall.recordingUrl
+    ) {
       syncRecordingMutation.mutate(selectedCall.id);
     }
 
@@ -319,7 +341,7 @@ export function CallsHistory() {
     if (selectedCall.recordingSid && !selectedCall.twilioTranscription) {
       syncTwilioTranscriptMutation.mutate(selectedCall.id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCall?.id]);
 
   const calls = data?.data ?? [];
@@ -360,141 +382,147 @@ export function CallsHistory() {
         </Select>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-16 rounded-2xl" />
-          ))}
-        </div>
-      ) : calls.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-            <Phone className="size-7 opacity-40" />
+      <div className="relative min-h-[200px]">
+        {isFetching && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
+              <Loader2 className="size-5 animate-spin text-blue-500" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Carregando chamadas…
+              </span>
+            </div>
           </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Nenhuma chamada encontrada
-          </p>
-          {statusFilter !== "all" && (
-            <button
-              className="text-xs text-blue-500 hover:underline mt-1"
-              onClick={() => setStatusFilter("all")}
-            >
-              Limpar filtro
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {calls.map((call) => (
-            <div
-              key={call.id}
-              className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
-              onClick={() => setSelectedCall(call)}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    call.status === "encerrada"
-                      ? "bg-emerald-100 dark:bg-emerald-900/30"
-                      : call.status === "nao_atendeu" ||
-                          call.status === "falhou"
-                        ? "bg-slate-100 dark:bg-slate-800"
-                        : "bg-blue-100 dark:bg-blue-900/30"
-                  }`}
-                >
-                  <Phone
-                    className={`size-3.5 ${
+        )}
+        {!isLoading && calls.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+              <Phone className="size-7 opacity-40" />
+            </div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Nenhuma chamada encontrada
+            </p>
+            {statusFilter !== "all" && (
+              <button
+                className="text-xs text-blue-500 hover:underline mt-1"
+                onClick={() => setStatusFilter("all")}
+              >
+                Limpar filtro
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {calls.map((call) => (
+              <div
+                key={call.id}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                onClick={() => setSelectedCall(call)}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
                       call.status === "encerrada"
-                        ? "text-emerald-600 dark:text-emerald-400"
+                        ? "bg-emerald-100 dark:bg-emerald-900/30"
                         : call.status === "nao_atendeu" ||
                             call.status === "falhou"
-                          ? "text-slate-400"
-                          : "text-blue-600 dark:text-blue-400"
+                          ? "bg-slate-100 dark:bg-slate-800"
+                          : "bg-blue-100 dark:bg-blue-900/30"
                     }`}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">
-                    {call.clientName ??
-                      call.contactName ??
-                      call.clientPhone ??
-                      call.toPhone ??
-                      call.twilioCallSid?.slice(0, 16) ??
-                      call.id.slice(0, 8)}
-                  </p>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 flex-wrap">
-                    {(call.clientPhone ?? call.toPhone) &&
-                      (call.clientName ?? call.contactName) && (
-                        <span className="font-mono">
-                          {call.clientPhone ?? call.toPhone}
-                        </span>
+                  >
+                    <Phone
+                      className={`size-3.5 ${
+                        call.status === "encerrada"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : call.status === "nao_atendeu" ||
+                              call.status === "falhou"
+                            ? "text-slate-400"
+                            : "text-blue-600 dark:text-blue-400"
+                      }`}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {call.clientName ??
+                        call.contactName ??
+                        call.clientPhone ??
+                        call.toPhone ??
+                        call.twilioCallSid?.slice(0, 16) ??
+                        call.id.slice(0, 8)}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 flex-wrap">
+                      {(call.clientPhone ?? call.toPhone) &&
+                        (call.clientName ?? call.contactName) && (
+                          <span className="font-mono">
+                            {call.clientPhone ?? call.toPhone}
+                          </span>
+                        )}
+                      {(call.clientPhone ?? call.toPhone) &&
+                        (call.clientName ?? call.contactName) && <span>·</span>}
+                      <Clock className="size-3 shrink-0" />
+                      <span>{formatDuration(call.duration)}</span>
+                      <span>·</span>
+                      <span>
+                        {formatDateTime(call.startedAt ?? call.createdAt)}
+                      </span>
+                      {call.outcome && (
+                        <>
+                          <span>·</span>
+                          <span>
+                            {OUTCOME_LABELS[call.outcome] ?? call.outcome}
+                          </span>
+                        </>
                       )}
-                    {(call.clientPhone ?? call.toPhone) &&
-                      (call.clientName ?? call.contactName) && <span>·</span>}
-                    <Clock className="size-3 shrink-0" />
-                    <span>{formatDuration(call.duration)}</span>
-                    <span>·</span>
-                    <span>
-                      {formatDateTime(call.startedAt ?? call.createdAt)}
-                    </span>
-                    {call.outcome && (
-                      <>
-                        <span>·</span>
-                        <span>
-                          {OUTCOME_LABELS[call.outcome] ?? call.outcome}
-                        </span>
-                      </>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {(call.recordingUrl || call.elevenLabsConversationId) && (
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {(call.recordingUrl || call.elevenLabsConversationId) && (
+                    <span
+                      title="Gravação disponível"
+                      className="size-6 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                    >
+                      <FileAudio className="size-3.5 text-blue-500" />
+                    </span>
+                  )}
+                  {(call.twilioTranscription || call.transcription) && (
+                    <span
+                      title="Transcrição disponível"
+                      className="size-6 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20"
+                    >
+                      <FileText className="size-3.5 text-emerald-500" />
+                    </span>
+                  )}
+                  <ChannelBadge call={call} size="xs" />
+                  {call.aiDecision === "sim" && (
+                    <span
+                      title="Aceitou o convite"
+                      className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                    >
+                      <CheckCircle2 className="size-3" />
+                      SIM
+                    </span>
+                  )}
+                  {call.aiDecision === "nao" && (
+                    <span
+                      title="Recusou o convite"
+                      className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"
+                    >
+                      <XCircle className="size-3" />
+                      NÃO
+                    </span>
+                  )}
                   <span
-                    title="Gravação disponível"
-                    className="size-6 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap hidden sm:inline-block ${STATUS_COLORS[call.status] ?? ""}`}
                   >
-                    <FileAudio className="size-3.5 text-blue-500" />
+                    {STATUS_LABELS[call.status] ?? call.status}
                   </span>
-                )}
-                {(call.twilioTranscription || call.transcription) && (
-                  <span
-                    title="Transcrição disponível"
-                    className="size-6 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20"
-                  >
-                    <FileText className="size-3.5 text-emerald-500" />
-                  </span>
-                )}
-                <ChannelBadge call={call} size="xs" />
-                {call.aiDecision === "sim" && (
-                  <span
-                    title="Aceitou o convite"
-                    className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                  >
-                    <CheckCircle2 className="size-3" />
-                    SIM
-                  </span>
-                )}
-                {call.aiDecision === "nao" && (
-                  <span
-                    title="Recusou o convite"
-                    className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300"
-                  >
-                    <XCircle className="size-3" />
-                    NÃO
-                  </span>
-                )}
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap hidden sm:inline-block ${STATUS_COLORS[call.status] ?? ""}`}
-                >
-                  {STATUS_LABELS[call.status] ?? call.status}
-                </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Paginação */}
       {(page > 1 || data?.hasMore) && (
@@ -603,7 +631,9 @@ export function CallsHistory() {
               ) : selectedCall.notes ? (
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                   <p className="text-xs text-slate-400 mb-1">Observações</p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">{selectedCall.notes}</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                    {selectedCall.notes}
+                  </p>
                 </div>
               ) : null}
 
@@ -724,10 +754,9 @@ export function CallsHistory() {
                     Transcrição
                   </p>
                   {syncElevenLabsMutation.isPending ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-10 rounded-xl" />
-                      <Skeleton className="h-10 rounded-xl" />
-                      <Skeleton className="h-10 rounded-xl" />
+                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Buscando transcrição…
                     </div>
                   ) : selectedCall.transcription ? (
                     <TranscriptView text={selectedCall.transcription} />
@@ -740,28 +769,31 @@ export function CallsHistory() {
               )}
 
               {/* Transcrição Twilio Voice Intelligence */}
-              {!selectedCall.elevenLabsConversationId && (selectedCall.recordingSid || selectedCall.twilioTranscription) && (
-                <section>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                    <Mic className="size-3" />
-                    Transcrição
-                  </p>
-                  {syncTwilioTranscriptMutation.isPending ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
-                      <Loader2 className="size-3.5 animate-spin" />
-                      Solicitando transcrição ao Twilio…
-                    </div>
-                  ) : selectedCall.twilioTranscription ? (
-                    <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
-                      {selectedCall.twilioTranscription}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 py-1">
-                      Transcrição sendo processada pelo Twilio Voice Intelligence.
+              {!selectedCall.elevenLabsConversationId &&
+                (selectedCall.recordingSid ||
+                  selectedCall.twilioTranscription) && (
+                  <section>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+                      <Mic className="size-3" />
+                      Transcrição
                     </p>
-                  )}
-                </section>
-              )}
+                    {syncTwilioTranscriptMutation.isPending ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Solicitando transcrição ao Twilio…
+                      </div>
+                    ) : selectedCall.twilioTranscription ? (
+                      <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                        {selectedCall.twilioTranscription}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 py-1">
+                        Transcrição sendo processada pelo Twilio Voice
+                        Intelligence.
+                      </p>
+                    )}
+                  </section>
+                )}
             </div>
           </DialogContent>
         </Dialog>

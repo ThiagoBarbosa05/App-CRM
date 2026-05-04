@@ -3,12 +3,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTwilioDevice } from "@/hooks/use-twilio-device";
+import { useTwilioDeviceContext } from "@/contexts/twilio-device-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
@@ -33,15 +31,12 @@ import {
   Mic,
   MicOff,
   Delete,
-  ExternalLink,
   LoaderCircle,
-  Radio,
   Users,
   Search,
-  Timer,
-  User,
   X,
   CheckCircle2,
+  User,
 } from "lucide-react";
 
 type Channel = { label: string; number: string };
@@ -69,8 +64,14 @@ const KEYPAD = [
 ];
 
 const KEYPAD_LABELS: Record<string, string> = {
-  "2": "ABC", "3": "DEF", "4": "GHI", "5": "JKL",
-  "6": "MNO", "7": "PQRS", "8": "TUV", "9": "WXYZ",
+  "2": "ABC",
+  "3": "DEF",
+  "4": "GHI",
+  "5": "JKL",
+  "6": "MNO",
+  "7": "PQRS",
+  "8": "TUV",
+  "9": "WXYZ",
   "0": "+",
 };
 
@@ -98,6 +99,68 @@ const OUTCOME_OPTIONS = [
   { value: "reagendado", label: "Reagendado" },
   { value: "numero_invalido", label: "Número inválido" },
 ] as const;
+
+// ─── Helpers de formatação de telefone ──────────────────────────────────────
+
+/** Dígitos válidos para um número E.164 brasileiro (sem o +) */
+const MAX_PHONE_DIGITS = 13; // +55 (2) + DDD (2) + número (9)
+
+/**
+ * Sanitiza a entrada do teclado: mantém apenas dígitos, `+` (somente no início),
+ * `*` e `#`. Limita a MAX_PHONE_DIGITS dígitos.
+ */
+function sanitizePhone(input: string): string {
+  // Remove chars de formatação (espaço, traço, parênteses, ponto)
+  let raw = input.replace(/[\s\-().]/g, "");
+  // Remove chars inválidos (mantém dígitos, +, *, #)
+  raw = raw.replace(/[^\d+*#]/g, "");
+  // + só permitido no início
+  if (raw.startsWith("+")) {
+    raw = "+" + raw.slice(1).replace(/\+/g, "");
+  } else {
+    raw = raw.replace(/\+/g, "");
+  }
+  // Limita DTMF (*#) a no máximo 1 de cada
+  if (/[*#]/.test(raw)) return raw;
+  // Limita quantidade de dígitos
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length > MAX_PHONE_DIGITS) {
+    const prefix = raw.startsWith("+") ? "+" : "";
+    return prefix + digits.slice(0, MAX_PHONE_DIGITS);
+  }
+  return raw;
+}
+
+/**
+ * Formata o número armazenado (raw) para exibição progressiva:
+ * - Internacional: +55 (21) 98901-4962
+ * - BR local:      (21) 98901-4962
+ * - DTMF (asterisco/cerquilha): sem formatação
+ */
+function formatDialerDisplay(raw: string): string {
+  if (!raw) return "";
+  if (/[*#]/.test(raw)) return raw;
+
+  const hasPlus = raw.startsWith("+");
+  const digits = raw.replace(/\D/g, "");
+  const len = digits.length;
+
+  if (hasPlus) {
+    if (len <= 2) return "+" + digits;
+    if (len <= 4) return `+${digits.slice(0, 2)} (${digits.slice(2)}`;
+    if (len <= 6)
+      return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4)}`;
+    if (len <= 10)
+      return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
+    return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9, 13)}`;
+  }
+
+  if (len <= 2) return digits;
+  if (len <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (len <= 10)
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -155,7 +218,10 @@ function NoteForm({
   register: ReturnType<typeof useForm<NoteForm>>["register"];
   handleSubmit: ReturnType<typeof useForm<NoteForm>>["handleSubmit"];
   setValue: ReturnType<typeof useForm<NoteForm>>["setValue"];
-  saveNoteMutation: { isPending: boolean; mutate: (data: NoteForm & { callId: string | null }) => void };
+  saveNoteMutation: {
+    isPending: boolean;
+    mutate: (data: NoteForm & { callId: string | null }) => void;
+  };
   activeCallId: string | null;
   onSkip: () => void;
 }) {
@@ -237,13 +303,15 @@ export function Dialer() {
     disconnect,
     toggleMute,
     clearError,
-  } = useTwilioDevice();
+  } = useTwilioDeviceContext();
 
   const [number, setNumber] = useState("");
   const [callerId, setCallerId] = useState("");
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string | null>(
+    null,
+  );
   const [manualClientName, setManualClientName] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
@@ -292,7 +360,9 @@ export function Dialer() {
     debounceRef.current = setTimeout(() => setDebouncedSearch(value), 300);
   };
 
-  const { data: myClients = [], isFetching: clientsFetching } = useQuery<Client[]>({
+  const { data: myClients = [], isFetching: clientsFetching } = useQuery<
+    Client[]
+  >({
     queryKey: ["/api/clients", "dialer", normalizedDebouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ pageSize: "50" });
@@ -382,7 +452,7 @@ export function Dialer() {
   }, [reset]);
 
   const handleKey = useCallback((key: string) => {
-    setNumber((n) => n + key);
+    setNumber((n) => sanitizePhone(n + key));
   }, []);
 
   const handleBackspace = useCallback(() => {
@@ -400,7 +470,7 @@ export function Dialer() {
     if (!selectedClientId && !manualClientName.trim()) {
       toast({
         title: "Informe o nome do cliente",
-        description: "Digite o nome do cliente a ser contactado antes de ligar.",
+        description: "Digite o nome do contato antes de ligar.",
         variant: "destructive",
       });
       return;
@@ -413,7 +483,9 @@ export function Dialer() {
     const callRecordId = await createCallRecord({
       clientId: selectedClientId ?? undefined,
       toPhone: !selectedClientId ? number : undefined,
-      contactName: !selectedClientId ? manualClientName.trim() || undefined : undefined,
+      contactName: !selectedClientId
+        ? manualClientName.trim() || undefined
+        : undefined,
     });
 
     if (callRecordId) {
@@ -422,7 +494,8 @@ export function Dialer() {
       console.error("[dialer] POST /api/calls falhou após 2 tentativas");
       toast({
         title: "Aviso",
-        description: "Não foi possível registrar a chamada previamente. O histórico será criado ao encerrar.",
+        description:
+          "Não foi possível registrar a chamada previamente. O histórico será criado ao encerrar.",
         variant: "destructive",
       });
     }
@@ -451,7 +524,9 @@ export function Dialer() {
         twilioCallSid: callSid,
         clientId: selectedClientId ?? undefined,
         toPhone: !selectedClientId ? number : undefined,
-        contactName: !selectedClientId ? manualClientName.trim() || undefined : undefined,
+        contactName: !selectedClientId
+          ? manualClientName.trim() || undefined
+          : undefined,
       });
       if (resolvedCallId) {
         setActiveCallId(resolvedCallId);
@@ -470,7 +545,14 @@ export function Dialer() {
     }
 
     setShowNote(true);
-  }, [disconnect, activeCallId, callSid, selectedClientId, number, manualClientName]);
+  }, [
+    disconnect,
+    activeCallId,
+    callSid,
+    selectedClientId,
+    number,
+    manualClientName,
+  ]);
 
   // Atalhos de teclado
   useEffect(() => {
@@ -497,7 +579,7 @@ export function Dialer() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleCall, handleHangup, handleKey]);
 
   const inCall =
@@ -512,53 +594,20 @@ export function Dialer() {
         ? "destructive"
         : "secondary";
 
-  const activeChannel =
-    callerId
-      ? channels.find((c) => c.number === callerId)
-      : channels[0];
+  const activeChannel = callerId
+    ? channels.find((c) => c.number === callerId)
+    : channels[0];
 
   if (isCheckingConfig) {
     return (
-      <div className="max-w-sm mx-auto space-y-4">
-        <Skeleton className="h-8 w-40 rounded-2xl" />
-        <Skeleton className="h-72 rounded-3xl" />
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
+          <LoaderCircle className="size-5 animate-spin text-blue-500" />
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            Verificando configuração…
+          </span>
+        </div>
       </div>
-    );
-  }
-
-  if (!isConfigured) {
-    return (
-      <Card className="max-w-sm mx-auto border border-slate-200 dark:border-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900 rounded-3xl">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Phone className="size-4" />
-            Discador
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Voice SDK não configurado. Configure as credenciais em{" "}
-            <a
-              href="/configuracoes?tab=telephony"
-              className="text-blue-500 underline"
-            >
-              Configurações → Telefonia & IA
-            </a>
-            .
-          </p>
-          <Input
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            placeholder="+5511999999999"
-          />
-          <Button asChild className="w-full gap-2" disabled={!number}>
-            <a href={`tel:${number}`}>
-              <ExternalLink className="size-4" />
-              Ligar via telefone
-            </a>
-          </Button>
-        </CardContent>
-      </Card>
     );
   }
 
@@ -576,118 +625,100 @@ export function Dialer() {
     <div className="mx-auto grid max-w-7xl grid-cols-1 gap-5 xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)] xl:gap-6 2xl:grid-cols-[400px_minmax(0,1fr)]">
       {/* ── Coluna esquerda: discador ── */}
       <div className="space-y-5 xl:sticky xl:top-6">
-        {/* Status do dispositivo */}
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={deviceBadgeVariant} className="gap-1.5">
-              <Radio className="size-3" />
-              {DEVICE_STATUS_LABELS[deviceStatus]}
-            </Badge>
-            {inCall && (
-              <Badge variant="default" className="bg-emerald-600 gap-1.5">
-                <Phone className="size-3" />
-                {CALL_STATUS_LABELS[callStatus]}
-                {callStatus === "in-progress" && (
-                  <span className="ml-1 font-mono">
-                    {formatElapsed(elapsedSeconds)}
-                  </span>
-                )}
-              </Badge>
-            )}
-          </div>
-          {errorMessage ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-red-500 truncate max-w-[160px]">
-                {errorMessage}
-              </span>
-              <button
-                type="button"
-                onClick={clearError}
-                className="shrink-0 rounded-full p-0.5 text-red-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 transition-colors"
-                aria-label="Fechar erro"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Card info durante chamada ativa */}
-        {inCall && (selectedClientName || number) && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-            <div className="size-9 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center shrink-0">
-              <User className="size-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              {selectedClientName && (
-                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 truncate">
-                  {selectedClientName}
-                </p>
-              )}
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-mono">
-                {number}
-              </p>
-              {activeChannel && (
-                <p className="text-[11px] text-emerald-500 dark:text-emerald-500 mt-0.5 truncate">
-                  via {activeChannel.label} · {activeChannel.number}
-                </p>
-              )}
-            </div>
-            {callStatus === "in-progress" && (
-              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 shrink-0">
-                <Timer className="size-3.5" />
-                <span className="text-sm font-mono font-semibold">
-                  {formatElapsed(elapsedSeconds)}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
         <Card className="border border-slate-200 dark:border-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
-          <CardContent className="space-y-5 p-5 sm:p-6">
-            {/* Canal de saída */}
-            {channels.length > 1 ? (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Canal de saída</Label>
-                <Select value={callerId} onValueChange={setCallerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o número de origem" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {channels.map((ch) => (
-                      <SelectItem key={ch.number} value={ch.number}>
-                        {ch.label} — {ch.number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : channels.length === 1 ? (
-              <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/50">
-                <Phone className="size-3.5 shrink-0 text-slate-400" />
-                <span className="text-xs text-slate-500">
-                  {channels[0].label}
+          <CardContent className="space-y-4 p-5 sm:p-6">
+            {/* Status do dispositivo */}
+            <div
+              className={cn(
+                "flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5",
+                deviceStatus === "error"
+                  ? "border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
+                  : inCall || deviceStatus === "registered"
+                    ? "border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
+                    : "border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70",
+              )}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    deviceStatus === "error"
+                      ? "bg-red-500"
+                      : inCall || deviceStatus === "registered"
+                        ? "bg-emerald-500"
+                        : "animate-pulse bg-amber-500",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "truncate text-xs font-semibold",
+                    deviceStatus === "error"
+                      ? "text-red-600 dark:text-red-400"
+                      : inCall || deviceStatus === "registered"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-slate-600 dark:text-slate-400",
+                  )}
+                >
+                  {inCall
+                    ? `${CALL_STATUS_LABELS[callStatus]}${callStatus === "in-progress" ? ` · ${formatElapsed(elapsedSeconds)}` : ""}`
+                    : errorMessage ||
+                      `${DEVICE_STATUS_LABELS[deviceStatus]} — áudio no navegador`}
                 </span>
-                <span className="ml-auto font-mono text-xs text-slate-400">
-                  {channels[0].number}
-                </span>
               </div>
-            ) : null}
+              {errorMessage ? (
+                <button
+                  type="button"
+                  onClick={clearError}
+                  className="shrink-0 rounded-full p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40"
+                  aria-label="Fechar erro"
+                >
+                  <X className="size-3.5" />
+                </button>
+              ) : null}
+            </div>
 
-            {/* Nome do cliente (digitação manual) */}
+            {/* Canal de saída */}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Canal de saída
+              </Label>
+              <Select
+                value={callerId || channels[0]?.number || ""}
+                onValueChange={setCallerId}
+                disabled={inCall || channels.length === 0}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue
+                    placeholder={
+                      channels.length === 0
+                        ? "Nenhum canal configurado"
+                        : "Selecione o canal"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((ch) => (
+                    <SelectItem key={ch.number} value={ch.number}>
+                      {ch.label} {ch.number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Nome do cliente (digitação manual quando não há cliente selecionado) */}
             {!selectedClientId && (
-              <div className="animate-in fade-in-0 slide-in-from-top-1 duration-150 space-y-1.5">
-                <Label className="text-xs text-slate-500">
-                  Nome do cliente <span className="text-red-400">*</span>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Nome do cliente
                 </Label>
                 <div className="relative">
-                  <User className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <User className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     value={manualClientName}
                     onChange={(e) => setManualClientName(e.target.value)}
-                    placeholder="Nome do contato a ser ligado"
-                    className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-10 text-sm shadow-none transition-colors hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-blue-100 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:focus-visible:ring-blue-950"
+                    placeholder="Nome do contato"
+                    className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-10 text-sm shadow-none dark:border-slate-800 dark:bg-slate-950"
                     disabled={inCall}
                   />
                 </div>
@@ -695,39 +726,31 @@ export function Dialer() {
             )}
 
             {/* Display do número */}
-            <div className="relative">
-              <Input
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                placeholder="+5511999999999"
-                className="h-14 rounded-2xl border-slate-200 bg-slate-50 pr-10 text-center font-mono text-xl shadow-none dark:border-slate-800 dark:bg-slate-950"
-                disabled={inCall}
-              />
-              {number && !inCall && (
-                <button
-                  type="button"
-                  onClick={handleBackspace}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                >
-                  <Delete className="size-4" />
-                </button>
-              )}
-            </div>
+            <Input
+              value={formatDialerDisplay(number)}
+              onChange={(e) => setNumber(sanitizePhone(e.target.value))}
+              placeholder="(11) 99999-9999"
+              className="h-14 rounded-2xl border-slate-200 bg-slate-50 text-center font-mono text-2xl shadow-none dark:border-slate-800 dark:bg-slate-950"
+              disabled={inCall}
+              inputMode="tel"
+            />
 
             {/* Keypad */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-3.5">
+            <div className="grid grid-cols-3 gap-2.5">
               {KEYPAD.flat().map((key) => (
                 <Button
                   key={key}
                   type="button"
                   variant="outline"
-                  className="h-14 flex flex-col items-center justify-center gap-0 rounded-2xl border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 sm:h-[58px]"
+                  className="flex h-14 flex-col items-center justify-center gap-0 rounded-2xl border-slate-200 bg-white shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 sm:h-[58px]"
                   onClick={() => handleKey(key)}
                   disabled={inCall}
                 >
-                  <span className="text-xl font-semibold leading-tight">{key}</span>
+                  <span className="text-xl font-semibold leading-tight">
+                    {key}
+                  </span>
                   {KEYPAD_LABELS[key] ? (
-                    <span className="text-[8px] font-medium tracking-widest text-slate-400 leading-none">
+                    <span className="text-[8px] font-medium leading-none tracking-widest text-slate-400">
                       {KEYPAD_LABELS[key]}
                     </span>
                   ) : (
@@ -737,43 +760,66 @@ export function Dialer() {
               ))}
             </div>
 
-            {/* Controles de chamada */}
-            <div className="flex items-center justify-center gap-4 border-t border-slate-100 pt-5 dark:border-slate-800">
-              {!inCall ? (
-                <Button
-                  ref={callButtonRef}
-                  onClick={handleCall}
-                  disabled={
-                    !number ||
-                    deviceStatus !== "registered" ||
-                    (!selectedClientId && !manualClientName.trim())
-                  }
-                  className="h-16 w-16 rounded-full bg-emerald-500 hover:bg-emerald-600 p-0 shadow-[0_4px_14px_-2px_rgba(16,185,129,0.4)] dark:shadow-emerald-900/40 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Phone className="size-7" />
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    onClick={toggleMute}
-                    variant="outline"
-                    className="h-14 w-14 rounded-full p-0 transition-all hover:scale-105 active:scale-95 border-slate-200"
-                  >
-                    {isMuted ? (
-                      <MicOff className="size-6 text-red-500" />
-                    ) : (
-                      <Mic className="size-6" />
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleHangup}
-                    className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 p-0 shadow-[0_4px_14px_-2px_rgba(239,68,68,0.4)] dark:shadow-red-900/40 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <PhoneOff className="size-7" />
-                  </Button>
-                </>
-              )}
+            {/* Apagar + Limpar */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 flex-1 gap-2 rounded-xl border-slate-200 text-sm font-medium dark:border-slate-800"
+                onClick={handleBackspace}
+                disabled={inCall || !number}
+              >
+                <Delete className="size-4" />
+                Apagar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 rounded-xl px-5 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                onClick={() => setNumber("")}
+                disabled={inCall || !number}
+              >
+                Limpar
+              </Button>
             </div>
+
+            {/* Botão de chamada */}
+            {!inCall ? (
+              <Button
+                ref={callButtonRef}
+                onClick={handleCall}
+                disabled={
+                  !number ||
+                  deviceStatus !== "registered" ||
+                  (!selectedClientId && !manualClientName.trim())
+                }
+                className="h-12 w-full gap-2.5 rounded-xl bg-emerald-500 text-base font-semibold shadow-[0_4px_14px_-2px_rgba(16,185,129,0.4)] transition-all hover:bg-emerald-600 dark:shadow-emerald-900/40"
+              >
+                <Phone className="size-5" />
+                Ligar
+              </Button>
+            ) : (
+              <div className="flex gap-3">
+                <Button
+                  onClick={toggleMute}
+                  variant="outline"
+                  className="h-12 w-12 shrink-0 rounded-xl p-0 transition-all border-slate-200 dark:border-slate-800"
+                >
+                  {isMuted ? (
+                    <MicOff className="size-5 text-red-500" />
+                  ) : (
+                    <Mic className="size-5" />
+                  )}
+                </Button>
+                <Button
+                  onClick={handleHangup}
+                  className="h-12 flex-1 gap-2.5 rounded-xl bg-red-500 text-base font-semibold shadow-[0_4px_14px_-2px_rgba(239,68,68,0.4)] transition-all hover:bg-red-600 dark:shadow-red-900/40"
+                >
+                  <PhoneOff className="size-5" />
+                  Desligar
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -868,14 +914,9 @@ export function Dialer() {
                     </p>
                   </div>
                 ) : clientsFetching ? (
-                  <div className="space-y-3 py-3">
-                    <div className="flex items-center gap-2 px-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                      <LoaderCircle className="size-4 animate-spin text-blue-500" />
-                      Buscando clientes...
-                    </div>
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-20 rounded-2xl" />
-                    ))}
+                  <div className="flex items-center gap-2 px-2 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    <LoaderCircle className="size-4 animate-spin text-blue-500" />
+                    Buscando clientes...
                   </div>
                 ) : myClients.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400 dark:border-slate-800">
@@ -921,7 +962,9 @@ export function Dialer() {
                       <Button
                         type="button"
                         size="sm"
-                        variant={selectedClientId === client.id ? "default" : "outline"}
+                        variant={
+                          selectedClientId === client.id ? "default" : "outline"
+                        }
                         className={cn(
                           "ml-2 shrink-0 rounded-xl gap-1.5",
                           selectedClientId === client.id

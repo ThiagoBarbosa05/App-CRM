@@ -9,11 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Search, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Search, Trash2, UserPlus } from "lucide-react";
 
 type CampaignClientRow = {
   id: string;
@@ -43,11 +42,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   novo: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  contactado: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
-  nao_atendeu: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-  convite_aceito: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  convite_recusado: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  convertido: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  contactado:
+    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+  nao_atendeu:
+    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  convite_aceito:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  convite_recusado:
+    "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  convertido:
+    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
 };
 
 interface Props {
@@ -57,27 +61,41 @@ interface Props {
   campaignName: string;
 }
 
-export function CampaignClientsDialog({ open, onClose, campaignId, campaignName }: Props) {
+export function CampaignClientsDialog({
+  open,
+  onClose,
+  campaignId,
+  campaignName,
+}: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showSearch, setShowSearch] = useState(false);
 
-  const { data: campaignClients = [], isLoading: loadingClients } = useQuery<CampaignClientRow[]>({
+  const { data: campaignClients = [], isLoading: loadingClients } = useQuery<
+    CampaignClientRow[]
+  >({
     queryKey: ["/api/campaigns", campaignId, "clients"],
     queryFn: async () => {
-      const res = await fetch(`/api/campaigns/${campaignId}/clients`, { credentials: "include" });
+      const res = await fetch(`/api/campaigns/${campaignId}/clients`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao buscar clientes");
       return res.json();
     },
     enabled: open,
   });
 
-  const { data: searchResults = [], isLoading: searching } = useQuery<{ data: Client[] }>({
+  const { data: searchResults = [], isLoading: searching } = useQuery<{
+    data: Client[];
+  }>({
     queryKey: ["/api/clients", "search", search],
     queryFn: async () => {
-      const res = await fetch(`/api/clients?search=${encodeURIComponent(search)}&pageSize=20`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/clients?search=${encodeURIComponent(search)}&pageSize=20`,
+        {
+          credentials: "include",
+        },
+      );
       if (!res.ok) throw new Error("Erro ao buscar clientes");
       return res.json();
     },
@@ -85,7 +103,9 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
   });
 
   const existingIds = new Set(campaignClients.map((cc) => cc.clientId));
-  const available = (searchResults.data ?? []).filter((c) => !existingIds.has(c.id));
+  const available = (searchResults.data ?? []).filter(
+    (c) => !existingIds.has(c.id),
+  );
 
   const addMutation = useMutation({
     mutationFn: async (clientIds: string[]) => {
@@ -102,21 +122,29 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
       toast({ title: `${data.added} cliente(s) adicionado(s)` });
       setSelected(new Set());
       setSearch("");
-      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "clients"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/campaigns", campaignId, "clients"],
+      });
     },
-    onError: () => toast({ title: "Erro ao adicionar clientes", variant: "destructive" }),
+    onError: () =>
+      toast({ title: "Erro ao adicionar clientes", variant: "destructive" }),
   });
 
   const removeMutation = useMutation({
     mutationFn: async (clientId: string) => {
-      const res = await fetch(`/api/campaigns/${campaignId}/clients/${clientId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/campaigns/${campaignId}/clients/${clientId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       if (!res.ok) throw new Error("Erro ao remover cliente");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", campaignId, "clients"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/campaigns", campaignId, "clients"],
+      });
     },
   });
 
@@ -133,7 +161,9 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg rounded-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base">Clientes — {campaignName}</DialogTitle>
+          <DialogTitle className="text-base">
+            Clientes — {campaignName}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
@@ -143,11 +173,14 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
               Na campanha ({campaignClients.length})
             </p>
             {loadingClients ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 rounded-xl" />)}
+              <div className="flex items-center gap-2 text-xs text-slate-400 py-3">
+                <Loader2 className="size-3.5 animate-spin" />
+                Carregando clientes…
               </div>
             ) : campaignClients.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">Nenhum cliente adicionado ainda.</p>
+              <p className="text-sm text-slate-400 text-center py-4">
+                Nenhum cliente adicionado ainda.
+              </p>
             ) : (
               campaignClients.map((cc) => (
                 <div
@@ -155,7 +188,9 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
                   className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50"
                 >
                   <div>
-                    <p className="text-sm font-medium">{cc.clientName ?? cc.clientId}</p>
+                    <p className="text-sm font-medium">
+                      {cc.clientName ?? cc.clientId}
+                    </p>
                     {cc.clientPhone && (
                       <p className="text-xs text-slate-400">{cc.clientPhone}</p>
                     )}
@@ -210,9 +245,14 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
                 {search.length >= 2 && (
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {searching ? (
-                      <Skeleton className="h-8 rounded-xl" />
+                      <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Buscando…
+                      </div>
                     ) : available.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-2">Nenhum resultado</p>
+                      <p className="text-xs text-slate-400 text-center py-2">
+                        Nenhum resultado
+                      </p>
                     ) : (
                       available.map((c) => (
                         <label
@@ -225,7 +265,11 @@ export function CampaignClientsDialog({ open, onClose, campaignId, campaignName 
                           />
                           <div>
                             <p className="text-sm font-medium">{c.name}</p>
-                            {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+                            {c.phone && (
+                              <p className="text-xs text-slate-400">
+                                {c.phone}
+                              </p>
+                            )}
                           </div>
                         </label>
                       ))

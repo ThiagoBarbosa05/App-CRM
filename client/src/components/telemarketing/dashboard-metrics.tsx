@@ -16,8 +16,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Phone, TrendingUp, Clock, Calendar } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Phone, TrendingUp, Clock, Calendar, Loader2 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -96,19 +95,41 @@ function formatDuration(s: number): string {
 
 // ─── Tooltip customizado ──────────────────────────────────────────────────────
 
-function DayTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+function DayTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { name: string; value: number; color: string }[];
+  label?: string;
+}) {
   if (!active || !payload?.length) return null;
-  const date = label ? format(parseISO(label), "dd 'de' MMMM", { locale: ptBR }) : "";
+  const date = label
+    ? format(parseISO(label), "dd 'de' MMMM", { locale: ptBR })
+    : "";
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 shadow-lg text-xs space-y-1">
-      <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1.5">{date}</p>
+      <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+        {date}
+      </p>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2">
-          <span className="size-2 rounded-full shrink-0" style={{ background: p.color }} />
+          <span
+            className="size-2 rounded-full shrink-0"
+            style={{ background: p.color }}
+          />
           <span className="text-slate-500 dark:text-slate-400">
-            {p.name === "total" ? "Total" : p.name === "sim" ? "Aceitou" : "Recusou"}:
+            {p.name === "total"
+              ? "Total"
+              : p.name === "sim"
+                ? "Aceitou"
+                : "Recusou"}
+            :
           </span>
-          <span className="font-semibold text-slate-800 dark:text-slate-100">{p.value}</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-100">
+            {p.value}
+          </span>
         </div>
       ))}
     </div>
@@ -134,33 +155,16 @@ function KpiCard({
     <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
+            {label}
+          </p>
           <p className={`text-3xl font-bold ${colorClass}`}>{value}</p>
         </div>
-        <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${bgClass}`}>
+        <div
+          className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${bgClass}`}
+        >
           <Icon className={`size-5 ${colorClass}`} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Skeleton de loading ──────────────────────────────────────────────────────
-
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-      </div>
-      <Skeleton className="h-72 rounded-2xl" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Skeleton className="h-56 rounded-2xl" />
-        <Skeleton className="h-56 rounded-2xl" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Skeleton className="h-56 rounded-2xl" />
-        <Skeleton className="h-56 rounded-2xl" />
       </div>
     </div>
   );
@@ -180,17 +184,36 @@ export function DashboardMetrics() {
   const { data, isLoading } = useQuery<StatsResponse>({
     queryKey: ["/api/calls/stats", days],
     queryFn: async () => {
-      const res = await fetch(`/api/calls/stats?days=${days}`, { credentials: "include" });
+      const res = await fetch(`/api/calls/stats?days=${days}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao buscar estatísticas");
       return res.json();
     },
     refetchInterval: 30_000,
   });
 
-  if (isLoading) return <DashboardSkeleton />;
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
+          <Loader2 className="size-5 animate-spin text-blue-500" />
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            Carregando métricas…
+          </span>
+        </div>
+      </div>
+    );
   if (!data) return null;
 
-  const { summary, porDia, porStatus, porDecisao, porSentimento, topCampanhas } = data;
+  const {
+    summary,
+    porDia,
+    porStatus,
+    porDecisao,
+    porSentimento,
+    topCampanhas,
+  } = data;
 
   const porStatusLabeled = porStatus.map((s) => ({
     ...s,
@@ -269,7 +292,10 @@ export function DashboardMetrics() {
           Chamadas por dia
         </p>
         <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={porDia} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+          <AreaChart
+            data={porDia}
+            margin={{ top: 4, right: 8, bottom: 0, left: -16 }}
+          >
             <defs>
               <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
@@ -289,15 +315,43 @@ export function DashboardMetrics() {
               dataKey="date"
               tick={{ className: chartTickClass }}
               tickFormatter={(v) => {
-                try { return format(parseISO(v), "dd/MM"); } catch { return v; }
+                try {
+                  return format(parseISO(v), "dd/MM");
+                } catch {
+                  return v;
+                }
               }}
               interval={days <= 7 ? 0 : days <= 30 ? 4 : 9}
             />
             <YAxis tick={{ className: chartTickClass }} allowDecimals={false} />
             <Tooltip content={<DayTooltip />} />
-            <Area type="monotone" dataKey="total" name="total" stroke="#94a3b8" strokeWidth={1.5} fill="url(#gTotal)" dot={false} />
-            <Area type="monotone" dataKey="sim" name="sim" stroke="#10b981" strokeWidth={2} fill="url(#gSim)" dot={false} />
-            <Area type="monotone" dataKey="nao" name="nao" stroke="#ef4444" strokeWidth={2} fill="url(#gNao)" dot={false} />
+            <Area
+              type="monotone"
+              dataKey="total"
+              name="total"
+              stroke="#94a3b8"
+              strokeWidth={1.5}
+              fill="url(#gTotal)"
+              dot={false}
+            />
+            <Area
+              type="monotone"
+              dataKey="sim"
+              name="sim"
+              stroke="#10b981"
+              strokeWidth={2}
+              fill="url(#gSim)"
+              dot={false}
+            />
+            <Area
+              type="monotone"
+              dataKey="nao"
+              name="nao"
+              stroke="#ef4444"
+              strokeWidth={2}
+              fill="url(#gNao)"
+              dot={false}
+            />
           </AreaChart>
         </ResponsiveContainer>
         <div className="flex items-center gap-4 mt-3 justify-center">
@@ -306,8 +360,14 @@ export function DashboardMetrics() {
             { color: "#10b981", label: "Aceitou" },
             { color: "#ef4444", label: "Recusou" },
           ].map((l) => (
-            <div key={l.label} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-              <span className="size-2.5 rounded-full" style={{ background: l.color }} />
+            <div
+              key={l.label}
+              className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
+            >
+              <span
+                className="size-2.5 rounded-full"
+                style={{ background: l.color }}
+              />
               {l.label}
             </div>
           ))}
@@ -322,7 +382,9 @@ export function DashboardMetrics() {
             Distribuição por status
           </p>
           {porStatusLabeled.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-xs text-slate-400">Sem dados</div>
+            <div className="flex items-center justify-center h-40 text-xs text-slate-400">
+              Sem dados
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
@@ -330,7 +392,11 @@ export function DashboardMetrics() {
                 layout="vertical"
                 margin={{ top: 0, right: 16, bottom: 0, left: 8 }}
               >
-                <XAxis type="number" tick={{ className: chartTickClass }} allowDecimals={false} />
+                <XAxis
+                  type="number"
+                  tick={{ className: chartTickClass }}
+                  allowDecimals={false}
+                />
                 <YAxis
                   type="category"
                   dataKey="label"
@@ -339,7 +405,11 @@ export function DashboardMetrics() {
                 />
                 <Tooltip
                   formatter={(v: number) => [v, "Chamadas"]}
-                  contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }}
+                  contentStyle={{
+                    fontSize: 12,
+                    borderRadius: 12,
+                    border: "1px solid #e2e8f0",
+                  }}
                 />
                 <Bar dataKey="count" radius={[0, 6, 6, 0]}>
                   {porStatusLabeled.map((entry, index) => (
@@ -357,7 +427,9 @@ export function DashboardMetrics() {
             Decisão IA
           </p>
           {porDecisaoLabeled.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-xs text-slate-400">Sem decisões registradas</div>
+            <div className="flex items-center justify-center h-40 text-xs text-slate-400">
+              Sem decisões registradas
+            </div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -378,18 +450,33 @@ export function DashboardMetrics() {
                   </Pie>
                   <Tooltip
                     formatter={(v: number) => [v, "Chamadas"]}
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex items-center justify-center gap-4 mt-1">
                 {porDecisaoLabeled.map((d) => (
-                  <div key={d.decisao} className="flex flex-col items-center gap-1">
+                  <div
+                    key={d.decisao}
+                    className="flex flex-col items-center gap-1"
+                  >
                     <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <span className="size-2.5 rounded-full" style={{ background: d.color }} />
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ background: d.color }}
+                      />
                       {d.label}
                     </div>
-                    <span className="text-sm font-bold" style={{ color: d.color }}>{d.count}</span>
+                    <span
+                      className="text-sm font-bold"
+                      style={{ color: d.color }}
+                    >
+                      {d.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -406,7 +493,9 @@ export function DashboardMetrics() {
             Sentimento
           </p>
           {porSentimentoLabeled.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-xs text-slate-400">Sem dados de sentimento</div>
+            <div className="flex items-center justify-center h-40 text-xs text-slate-400">
+              Sem dados de sentimento
+            </div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -427,18 +516,33 @@ export function DashboardMetrics() {
                   </Pie>
                   <Tooltip
                     formatter={(v: number) => [v, "Chamadas"]}
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 12,
+                      border: "1px solid #e2e8f0",
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex items-center justify-center gap-4 mt-1">
                 {porSentimentoLabeled.map((s) => (
-                  <div key={s.sentimento} className="flex flex-col items-center gap-1">
+                  <div
+                    key={s.sentimento}
+                    className="flex flex-col items-center gap-1"
+                  >
                     <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <span className="size-2.5 rounded-full" style={{ background: s.color }} />
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ background: s.color }}
+                      />
                       {s.label}
                     </div>
-                    <span className="text-sm font-bold" style={{ color: s.color }}>{s.count}</span>
+                    <span
+                      className="text-sm font-bold"
+                      style={{ color: s.color }}
+                    >
+                      {s.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -452,7 +556,9 @@ export function DashboardMetrics() {
             Top campanhas
           </p>
           {topCampanhas.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-xs text-slate-400">Sem campanhas no período</div>
+            <div className="flex items-center justify-center h-40 text-xs text-slate-400">
+              Sem campanhas no período
+            </div>
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 text-[10px] font-bold uppercase tracking-wide text-slate-400 pb-1 border-b border-slate-100 dark:border-slate-800">
@@ -466,16 +572,20 @@ export function DashboardMetrics() {
                   key={c.campaignId}
                   className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-center py-1.5 text-xs border-b border-slate-50 dark:border-slate-800/50 last:border-0"
                 >
-                  <span className="truncate text-slate-700 dark:text-slate-300 font-medium">{c.campaignName}</span>
+                  <span className="truncate text-slate-700 dark:text-slate-300 font-medium">
+                    {c.campaignName}
+                  </span>
                   <span className="text-right text-slate-500">{c.total}</span>
-                  <span className="text-right text-emerald-600 font-semibold">{c.sim}</span>
+                  <span className="text-right text-emerald-600 font-semibold">
+                    {c.sim}
+                  </span>
                   <span
                     className={`text-right font-bold ${
                       c.taxaConversao >= 50
                         ? "text-emerald-600"
                         : c.taxaConversao >= 25
-                        ? "text-amber-500"
-                        : "text-red-500"
+                          ? "text-amber-500"
+                          : "text-red-500"
                     }`}
                   >
                     {c.taxaConversao}%

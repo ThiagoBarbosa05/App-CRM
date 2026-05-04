@@ -679,7 +679,9 @@ export const userGoals = pgTable(
     averageTicket: decimal("average_ticket", { precision: 12, scale: 2 })
       .notNull()
       .default("0.00"), // Ticket médio em reais
-    itemsPerSale: decimal("items_per_sale", { precision: 5, scale: 2 }).notNull().default("1.00"), // Itens por venda
+    itemsPerSale: decimal("items_per_sale", { precision: 5, scale: 2 })
+      .notNull()
+      .default("1.00"), // Itens por venda
     ordersGoal: integer("orders_goal").notNull().default(0), // Meta: total de GRFs no mês
     avgBottleValueGoal: decimal("avg_bottle_value_goal", {
       precision: 12,
@@ -721,7 +723,9 @@ export const weeklyResults = pgTable("weekly_results", {
     .default("0.00"), // Ticket médio alcançado
   itemsAchieved: integer("items_achieved").notNull().default(0), // Itens vendidos
   totalGrfsMonth: integer("total_grfs_month").notNull().default(0), // Total de GRFs no mês
-  avgGrfValue: decimal("avg_grf_value", { precision: 12, scale: 2 }).notNull().default("0.00"), // Valor médio de GRFs
+  avgGrfValue: decimal("avg_grf_value", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0.00"), // Valor médio de GRFs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2576,16 +2580,18 @@ export const connectOrderItems = pgTable(
     unitValue: numeric("unit_value", { precision: 15, scale: 2 }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [
-    index("connect_order_items_order_idx").on(table.orderId),
-  ],
+  (table) => [index("connect_order_items_order_idx").on(table.orderId)],
 );
 
-export const insertConnectOrderItemSchema = createInsertSchema(connectOrderItems).omit({
+export const insertConnectOrderItemSchema = createInsertSchema(
+  connectOrderItems,
+).omit({
   id: true,
   createdAt: true,
 });
-export type InsertConnectOrderItem = z.infer<typeof insertConnectOrderItemSchema>;
+export type InsertConnectOrderItem = z.infer<
+  typeof insertConnectOrderItemSchema
+>;
 
 // Schemas de inserção
 export const insertBlingConnectionSchema = createInsertSchema(
@@ -2933,7 +2939,9 @@ export const taskBoards = pgTable("task_boards", {
   color: text("color").notNull().default("slate"),
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
-  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -2942,7 +2950,9 @@ export const taskStages = pgTable("task_stages", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  boardId: varchar("board_id").references(() => taskBoards.id, { onDelete: "cascade" }),
+  boardId: varchar("board_id").references(() => taskBoards.id, {
+    onDelete: "cascade",
+  }),
   name: text("name").notNull(),
   slug: varchar("slug").notNull().unique(),
   color: text("color").notNull().default("slate"),
@@ -2977,7 +2987,9 @@ export const tasks = pgTable("tasks", {
     .default("media"),
   status: varchar("status").notNull().default("a_fazer"),
   order: integer("order"),
-  boardId: varchar("board_id").references(() => taskBoards.id, { onDelete: "cascade" }),
+  boardId: varchar("board_id").references(() => taskBoards.id, {
+    onDelete: "cascade",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -3046,7 +3058,9 @@ export const noteSections = pgTable("note_sections", {
   name: text("name").notNull(),
   color: text("color").notNull().default("slate"),
   order: integer("order").notNull().default(0),
-  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -3059,7 +3073,9 @@ export const notes = pgTable("notes", {
   sectionId: varchar("section_id")
     .references(() => noteSections.id, { onDelete: "cascade" })
     .notNull(),
-  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -3069,8 +3085,14 @@ export const noteSectionsRelations = relations(noteSections, ({ many }) => ({
 }));
 
 export const notesRelations = relations(notes, ({ one }) => ({
-  section: one(noteSections, { fields: [notes.sectionId], references: [noteSections.id] }),
-  createdBy: one(users, { fields: [notes.createdById], references: [users.id] }),
+  section: one(noteSections, {
+    fields: [notes.sectionId],
+    references: [noteSections.id],
+  }),
+  createdBy: one(users, {
+    fields: [notes.createdById],
+    references: [users.id],
+  }),
 }));
 
 export type TaskBoard = typeof taskBoards.$inferSelect;
@@ -3086,7 +3108,9 @@ export const taskFileFolders = pgTable("task_file_folders", {
   name: text("name").notNull(),
   color: text("color").notNull().default("slate"),
   order: integer("order").notNull().default(0),
-  createdById: varchar("created_by_id").references(() => users.id).notNull(),
+  createdById: varchar("created_by_id")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -3101,7 +3125,9 @@ export const taskFiles = pgTable("task_files", {
   folderId: varchar("folder_id")
     .references(() => taskFileFolders.id, { onDelete: "cascade" })
     .notNull(),
-  uploadedById: varchar("uploaded_by_id").references(() => users.id).notNull(),
+  uploadedById: varchar("uploaded_by_id")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -3224,10 +3250,10 @@ export const insertCallSchema = createInsertSchema(calls).omit({
   createdAt: true,
 });
 export const insertCampaignTriggerSchema = createInsertSchema(
-  campaignTriggers
+  campaignTriggers,
 ).omit({ id: true, createdAt: true });
 export const insertCallNotificationSchema = createInsertSchema(
-  callNotifications
+  callNotifications,
 ).omit({ id: true, createdAt: true });
 
 export const campaignClients = pgTable(
@@ -3259,11 +3285,11 @@ export const campaignClients = pgTable(
       .default("novo"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [unique().on(t.campaignId, t.clientId)]
+  (t) => [unique().on(t.campaignId, t.clientId)],
 );
 
 export const insertCampaignClientSchema = createInsertSchema(
-  campaignClients
+  campaignClients,
 ).omit({ id: true, createdAt: true });
 
 export type Campaign = typeof campaigns.$inferSelect;
