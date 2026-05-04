@@ -979,6 +979,96 @@ export async function getAggregateDashboard(
   };
 }
 
+// ─── Rotas focadas do Dashboard Agregado ─────────────────────────────────────
+
+export async function getAggregateSummaryData(
+  startDate?: string,
+  endDate?: string,
+): Promise<{ monthlySummary: MonthlySummary; prevMonthSummary: MonthlySummary }> {
+  const now = new Date();
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+
+  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+  const prevEndDate = subDays(parseISO(currentStart), 1);
+  const prevStart = format(subDays(prevEndDate, duration), "yyyy-MM-dd");
+  const prevEnd = format(prevEndDate, "yyyy-MM-dd");
+
+  const [monthlySummary, prevMonthSummary] = await Promise.all([
+    fetchAggregateSummary(currentStart, currentEnd).catch(() => EMPTY_SUMMARY),
+    fetchAggregateSummary(prevStart, prevEnd).catch(() => EMPTY_SUMMARY),
+  ]);
+
+  return { monthlySummary, prevMonthSummary };
+}
+
+export async function getAggregateSellerRankingData(
+  startDate?: string,
+  endDate?: string,
+): Promise<{ sellerRanking: SellerRankingRow[] }> {
+  const now = new Date();
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+
+  const sellerRanking = await fetchSellerRanking(currentStart, currentEnd).catch(
+    () => [] as SellerRankingRow[],
+  );
+
+  return { sellerRanking };
+}
+
+export async function getAggregateTopProductsData(
+  startDate?: string,
+  endDate?: string,
+): Promise<{ topProducts: TopProductRow[] }> {
+  const now = new Date();
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+
+  const topProducts = await fetchAggregateTopProducts(currentStart, currentEnd).catch(
+    () => [] as TopProductRow[],
+  );
+
+  return { topProducts };
+}
+
+export async function getAggregateTopClientsData(
+  startDate?: string,
+  endDate?: string,
+  scope?: ClientAnalyticsScope,
+): Promise<{ topClients: TopClientRow[] }> {
+  const now = new Date();
+  const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
+  const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
+  const scopedClientIds = await resolveScopedClientIds(scope);
+
+  const topClients = await fetchAggregateTopClients(
+    currentStart,
+    currentEnd,
+    scopedClientIds,
+  ).catch(() => [] as TopClientRow[]);
+
+  return { topClients };
+}
+
+export async function getAggregatePortfolioData(
+  scope?: ClientAnalyticsScope,
+): Promise<{ sellerPortfolioStats: SellerPortfolioStats[] }> {
+  const [inactiveDays, scopedClientIds] = await Promise.all([
+    getPurchaseStatusDays(),
+    resolveScopedClientIds(scope),
+  ]);
+
+  const sellerPortfolioStats = await fetchAllSellersPortfolioStats(
+    inactiveDays,
+    scopedClientIds,
+  ).catch(() => [] as SellerPortfolioStats[]);
+
+  return { sellerPortfolioStats };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function fetchAggregateSummary(
   startDate: string,
   endDate: string,

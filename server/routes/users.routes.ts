@@ -27,6 +27,11 @@ import { getPortfolioStatsController } from "server/controllers/users/get-portfo
 import { getInactiveClientsController } from "server/controllers/users/get-inactive-clients.controller";
 import { getWineTierItemsController } from "server/controllers/users/get-wine-tier-items.controller";
 import { getSellerTierCountsController } from "server/controllers/users/get-seller-tier-counts.controller";
+import { getAggregateSummaryController } from "server/controllers/users/get-aggregate-summary.controller";
+import { getAggregateSellerRankingController } from "server/controllers/users/get-aggregate-seller-ranking.controller";
+import { getAggregateTopProductsController } from "server/controllers/users/get-aggregate-top-products.controller";
+import { getAggregateTopClientsController } from "server/controllers/users/get-aggregate-top-clients.controller";
+import { getAggregatePortfolioController } from "server/controllers/users/get-aggregate-portfolio.controller";
 
 /**
  * Router específico para endpoints relacionados a usuários
@@ -379,6 +384,41 @@ usersRouter.get(
   "/seller-dashboard/aggregate",
   getAggregateSellerDashboardController,
 );
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate/summary
+ * @description Resumo mensal atual e anterior (para KPI de clientes únicos)
+ * @query startDate?, endDate?
+ */
+usersRouter.get("/seller-dashboard/aggregate/summary", getAggregateSummaryController);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate/seller-ranking
+ * @description Ranking de vendedores por valor total no período
+ * @query startDate?, endDate?
+ */
+usersRouter.get("/seller-dashboard/aggregate/seller-ranking", getAggregateSellerRankingController);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate/top-products
+ * @description Top produtos por valor total no período (Bling)
+ * @query startDate?, endDate?
+ */
+usersRouter.get("/seller-dashboard/aggregate/top-products", getAggregateTopProductsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate/top-clients
+ * @description Top clientes por valor total no período
+ * @query startDate?, endDate?, filterUserId?
+ */
+usersRouter.get("/seller-dashboard/aggregate/top-clients", getAggregateTopClientsController);
+
+/**
+ * @route GET /api/users/seller-dashboard/aggregate/portfolio
+ * @description Estatísticas de carteira e positivação de todos os vendedores
+ * @query filterUserId?
+ */
+usersRouter.get("/seller-dashboard/aggregate/portfolio", getAggregatePortfolioController);
 
 /**
  * @route GET /api/users/seller-dashboard/top-clients

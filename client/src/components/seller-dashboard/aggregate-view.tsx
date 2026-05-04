@@ -456,10 +456,28 @@ export function AggregateView({
 }) {
   const [source, setSource] = useState<OrderSource>("all");
 
-  const queryUrl = `/api/users/seller-dashboard/aggregate?startDate=${startDate}&endDate=${endDate}`;
-  const { data, isLoading, isError, error } = useQuery<AggregateDashboardData>({
-    queryKey: [queryUrl],
-  });
+  const qs = `startDate=${startDate}&endDate=${endDate}`;
+
+  const { data: summaryData, isLoading: isSummaryLoading } = useQuery<
+    Pick<AggregateDashboardData, "monthlySummary" | "prevMonthSummary">
+  >({ queryKey: [`/api/users/seller-dashboard/aggregate/summary?${qs}`] });
+
+  const { data: rankingData, isLoading: isRankingLoading } = useQuery<
+    Pick<AggregateDashboardData, "sellerRanking">
+  >({ queryKey: [`/api/users/seller-dashboard/aggregate/seller-ranking?${qs}`] });
+
+  const { data: topProductsData, isLoading: isTopProductsLoading } = useQuery<
+    Pick<AggregateDashboardData, "topProducts">
+  >({ queryKey: [`/api/users/seller-dashboard/aggregate/top-products?${qs}`] });
+
+  const { data: topClientsData, isLoading: isTopClientsLoading } = useQuery<
+    Pick<AggregateDashboardData, "topClients">
+  >({ queryKey: [`/api/users/seller-dashboard/aggregate/top-clients?${qs}`] });
+
+  const { data: portfolioData } = useQuery<
+    Pick<AggregateDashboardData, "sellerPortfolioStats">
+  >({ queryKey: [`/api/users/seller-dashboard/aggregate/portfolio`] });
+
   const { data: clientReports } = useClientReports();
   const { data: generalReports } = useGeneralReports();
 
@@ -483,148 +501,14 @@ export function AggregateView({
   const currentStats = salesComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
   const previousStats = salesComparison?.previous ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
 
-  // Dados que vêm do endpoint Bling-only (produtos, clientes, ranking)
-  const topProducts = data?.topProducts ?? [];
-  const topClients = data?.topClients ?? [];
-  const sellerRanking = data?.sellerRanking ?? [];
-  const sellerPortfolioStats = data?.sellerPortfolioStats ?? [];
-  const uniqueClients = data?.monthlySummary?.uniqueClients ?? 0;
-  const prevUniqueClients = data?.prevMonthSummary?.uniqueClients ?? 0;
+  const topProducts = topProductsData?.topProducts ?? [];
+  const topClients = topClientsData?.topClients ?? [];
+  const sellerRanking = rankingData?.sellerRanking ?? [];
+  const sellerPortfolioStats = portfolioData?.sellerPortfolioStats ?? [];
+  const uniqueClients = summaryData?.monthlySummary?.uniqueClients ?? 0;
+  const prevUniqueClients = summaryData?.prevMonthSummary?.uniqueClients ?? 0;
 
   const isStatsLoading = isComparisonLoading || isEvolutionLoading;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card
-              key={i}
-              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-4 w-full">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-8 w-28" />
-                  </div>
-                  <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Skeleton className="h-7 w-7 rounded-lg" />
-              <Skeleton className="h-5 w-48" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-7 w-16" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-7 w-7 rounded-lg" />
-              <Skeleton className="h-5 w-48" />
-            </div>
-            <Skeleton className="h-48 w-full rounded-lg" />
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-          <CardContent className="p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-52" />
-              <Skeleton className="h-5 w-24" />
-            </div>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-                <Skeleton className="h-2 w-full rounded-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-7 w-7 rounded-lg" />
-                <Skeleton className="h-4 w-36" />
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
-              {[1, 2, 3, 4, 5].map((j) => (
-                <div key={j} className="flex items-center gap-3 py-3">
-                  <Skeleton className="h-5 w-5 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2].map((i) => (
-            <Card
-              key={i}
-              className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950"
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-7 w-7 rounded-lg" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 divide-y divide-slate-50 dark:divide-slate-800">
-                {[1, 2, 3, 4, 5].map((j) => (
-                  <div key={j} className="flex items-center gap-3 py-3">
-                    <Skeleton className="h-5 w-5 rounded-full shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3 w-36" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-        Erro ao carregar dados: {String(error)}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -658,7 +542,7 @@ export function AggregateView({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total Vendido"
-          value={isStatsLoading ? "—" : formatCurrency(currentStats.totalValue)}
+          value={(isStatsLoading) ? "—" : formatCurrency(currentStats.totalValue)}
           subValue={`vs período anterior: ${formatCurrency(previousStats.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
@@ -688,7 +572,7 @@ export function AggregateView({
         />
         <KpiCard
           label="Clientes Únicos"
-          value={String(uniqueClients)}
+          value={isSummaryLoading ? "—" : String(uniqueClients)}
           subValue={`vs período anterior: ${prevUniqueClients}`}
           icon={<Users className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
@@ -728,7 +612,27 @@ export function AggregateView({
 
       {/* Ranking de Vendedores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SellerRankingCard sellers={sellerRanking} />
+        {isRankingLoading ? (
+          <Card className="border-gray-200 dark:border-slate-800 shadow-md rounded-xl bg-white dark:bg-slate-950 md:col-span-2">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-7 rounded-lg" />
+                <Skeleton className="h-5 w-48" />
+              </div>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : (
+          <SellerRankingCard sellers={sellerRanking} />
+        )}
       </div>
 
       {/* Top Produtos + Top Clientes */}
@@ -741,12 +645,12 @@ export function AggregateView({
             orderCount: p.orderCount,
             productCode: p.productCode,
           }))}
-          isLoading={isLoading}
+          isLoading={isTopProductsLoading}
         />
 
         <TopClientsCard
           data={topClients}
-          isLoading={isLoading}
+          isLoading={isTopClientsLoading}
           title="Top Clientes do Mês"
         />
       </div>
